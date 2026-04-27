@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Trading Bot",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "bot.main",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Dashboard Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "dashboard.server",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Static Preview (dashboard)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "http.server",
+      "args": ["8080", "--directory", "dashboard/static"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

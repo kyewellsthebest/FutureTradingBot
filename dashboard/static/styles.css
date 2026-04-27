@@ -1,0 +1,56 @@
+:root {
+  --bg: #0b1020;
+  --panel: #131a30;
+  --panel-2: #1a2240;
+  --line: #2a3358;
+  --text: #e6e9f4;
+  --muted: #8b94b6;
+  --green: #2dd884;
+  --red: #f25c63;
+  --amber: #f5a524;
+  --blue: #4f8bff;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif; }
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.brand { font-weight: 700; letter-spacing: .3px; }
+.kz { font-weight: 500; color: var(--amber); margin-left: 8px; }
+.status { display: flex; gap: 18px; }
+.status b { color: var(--blue); }
+.err { color: var(--red); }
+
+main { padding: 16px; }
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+}
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.card.wide { grid-column: span 3; }
+.card.chart { grid-row: span 2; }
+.card-title { font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; font-size: 12px; letter-spacing: .8px; }
+#chart { height: 380px; }
+
+.readiness .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.readiness .row:last-child { border-bottom: 0; }
+.pass { color: var(--green); }
+.block { color: var(--red); }
+.bar { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; margin: 6px 0 12px; }
+.bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); }
+
+.ms .row { display: flex; justify-content: space-between; padding: 3px 0; }
+.ms .label { color: var(--muted); }
+.whitelist { display: flex; flex-wrap: wrap; gap: 6px; }
+.whitelist span { background: var(--panel-2); border: 1px solid var(--line); padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+td.green { color: var(--green); }
+td.red { color: var(--red); }
+
+ul#events { list-style: none; padding-left: 0; max-height: 220px; overflow: auto; margin: 0; }
+ul#events li { padding: 4px 0; border-bottom: 1px dashed var(--line); font-family: ui-monospace, monospace; font-size: 12px; }

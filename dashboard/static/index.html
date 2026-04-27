@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NQ Bot — Dashboard</title>
+<link rel="stylesheet" href="/static/styles.css" />
+<script src="/static/lightweightcharts.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">NQ Paper Bot <span id="kz" class="kz"></span></div>
+  <div class="status">
+    <span>cycle <b id="cycle">—</b></span>
+    <span>price <b id="price">—</b></span>
+    <span>balance <b id="balance">—</b></span>
+    <span>P&amp;L <b id="pnl">—</b></span>
+    <span id="error" class="err"></span>
+  </div>
+</header>
+
+<main>
+  <section class="grid">
+    <div class="card chart">
+      <div class="card-title">NQ 5-min</div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Trade Readiness</div>
+      <div id="readiness" class="readiness"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Microstructure</div>
+      <div id="microstructure" class="ms"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Open Position</div>
+      <div id="open"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Whitelist</div>
+      <div id="whitelist" class="whitelist"></div>
+    </div>
+
+    <div class="card wide">
+      <div class="card-title">Recent Trades</div>
+      <table id="trades">
+        <thead><tr>
+          <th>Signal</th><th>Side</th><th>Entry</th><th>Exit</th>
+          <th>Pts</th><th>$</th><th>Reason</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card wide">
+      <div class="card-title">Recent Signal Events</div>
+      <ul id="events"></ul>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

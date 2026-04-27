@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.python-version
+
+# Models / caches that get regenerated
+data/ml_model.pkl
+data/regime_model.pkl
+data/cache/*.json
+data/cot_cache.json
+data/insider_cache.json
+data/wsb_cache.json
+data/congress_cache.json
+
+# Editor
+.idea/
+.vscode/*.log
+*.swp
+.DS_Store
+
+# Logs
+logs/
+*.log

@@ -1,0 +1,320 @@
+================================================================================
+NQ FUTURES STRATEGY REPORT
+Generated: 2026-04-17 21:52
+================================================================================
+
+DATA USED
+--------------------------------------------------------------------------------
+  Symbol             : NQ=F (Nasdaq-100 futures, via yfinance)
+  Daily bars         : 6,459  (2000-09-18 00:00:00+00:00 -> 2026-04-17 00:00:00+00:00)
+  1-hour bars        : 13,649     (2023-11-23 05:00:00+00:00 -> 2026-04-17 10:00:00+00:00)
+  5-min bars         : 13,614    (2026-02-05 05:05:00+00:00 -> 2026-04-17 10:55:00+00:00)
+  Note               : 5-min history is capped by yfinance to ~70 days; longer 5-min
+                       backtests would require a paid data feed.
+
+COSTS APPLIED IN BACKTEST
+--------------------------------------------------------------------------------
+  Position size      : 30 MNQ contracts (= $60/point)
+  Slippage           : 2.0 points per trade
+  Commission         : $60 round-trip per trade
+  Starting balance   : $50,000
+
+================================================================================
+SECTION 1 — EXECUTIVE SUMMARY
+================================================================================
+  Signals validated     : 16
+  Signals recommended   : 1
+  Recommended list      :
+    - GAP_FILL_SHORT
+  Signals NOT recommended: 15
+    - PDL_TOUCH          reason: walk-forward consistency < 60%
+    - EQ50_SHORT         reason: parameter sensitivity > 30% drop
+    - GAP_FILL_LONG      reason: too few trades (3)
+    - ZSCORE_LONG        reason: permutation p=0.168 > 0.05
+    - ZSCORE_SHORT       reason: permutation p=0.119 > 0.05
+    - VWAP_RECLAIM_LONG  reason: permutation p=0.297 > 0.05
+    - VWAP_REJECT_SHORT  reason: negative EV
+    - PDL_BSL_SWEEP      reason: negative EV
+    - PDH_BSL_SWEEP      reason: negative EV
+    - MOMO_LONG          reason: too few trades (1)
+    - EQ50_LONG          reason: too few trades (3)
+    - PDH_TOUCH          reason: negative EV
+    - MOMO_SHORT         reason: too few trades (3)
+    - VOL_COMP_SHORT     reason: too few trades (1)
+    - VOL_COMP_LONG      reason: too few trades (1)
+
+  Whole-system EV/trade  : 12.06 pts (= $724)
+  Whole-system Calmar    : 413.000649108387
+  Net P&L on history     : $79,434
+
+  RECOMMENDATION         : TRADE the signals listed above with the rules in Section 3.
+                           The system has positive expected value and survives statistical
+                           tests on the data available.
+
+================================================================================
+SECTION 2 — SIGNAL BY SIGNAL BREAKDOWN
+================================================================================
+
+[PDL_TOUCH]   recommended=False
+  description           : Price touches PDL exactly and bounces with a strong bullish bar plus high volume. Pure support reaction.
+  trades on history     : 6
+  win rate              : 66.7%
+  avg win / avg loss    : 137.12 / -15.00 pts
+  expected value/trade  : 86.42 pts ($5185)
+  profit factor         : 17.02
+  permutation p-value   : 0.0099  (PASS)
+  walk-forward consist  : 0.0000  fragile=True
+  parameter sensitivity : fragile=False (param tested: vol_mult)
+  reject reason         : walk-forward consistency < 60%
+
+[EQ50_SHORT]   recommended=False
+  description           : Price 40+ pts ABOVE EQ50. Bearish reversal candle fires the short.
+  trades on history     : 5
+  win rate              : 80.0%
+  avg win / avg loss    : 97.41 / -15.00 pts
+  expected value/trade  : 74.93 pts ($4496)
+  profit factor         : 24.10
+  permutation p-value   : 0.0099  (PASS)
+  walk-forward consist  : n/a  fragile=False
+  parameter sensitivity : fragile=True (param tested: distance)
+  reject reason         : parameter sensitivity > 30% drop
+
+[GAP_FILL_LONG]   recommended=False
+  description           : NY open is 20+ points BELOW yesterday's close. We bet the gap fills upward to yesterday's close.
+  trades on history     : 3
+  win rate              : 33.3%
+  avg win / avg loss    : 223.00 / -15.00 pts
+  expected value/trade  : 64.33 pts ($3860)
+  profit factor         : 6.94
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (3)
+
+[GAP_FILL_SHORT]   recommended=True
+  description           : NY open is 50+ points ABOVE yesterday's close. We bet on a fade back to yesterday's close.
+  trades on history     : 5
+  win rate              : 20.0%
+  avg win / avg loss    : 302.25 / -15.00 pts
+  expected value/trade  : 48.45 pts ($2907)
+  profit factor         : 4.71
+  permutation p-value   : 0.0396  (PASS)
+  walk-forward consist  : n/a  fragile=False
+  parameter sensitivity : fragile=False (param tested: short_gap_pts)
+
+[ZSCORE_LONG]   recommended=False
+  description           : 20-bar z-score of close was below -1.5 (statistically oversold) and just crossed back above -1.5.
+  trades on history     : 18
+  win rate              : 22.2%
+  avg win / avg loss    : 119.56 / -15.00 pts
+  expected value/trade  : 14.90 pts ($894)
+  profit factor         : 2.12
+  permutation p-value   : 0.1683  (FAIL)
+  walk-forward consist  : 0.5365  fragile=True
+  parameter sensitivity : fragile=False (param tested: z_thresh)
+  reject reason         : permutation p=0.168 > 0.05
+
+[ZSCORE_SHORT]   recommended=False
+  description           : 20-bar z-score was above +1.5 (overbought) and just crossed back below +1.5.
+  trades on history     : 22
+  win rate              : 13.6%
+  avg win / avg loss    : 156.17 / -15.00 pts
+  expected value/trade  : 8.34 pts ($500)
+  profit factor         : 1.53
+  permutation p-value   : 0.1188  (FAIL)
+  walk-forward consist  : 3.0943  fragile=False
+  parameter sensitivity : fragile=False (param tested: z_thresh)
+  reject reason         : permutation p=0.119 > 0.05
+
+[VWAP_RECLAIM_LONG]   recommended=False
+  description           : Price was below session VWAP on the prior bar and closes back above VWAP on high volume (>= 1.3x avg). VWAP acts as dynamic support — reclaiming it signals bullish momentum continuation. Best during London and NY AM sessions.
+  trades on history     : 32
+  win rate              : 21.9%
+  avg win / avg loss    : 58.55 / -15.00 pts
+  expected value/trade  : 1.09 pts ($65)
+  profit factor         : 1.01
+  permutation p-value   : 0.2970  (FAIL)
+  walk-forward consist  : 0.9726  fragile=False
+  parameter sensitivity : fragile=False (param tested: vol_mult)
+  reject reason         : permutation p=0.297 > 0.05
+
+[VWAP_REJECT_SHORT]   recommended=False
+  description           : Price was above session VWAP on the prior bar and closes back below it on high volume. VWAP acts as resistance — failing to hold above triggers a mean-reversion short.
+  trades on history     : 29
+  win rate              : 24.1%
+  avg win / avg loss    : 44.80 / -15.00 pts
+  expected value/trade  : -0.57 pts ($-34)
+  profit factor         : 0.87
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : negative EV
+
+[PDL_BSL_SWEEP]   recommended=False
+  description           : Price wicks below the previous day's low, then closes back above it. Often called a 'liquidity sweep' — stops below PDL get hit, then price reverses higher.
+  trades on history     : 6
+  win rate              : 16.7%
+  avg win / avg loss    : 37.12 / -15.00 pts
+  expected value/trade  : -6.31 pts ($-379)
+  profit factor         : 0.45
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : negative EV
+
+[PDH_BSL_SWEEP]   recommended=False
+  description           : Price wicks above previous day's high then closes back below it. Mirror image of PDL sweep.
+  trades on history     : 9
+  win rate              : 11.1%
+  avg win / avg loss    : 47.25 / -15.62 pts
+  expected value/trade  : -8.64 pts ($-518)
+  profit factor         : 0.35
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : negative EV
+
+[MOMO_LONG]   recommended=False
+  description           : Gap and go — gap > 0.3% up at NY open. Enter on break of first 5-min candle's HIGH.
+  trades on history     : 1
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (1)
+
+[EQ50_LONG]   recommended=False
+  description           : Price is 40+ pts BELOW the 50-bar midpoint (EQ50). Bullish reversal candle (close > open, body > 50% of range) fires the long.
+  trades on history     : 3
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (3)
+
+[PDH_TOUCH]   recommended=False
+  description           : Price touches PDH and rejects with a bearish bar plus high volume.
+  trades on history     : 5
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : negative EV
+
+[MOMO_SHORT]   recommended=False
+  description           : Gap and go — gap > 0.3% down at NY open. Short on break of first 5-min candle's LOW.
+  trades on history     : 3
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (3)
+
+[VOL_COMP_SHORT]   recommended=False
+  description           : Same squeeze pattern but bearish expansion bar.
+  trades on history     : 1
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (1)
+
+[VOL_COMP_LONG]   recommended=False
+  description           : Tight range squeeze (2 consecutive bars with volume < 70% of avg) followed by a bullish expansion bar (volume >= 2x avg).
+  trades on history     : 1
+  win rate              : 0.0%
+  avg win / avg loss    : 0.00 / -15.00 pts
+  expected value/trade  : -15.00 pts ($-900)
+  profit factor         : 0.00
+  permutation p-value   : n/a  (FAIL)
+  walk-forward consist  : n/a  fragile=True
+  parameter sensitivity : fragile=True (param tested: None)
+  reject reason         : too few trades (1)
+
+================================================================================
+SECTION 3 — ENTRY RULES (PLAIN ENGLISH)
+================================================================================
+
+[GAP_FILL_SHORT]
+  WHAT IT IS  : NY open is 50+ points ABOVE yesterday's close. We bet on a fade back to yesterday's close.
+  DIRECTION   : SHORT
+  ENTRY       : First bearish bar after open on a session where open >= prev_close + 50pts.
+  STOP        : Vol-regime stop above entry.
+  TARGET      : Previous session's close.
+  FILTERS     : Bias allow SHORT. Active kill zone. R:R >= 4.0.
+  EXAMPLE     : Yesterday closed 21,600. Today opens 21,655 (+55pts). First bearish 5-min bar — short, target 21,600.
+
+================================================================================
+SECTION 4 — RISK RULES
+================================================================================
+  Maximum trades per day    : 2
+  Minimum gap between trades: 90 minutes
+  Cooldown after a winner   : 120 minutes (no new entries)
+  Position size             : 30 MNQ contracts (= $60 per point)
+  Maximum consecutive losses: monitored — bot pauses after 3
+  Volatility regime sizing  :
+    HIGH vol (recent 5-day range > 1.5x 20-day avg): 0.5x size, 20pt stop
+    NORMAL                                          : 1.0x size, 15pt stop
+    LOW vol  (< 0.7x avg)                           : 1.0x size, 10pt stop
+  Maximum daily loss        : $1,800 = 3 stop-outs at 30 contracts x 15pt x $2/pt + commissions
+
+================================================================================
+SECTION 5 — MONTE CARLO RESULTS (whole system)
+================================================================================
+  Paths simulated          : 2,000
+  Median final balance     : $129,434
+  5th  percentile balance  : $129,434
+  95th percentile balance  : $129,434
+  Median peak drawdown     : $18,349
+  P(drawdown > 10%)        : 100.0%
+  P(Apex pass)             : 28.4%
+  P(Apex blow first)       : 71.6%
+
+  RECOMMENDED ACCOUNT SIZE :
+    Apex pass probability is below 50%. The system's path-dependence makes the
+    $3k trailing drawdown a serious constraint. Consider:
+      - Trading a personal $50k+ account (no trailing DD rule)
+      - Or a less restrictive funded program
+
+================================================================================
+SECTION 6 — WHAT TO WATCH FOR
+================================================================================
+  When the system performs BEST :
+    - Trending days with clear daily bias (3 consecutive same-direction daily candles)
+    - NORMAL volatility regime (current vol within 0.7-1.5x of 20-day avg)
+    - Active kill-zone hours (London open, NY open, NY afternoon)
+
+  When the system performs WORST :
+    - Choppy/range-bound days with mixed daily bias
+    - HIGH vol regimes (size automatically halved but losses scale with stop)
+    - News-driven gap days where price doesn't fill the gap (counter to gap-fill thesis)
+
+  Signs the system is breaking down — STOP TRADING and REVIEW :
+    - 5 consecutive losing trades in a single signal type
+    - Daily loss exceeds 4% of account in a single day
+    - Win rate of any recommended signal drops more than 25% below historical over 20+ trades
+    - ML model 'AGREE' rate drops below 10% (model is confused)
+
+  Re-validate the strategy :
+    - Quarterly (re-run python research/run_research.py)
+    - After any major regime change (Fed pivot, vol spike > 50% above 30-day avg)
+    - If yfinance data quality degrades (gaps, stale ticks)
+
+================================================================================
+END OF REPORT
+================================================================================
