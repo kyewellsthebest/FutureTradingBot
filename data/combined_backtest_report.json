@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-04-27T12:38:58.817970+00:00",
+  "config": "mode=AGGRESSIVE  max/day=12  gap=15m / 30m after-win  killzone-veto=False  bias-veto=False  prox-veto=False  min-rr=1.3",
+  "starting_balance": 50000.0,
+  "period": {
+    "start": "2024-03-06 13:02:00+00:00",
+    "end": "2026-04-08 11:14:00+00:00",
+    "days": 762
+  },
+  "trades": 4129,
+  "trades_per_day": 5.418635170603674,
+  "wins": 725,
+  "losses": 3404,
+  "win_rate": 0.17558730927585373,
+  "profit_factor": 0.6578631694333958,
+  "avg_win": 3278.036896551728,
+  "avg_loss": -1061.2720329024676,
+  "net_pnl": -1235993.2499999981,
+  "final_equity": -1185993.2499999981,
+  "max_drawdown": -1253438.2499999981,
+  "max_drawdown_pct": -25.068764999999964,
+  "annualized_return": "(-0.6996122401429878+4.547123784529094j)",
+  "calmar": "(-0.02790772661289812+0.18138603096439337j)",
+  "sharpe_daily": -6.257240681453343,
+  "monte_carlo": {
+    "n_paths": 2000,
+    "median_final": -1185993.249999997,
+    "p5_final": -1185993.249999998,
+    "p95_final": -1185993.2499999963,
+    "median_max_dd": 1243715.9999999974,
+    "p_dd_over_pct": 1.0,
+    "p_apex_pass": 0.043,
+    "p_apex_blow": 0.957
+  },
+  "per_signal": [
+    {
+      "signal": "GAP_FILL_SHORT",
+      "trades": 29,
+      "wins": 5,
+      "win_rate": 0.1724137931034483,
+      "net_pnl": 26505.0,
+      "avg_pnl": 913.9655172413793,
+      "trades_per_day": 0.03805774278215223
+    },
+    {
+      "signal": "GAP_FILL_LONG",
+      "trades": 42,
+      "wins": 9,
+      "win_rate": 0.21428571428571427,
+      "net_pnl": 19755.0,
+      "avg_pnl": 470.35714285714283,
+      "trades_per_day": 0.05511811023622047
+    },
+    {
+      "signal": "PDL_TOUCH",
+      "trades": 15,
+      "wins": 6,
+      "win_rate": 0.4,
+      "net_pnl": 15405.0,
+      "avg_pnl": 1027.0,
+      "trades_per_day": 0.01968503937007874
+    },
+    {
+      "signal": "PDH_TOUCH",
+      "trades": 13,
+      "wins": 4,
+      "win_rate": 0.3076923076923077,
+      "net_pnl": 1507.5,
+      "avg_pnl": 115.96153846153847,
+      "trades_per_day": 0.01706036745406824
+    },
+    {
+      "signal": "VOL_COMP_SHORT",
+      "trades": 9,
+      "wins": 3,
+      "win_rate": 0.3333333333333333,
+      "net_pnl": 180.0,
+      "avg_pnl": 20.0,
+      "trades_per_day": 0.011811023622047244
+    },
+    {
+      "signal": "VOL_COMP_LONG",
+      "trades": 13,
+      "wins": 3,
+      "win_rate": 0.23076923076923078,
+      "net_pnl": -3810.0,
+      "avg_pnl": -293.0769230769231,
+      "trades_per_day": 0.01706036745406824
+    },
+    {
+      "signal": "VWAP_RECLAIM_LONG",
+      "trades": 31,
+      "wins": 6,
+      "win_rate": 0.1935483870967742,
+      "net_pnl": -13380.0,
+      "avg_pnl": -431.61290322580646,
+      "trades_per_day": 0.04068241469816273
+    },
+    {
+      "signal": "VWAP_REJECT_SHORT",
+      "trades": 39,
+      "wins": 7,
+      "win_rate": 0.1794871794871795,
+      "net_pnl": -17820.0,
+      "avg_pnl": -456.9230769230769,
+      "trades_per_day": 0.051181102362204724
+    },
+    {
+      "signal": "ZSCORE_SHORT",
+      "trades": 790,
+      "wins": 151,
+      "win_rate": 0.1911392405063291,
+      "net_pnl": -260855.24999999857,
+      "avg_pnl": -330.19651898733997,
+      "trades_per_day": 1.036745406824147
+    },
+    {
+      "signal": "ZSCORE_LONG",
+      "trades": 756,
+      "wins": 134,
+      "win_rate": 0.17724867724867724,
+      "net_pnl": -282460.49999999837,
+      "avg_pnl": -373.62499999999784,
+      "trades_per_day": 0.9921259842519685
+    },
+    {
+      "signal": "EQ50_LONG",
+      "trades": 1071,
+      "wins": 180,
+      "win_rate": 0.16806722689075632,
+      "net_pnl": -290527.5,
+      "avg_pnl": -271.2675070028011,
+      "trades_per_day": 1.405511811023622
+    },
+    {
+      "signal": "EQ50_SHORT",
+      "trades": 1321,
+      "wins": 219,
+      "win_rate": 0.16578349735049205,
+      "net_pnl": -430492.5,
+      "avg_pnl": -325.88380015140046,
+      "trades_per_day": 1.7335958005249343
+    }
+  ],
+  "rejection_breakdown": {
+    "rr": 10910,
+    "cooldown": 6353
+  }
+}

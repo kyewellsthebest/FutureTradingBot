@@ -217,19 +217,63 @@ def proximity_size_mult(signal_name: str, entry_px: float,
 
 def derive_target(signal_name: str, side: str, entry_px: float,
                   pdh: float, pdl: float, eq50: float,
-                  hint: float = float("nan")) -> float:
-    """Pick a target price using the signal's natural anchor."""
+                  hint: float = float("nan"),
+                  prev_close: float = float("nan")) -> float:
+    """Pick a target price using the signal's natural anchor.
+
+    Targets per strategy_report.txt:
+      PDL_TOUCH         -> EQ50 midpoint (LONG)
+      PDH_TOUCH         -> EQ50 midpoint (SHORT)
+      GAP_FILL_LONG     -> previous session close
+      GAP_FILL_SHORT    -> previous session close
+      EQ50_LONG/SHORT   -> EQ50 itself (since price is far from EQ50 at entry)
+      ZSCORE_*          -> z-score 0 = rolling mean (≈ entry's anchor; use eq50 fallback)
+      VWAP_*            -> small fixed target (5-min: 30pt, HF: handled separately)
+    """
     if hint == hint and hint > 0:
         return float(hint)
+
+    # Gap-fill signals target the previous session close (the gap level)
     if signal_name.startswith("GAP_FILL_") or signal_name.startswith("PREV_CLOSE_"):
+        if prev_close == prev_close and prev_close > 0:
+            return float(prev_close)
         return float(eq50) if eq50 == eq50 else entry_px
-    if signal_name.startswith("PDL_"):
-        return float(pdh) if pdh == pdh else entry_px + 30 * (1 if side == "LONG" else -1)
-    if signal_name.startswith("PDH_"):
-        return float(pdl) if pdl == pdl else entry_px - 30 * (1 if side == "SHORT" else -1)
+
+    # PDL_TOUCH (LONG): bounce off PDL toward the midpoint
+    # PDH_TOUCH (SHORT): rejection from PDH toward the midpoint
+    if signal_name.startswith("PDL_TOUCH") or signal_name.startswith("PDH_TOUCH"):
+        return float(eq50) if eq50 == eq50 else entry_px + 30 * (1 if side == "LONG" else -1)
+
+    # PDL/PDH sweep signals reverse off the level — target the opposite key level
+    # but capped at a reasonable RR
+    if signal_name.startswith("PDL_BSL") or signal_name.startswith("PDL_") or \
+       signal_name.startswith("FAILED_BREAKDOWN_"):
+        # LONG bias: target halfway to PDH or 30pt, whichever closer
+        if eq50 == eq50:
+            return float(eq50)
+        return entry_px + 30
+    if signal_name.startswith("PDH_BSL") or signal_name.startswith("PDH_FLIP") or \
+       signal_name.startswith("PDH_"):
+        if eq50 == eq50:
+            return float(eq50)
+        return entry_px - 30
+
+    # EQ50 mean-reversion: target the EQ50 level
     if signal_name.startswith("EQ50_"):
         return float(eq50) if eq50 == eq50 else entry_px
-    # default: 30 points in trade direction
+
+    # ZSCORE: target the rolling 20-bar mean. Since we don't have it threaded
+    # through here, just project a fixed 25pt in trade direction. The eq50
+    # anchor is wrong because it can be on the same side as entry (50-bar
+    # midpoint vs 20-bar mean).
+    if signal_name.startswith("ZSCORE_"):
+        return entry_px + 25 * (1 if side == "LONG" else -1)
+
+    # VWAP signals: fixed small target
+    if signal_name.startswith("VWAP_") or signal_name.startswith("THIRD_VWAP_"):
+        return entry_px + (20 if side == "LONG" else -20)
+
+    # VOL_COMP / pattern_discovery: 30 pts in trade direction
     return entry_px + (30 if side == "LONG" else -30)
 
 

@@ -32,12 +32,37 @@ from research.signal_generator import _attach_prev_day_levels
 import os as _os
 _HF_MODE = _os.environ.get("HFT_BACKTEST_HF") == "1"
 
-CONTRACTS = 30                # MNQ contracts
-DOLLARS_PER_POINT = 60.0      # 30 contracts * $2/pt
-SLIP_ENTRY_PTS = 1.0 if _HF_MODE else 2.0    # tighter slippage for limit-order HF
+# Per-signal contract sizing.
+# Default: 30 MNQ for the validated 5-min strategies.
+# HF (1-min) signals trade 5 MNQ to keep the cost-to-stop ratio sane.
+DEFAULT_CONTRACTS = 30
+HF_CONTRACTS = 5
+DOLLARS_PER_CONTRACT_PER_PT = 2.0     # MNQ
+COMMISSION_PER_CONTRACT = 2.0         # round-trip $/contract
+HF_SIGNAL_PREFIX = "HF_"
+
+# Legacy (for callers that don't pass a signal name)
+CONTRACTS = DEFAULT_CONTRACTS
+DOLLARS_PER_POINT = DEFAULT_CONTRACTS * DOLLARS_PER_CONTRACT_PER_PT  # $60/pt
+SLIP_ENTRY_PTS = 1.0 if _HF_MODE else 2.0
 SLIP_STOP_PTS = 1.0 if _HF_MODE else 2.0
-SLIP_TARGET_PTS = 0.0         # target fills are exact (we beat the level)
-COMMISSION_DOLLARS = 60.0     # round-trip per trade
+SLIP_TARGET_PTS = 0.0
+COMMISSION_DOLLARS = DEFAULT_CONTRACTS * COMMISSION_PER_CONTRACT  # $60
+
+
+def contracts_for(signal_name: str) -> int:
+    """5 MNQ for HF_* signals, 30 MNQ for everything else."""
+    if signal_name and signal_name.startswith(HF_SIGNAL_PREFIX):
+        return HF_CONTRACTS
+    return DEFAULT_CONTRACTS
+
+
+def dollars_per_pt_for(signal_name: str) -> float:
+    return contracts_for(signal_name) * DOLLARS_PER_CONTRACT_PER_PT
+
+
+def commission_for(signal_name: str) -> float:
+    return contracts_for(signal_name) * COMMISSION_PER_CONTRACT
 
 # ---------------------------------------------------------------------------
 # Trade record
@@ -178,7 +203,10 @@ def simulate_trades(signals: pd.DataFrame,
                 break
 
         pts = (exit_px - entry_px) if side == "LONG" else (entry_px - exit_px)
-        pnl = pts * DOLLARS_PER_POINT - COMMISSION_DOLLARS
+        # Per-signal contract sizing: HF_* trades 5 contracts, rest trade 30
+        dpp = dollars_per_pt_for(sig_name)
+        comm = commission_for(sig_name)
+        pnl = pts * dpp - comm
         win = pts > 0
 
         trades.append(Trade(
