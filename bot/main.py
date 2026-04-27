@@ -165,6 +165,8 @@ class Runtime:
     def run(self) -> int:
         _setup_logging()
         sync_clock()
+        from research.filter_config import describe as describe_filters
+        logger.info(f"filter config: {describe_filters()}")
         logger.info(f"clock synced; whitelist={sorted(self.engine.whitelist)}")
         self.monitor.start()
         signal_mod.signal(signal_mod.SIGINT, self.stop)
@@ -323,6 +325,7 @@ class Runtime:
             },
             "recent_trades": recent[-10:],
             "whitelist": sorted(self.engine.whitelist),
+            "filter_mode": __import__("research.filter_config", fromlist=["CONFIG"]).CONFIG.mode,
             "starting_balance": s.starting_balance,
             "dollars_per_point": DOLLARS_PER_POINT,
             "recent_signal_events": persistence.load_signal_events(limit=20),

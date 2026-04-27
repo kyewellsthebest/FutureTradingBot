@@ -26,7 +26,9 @@ import numpy as np
 import pandas as pd
 
 import os
-DATA_ROOT = Path(os.environ.get("NQ_LOCAL_DATA_DIR", "C:/trading_bot/data"))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_LOCAL = PROJECT_ROOT / "data" / "nq"
+DATA_ROOT = Path(os.environ.get("NQ_LOCAL_DATA_DIR", _DEFAULT_LOCAL))
 
 # (filename, expiry_date, roll_date (use this file UNTIL this date, exclusive))
 CONTRACTS = [

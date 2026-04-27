@@ -12,6 +12,8 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from research.filter_config import CONFIG
+
 NY_TZ = "America/New_York"
 
 # ---- Cost model (per spec) ----
@@ -130,7 +132,20 @@ def daily_bias_filter(side: str, bias: DailyBias, signal_name: str) -> tuple[boo
         return True, f"bias {bias} allows LONG"
     if side == "SHORT" and bias in ("BEARISH", "MIXED"):
         return True, f"bias {bias} allows SHORT"
+    if not CONFIG.daily_bias_as_veto:
+        return True, f"bias {bias} against {side} (soft mode, size×{CONFIG.daily_bias_soft_size_mult})"
     return False, f"bias {bias} blocks {side}"
+
+
+def daily_bias_size_mult(side: str, bias: DailyBias, signal_name: str) -> float:
+    """When daily_bias_as_veto=False, return size multiplier instead of vetoing."""
+    if signal_name.startswith(BIAS_EXEMPT_PREFIXES):
+        return 1.0
+    if side == "LONG" and bias == "BEARISH":
+        return CONFIG.daily_bias_soft_size_mult
+    if side == "SHORT" and bias == "BULLISH":
+        return CONFIG.daily_bias_soft_size_mult
+    return 1.0
 
 
 # =====================================================================
@@ -146,7 +161,22 @@ def kill_zone_filter(signal_name: str, ts: pd.Timestamp) -> tuple[bool, str]:
     for name, start, end in KILL_ZONES:
         if start <= ny < end:
             return True, name
+    if not CONFIG.killzone_as_veto:
+        return True, f"outside zones (soft mode, size×{CONFIG.killzone_soft_size_mult})"
     return False, "outside any kill zone"
+
+
+def kill_zone_size_mult(signal_name: str, ts: pd.Timestamp) -> float:
+    """When killzone_as_veto=False, return the size multiplier instead of vetoing."""
+    if signal_name.startswith(KILLZONE_EXEMPT_PREFIXES):
+        return 1.0
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    ny = ts.tz_convert(NY_TZ).time()
+    for name, start, end in KILL_ZONES:
+        if start <= ny < end:
+            return 1.0
+    return CONFIG.killzone_soft_size_mult
 
 
 # =====================================================================
@@ -164,8 +194,21 @@ def key_level_proximity_filter(signal_name: str, entry_px: float,
         return True, "no levels available"
     nearest_d, nearest_name = min(dists)
     if nearest_d > PROXIMITY_MAX_POINTS:
+        if not CONFIG.proximity_as_veto:
+            return True, f"{nearest_d:.1f}pts from {nearest_name} (soft mode, size×{CONFIG.proximity_soft_size_mult})"
         return False, f"{nearest_d:.1f}pts from {nearest_name} > {PROXIMITY_MAX_POINTS}"
     return True, f"{nearest_d:.1f}pts from {nearest_name} ≤ {PROXIMITY_MAX_POINTS}"
+
+
+def proximity_size_mult(signal_name: str, entry_px: float,
+                         pdh: float, pdl: float, eq50: float) -> float:
+    if signal_name.startswith(PROXIMITY_EXEMPT_PREFIXES):
+        return 1.0
+    levels = [(pdh, "PDH"), (pdl, "PDL"), (eq50, "EQ50")]
+    dists = [abs(entry_px - lv) for lv, _ in levels if lv == lv and lv > 0]
+    if not dists or min(dists) <= PROXIMITY_MAX_POINTS:
+        return 1.0
+    return CONFIG.proximity_soft_size_mult
 
 
 # =====================================================================
@@ -214,7 +257,12 @@ def min_rr_filter(signal_name: str, side: str, entry_px: float,
 # =====================================================================
 
 def cooldown_filter(ts: pd.Timestamp, prior_trades: list[TradeRef],
-                     max_per_day: int = MAX_TRADES_PER_DAY) -> tuple[bool, str]:
+                     max_per_day: int | None = None) -> tuple[bool, str]:
+    """Cooldown thresholds come from filter_config.CONFIG (env-driven)."""
+    if max_per_day is None:
+        max_per_day = CONFIG.max_trades_per_day
+    min_gap = CONFIG.min_gap_between_min
+    min_gap_winner = CONFIG.min_gap_after_winner_min
     if ts.tzinfo is None:
         ts = ts.tz_localize("UTC")
     today = ts.tz_convert(NY_TZ).date()
@@ -226,10 +274,10 @@ def cooldown_filter(ts: pd.Timestamp, prior_trades: list[TradeRef],
                key=lambda t: t.exit_time, default=None)
     if last is not None:
         gap = (ts - last.exit_time).total_seconds() / 60.0
-        if last.is_winner and gap < MIN_GAP_AFTER_WINNER_MIN:
-            return False, f"only {gap:.0f}min since winner (need {MIN_GAP_AFTER_WINNER_MIN})"
-        if gap < MIN_GAP_BETWEEN_MIN:
-            return False, f"only {gap:.0f}min since last trade (need {MIN_GAP_BETWEEN_MIN})"
+        if last.is_winner and gap < min_gap_winner:
+            return False, f"only {gap:.0f}min since winner (need {min_gap_winner})"
+        if gap < min_gap:
+            return False, f"only {gap:.0f}min since last trade (need {min_gap})"
     return True, "cooldown clear"
 
 
