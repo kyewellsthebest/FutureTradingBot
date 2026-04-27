@@ -98,6 +98,11 @@ def parse_args():
                    help="Comma-separated HF signal names to include")
     p.add_argument("--max-hold-min", type=int, default=240,
                    help="Max minutes to hold any trade.")
+    p.add_argument("--skip-filter", action="append", default=[],
+                   choices=["bias", "killzone", "proximity", "rr", "cooldown",
+                            "vol_regime"],
+                   help="Disable a specific filter (can be specified multiple times). "
+                        "Used by ablation_study.py to measure each filter's contribution.")
     return p.parse_args()
 
 
@@ -266,11 +271,12 @@ def main() -> int:
         ref_df = df1 if is_hf else df5
 
         # 1. Daily bias
-        bias = daily_bias_at(d, ts)
-        ok, _ = daily_bias_filter(side, bias, name)
-        if not ok:
-            rejection_counts["bias"] = rejection_counts.get("bias", 0) + 1
-            continue
+        if "bias" not in args.skip_filter:
+            bias = daily_bias_at(d, ts)
+            ok, _ = daily_bias_filter(side, bias, name)
+            if not ok:
+                rejection_counts["bias"] = rejection_counts.get("bias", 0) + 1
+                continue
 
         # 2. Vol regime sizing (never blocks)
         vol = vol_regime_at(d, ts)
@@ -302,14 +308,16 @@ def main() -> int:
             stop_pts_eff = 8.0
             target_rr = 1.5
         else:
-            stop_pts_eff = vol.stop_pts
+            # 5-min validated signal — vol regime drives stop
+            stop_pts_eff = 15.0 if "vol_regime" in args.skip_filter else vol.stop_pts
             target_rr = 2.0
 
         # 3. Kill zone
-        ok, _ = kill_zone_filter(name, ts)
-        if not ok:
-            rejection_counts["killzone"] = rejection_counts.get("killzone", 0) + 1
-            continue
+        if "killzone" not in args.skip_filter:
+            ok, _ = kill_zone_filter(name, ts)
+            if not ok:
+                rejection_counts["killzone"] = rejection_counts.get("killzone", 0) + 1
+                continue
 
         # 4. Key-level proximity (HF signals use natural M1 levels but
         #    proximity filter only applies to 5-min validated set)
@@ -324,10 +332,11 @@ def main() -> int:
             eq = float(row["eq50"]) if pd.notna(row["eq50"]) else float("nan")
             mean20 = float(row["mean20"]) if pd.notna(row.get("mean20")) else float("nan")
             prev_close = float(row["prev_close"]) if pd.notna(row.get("prev_close")) else float("nan")
-            ok, _ = key_level_proximity_filter(name, entry_raw, pdh, pdl, eq)
-            if not ok:
-                rejection_counts["proximity"] = rejection_counts.get("proximity", 0) + 1
-                continue
+            if "proximity" not in args.skip_filter:
+                ok, _ = key_level_proximity_filter(name, entry_raw, pdh, pdl, eq)
+                if not ok:
+                    rejection_counts["proximity"] = rejection_counts.get("proximity", 0) + 1
+                    continue
             # Derive target via spec-correct anchors. ZSCORE signals
             # natively target the 20-bar rolling mean.
             if name.startswith("ZSCORE_") and mean20 == mean20:
@@ -365,16 +374,20 @@ def main() -> int:
         target_px = target_px_pre
 
         # 5. Min R:R (HF signals use 1.5 floor; others 2.0)
-        ok, _, rr = min_rr_filter(name, side, entry_px, stop_pts_eff, target_px)
-        if not ok:
-            rejection_counts["rr"] = rejection_counts.get("rr", 0) + 1
-            continue
+        if "rr" not in args.skip_filter:
+            ok, _, rr = min_rr_filter(name, side, entry_px, stop_pts_eff, target_px)
+            if not ok:
+                rejection_counts["rr"] = rejection_counts.get("rr", 0) + 1
+                continue
+        else:
+            rr = float("nan")
 
         # 6. Cooldown
-        ok, _ = cooldown_filter(ts, prior_trades)
-        if not ok:
-            rejection_counts["cooldown"] = rejection_counts.get("cooldown", 0) + 1
-            continue
+        if "cooldown" not in args.skip_filter:
+            ok, _ = cooldown_filter(ts, prior_trades)
+            if not ok:
+                rejection_counts["cooldown"] = rejection_counts.get("cooldown", 0) + 1
+                continue
 
         # ACCEPTED — simulate the fill on the signal's native timeframe.
         # 5-min signals walked on 5-min bars (matches their validation),
@@ -437,7 +450,11 @@ def main() -> int:
     final_equity = float(eq[-1])
     net_pnl = final_equity - STARTING_BALANCE
     pct_return = net_pnl / STARTING_BALANCE
-    ann_return = (final_equity / STARTING_BALANCE) ** (365.0 / days) - 1
+    # Annualised return: protect against negative final equity (complex result)
+    if final_equity > 0:
+        ann_return = (final_equity / STARTING_BALANCE) ** (365.0 / days) - 1
+    else:
+        ann_return = -1.0  # blown account; cap at -100%/yr
     avg_win = float(pnls[pnls > 0].mean()) if wins_n else 0.0
     avg_loss = float(pnls[pnls <= 0].mean()) if losses_n else 0.0
     pf_num = float(pnls[pnls > 0].sum()) if wins_n else 0.0

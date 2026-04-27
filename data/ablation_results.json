@@ -1,0 +1,170 @@
+{
+  "generated_at": "2026-04-27T22:45:18.191308+00:00",
+  "scope": "5-min only",
+  "filters_tested": [
+    "bias",
+    "killzone",
+    "proximity",
+    "rr",
+    "cooldown",
+    "vol_regime"
+  ],
+  "runs": [
+    {
+      "tag": "baseline",
+      "label": "all filters ON",
+      "stats": {
+        "trades": 603,
+        "trades_per_day": 0.7913385826771654,
+        "win_rate": 0.28524046434494194,
+        "profit_factor": 1.3249991592964994,
+        "net_pnl": 144967.50000000006,
+        "final_equity": 194967.50000000006,
+        "max_drawdown": -32226.00000000013,
+        "annualized_return": 0.9190523579791061,
+        "calmar": 1.4259485477240463,
+        "rejection_breakdown": {
+          "proximity": 7250,
+          "killzone": 4685,
+          "rr": 5720,
+          "cooldown": 645,
+          "bias": 2489
+        },
+        "elapsed_s": 39.51713967323303
+      }
+    },
+    {
+      "tag": "disable_bias",
+      "label": "only bias disabled",
+      "stats": {
+        "trades": 646,
+        "trades_per_day": 0.847769028871391,
+        "win_rate": 0.28637770897832815,
+        "profit_factor": 1.318307339881382,
+        "net_pnl": 152152.50000000006,
+        "final_equity": 202152.50000000006,
+        "max_drawdown": -27123.000000000175,
+        "annualized_return": 0.9526088670956885,
+        "calmar": 1.7560905266668185,
+        "rejection_breakdown": {
+          "proximity": 8071,
+          "killzone": 5352,
+          "rr": 6578,
+          "cooldown": 745
+        },
+        "elapsed_s": 30.824615001678467
+      }
+    },
+    {
+      "tag": "disable_killzone",
+      "label": "only killzone disabled",
+      "stats": {
+        "trades": 690,
+        "trades_per_day": 0.905511811023622,
+        "win_rate": 0.28695652173913044,
+        "profit_factor": 1.262369516772227,
+        "net_pnl": 134217.75000000055,
+        "final_equity": 184217.75000000055,
+        "max_drawdown": -38772.000000000044,
+        "annualized_return": 0.8676204912396153,
+        "calmar": 1.1188750789740203,
+        "rejection_breakdown": {
+          "proximity": 9994,
+          "cooldown": 967,
+          "rr": 7252,
+          "bias": 2489
+        },
+        "elapsed_s": 36.989123582839966
+      }
+    },
+    {
+      "tag": "disable_proximity",
+      "label": "only proximity disabled",
+      "stats": {
+        "trades": 945,
+        "trades_per_day": 1.2401574803149606,
+        "win_rate": 0.19788359788359788,
+        "profit_factor": 0.6885803679835634,
+        "net_pnl": -250077.7499999992,
+        "final_equity": -200077.7499999992,
+        "max_drawdown": -251337.7499999992,
+        "annualized_return": -1.0,
+        "calmar": -0.1989354961600482,
+        "rejection_breakdown": {
+          "cooldown": 5846,
+          "rr": 7427,
+          "killzone": 4685,
+          "bias": 2489
+        },
+        "elapsed_s": 43.81084966659546
+      }
+    },
+    {
+      "tag": "disable_rr",
+      "label": "only rr disabled",
+      "stats": {
+        "trades": 1054,
+        "trades_per_day": 1.3832020997375327,
+        "win_rate": 0.42125237191650855,
+        "profit_factor": 0.5381185060232287,
+        "net_pnl": -270251.250000002,
+        "final_equity": -220251.25000000198,
+        "max_drawdown": -273557.25000000186,
+        "annualized_return": -1.0,
+        "calmar": -0.18277709693309047,
+        "rejection_breakdown": {
+          "proximity": 7250,
+          "killzone": 4685,
+          "cooldown": 5914,
+          "bias": 2489
+        },
+        "elapsed_s": 46.96916699409485
+      }
+    },
+    {
+      "tag": "disable_cooldown",
+      "label": "only cooldown disabled",
+      "stats": {
+        "trades": 1248,
+        "trades_per_day": 1.6377952755905512,
+        "win_rate": 0.2844551282051282,
+        "profit_factor": 1.2141947734725294,
+        "net_pnl": 192042.75000000055,
+        "final_equity": 242042.75000000055,
+        "max_drawdown": -62397.74999999987,
+        "annualized_return": 1.128528508368091,
+        "calmar": 0.9043022451675687,
+        "rejection_breakdown": {
+          "proximity": 7250,
+          "killzone": 4685,
+          "rr": 5720,
+          "bias": 2489
+        },
+        "elapsed_s": 40.55153298377991
+      }
+    },
+    {
+      "tag": "disable_vol_regime",
+      "label": "only vol_regime disabled",
+      "stats": {
+        "trades": 562,
+        "trades_per_day": 0.7375328083989501,
+        "win_rate": 0.297153024911032,
+        "profit_factor": 1.458378626385262,
+        "net_pnl": 194815.50000000017,
+        "final_equity": 244815.50000000017,
+        "max_drawdown": -29129.249999999956,
+        "annualized_return": 1.140173670711674,
+        "calmar": 1.9570941076609865,
+        "rejection_breakdown": {
+          "proximity": 7250,
+          "killzone": 4685,
+          "rr": 5898,
+          "cooldown": 508,
+          "bias": 2489
+        },
+        "elapsed_s": 39.54222583770752
+      }
+    }
+  ]
+}
