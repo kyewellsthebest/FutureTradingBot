@@ -1,184 +1,422 @@
 {
-  "generated_at": "2026-04-27T13:46:20.994070+00:00",
-  "config": "mode=AGGRESSIVE  max/day=12  gap=15m / 30m after-win  killzone-veto=False  bias-veto=False  prox-veto=False  min-rr=1.3",
+  "generated_at": "2026-04-27T17:36:15.761218+00:00",
+  "config": "mode=STRICT  max/day=2  gap=90m / 120m after-win  killzone-veto=True  bias-veto=True  prox-veto=True  min-rr=2.0",
   "starting_balance": 50000.0,
   "period": {
     "start": "2024-03-06 13:02:00+00:00",
     "end": "2026-04-08 11:14:00+00:00",
     "days": 762
   },
-  "trades": 2161,
-  "trades_per_day": 2.835958005249344,
-  "wins": 1021,
-  "losses": 1140,
-  "win_rate": 0.4724664507172605,
-  "profit_factor": 0.7607599309153713,
-  "avg_win": 107.85504407443683,
-  "avg_loss": -126.97368421052632,
-  "net_pnl": -34630.0,
-  "final_equity": 15370.0,
-  "max_drawdown": -37025.0,
-  "max_drawdown_pct": -0.7405,
-  "annualized_return": -0.4316592371817992,
-  "calmar": -0.5829294222576626,
-  "sharpe_daily": -3.4571392346955703,
+  "trades": 862,
+  "trades_per_day": 1.1312335958005248,
+  "wins": 374,
+  "losses": 488,
+  "win_rate": 0.43387470997679817,
+  "profit_factor": 1.0389611880209082,
+  "avg_win": 786.610294117648,
+  "avg_loss": -580.2459016393443,
+  "net_pnl": 11032.25000000035,
+  "final_equity": 61032.25000000035,
+  "max_drawdown": -23740.0,
+  "max_drawdown_pct": -0.4748,
+  "annualized_return": 0.10021240820158761,
+  "calmar": 0.21106235931252657,
+  "sharpe_daily": 0.1604065788252188,
   "monte_carlo": {
     "n_paths": 2000,
-    "median_final": 15370.0,
-    "p5_final": 15370.0,
-    "p95_final": 15370.0,
-    "median_max_dd": 35291.25,
+    "median_final": 61032.25000000035,
+    "p5_final": 61032.25000000035,
+    "p95_final": 61032.25000000035,
+    "median_max_dd": 44224.1249999998,
     "p_dd_over_pct": 1.0,
-    "p_apex_pass": 0.0,
-    "p_apex_blow": 1.0
+    "p_apex_pass": 0.1375,
+    "p_apex_blow": 0.8625
   },
   "per_signal": [
     {
-      "signal": "WR_SHORT_T15S10_06",
-      "trades": 72,
-      "wins": 44,
-      "win_rate": 0.6111111111111112,
-      "net_pnl": 1427.5,
-      "avg_pnl": 19.82638888888889,
-      "trades_per_day": 0.09448818897637795
+      "signal": "GAP_FILL_SHORT",
+      "trades": 20,
+      "wins": 5,
+      "win_rate": 0.25,
+      "net_pnl": 51375.0,
+      "avg_pnl": 2568.75,
+      "trades_per_day": 0.026246719160104987
     },
     {
-      "signal": "WR_LONG_T20S10_11",
-      "trades": 176,
-      "wins": 78,
-      "win_rate": 0.4431818181818182,
-      "net_pnl": 520.0,
-      "avg_pnl": 2.9545454545454546,
-      "trades_per_day": 0.23097112860892388
+      "signal": "GAP_FILL_LONG",
+      "trades": 37,
+      "wins": 9,
+      "win_rate": 0.24324324324324326,
+      "net_pnl": 28200.0,
+      "avg_pnl": 762.1621621621622,
+      "trades_per_day": 0.048556430446194225
     },
     {
-      "signal": "WR_SHORT_T20S10_12",
-      "trades": 159,
-      "wins": 70,
-      "win_rate": 0.44025157232704404,
-      "net_pnl": -390.0,
-      "avg_pnl": -2.452830188679245,
-      "trades_per_day": 0.20866141732283464
-    },
-    {
-      "signal": "WR_SHORT_T15S12_10",
-      "trades": 129,
-      "wins": 68,
-      "win_rate": 0.5271317829457365,
-      "net_pnl": -510.0,
-      "avg_pnl": -3.953488372093023,
-      "trades_per_day": 0.16929133858267717
-    },
-    {
-      "signal": "WR_LONG_T10S8_14",
-      "trades": 121,
-      "wins": 75,
-      "win_rate": 0.6198347107438017,
-      "net_pnl": -730.0,
-      "avg_pnl": -6.033057851239669,
-      "trades_per_day": 0.15879265091863518
+      "signal": "PDH_TOUCH",
+      "trades": 9,
+      "wins": 3,
+      "win_rate": 0.3333333333333333,
+      "net_pnl": 14655.0,
+      "avg_pnl": 1628.3333333333333,
+      "trades_per_day": 0.011811023622047244
     },
     {
       "signal": "WR_LONG_T15S10_04",
-      "trades": 277,
-      "wins": 142,
-      "win_rate": 0.5126353790613718,
-      "net_pnl": -1075.0,
-      "avg_pnl": -3.88086642599278,
-      "trades_per_day": 0.36351706036745407
+      "trades": 70,
+      "wins": 51,
+      "win_rate": 0.7285714285714285,
+      "net_pnl": 3662.5,
+      "avg_pnl": 52.32142857142857,
+      "trades_per_day": 0.09186351706036745
     },
     {
-      "signal": "WR_SHORT_T15S12_09",
-      "trades": 141,
-      "wins": 65,
-      "win_rate": 0.46099290780141844,
-      "net_pnl": -1957.5,
-      "avg_pnl": -13.882978723404255,
-      "trades_per_day": 0.18503937007874016
+      "signal": "WR_LONG_T20S10_11",
+      "trades": 22,
+      "wins": 18,
+      "win_rate": 0.8181818181818182,
+      "net_pnl": 2400.0,
+      "avg_pnl": 109.0909090909091,
+      "trades_per_day": 0.028871391076115485
     },
     {
-      "signal": "WR_SHORT_T20S10_13",
-      "trades": 55,
-      "wins": 15,
-      "win_rate": 0.2727272727272727,
-      "net_pnl": -2650.0,
-      "avg_pnl": -48.18181818181818,
-      "trades_per_day": 0.07217847769028872
+      "signal": "PDL_TOUCH",
+      "trades": 6,
+      "wins": 3,
+      "win_rate": 0.5,
+      "net_pnl": 2325.0,
+      "avg_pnl": 387.5,
+      "trades_per_day": 0.007874015748031496
     },
     {
-      "signal": "WR_LONG_T12S10_01",
-      "trades": 151,
-      "wins": 76,
-      "win_rate": 0.5033112582781457,
-      "net_pnl": -2910.0,
-      "avg_pnl": -19.271523178807946,
-      "trades_per_day": 0.19816272965879264
+      "signal": "EQ50_LONG",
+      "trades": 10,
+      "wins": 4,
+      "win_rate": 0.4,
+      "net_pnl": 2070.0,
+      "avg_pnl": 207.0,
+      "trades_per_day": 0.013123359580052493
+    },
+    {
+      "signal": "V3_LONG_S15T30_04",
+      "trades": 17,
+      "wins": 11,
+      "win_rate": 0.6470588235294118,
+      "net_pnl": 1890.0,
+      "avg_pnl": 111.17647058823529,
+      "trades_per_day": 0.02230971128608924
+    },
+    {
+      "signal": "WR_SHORT_T20S10_12",
+      "trades": 18,
+      "wins": 14,
+      "win_rate": 0.7777777777777778,
+      "net_pnl": 1455.0,
+      "avg_pnl": 80.83333333333333,
+      "trades_per_day": 0.023622047244094488
     },
     {
       "signal": "WR_SHORT_T12S10_02",
-      "trades": 105,
-      "wins": 49,
-      "win_rate": 0.4666666666666667,
-      "net_pnl": -2997.5,
-      "avg_pnl": -28.547619047619047,
-      "trades_per_day": 0.1377952755905512
+      "trades": 20,
+      "wins": 18,
+      "win_rate": 0.9,
+      "net_pnl": 1360.0,
+      "avg_pnl": 68.0,
+      "trades_per_day": 0.026246719160104987
     },
     {
-      "signal": "WR_SHORT_T10S8_16",
-      "trades": 162,
-      "wins": 90,
-      "win_rate": 0.5555555555555556,
-      "net_pnl": -3092.5,
-      "avg_pnl": -19.089506172839506,
-      "trades_per_day": 0.2125984251968504
+      "signal": "V3_LONG_S14T28_08",
+      "trades": 8,
+      "wins": 6,
+      "win_rate": 0.75,
+      "net_pnl": 1160.0,
+      "avg_pnl": 145.0,
+      "trades_per_day": 0.010498687664041995
     },
     {
-      "signal": "WR_SHORT_T12S10_03",
-      "trades": 140,
-      "wins": 67,
-      "win_rate": 0.4785714285714286,
-      "net_pnl": -3160.0,
-      "avg_pnl": -22.571428571428573,
-      "trades_per_day": 0.1837270341207349
+      "signal": "V3_LONG_S15T30_01",
+      "trades": 9,
+      "wins": 6,
+      "win_rate": 0.6666666666666666,
+      "net_pnl": 1080.0,
+      "avg_pnl": 120.0,
+      "trades_per_day": 0.011811023622047244
+    },
+    {
+      "signal": "V3_LONG_S14T28_09",
+      "trades": 10,
+      "wins": 6,
+      "win_rate": 0.6,
+      "net_pnl": 820.0,
+      "avg_pnl": 82.0,
+      "trades_per_day": 0.013123359580052493
+    },
+    {
+      "signal": "WR_SHORT_T15S10_06",
+      "trades": 24,
+      "wins": 16,
+      "win_rate": 0.6666666666666666,
+      "net_pnl": 772.5,
+      "avg_pnl": 32.1875,
+      "trades_per_day": 0.031496062992125984
+    },
+    {
+      "signal": "WR_LONG_T12S10_01",
+      "trades": 30,
+      "wins": 21,
+      "win_rate": 0.7,
+      "net_pnl": 720.0,
+      "avg_pnl": 24.0,
+      "trades_per_day": 0.03937007874015748
     },
     {
       "signal": "WR_SHORT_T10S8_15",
-      "trades": 117,
-      "wins": 58,
-      "win_rate": 0.49572649572649574,
-      "net_pnl": -3270.0,
-      "avg_pnl": -27.94871794871795,
-      "trades_per_day": 0.15354330708661418
+      "trades": 15,
+      "wins": 12,
+      "win_rate": 0.8,
+      "net_pnl": 425.0,
+      "avg_pnl": 28.333333333333332,
+      "trades_per_day": 0.01968503937007874
+    },
+    {
+      "signal": "WR_SHORT_T15S12_09",
+      "trades": 20,
+      "wins": 12,
+      "win_rate": 0.6,
+      "net_pnl": 400.0,
+      "avg_pnl": 20.0,
+      "trades_per_day": 0.026246719160104987
     },
     {
       "signal": "WR_SHORT_T15S10_05",
-      "trades": 119,
-      "wins": 50,
-      "win_rate": 0.42016806722689076,
-      "net_pnl": -3275.0,
-      "avg_pnl": -27.521008403361346,
-      "trades_per_day": 0.15616797900262466
+      "trades": 9,
+      "wins": 6,
+      "win_rate": 0.6666666666666666,
+      "net_pnl": 330.0,
+      "avg_pnl": 36.666666666666664,
+      "trades_per_day": 0.011811023622047244
+    },
+    {
+      "signal": "V3_SHORT_S15T30_05",
+      "trades": 13,
+      "wins": 5,
+      "win_rate": 0.38461538461538464,
+      "net_pnl": 310.0,
+      "avg_pnl": 23.846153846153847,
+      "trades_per_day": 0.01706036745406824
+    },
+    {
+      "signal": "V3_LONG_S15T30_03",
+      "trades": 6,
+      "wins": 3,
+      "win_rate": 0.5,
+      "net_pnl": 270.0,
+      "avg_pnl": 45.0,
+      "trades_per_day": 0.007874015748031496
+    },
+    {
+      "signal": "V3_SHORT_S15T30_01",
+      "trades": 2,
+      "wins": 1,
+      "win_rate": 0.5,
+      "net_pnl": 140.0,
+      "avg_pnl": 70.0,
+      "trades_per_day": 0.0026246719160104987
+    },
+    {
+      "signal": "VOL_COMP_LONG",
+      "trades": 6,
+      "wins": 2,
+      "win_rate": 0.3333333333333333,
+      "net_pnl": 120.0,
+      "avg_pnl": 20.0,
+      "trades_per_day": 0.007874015748031496
+    },
+    {
+      "signal": "V3_LONG_S14T28_10",
+      "trades": 12,
+      "wins": 5,
+      "win_rate": 0.4166666666666667,
+      "net_pnl": 60.0,
+      "avg_pnl": 5.0,
+      "trades_per_day": 0.015748031496062992
+    },
+    {
+      "signal": "V3_SHORT_S15T30_02",
+      "trades": 14,
+      "wins": 5,
+      "win_rate": 0.35714285714285715,
+      "net_pnl": -22.5,
+      "avg_pnl": -1.6071428571428572,
+      "trades_per_day": 0.01837270341207349
+    },
+    {
+      "signal": "V3_SHORT_S15T30_03",
+      "trades": 7,
+      "wins": 2,
+      "win_rate": 0.2857142857142857,
+      "net_pnl": -110.0,
+      "avg_pnl": -15.714285714285714,
+      "trades_per_day": 0.009186351706036745
+    },
+    {
+      "signal": "V3_SHORT_S14T28_14",
+      "trades": 1,
+      "wins": 0,
+      "win_rate": 0.0,
+      "net_pnl": -130.0,
+      "avg_pnl": -130.0,
+      "trades_per_day": 0.0013123359580052493
+    },
+    {
+      "signal": "V3_SHORT_S15T30_04",
+      "trades": 2,
+      "wins": 0,
+      "win_rate": 0.0,
+      "net_pnl": -165.0,
+      "avg_pnl": -82.5,
+      "trades_per_day": 0.0026246719160104987
     },
     {
       "signal": "WR_LONG_T15S12_08",
-      "trades": 137,
-      "wins": 53,
-      "win_rate": 0.38686131386861317,
-      "net_pnl": -4560.0,
-      "avg_pnl": -33.284671532846716,
-      "trades_per_day": 0.17979002624671916
+      "trades": 19,
+      "wins": 9,
+      "win_rate": 0.47368421052631576,
+      "net_pnl": -220.0,
+      "avg_pnl": -11.578947368421053,
+      "trades_per_day": 0.024934383202099737
+    },
+    {
+      "signal": "WR_SHORT_T15S12_10",
+      "trades": 12,
+      "wins": 5,
+      "win_rate": 0.4166666666666667,
+      "net_pnl": -310.0,
+      "avg_pnl": -25.833333333333332,
+      "trades_per_day": 0.015748031496062992
+    },
+    {
+      "signal": "WR_LONG_T10S8_14",
+      "trades": 30,
+      "wins": 17,
+      "win_rate": 0.5666666666666667,
+      "net_pnl": -500.0,
+      "avg_pnl": -16.666666666666668,
+      "trades_per_day": 0.03937007874015748
+    },
+    {
+      "signal": "V3_LONG_S15T30_02",
+      "trades": 33,
+      "wins": 12,
+      "win_rate": 0.36363636363636365,
+      "net_pnl": -540.0,
+      "avg_pnl": -16.363636363636363,
+      "trades_per_day": 0.04330708661417323
+    },
+    {
+      "signal": "V3_SHORT_S14T28_12",
+      "trades": 5,
+      "wins": 0,
+      "win_rate": 0.0,
+      "net_pnl": -650.0,
+      "avg_pnl": -130.0,
+      "trades_per_day": 0.006561679790026247
+    },
+    {
+      "signal": "WR_SHORT_T12S10_03",
+      "trades": 38,
+      "wins": 19,
+      "win_rate": 0.5,
+      "net_pnl": -760.0,
+      "avg_pnl": -20.0,
+      "trades_per_day": 0.049868766404199474
+    },
+    {
+      "signal": "WR_SHORT_T20S10_13",
+      "trades": 14,
+      "wins": 3,
+      "win_rate": 0.21428571428571427,
+      "net_pnl": -920.0,
+      "avg_pnl": -65.71428571428571,
+      "trades_per_day": 0.01837270341207349
+    },
+    {
+      "signal": "WR_SHORT_T10S8_16",
+      "trades": 46,
+      "wins": 23,
+      "win_rate": 0.5,
+      "net_pnl": -1270.0,
+      "avg_pnl": -27.608695652173914,
+      "trades_per_day": 0.06036745406824147
+    },
+    {
+      "signal": "VOL_COMP_SHORT",
+      "trades": 3,
+      "wins": 0,
+      "win_rate": 0.0,
+      "net_pnl": -2340.0,
+      "avg_pnl": -780.0,
+      "trades_per_day": 0.003937007874015748
     },
     {
       "signal": "WR_SHORT_T15S10_07",
-      "trades": 100,
-      "wins": 28,
-      "win_rate": 0.28,
+      "trades": 26,
+      "wins": 3,
+      "win_rate": 0.11538461538461539,
+      "net_pnl": -2630.0,
+      "avg_pnl": -101.15384615384616,
+      "trades_per_day": 0.03412073490813648
+    },
+    {
+      "signal": "VWAP_REJECT_SHORT",
+      "trades": 11,
+      "wins": 2,
+      "win_rate": 0.18181818181818182,
+      "net_pnl": -4980.0,
+      "avg_pnl": -452.72727272727275,
+      "trades_per_day": 0.014435695538057743
+    },
+    {
+      "signal": "EQ50_SHORT",
+      "trades": 19,
+      "wins": 3,
+      "win_rate": 0.15789473684210525,
+      "net_pnl": -5917.5,
+      "avg_pnl": -311.44736842105266,
+      "trades_per_day": 0.024934383202099737
+    },
+    {
+      "signal": "VWAP_RECLAIM_LONG",
+      "trades": 10,
+      "wins": 1,
+      "win_rate": 0.1,
       "net_pnl": -6000.0,
-      "avg_pnl": -60.0,
-      "trades_per_day": 0.13123359580052493
+      "avg_pnl": -600.0,
+      "trades_per_day": 0.013123359580052493
+    },
+    {
+      "signal": "ZSCORE_SHORT",
+      "trades": 87,
+      "wins": 18,
+      "win_rate": 0.20689655172413793,
+      "net_pnl": -33759.74999999991,
+      "avg_pnl": -388.04310344827485,
+      "trades_per_day": 0.1141732283464567
+    },
+    {
+      "signal": "ZSCORE_LONG",
+      "trades": 92,
+      "wins": 16,
+      "win_rate": 0.17391304347826086,
+      "net_pnl": -43742.99999999974,
+      "avg_pnl": -475.46739130434497,
+      "trades_per_day": 0.12073490813648294
     }
   ],
   "rejection_breakdown": {
-    "cooldown": 138730
+    "cooldown": 56665,
+    "rr": 27042,
+    "proximity": 7250,
+    "killzone": 118997,
+    "bias": 59227
   }
 }
