@@ -89,8 +89,10 @@ class FilledTrade:
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--hf-only", action="store_true", help="Only 1-min HF signals")
-    p.add_argument("--no-hf", action="store_true", help="Only 5-min validated signals")
+    p.add_argument("--no-hf", action="store_true", help="Skip HF heuristic signals")
     p.add_argument("--no-mined", action="store_true", help="Skip data-mined patterns")
+    p.add_argument("--no-wr", action="store_true", help="Skip 60%+ WR mined patterns")
+    p.add_argument("--no-fivemin", action="store_true", help="Skip 5-min validated signals")
     p.add_argument("--mined-only", action="store_true", help="Only mined patterns")
     p.add_argument("--whitelist-hf", default="",
                    help="Comma-separated HF signal names to include")
@@ -161,7 +163,7 @@ def main() -> int:
     # Generate signals
     print(f"\n[2/4] Generating signals ...", flush=True)
     sig_frames = []
-    if not args.hf_only and not args.mined_only:
+    if not args.hf_only and not args.mined_only and not args.no_fivemin:
         for sig_obj in ALL_SIGNALS:
             sigs = sig_obj.generate(m5, d)
             if not sigs.empty:
@@ -198,6 +200,22 @@ def main() -> int:
                 mined_n += len(sigs)
         print(f"  mined: {mined_n:,} raw signals from {len(ALL_MINED_SIGNALS)} patterns")
 
+    # WR-focused mined signals (the 60%+ WR set) — separate flag from --no-mined
+    if not args.no_wr:
+        try:
+            from research.mined_wr_signals import ALL_WR_SIGNALS
+        except Exception as e:
+            ALL_WR_SIGNALS = []
+            print(f"  WR mined: import failed ({e!r}) — skipping")
+        wr_n = 0
+        for sig_obj in ALL_WR_SIGNALS:
+            sigs = sig_obj.generate(m1, d)
+            if not sigs.empty:
+                sigs["source_tf"] = "1min"
+                sig_frames.append(sigs)
+                wr_n += len(sigs)
+        print(f"  WR mined: {wr_n:,} raw signals from {len(ALL_WR_SIGNALS)} 60%+WR patterns")
+
     if not sig_frames:
         print("No signals generated.")
         return 1
@@ -227,7 +245,8 @@ def main() -> int:
         side = sig.side
         ts = sig.signal_time
         entry_raw = float(sig.entry_px)
-        is_hf = name.startswith("HF_") or name.startswith("MINED_")
+        is_wr = name.startswith("WR_")
+        is_hf = name.startswith("HF_") or name.startswith("MINED_") or is_wr
         ref_df = df1 if is_hf else df5
 
         # 1. Daily bias
@@ -242,7 +261,15 @@ def main() -> int:
         # Per-family stop/target — 5-min uses vol regime; HF uses 8pt; mined
         # uses 5pt with 2.5 RR matching the 10-bar forward window they were
         # discovered against (mean OOS edge ~9-43 pts).
-        if name.startswith("MINED_"):
+        if is_wr:
+            # WR signals carry their own (target, stop) discovered by the miner
+            # in target_hint and via the signal-class attribute.
+            wr_target_hint = float(sig.target_hint) if pd.notna(sig.target_hint) else None
+            # Pull stop from class attribute if accessible — fall back to 10pt
+            stop_pts_eff = 10.0
+            target_rr = (abs(wr_target_hint - entry_raw) / stop_pts_eff
+                         if wr_target_hint is not None else 1.5)
+        elif name.startswith("MINED_"):
             stop_pts_eff = 5.0
             target_rr = 2.5
         elif is_hf:
