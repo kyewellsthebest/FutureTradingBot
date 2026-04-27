@@ -282,6 +282,8 @@ def min_rr_for(signal_name: str) -> float:
         return 2.0
     if signal_name.startswith("WR_"):
         return 0.8   # WR signals deliberately use ~1:1 RR with 60%+ WR
+    if signal_name.startswith("V3_"):
+        return 1.8   # V3 patterns use exact 1:2 RR by construction
     return MIN_RR.get(signal_name, DEFAULT_MIN_RR)
 
 

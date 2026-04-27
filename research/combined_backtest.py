@@ -216,6 +216,21 @@ def main() -> int:
                 wr_n += len(sigs)
         print(f"  WR mined: {wr_n:,} raw signals from {len(ALL_WR_SIGNALS)} 60%+WR patterns")
 
+        # V3 patterns — rigorous CPCV-validated 55%+ WR @ 1:2 RR
+        try:
+            from research.mined_v3_signals import ALL_V3_SIGNALS
+        except Exception as e:
+            ALL_V3_SIGNALS = []
+            print(f"  V3 mined: import failed ({e!r}) — skipping")
+        v3_n = 0
+        for sig_obj in ALL_V3_SIGNALS:
+            sigs = sig_obj.generate(m1, d)
+            if not sigs.empty:
+                sigs["source_tf"] = "1min"
+                sig_frames.append(sigs)
+                v3_n += len(sigs)
+        print(f"  V3 mined: {v3_n:,} raw signals from {len(ALL_V3_SIGNALS)} CPCV patterns")
+
     if not sig_frames:
         print("No signals generated.")
         return 1
@@ -246,7 +261,8 @@ def main() -> int:
         ts = sig.signal_time
         entry_raw = float(sig.entry_px)
         is_wr = name.startswith("WR_")
-        is_hf = name.startswith("HF_") or name.startswith("MINED_") or is_wr
+        is_v3 = name.startswith("V3_")
+        is_hf = name.startswith("HF_") or name.startswith("MINED_") or is_wr or is_v3
         ref_df = df1 if is_hf else df5
 
         # 1. Daily bias
@@ -261,7 +277,17 @@ def main() -> int:
         # Per-family stop/target — 5-min uses vol regime; HF uses 8pt; mined
         # uses 5pt with 2.5 RR matching the 10-bar forward window they were
         # discovered against (mean OOS edge ~9-43 pts).
-        if is_wr:
+        if is_v3:
+            # V3 signals carry their own stop/target via the target_hint
+            # (= entry +/- target_pts). Stop is encoded in the name (S{n}).
+            v3_target_hint = float(sig.target_hint) if pd.notna(sig.target_hint) else None
+            # parse 'V3_LONG_S10T20_01' → stop=10
+            try:
+                stop_pts_eff = float(name.split("_S")[1].split("T")[0])
+            except Exception:
+                stop_pts_eff = 10.0
+            target_rr = 2.0   # by construction: target = 2× stop
+        elif is_wr:
             # WR signals carry their own (target, stop) discovered by the miner
             # in target_hint and via the signal-class attribute.
             wr_target_hint = float(sig.target_hint) if pd.notna(sig.target_hint) else None
