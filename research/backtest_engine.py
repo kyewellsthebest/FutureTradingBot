@@ -27,11 +27,15 @@ from research.signal_generator import _attach_prev_day_levels
 
 # ---------------------------------------------------------------------------
 # Cost model — matches strategy_report.txt
+# Override with HFT_BACKTEST_HF=1 for tighter 1-min cost model
 # ---------------------------------------------------------------------------
+import os as _os
+_HF_MODE = _os.environ.get("HFT_BACKTEST_HF") == "1"
+
 CONTRACTS = 30                # MNQ contracts
 DOLLARS_PER_POINT = 60.0      # 30 contracts * $2/pt
-SLIP_ENTRY_PTS = 2.0          # adverse slippage on entry
-SLIP_STOP_PTS = 2.0           # adverse slippage on stop fills
+SLIP_ENTRY_PTS = 1.0 if _HF_MODE else 2.0    # tighter slippage for limit-order HF
+SLIP_STOP_PTS = 1.0 if _HF_MODE else 2.0
 SLIP_TARGET_PTS = 0.0         # target fills are exact (we beat the level)
 COMMISSION_DOLLARS = 60.0     # round-trip per trade
 
@@ -290,7 +294,9 @@ def permutation_test(signal_obj,
                      real_pf: float,
                      n: int = 200,
                      stop_pts: float = 15.0,
-                     target_rr: float = 2.0) -> tuple[float, list[float]]:
+                     target_rr: float = 2.0,
+                     max_hold_bars: int = 80,
+                     use_signal_targets: bool = True) -> tuple[float, list[float]]:
     """Returns (p_value, list_of_permuted_pfs).
 
     For each permutation we shuffle log-returns AND derive a synthetic daily
@@ -305,12 +311,14 @@ def permutation_test(signal_obj,
     for k in range(n):
         try:
             shuffled = _shuffle_returns(intraday, seed=k)
-            shuffled_daily = _resample_to_daily(shuffled)
-            sigs = signal_obj.generate(shuffled, shuffled_daily)
+            shuffled_daily = _resample_to_daily(shuffled) if use_signal_targets else None
+            sigs = signal_obj.generate(shuffled, shuffled_daily if shuffled_daily is not None else daily)
             trades = simulate_trades(sigs, shuffled,
                                      daily=shuffled_daily,
                                      stop_pts_default=stop_pts,
-                                     target_rr_default=target_rr)
+                                     target_rr_default=target_rr,
+                                     max_hold_bars=max_hold_bars,
+                                     use_signal_targets=use_signal_targets)
             s = compute_stats(trades)
             perm_pfs.append(s.profit_factor if math.isfinite(s.profit_factor) else 0.0)
             if perm_pfs[-1] >= real_pf:
@@ -331,7 +339,9 @@ def walk_forward(signal_obj,
                  *,
                  n_windows: int = 4,
                  stop_pts: float = 15.0,
-                 target_rr: float = 2.0) -> tuple[float, list[dict]]:
+                 target_rr: float = 2.0,
+                 max_hold_bars: int = 80,
+                 use_signal_targets: bool = True) -> tuple[float, list[dict]]:
     """
     Anchored walk-forward: train on first 70%, test on rolling 30% windows.
     Returns (consistency_score, per_window_stats).
@@ -346,9 +356,12 @@ def walk_forward(signal_obj,
         return 0.0, []
 
     # In-sample baseline
+    daily_for_sim = daily if use_signal_targets else None
     sigs_is = signal_obj.generate(intraday.iloc[:in_end], daily)
-    trades_is = simulate_trades(sigs_is, intraday.iloc[:in_end], daily=daily,
-                                stop_pts_default=stop_pts, target_rr_default=target_rr)
+    trades_is = simulate_trades(sigs_is, intraday.iloc[:in_end], daily=daily_for_sim,
+                                stop_pts_default=stop_pts, target_rr_default=target_rr,
+                                max_hold_bars=max_hold_bars,
+                                use_signal_targets=use_signal_targets)
     is_stats = compute_stats(trades_is)
 
     # Out-of-sample: roll forward in `n_windows` chunks
@@ -361,8 +374,10 @@ def walk_forward(signal_obj,
             continue
         slc = intraday.iloc[start:end]
         sigs_oos = signal_obj.generate(slc, daily)
-        trades_oos = simulate_trades(sigs_oos, slc, daily=daily,
-                                     stop_pts_default=stop_pts, target_rr_default=target_rr)
+        trades_oos = simulate_trades(sigs_oos, slc, daily=daily_for_sim,
+                                     stop_pts_default=stop_pts, target_rr_default=target_rr,
+                                     max_hold_bars=max_hold_bars,
+                                     use_signal_targets=use_signal_targets)
         st = compute_stats(trades_oos)
         windows.append({
             "window": w,
@@ -438,18 +453,27 @@ def parameter_sensitivity(signal_obj,
                           daily: pd.DataFrame,
                           *,
                           stop_pts: float = 15.0,
-                          target_rr: float = 2.0) -> dict:
+                          target_rr: float = 2.0,
+                          max_hold_bars: int = 80,
+                          use_signal_targets: bool = True) -> dict:
     """Re-run with stop -20%, +20% — check pf doesn't collapse."""
+    daily_for_sim = daily if use_signal_targets else None
     base_sigs = signal_obj.generate(intraday, daily)
-    base_pf = compute_stats(simulate_trades(base_sigs, intraday, daily=daily,
+    base_pf = compute_stats(simulate_trades(base_sigs, intraday, daily=daily_for_sim,
                                             stop_pts_default=stop_pts,
-                                            target_rr_default=target_rr)).profit_factor
-    pf_low = compute_stats(simulate_trades(base_sigs, intraday, daily=daily,
+                                            target_rr_default=target_rr,
+                                            max_hold_bars=max_hold_bars,
+                                            use_signal_targets=use_signal_targets)).profit_factor
+    pf_low = compute_stats(simulate_trades(base_sigs, intraday, daily=daily_for_sim,
                                            stop_pts_default=stop_pts * 0.8,
-                                           target_rr_default=target_rr)).profit_factor
-    pf_high = compute_stats(simulate_trades(base_sigs, intraday, daily=daily,
+                                           target_rr_default=target_rr,
+                                           max_hold_bars=max_hold_bars,
+                                           use_signal_targets=use_signal_targets)).profit_factor
+    pf_high = compute_stats(simulate_trades(base_sigs, intraday, daily=daily_for_sim,
                                             stop_pts_default=stop_pts * 1.2,
-                                            target_rr_default=target_rr)).profit_factor
+                                            target_rr_default=target_rr,
+                                            max_hold_bars=max_hold_bars,
+                                            use_signal_targets=use_signal_targets)).profit_factor
     base_pf = base_pf if math.isfinite(base_pf) else 0.0
     pf_low = pf_low if math.isfinite(pf_low) else 0.0
     pf_high = pf_high if math.isfinite(pf_high) else 0.0
@@ -490,15 +514,20 @@ def validate_signal(signal_obj,
                     min_trades: int = 20,
                     stop_pts: float = 15.0,
                     target_rr: float = 2.0,
+                    max_hold_bars: int = 80,
+                    use_signal_targets: bool = True,
                     permutation_pass_p: float = 0.05) -> SignalValidation | None:
     """Run all 7 stages on a single signal class instance."""
     name = type(signal_obj).__name__
     sigs = signal_obj.generate(intraday, daily)
     if sigs.empty:
         return None
-    trades = simulate_trades(sigs, intraday, daily=daily,
+    daily_for_sim = daily if use_signal_targets else None
+    trades = simulate_trades(sigs, intraday, daily=daily_for_sim,
                              stop_pts_default=stop_pts,
-                             target_rr_default=target_rr)
+                             target_rr_default=target_rr,
+                             max_hold_bars=max_hold_bars,
+                             use_signal_targets=use_signal_targets)
     stats = compute_stats(trades)
     sig_name = sigs["signal_name"].iloc[0]
 
@@ -521,17 +550,23 @@ def validate_signal(signal_obj,
                                   real_pf=stats.profit_factor,
                                   n=n_permutations,
                                   stop_pts=stop_pts,
-                                  target_rr=target_rr)
+                                  target_rr=target_rr,
+                                  max_hold_bars=max_hold_bars,
+                                  use_signal_targets=use_signal_targets)
     perm_passes = p_value < permutation_pass_p
 
     # Stage 5: Walk-forward
     wf_cons, _ = walk_forward(signal_obj, intraday, daily,
-                              stop_pts=stop_pts, target_rr=target_rr)
+                              stop_pts=stop_pts, target_rr=target_rr,
+                              max_hold_bars=max_hold_bars,
+                              use_signal_targets=use_signal_targets)
     wf_fragile = wf_cons < 0.4
 
     # Stage 7: Parameter sensitivity
     sens = parameter_sensitivity(signal_obj, intraday, daily,
-                                 stop_pts=stop_pts, target_rr=target_rr)
+                                 stop_pts=stop_pts, target_rr=target_rr,
+                                 max_hold_bars=max_hold_bars,
+                                 use_signal_targets=use_signal_targets)
     sens_fragile = sens.get("fragile", False)
 
     # Final verdict
