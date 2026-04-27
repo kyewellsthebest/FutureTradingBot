@@ -32,7 +32,7 @@ def test_research_imports():
 
 def test_bot_imports():
     importlib.import_module("bot.persistence")
-    importlib.import_module("bot.portfolio_manager")
+    importlib.import_module("bot.paper_trading")
     importlib.import_module("bot.main")
 
 

@@ -1,11 +1,23 @@
 """
-HMM-style volatility regime detector.
+HMM-like regime detector — 3-state Gaussian Mixture on 8 daily features.
 
-Uses a 3-component GaussianMixture on daily log-returns to bucket each day as
-LOW / NORMAL / HIGH vol. Persists to data/regime_model.pkl.
+Features (per spec):
+  1. 5-day realised volatility
+  2. 10-day realised volatility
+  3. 20-day realised volatility
+  4. ATR / price (volatility ratio)
+  5. 20-day momentum
+  6. 5-day volume / 20-day volume ratio
+  7. Gap size (open vs prev close, pct)
+  8. Daily range / ATR
 
-Per-signal regime preferences live in `SIGNAL_REGIME_AFFINITY` — a signal that
-performs poorly in HIGH vol gets penalised when the current state is HIGH.
+States are labeled by the trace of each component's covariance matrix:
+  smallest trace → LOW_VOL, middle → NORMAL_VOL, largest → HIGH_VOL.
+
+Per-regime allowlists (per spec):
+  LOW_VOL    PDL_TOUCH, EQ50_SHORT, ZSCORE_*               size 1.0  stop 0.8x  RR 2.0  3/day
+  NORMAL_VOL all signals                                    size 1.0  stop 1.0x  RR 1.5  2/day
+  HIGH_VOL   GAP_FILL_*, ZSCORE_* only                      size 0.5  stop 1.5x  RR 3.0  1/day
 """
 from __future__ import annotations
 
@@ -19,117 +31,142 @@ import pandas as pd
 
 from research.data_loader import DATA_DIR
 
-logger = logging.getLogger("regime_detector")
+logger = logging.getLogger("regime")
 
+State = Literal["LOW_VOL", "NORMAL_VOL", "HIGH_VOL", "UNKNOWN"]
 MODEL_PATH = DATA_DIR / "regime_model.pkl"
 
-RegimeState = Literal["LOW_VOL", "NORMAL_VOL", "HIGH_VOL", "UNKNOWN"]
-
-SIGNAL_REGIME_AFFINITY = {
-    "PDL_TOUCH":       {"LOW_VOL": 1.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.5},
-    "PDH_TOUCH":       {"LOW_VOL": 1.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.5},
-    "EQ50_LONG":       {"LOW_VOL": 1.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.5},
-    "EQ50_SHORT":      {"LOW_VOL": 1.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.5},
-    "GAP_FILL_LONG":   {"LOW_VOL": 0.8, "NORMAL_VOL": 1.0, "HIGH_VOL": 1.1},
-    "GAP_FILL_SHORT":  {"LOW_VOL": 0.8, "NORMAL_VOL": 1.0, "HIGH_VOL": 1.1},
-    "ZSCORE_LONG":     {"LOW_VOL": 1.1, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.7},
-    "ZSCORE_SHORT":    {"LOW_VOL": 1.1, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.7},
-    "VOL_COMP_LONG":   {"LOW_VOL": 1.2, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.6},
-    "VOL_COMP_SHORT":  {"LOW_VOL": 1.2, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.6},
+REGIME_ALLOWLISTS: dict[str, set[str]] = {
+    "LOW_VOL": {"PDL_TOUCH", "EQ50_SHORT", "ZSCORE_LONG", "ZSCORE_SHORT"},
+    "NORMAL_VOL": set(),  # empty = all allowed
+    "HIGH_VOL": {"GAP_FILL_LONG", "GAP_FILL_SHORT", "ZSCORE_LONG", "ZSCORE_SHORT"},
 }
-
-REGIME_STOP_MULT = {"LOW_VOL": 0.8, "NORMAL_VOL": 1.0, "HIGH_VOL": 1.4, "UNKNOWN": 1.0}
+REGIME_PARAMS = {
+    "LOW_VOL":    {"size_mult": 1.0, "stop_mult": 0.8, "min_rr": 2.0, "max_trades": 3},
+    "NORMAL_VOL": {"size_mult": 1.0, "stop_mult": 1.0, "min_rr": 1.5, "max_trades": 2},
+    "HIGH_VOL":   {"size_mult": 0.5, "stop_mult": 1.5, "min_rr": 3.0, "max_trades": 1},
+}
 
 
 @dataclass
 class RegimeSnapshot:
-    state: RegimeState
+    state: State
     confidence: float
     transition_risk: float
-    probs: dict
+    probs: dict[str, float] = field(default_factory=dict)
     is_trained: bool = False
 
 
+def _features(daily: pd.DataFrame) -> pd.DataFrame:
+    d = daily.copy()
+    rets = np.log(d["close"]).diff()
+    feats = pd.DataFrame(index=d.index)
+    feats["rv5"] = rets.rolling(5).std() * np.sqrt(252)
+    feats["rv10"] = rets.rolling(10).std() * np.sqrt(252)
+    feats["rv20"] = rets.rolling(20).std() * np.sqrt(252)
+    pc = d["close"].shift(1)
+    tr = pd.concat([d["high"] - d["low"], (d["high"] - pc).abs(),
+                    (d["low"] - pc).abs()], axis=1).max(axis=1)
+    atr = tr.rolling(14).mean()
+    feats["atr_ratio"] = atr / d["close"]
+    feats["mom20"] = d["close"].pct_change(20)
+    feats["vol_ratio"] = d["volume"].rolling(5).mean() / d["volume"].rolling(20).mean()
+    feats["gap"] = (d["open"] - pc) / pc
+    feats["range_atr"] = (d["high"] - d["low"]) / atr.replace(0, np.nan)
+    return feats.dropna()
+
+
 class RegimeDetector:
-    def __init__(self):
+    def __init__(self) -> None:
         self.model = None
-        self._state_order: list[str] = ["LOW_VOL", "NORMAL_VOL", "HIGH_VOL"]
+        self.label_map: dict[int, State] = {}
+        self.feature_cols: list[str] = []
+
+    def fit(self, daily: pd.DataFrame) -> None:
+        try:
+            from sklearn.mixture import GaussianMixture
+        except Exception as e:
+            logger.warning(f"sklearn unavailable: {e}")
+            return
+        feats = _features(daily)
+        if len(feats) < 60:
+            logger.warning(f"too few daily bars to train regime model ({len(feats)})")
+            return
+        X = feats.values
+        gmm = GaussianMixture(n_components=3, covariance_type="full",
+                              random_state=42, n_init=3, max_iter=200)
+        gmm.fit(X)
+        traces = [float(np.trace(c)) for c in gmm.covariances_]
+        order = np.argsort(traces)
+        self.label_map = {int(order[0]): "LOW_VOL",
+                          int(order[1]): "NORMAL_VOL",
+                          int(order[2]): "HIGH_VOL"}
+        self.model = gmm
+        self.feature_cols = list(feats.columns)
+        self.save()
+        logger.info(f"regime model trained: traces={traces}, label_map={self.label_map}")
+
+    def save(self) -> None:
+        try:
+            import joblib
+            joblib.dump({"model": self.model, "label_map": self.label_map,
+                         "feature_cols": self.feature_cols}, MODEL_PATH)
+        except Exception as e:
+            logger.warning(f"failed to save regime model: {e}")
 
     def load(self) -> bool:
-        try:
-            import joblib  # noqa: WPS433
-        except Exception:
-            return False
         if not MODEL_PATH.exists():
             return False
         try:
-            payload = joblib.load(MODEL_PATH)
-            self.model = payload["model"]
-            self._state_order = payload["state_order"]
+            import joblib
+            obj = joblib.load(MODEL_PATH)
+            self.model = obj["model"]
+            self.label_map = {int(k): v for k, v in obj["label_map"].items()}
+            self.feature_cols = obj["feature_cols"]
             return True
         except Exception as e:
-            logger.warning("[regime] failed to load model: %s", e)
+            logger.warning(f"failed to load regime model: {e}")
             return False
-
-    def fit(self, daily: pd.DataFrame) -> bool:
-        try:
-            from sklearn.mixture import GaussianMixture
-            import joblib
-        except Exception:
-            return False
-        if daily is None or daily.empty:
-            return False
-        rets = np.log(daily["close"]).diff().dropna()
-        rng = (daily["high"] - daily["low"]).pct_change().dropna()
-        feats = pd.concat([rets.rename("ret"), rng.rename("rng")], axis=1).dropna()
-        if len(feats) < 60:
-            return False
-        gm = GaussianMixture(n_components=3, covariance_type="full", random_state=42, n_init=3)
-        gm.fit(feats.values)
-        # Order components by variance of returns to map to LOW/NORMAL/HIGH.
-        var = gm.covariances_[:, 0, 0]
-        order = list(np.argsort(var))
-        state_order = ["LOW_VOL", "NORMAL_VOL", "HIGH_VOL"]
-        self.model = gm
-        self._state_order = [state_order[order.index(i)] for i in range(3)]
-        joblib.dump({"model": gm, "state_order": self._state_order}, MODEL_PATH)
-        return True
 
     def predict(self, daily: pd.DataFrame) -> RegimeSnapshot:
-        if self.model is None or daily is None or daily.empty:
+        if self.model is None:
             return RegimeSnapshot("UNKNOWN", 0.0, 0.0,
                                   {"LOW_VOL": 0.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.0},
                                   is_trained=False)
-        rets = np.log(daily["close"]).diff().dropna()
-        rng = (daily["high"] - daily["low"]).pct_change().dropna()
-        feats = pd.concat([rets.rename("ret"), rng.rename("rng")], axis=1).dropna()
+        feats = _features(daily)
         if feats.empty:
-            return RegimeSnapshot("UNKNOWN", 0.0, 0.0,
-                                  {"LOW_VOL": 0.0, "NORMAL_VOL": 1.0, "HIGH_VOL": 0.0},
-                                  is_trained=True)
-        last = feats.iloc[[-1]].values
-        probs = self.model.predict_proba(last)[0]
-        prob_map = {self._state_order[i]: float(probs[i]) for i in range(len(probs))}
-        for k in ("LOW_VOL", "NORMAL_VOL", "HIGH_VOL"):
-            prob_map.setdefault(k, 0.0)
-        state = max(prob_map, key=prob_map.get)
-        conf = float(prob_map[state])
-        # 5-day transition risk: how variable were the per-day max-probs?
-        recent = feats.tail(5).values
-        if len(recent) >= 2:
-            prs = self.model.predict_proba(recent).max(axis=1)
-            transition = float(1.0 - prs.mean())
+            return RegimeSnapshot("UNKNOWN", 0.0, 0.0, {}, is_trained=True)
+        x = feats.iloc[[-1]].values
+        probs = self.model.predict_proba(x)[0]
+        labeled = {self.label_map.get(i, f"S{i}"): float(p) for i, p in enumerate(probs)}
+        labeled.setdefault("LOW_VOL", 0.0)
+        labeled.setdefault("NORMAL_VOL", 0.0)
+        labeled.setdefault("HIGH_VOL", 0.0)
+        state = max(labeled, key=labeled.get)
+        confidence = float(labeled[state])
+        # Transition risk: 1 - confidence, plus boost if recent confidence dropped
+        if len(feats) >= 5:
+            recent_probs = self.model.predict_proba(feats.tail(5).values)
+            states = [self.label_map.get(int(p.argmax()), "?") for p in recent_probs]
+            changes = sum(1 for i in range(1, len(states)) if states[i] != states[i - 1])
+            transition_risk = float(min(1.0, (1.0 - confidence) + 0.1 * changes))
         else:
-            transition = 0.0
-        return RegimeSnapshot(state, conf, max(0.0, transition), prob_map, is_trained=True)
+            transition_risk = float(1.0 - confidence)
+        return RegimeSnapshot(state, confidence, transition_risk, labeled, is_trained=True)
 
 
-def regime_filter(snap: RegimeSnapshot | None, signal_name: str) -> tuple[bool, str, float, float]:
-    """Returns (pass, reason, size_mult, stop_mult)."""
+def regime_filter(snap: RegimeSnapshot | None,
+                   signal_name: str) -> tuple[bool, str, float, float]:
+    """(pass, reason, size_mult, stop_mult)."""
     if snap is None or not snap.is_trained:
         return True, "regime=untrained", 1.0, 1.0
-    aff = SIGNAL_REGIME_AFFINITY.get(signal_name, {}).get(snap.state, 1.0)
-    stop_mult = REGIME_STOP_MULT.get(snap.state, 1.0)
-    if aff <= 0.5 and snap.confidence > 0.7:
-        return False, f"regime={snap.state} bad for {signal_name}", 0.0, stop_mult
-    return True, f"regime={snap.state} aff×{aff}", float(aff), float(stop_mult)
+    state = snap.state
+    if state not in REGIME_PARAMS:
+        return True, f"regime={state} unknown ×1.0", 1.0, 1.0
+    params = REGIME_PARAMS[state]
+    allowlist = REGIME_ALLOWLISTS.get(state, set())
+    if allowlist and signal_name not in allowlist:
+        return False, f"regime {state} blocks {signal_name}", 0.0, 1.0
+    return (True,
+            f"regime {state} (conf={snap.confidence:.2f}) ×{params['size_mult']} stop×{params['stop_mult']}",
+            params["size_mult"], params["stop_mult"])

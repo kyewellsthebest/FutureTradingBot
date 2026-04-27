@@ -1,8 +1,8 @@
 {
-  "as_of": "2026-04-22T20:54:33.603718+00:00",
-  "cycle": 158,
-  "price": 27096.5,
-  "price_ts": "2026-04-23T04:55:13.038010+00:00",
+  "as_of": "2026-04-27T10:56:42.615778+00:00",
+  "cycle": 0,
+  "price": null,
+  "price_ts": null,
   "monitor_error": null,
   "account": {
     "balance": 50000.0,
@@ -24,7 +24,7 @@
     "wins": 0,
     "losses": 0,
     "win_rate": 0.0,
-    "net_pnl": 0.0
+    "net_pnl": 0
   },
   "recent_trades": [],
   "whitelist": [
@@ -40,110 +40,32 @@
   "dollars_per_point": 60.0,
   "recent_signal_events": [],
   "microstructure": {
-    "vpin": {
-      "value": 0.3655772551243753,
-      "regime": "HIGH",
-      "trend": "falling",
-      "spike": false,
-      "reversal_signal": false,
-      "crash_warning": false
-    },
-    "adverse_selection": {
-      "score": 0.4310220654538397,
-      "regime": "NORMAL",
-      "spread_ratio": 0.287205997291022,
-      "serial_correlation": 0.05559117381846413,
-      "market_shutdown": false
-    },
-    "regime": {
-      "state": "NORMAL_VOL",
-      "confidence": 1.0,
-      "transition_risk": 0.0,
-      "probs": {
-        "LOW_VOL": 0.0,
-        "NORMAL_VOL": 1.0,
-        "HIGH_VOL": 5.818345100591261e-26
-      }
-    },
-    "gex": {
-      "regime": "POSITIVE",
-      "total_gex_billion": 381.5304894561106,
-      "intensity_pct": 88.70967741935483,
-      "zero_gamma_nq": 13451.02444355272,
-      "magnets_nq": [
-        27141.3,
-        27099.9,
-        27306.8
-      ]
-    },
-    "macro": {
-      "score": -0.2213483146067416,
-      "bias": "NEUTRAL",
-      "components": {
-        "cot": null,
-        "gex": 0.4,
-        "insider": -1.0,
-        "congress": null,
-        "wsb": -0.21741573033707867
-      },
-      "components_available": 3,
-      "details": {
-        "gex": {
-          "regime": "POSITIVE",
-          "total_gex_billion": 381.5304894561106,
-          "intensity_pct": 88.70967741935483,
-          "zero_gamma_nq": 13451.02444355272,
-          "magnets_nq": [
-            27141.3,
-            27099.9,
-            27306.8
-          ]
-        },
-        "insider": {
-          "bias": "BEARISH",
-          "net_buy_dollars": -404171122.71349996,
-          "n_filings_30d": 157,
-          "score": -1.0
-        },
-        "wsb": {
-          "bias": "BEARISH",
-          "nq_mentions": 9,
-          "bull_score": 66,
-          "bear_score": 23,
-          "contrarian_score": -0.21741573033707867
-        }
-      }
-    }
+    "gex": null
   },
   "stat_arb": {
     "enabled": true,
-    "available": true,
-    "signal": "STAT_ARB_SHORT_NQ",
-    "zscore": 2.2347898432508178,
-    "beta": 4.448686265403253,
-    "coint_pvalue": 0.016153871155948386,
-    "is_cointegrated": true,
-    "last_calibrated": "2026-04-19T07:27:42.964408+00:00"
+    "available": false,
+    "signal": "NEUTRAL",
+    "zscore": 0.0,
+    "beta": 41.0,
+    "coint_pvalue": 1.0,
+    "is_cointegrated": false,
+    "last_calibrated": ""
   },
   "kill_zone": {
-    "active": false,
-    "name": "",
-    "next": "Early Sydney @ 17:00 EST"
+    "active": true,
+    "name": "Pre-NY",
+    "next": "NY Open @ 07:00 EST"
   },
   "trade_readiness": {
-    "pct": 0.714,
+    "pct": 0.5,
     "passing": [
-      "VPIN",
-      "Adverse Selection",
-      "Regime",
-      "GEX",
-      "Macro"
+      "Kill Zone"
     ],
     "blocking": [
-      "Kill Zone",
       "Signal Firing"
     ],
     "in_trade": false,
-    "total_checks": 7
+    "total_checks": 2
   }
 }

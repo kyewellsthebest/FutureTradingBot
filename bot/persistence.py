@@ -1,13 +1,16 @@
 """
-JSON-backed persistence for paper account, trade log, recent signal events,
-and dashboard snapshots. Replaces the .pyc shipped from the live machine —
-schema mirrors data/paper_account.json and data/dashboard_data.json.
+Persistence layer.
+
+  data/paper_account.json   — account state JSON (balance, position, counters)
+  data/paper_trades.db      — SQLite trade ledger, indexed on (entry_time, signal_name)
+  data/dashboard_data.json  — full dashboard payload (60s flush)
+  data/signal_events.json   — recent fired signals (rolling, 100 max)
 """
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +19,7 @@ from research.data_loader import DATA_DIR
 logger = logging.getLogger("persistence")
 
 ACCOUNT_PATH = DATA_DIR / "paper_account.json"
-TRADES_PATH = DATA_DIR / "trade_log.json"
+TRADES_DB_PATH = DATA_DIR / "paper_trades.db"
 DASHBOARD_PATH = DATA_DIR / "dashboard_data.json"
 SIGNAL_EVENTS_PATH = DATA_DIR / "signal_events.json"
 
@@ -41,6 +44,10 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ---------------------------------------------------------------------------
+# Account JSON
+# ---------------------------------------------------------------------------
+
 def load_account() -> dict:
     if not ACCOUNT_PATH.exists():
         save_account(DEFAULT_ACCOUNT)
@@ -48,7 +55,7 @@ def load_account() -> dict:
     try:
         return json.loads(ACCOUNT_PATH.read_text())
     except Exception as e:
-        logger.error("[persistence] account read failed: %s", e)
+        logger.error(f"account read failed: {e}")
         return dict(DEFAULT_ACCOUNT)
 
 
@@ -57,30 +64,90 @@ def save_account(acct: dict) -> None:
     ACCOUNT_PATH.write_text(json.dumps(acct, indent=2, default=str))
 
 
-def append_trade(trade: dict) -> None:
-    arr = []
-    if TRADES_PATH.exists():
-        try:
-            arr = json.loads(TRADES_PATH.read_text())
-        except Exception:
-            arr = []
-    arr.append(trade)
-    TRADES_PATH.write_text(json.dumps(arr, indent=2, default=str))
+# ---------------------------------------------------------------------------
+# Trade DB (SQLite)
+# ---------------------------------------------------------------------------
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS trades (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    signal_name   TEXT    NOT NULL,
+    side          TEXT    NOT NULL,
+    entry_time    TEXT    NOT NULL,
+    entry_px      REAL    NOT NULL,
+    stop_px       REAL    NOT NULL,
+    target_px     REAL    NOT NULL,
+    qty           INTEGER NOT NULL,
+    ml_decision   TEXT,
+    ml_confidence REAL,
+    vol_regime    TEXT,
+    daily_bias    TEXT,
+    rr            REAL,
+    exit_time     TEXT,
+    exit_px       REAL,
+    exit_reason   TEXT,
+    pnl           REAL,
+    commission    REAL    DEFAULT 60.0
+);
+CREATE INDEX IF NOT EXISTS idx_trades_entry  ON trades (entry_time);
+CREATE INDEX IF NOT EXISTS idx_trades_signal ON trades (signal_name);
+"""
 
 
-def load_trades(limit: int | None = None) -> list[dict]:
-    if not TRADES_PATH.exists():
-        return []
-    try:
-        arr = json.loads(TRADES_PATH.read_text())
-    except Exception:
-        return []
-    if limit:
-        return arr[-limit:]
-    return arr
+def _conn() -> sqlite3.Connection:
+    TRADES_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(TRADES_DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.executescript(_SCHEMA)
+    return conn
 
+
+def insert_trade(t: dict) -> int:
+    """Insert an open trade row; returns the row id."""
+    keys = ("signal_name", "side", "entry_time", "entry_px", "stop_px", "target_px",
+            "qty", "ml_decision", "ml_confidence", "vol_regime", "daily_bias", "rr")
+    values = tuple(t.get(k) for k in keys)
+    placeholders = ", ".join("?" * len(keys))
+    cols = ", ".join(keys)
+    with _conn() as conn:
+        cur = conn.execute(f"INSERT INTO trades ({cols}) VALUES ({placeholders})", values)
+        return int(cur.lastrowid)
+
+
+def close_trade(trade_id: int, exit_time: str, exit_px: float,
+                exit_reason: str, pnl: float) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE trades SET exit_time=?, exit_px=?, exit_reason=?, pnl=? WHERE id=?",
+            (exit_time, exit_px, exit_reason, pnl, trade_id),
+        )
+
+
+def load_trades(limit: int = 100, only_closed: bool = False) -> list[dict]:
+    sql = "SELECT * FROM trades"
+    if only_closed:
+        sql += " WHERE exit_time IS NOT NULL"
+    sql += " ORDER BY entry_time DESC LIMIT ?"
+    with _conn() as conn:
+        rows = conn.execute(sql, (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def load_closed_trades_today(now_utc_iso: str) -> list[dict]:
+    """Closed trades on the same NY date as `now_utc_iso`."""
+    sql = ("SELECT * FROM trades WHERE exit_time IS NOT NULL "
+           "ORDER BY entry_time DESC LIMIT 50")
+    with _conn() as conn:
+        rows = conn.execute(sql).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Dashboard / signal-event JSON snapshots
+# ---------------------------------------------------------------------------
 
 def save_dashboard(state: dict) -> None:
+    DASHBOARD_PATH.parent.mkdir(parents=True, exist_ok=True)
     DASHBOARD_PATH.write_text(json.dumps(state, indent=2, default=str))
 
 
@@ -94,7 +161,7 @@ def load_dashboard() -> dict:
 
 
 def push_signal_event(event: dict, max_keep: int = 100) -> None:
-    arr = []
+    arr: list = []
     if SIGNAL_EVENTS_PATH.exists():
         try:
             arr = json.loads(SIGNAL_EVENTS_PATH.read_text())
@@ -113,3 +180,8 @@ def load_signal_events(limit: int = 25) -> list[dict]:
     except Exception:
         return []
     return arr[-limit:]
+
+
+# Backwards-compat shim for older callers
+def append_trade(trade: dict) -> None:
+    insert_trade(trade)

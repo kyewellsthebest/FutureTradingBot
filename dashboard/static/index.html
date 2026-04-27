@@ -3,67 +3,98 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>NQ Bot — Dashboard</title>
+<title>HFT Bot — NQ Paper</title>
 <link rel="stylesheet" href="/static/styles.css" />
-<script src="/static/lightweightcharts.js"></script>
 </head>
 <body>
 <header>
-  <div class="brand">NQ Paper Bot <span id="kz" class="kz"></span></div>
-  <div class="status">
-    <span>cycle <b id="cycle">—</b></span>
-    <span>price <b id="price">—</b></span>
-    <span>balance <b id="balance">—</b></span>
-    <span>P&amp;L <b id="pnl">—</b></span>
-    <span id="error" class="err"></span>
+  <div class="brand">
+    <span class="dot" id="health-dot"></span>
+    <span>HFT Bot</span>
+    <span class="muted" id="cycle-label">cycle —</span>
+  </div>
+  <div class="brand-right">
+    <span class="muted" id="age-label">updated —</span>
+    <span class="muted" id="kill-zone-label">—</span>
   </div>
 </header>
 
 <main>
-  <section class="grid">
-    <div class="card chart">
-      <div class="card-title">NQ 5-min</div>
+  <section class="row">
+    <div class="card price-card">
+      <div class="card-header">Price</div>
+      <div class="big-number" id="price">—</div>
+      <div class="muted small" id="price-ts">—</div>
+    </div>
+
+    <div class="card readiness-card" id="readiness-card">
+      <div class="card-header">Trade readiness</div>
+      <div class="big-number" id="readiness-pct">—</div>
+      <div class="readiness-bar"><div id="readiness-fill"></div></div>
+      <div class="readiness-detail">
+        <div><span class="muted">Passing:</span> <span id="passing">—</span></div>
+        <div><span class="muted">Blocking:</span> <span id="blocking">—</span></div>
+      </div>
+    </div>
+
+    <div class="card account-card">
+      <div class="card-header">Account</div>
+      <div class="big-number" id="balance">—</div>
+      <div class="muted small">starting <span id="starting">—</span></div>
+      <div class="muted small">PnL <span id="pnl">—</span></div>
+      <div class="muted small">trades today <span id="trades-today">—</span></div>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="card chart-card">
+      <div class="card-header">5-min NQ</div>
       <div id="chart"></div>
     </div>
+  </section>
 
+  <section class="row">
     <div class="card">
-      <div class="card-title">Trade Readiness</div>
-      <div id="readiness" class="readiness"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Microstructure</div>
-      <div id="microstructure" class="ms"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Open Position</div>
-      <div id="open"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Whitelist</div>
-      <div id="whitelist" class="whitelist"></div>
-    </div>
-
-    <div class="card wide">
-      <div class="card-title">Recent Trades</div>
-      <table id="trades">
-        <thead><tr>
-          <th>Signal</th><th>Side</th><th>Entry</th><th>Exit</th>
-          <th>Pts</th><th>$</th><th>Reason</th>
-        </tr></thead>
-        <tbody></tbody>
+      <div class="card-header">Microstructure</div>
+      <table class="kv">
+        <tr><th>VPIN</th><td id="vpin">—</td></tr>
+        <tr><th>Adverse</th><td id="adverse">—</td></tr>
+        <tr><th>Regime</th><td id="regime">—</td></tr>
+        <tr><th>GEX</th><td id="gex">—</td></tr>
+        <tr><th>Macro</th><td id="macro">—</td></tr>
       </table>
     </div>
 
+    <div class="card">
+      <div class="card-header">Whitelist</div>
+      <ul id="whitelist" class="list"></ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Stat Arb (NQ vs ES)</div>
+      <table class="kv">
+        <tr><th>Signal</th><td id="sa-signal">—</td></tr>
+        <tr><th>z-score</th><td id="sa-z">—</td></tr>
+        <tr><th>β</th><td id="sa-beta">—</td></tr>
+        <tr><th>Coint p</th><td id="sa-p">—</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="row">
     <div class="card wide">
-      <div class="card-title">Recent Signal Events</div>
-      <ul id="events"></ul>
+      <div class="card-header">Recent trades</div>
+      <table id="trades-table" class="trades">
+        <thead>
+          <tr><th>Time</th><th>Signal</th><th>Side</th><th>Entry</th><th>Exit</th><th>Reason</th><th>PnL</th></tr>
+        </thead>
+        <tbody id="trades-body"></tbody>
+      </table>
     </div>
   </section>
 </main>
 
+<script src="/static/lightweightcharts.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>
