@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-04-27T21:53:07.189943+00:00",
+  "n_perm": 200,
+  "n_mc": 2000,
+  "n_patterns_tested": 2,
+  "n_all_pass": 0,
+  "patterns": [
+    {
+      "name": "V4_SHORT_S12T24_01",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 24.0,
+      "n_trades": 406,
+      "win_rate": 0.5073891625615764,
+      "ev_dollars": 40.15394088669951,
+      "net_pnl": 16302.5,
+      "profit_factor": 1.5504347092090824,
+      "tests": {
+        "ev": {
+          "value": 40.15394088669951,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.004975124378109453,
+          "n_perm": 200,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.5876184730283041,
+          "cpcv_min": 0.46616541353383456,
+          "pass": false
+        },
+        "monte_carlo": {
+          "median_final": 66302.5,
+          "p_apex_pass": 0.9955,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.5504347092090824,
+          "pf_low": 1.2561180267404337,
+          "pf_high": 1.8051327821620944,
+          "pass": "True"
+        }
+      },
+      "all_pass": false
+    },
+    {
+      "name": "V4_SHORT_S12T24_02",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 24.0,
+      "n_trades": 1054,
+      "win_rate": 0.3187855787476281,
+      "ev_dollars": -29.122390891840606,
+      "net_pnl": -30695.0,
+      "profit_factor": 0.7143455399934856,
+      "tests": {
+        "ev": {
+          "value": -29.122390891840606,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 200,
+          "pass": false
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.5205543241180214,
+          "cpcv_min": 0.47107438016528924,
+          "pass": false
+        },
+        "monte_carlo": {
+          "median_final": 19305.0,
+          "p_apex_pass": 0.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.7143455399934856,
+          "pf_low": 0.6306979362913878,
+          "pf_high": 0.779908901667388,
+          "pass": "True"
+        }
+      },
+      "all_pass": false
+    }
+  ]
+}
