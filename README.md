@@ -66,8 +66,9 @@ Outputs:
 
 ## 4. Data sources
 
-- `research/local_data_loader.py` reads NQ 1-minute files from
-  `C:/trading_bot/data` (override with `NQ_LOCAL_DATA_DIR`).
+- `research/local_data_loader.py` reads NQ 1-minute files from `data/nq/`
+  (override with `NQ_LOCAL_DATA_DIR`). The repo ships 8 contracts
+  (Mar 2024 → Apr 2026, 628k 1-min bars).
 - If those files aren't present, `research/data_loader.py` falls back to
   yfinance (NQ=F) and finally a synthetic random-walk so the bot still boots.
 
@@ -82,8 +83,50 @@ On launch the bot prints something like:
                         'PDL_TOUCH', 'VOL_COMP_LONG', 'ZSCORE_LONG', 'ZSCORE_SHORT']
 ```
 
-To add or remove signals, regenerate validation_results.json (or hand-edit
-the `recommended` flag) and call `engine.reload_whitelist()`.
+To regenerate with fresh data:
+
+```bash
+python -m research.run_validation              # FAST  (200 permutations)
+python -m research.run_validation --full       # FULL  (1000 permutations)
+```
+
+That runs the 6-stage pipeline from the spec (signal generation → backtest
+with realistic costs → EV → permutation test → walk-forward → Monte Carlo →
+parameter sensitivity) on the 2-year local NQ data and rewrites
+`data/validation_results.json`.
+
+To search for *new* signals:
+
+```bash
+python -m research.discover_signals            # 12 candidates from pattern_discovery4
+python -m research.discover_signals --merge    # also append survivors to whitelist
+```
+
+## 5b. Trade frequency — filter modes
+
+The 13 production filters can run in three strictness modes. Pick with
+`HFT_FILTER_MODE`:
+
+| Mode | Trades/day (measured) | When to use |
+|------|----------------------|-------------|
+| `STRICT` (default) | ~1.4 | Live capital. Original 13-filter veto chain. |
+| `MODERATE` | ~3.3 | More activity, kill-zone becomes a sizing penalty instead of a veto. |
+| `AGGRESSIVE` | ~7.9 | Maximum trade rate. Daily-bias and proximity also become sizing penalties. Only cooldown still vetoes. |
+
+```bash
+HFT_FILTER_MODE=AGGRESSIVE python -m bot.main
+```
+
+Per-field overrides exist (`HFT_MAX_TRADES_PER_DAY`, `HFT_MIN_GAP_MIN`,
+`HFT_KILLZONE_AS_VETO`, etc.) — see `research/filter_config.py`.
+
+To preview how many trades a mode would actually fire on the historical
+data without placing them:
+
+```bash
+python -m research.dry_run_engine
+HFT_FILTER_MODE=AGGRESSIVE python -m research.dry_run_engine
+```
 
 ## 6. Filter stack (per trade)
 
