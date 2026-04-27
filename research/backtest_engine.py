@@ -51,8 +51,9 @@ COMMISSION_DOLLARS = DEFAULT_CONTRACTS * COMMISSION_PER_CONTRACT  # $60
 
 
 def contracts_for(signal_name: str) -> int:
-    """5 MNQ for HF_* signals, 30 MNQ for everything else."""
-    if signal_name and signal_name.startswith(HF_SIGNAL_PREFIX):
+    """5 MNQ for HF_* and MINED_* signals (1-min), 30 MNQ for everything else."""
+    if signal_name and (signal_name.startswith(HF_SIGNAL_PREFIX)
+                        or signal_name.startswith("MINED_")):
         return HF_CONTRACTS
     return DEFAULT_CONTRACTS
 

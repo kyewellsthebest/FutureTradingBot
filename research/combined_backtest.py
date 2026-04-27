@@ -90,10 +90,10 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--hf-only", action="store_true", help="Only 1-min HF signals")
     p.add_argument("--no-hf", action="store_true", help="Only 5-min validated signals")
+    p.add_argument("--no-mined", action="store_true", help="Skip data-mined patterns")
+    p.add_argument("--mined-only", action="store_true", help="Only mined patterns")
     p.add_argument("--whitelist-hf", default="",
-                   help="Comma-separated HF signal names to include "
-                        "(default: every HF candidate). Use survivors from "
-                        "run_hf_validation here.")
+                   help="Comma-separated HF signal names to include")
     p.add_argument("--max-hold-min", type=int, default=240,
                    help="Max minutes to hold any trade.")
     return p.parse_args()
@@ -161,7 +161,7 @@ def main() -> int:
     # Generate signals
     print(f"\n[2/4] Generating signals ...", flush=True)
     sig_frames = []
-    if not args.hf_only:
+    if not args.hf_only and not args.mined_only:
         for sig_obj in ALL_SIGNALS:
             sigs = sig_obj.generate(m5, d)
             if not sigs.empty:
@@ -170,7 +170,7 @@ def main() -> int:
         n5 = sum(len(f) for f in sig_frames)
         print(f"  5-min validated: {n5:,} raw signals from {len(ALL_SIGNALS)} classes")
 
-    if not args.no_hf:
+    if not args.no_hf and not args.mined_only:
         wl = set(args.whitelist_hf.split(",")) if args.whitelist_hf else None
         hf_n = 0
         for sig_obj in ALL_HF_SIGNALS:
@@ -182,6 +182,21 @@ def main() -> int:
                 sig_frames.append(sigs)
                 hf_n += len(sigs)
         print(f"  HF 1-min: {hf_n:,} raw signals from {len(ALL_HF_SIGNALS)} candidates")
+
+    if not args.no_mined:
+        try:
+            from research.mined_signals import ALL_MINED_SIGNALS
+        except Exception as e:
+            ALL_MINED_SIGNALS = []
+            print(f"  mined: import failed ({e!r}) — skipping")
+        mined_n = 0
+        for sig_obj in ALL_MINED_SIGNALS:
+            sigs = sig_obj.generate(m1, d)
+            if not sigs.empty:
+                sigs["source_tf"] = "1min"
+                sig_frames.append(sigs)
+                mined_n += len(sigs)
+        print(f"  mined: {mined_n:,} raw signals from {len(ALL_MINED_SIGNALS)} patterns")
 
     if not sig_frames:
         print("No signals generated.")
@@ -212,7 +227,7 @@ def main() -> int:
         side = sig.side
         ts = sig.signal_time
         entry_raw = float(sig.entry_px)
-        is_hf = name.startswith("HF_")
+        is_hf = name.startswith("HF_") or name.startswith("MINED_")
         ref_df = df1 if is_hf else df5
 
         # 1. Daily bias
@@ -224,9 +239,18 @@ def main() -> int:
 
         # 2. Vol regime sizing (never blocks)
         vol = vol_regime_at(d, ts)
-        # HF signals use much tighter stops than vol_regime expects
-        stop_pts_eff = 8.0 if is_hf else vol.stop_pts
-        target_rr = 1.5 if is_hf else 2.0
+        # Per-family stop/target — 5-min uses vol regime; HF uses 8pt; mined
+        # uses 5pt with 2.5 RR matching the 10-bar forward window they were
+        # discovered against (mean OOS edge ~9-43 pts).
+        if name.startswith("MINED_"):
+            stop_pts_eff = 5.0
+            target_rr = 2.5
+        elif is_hf:
+            stop_pts_eff = 8.0
+            target_rr = 1.5
+        else:
+            stop_pts_eff = vol.stop_pts
+            target_rr = 2.0
 
         # 3. Kill zone
         ok, _ = kill_zone_filter(name, ts)

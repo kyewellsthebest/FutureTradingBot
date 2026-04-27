@@ -1,0 +1,810 @@
+{
+  "generated_at": "2026-04-27T13:03:59.275833+00:00",
+  "horizon_bars": 10,
+  "tree_params": {
+    "max_depth": 7,
+    "min_samples_leaf": 400
+  },
+  "filters": {
+    "min_oos_n": 100,
+    "min_edge_pts": 6.0
+  },
+  "data_context": {
+    "1min_bars": 628313,
+    "usable_bars": 146021,
+    "in_sample": 102214,
+    "out_of_sample": 43807
+  },
+  "patterns": [
+    {
+      "name": "MINED_LONG_01",
+      "side": "LONG",
+      "n_in_sample": 744,
+      "n_out_sample": 624,
+      "is_mean": 40.98857526881721,
+      "oos_mean": 43.01963141025641,
+      "oos_std": 39.11591239621672,
+      "win_rate": 0.8878205128205128,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 16.24260139465332
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_02",
+      "side": "SHORT",
+      "n_in_sample": 2301,
+      "n_out_sample": 1868,
+      "is_mean": -14.75619295958279,
+      "oos_mean": -11.74678800856531,
+      "oos_std": 46.451020725134555,
+      "win_rate": 0.5947537473233405,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 57.1982307434082
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": "<=",
+          "threshold": -2.820648193359375
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 29.332056045532227
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 7.326604843139648
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 17.77003574371338
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_03",
+      "side": "SHORT",
+      "n_in_sample": 421,
+      "n_out_sample": 234,
+      "is_mean": -46.39667458432304,
+      "oos_mean": -27.528846153846153,
+      "oos_std": 38.3207890728305,
+      "win_rate": 0.7478632478632479,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -1.8648883700370789
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_04",
+      "side": "SHORT",
+      "n_in_sample": 5758,
+      "n_out_sample": 2559,
+      "is_mean": -9.042158735672109,
+      "oos_mean": -8.134232121922626,
+      "oos_std": 40.862964938705986,
+      "win_rate": 0.567409144196952,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 57.1982307434082
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": -2.820648193359375
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -7.601422309875488
+        },
+        {
+          "feature": "range_pos_50",
+          "op": "<=",
+          "threshold": 0.5865893959999084
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 10.794135093688965
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_05",
+      "side": "LONG",
+      "n_in_sample": 759,
+      "n_out_sample": 254,
+      "is_mean": 21.78030303030303,
+      "oos_mean": 24.456692913385826,
+      "oos_std": 21.902782570686508,
+      "win_rate": 0.9212598425196851,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 16.24260139465332
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_06",
+      "side": "LONG",
+      "n_in_sample": 400,
+      "n_out_sample": 399,
+      "is_mean": 26.756875,
+      "oos_mean": 16.99874686716792,
+      "oos_std": 33.88102985290319,
+      "win_rate": 0.6716791979949874,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 16.78220272064209
+        },
+        {
+          "feature": "range_pos_50",
+          "op": ">",
+          "threshold": 0.22936878353357315
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_07",
+      "side": "SHORT",
+      "n_in_sample": 692,
+      "n_out_sample": 658,
+      "is_mean": -30.977239884393065,
+      "oos_mean": -12.973024316109422,
+      "oos_std": 64.29976705703587,
+      "win_rate": 0.574468085106383,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 57.1982307434082
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": "<=",
+          "threshold": -2.820648193359375
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 29.332056045532227
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_08",
+      "side": "SHORT",
+      "n_in_sample": 651,
+      "n_out_sample": 278,
+      "is_mean": -19.488863287250386,
+      "oos_mean": -18.06205035971223,
+      "oos_std": 18.509524296451197,
+      "win_rate": 0.8992805755395683,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": 2.273065209388733
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -1.7093483209609985
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -1.1795326471328735
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_09",
+      "side": "SHORT",
+      "n_in_sample": 573,
+      "n_out_sample": 115,
+      "is_mean": -24.165357766143106,
+      "oos_mean": -26.465217391304346,
+      "oos_std": 31.838329493752354,
+      "win_rate": 0.8,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": "<=",
+          "threshold": 2.273065209388733
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_10",
+      "side": "LONG",
+      "n_in_sample": 406,
+      "n_out_sample": 399,
+      "is_mean": 27.27216748768473,
+      "oos_mean": 14.18421052631579,
+      "oos_std": 57.24027011311482,
+      "win_rate": 0.5739348370927319,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 28.860551834106445
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_11",
+      "side": "SHORT",
+      "n_in_sample": 522,
+      "n_out_sample": 389,
+      "is_mean": -26.22461685823755,
+      "oos_mean": -14.01413881748072,
+      "oos_std": 36.42951243057359,
+      "win_rate": 0.609254498714653,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -1.8648883700370789
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_12",
+      "side": "LONG",
+      "n_in_sample": 594,
+      "n_out_sample": 432,
+      "is_mean": 16.703703703703702,
+      "oos_mean": 12.867476851851851,
+      "oos_std": 37.8075842549949,
+      "win_rate": 0.6319444444444444,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "range_pos_50",
+          "op": ">",
+          "threshold": 0.2635356932878494
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 16.375834465026855
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_13",
+      "side": "SHORT",
+      "n_in_sample": 640,
+      "n_out_sample": 275,
+      "is_mean": -12.126171875,
+      "oos_mean": -12.870909090909091,
+      "oos_std": 19.217124680652294,
+      "win_rate": 0.7709090909090909,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": 2.273065209388733
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -1.7093483209609985
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -1.1795326471328735
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_14",
+      "side": "LONG",
+      "n_in_sample": 433,
+      "n_out_sample": 194,
+      "is_mean": 14.424364896073904,
+      "oos_mean": 14.637886597938145,
+      "oos_std": 20.085769573206914,
+      "win_rate": 0.7783505154639175,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 16.78220272064209
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 2.7322089672088623
+        },
+        {
+          "feature": "rsi_14",
+          "op": ">",
+          "threshold": 41.35470962524414
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_15",
+      "side": "LONG",
+      "n_in_sample": 544,
+      "n_out_sample": 303,
+      "is_mean": 13.318014705882353,
+      "oos_mean": 11.19059405940594,
+      "oos_std": 39.10009498747966,
+      "win_rate": 0.5577557755775577,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "atr_14",
+          "op": ">",
+          "threshold": 16.78220272064209
+        },
+        {
+          "feature": "range_pos_50",
+          "op": "<=",
+          "threshold": 0.22936878353357315
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_16",
+      "side": "LONG",
+      "n_in_sample": 611,
+      "n_out_sample": 184,
+      "is_mean": 8.637070376432078,
+      "oos_mean": 12.629076086956522,
+      "oos_std": 23.297038898301935,
+      "win_rate": 0.7119565217391305,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 16.78220272064209
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 2.7322089672088623
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_17",
+      "side": "SHORT",
+      "n_in_sample": 565,
+      "n_out_sample": 352,
+      "is_mean": -10.103982300884956,
+      "oos_mean": -8.759943181818182,
+      "oos_std": 18.64745368606782,
+      "win_rate": 0.6875,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": 2.273065209388733
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -1.7093483209609985
+        },
+        {
+          "feature": "rsi_14",
+          "op": "<=",
+          "threshold": 57.20286750793457
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": 6.235148906707764
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_18",
+      "side": "LONG",
+      "n_in_sample": 518,
+      "n_out_sample": 162,
+      "is_mean": 10.906370656370656,
+      "oos_mean": 12.651234567901234,
+      "oos_std": 22.852306223014125,
+      "win_rate": 0.7037037037037037,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 1.8947908282279968
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 28.860551834106445
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 3.105867624282837
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 16.78220272064209
+        },
+        {
+          "feature": "dist_pdl_atr",
+          "op": "<=",
+          "threshold": 2.7322089672088623
+        },
+        {
+          "feature": "rsi_14",
+          "op": "<=",
+          "threshold": 41.35470962524414
+        }
+      ]
+    },
+    {
+      "name": "MINED_LONG_19",
+      "side": "LONG",
+      "n_in_sample": 584,
+      "n_out_sample": 267,
+      "is_mean": 18.54580479452055,
+      "oos_mean": 9.752808988764045,
+      "oos_std": 42.27407167880022,
+      "win_rate": 0.5393258426966292,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 57.1982307434082
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": -2.820648193359375
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -7.601422309875488
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -41.683570861816406
+        }
+      ]
+    },
+    {
+      "name": "MINED_SHORT_20",
+      "side": "SHORT",
+      "n_in_sample": 438,
+      "n_out_sample": 172,
+      "is_mean": -6.023401826484018,
+      "oos_mean": -9.430232558139535,
+      "oos_std": 16.004139688068804,
+      "win_rate": 0.7383720930232558,
+      "constraints": [
+        {
+          "feature": "dist_pdl_atr",
+          "op": ">",
+          "threshold": 4.127802610397339
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.832748293876648
+        },
+        {
+          "feature": "atr_14",
+          "op": "<=",
+          "threshold": 17.538938522338867
+        },
+        {
+          "feature": "dist_vwap_atr",
+          "op": ">",
+          "threshold": 2.273065209388733
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": "<=",
+          "threshold": -1.7093483209609985
+        },
+        {
+          "feature": "rsi_14",
+          "op": ">",
+          "threshold": 57.20286750793457
+        },
+        {
+          "feature": "dist_pdh_atr",
+          "op": ">",
+          "threshold": -2.1814008951187134
+        }
+      ]
+    }
+  ]
+}

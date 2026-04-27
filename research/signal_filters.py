@@ -278,6 +278,8 @@ def derive_target(signal_name: str, side: str, entry_px: float,
 
 
 def min_rr_for(signal_name: str) -> float:
+    if signal_name.startswith("MINED_"):
+        return 2.0   # 5pt stop * 2.5 target_rr → 12.5pt target → 2.5 RR; floor at 2.0
     return MIN_RR.get(signal_name, DEFAULT_MIN_RR)
 
 
