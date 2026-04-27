@@ -277,6 +277,13 @@ def _shuffle_returns(intraday: pd.DataFrame, seed: int) -> pd.DataFrame:
     return out
 
 
+def _resample_to_daily(intraday: pd.DataFrame) -> pd.DataFrame:
+    return intraday.resample("1D").agg({
+        "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum",
+    }).dropna()
+
+
 def permutation_test(signal_obj,
                      intraday: pd.DataFrame,
                      daily: pd.DataFrame,
@@ -284,7 +291,13 @@ def permutation_test(signal_obj,
                      n: int = 200,
                      stop_pts: float = 15.0,
                      target_rr: float = 2.0) -> tuple[float, list[float]]:
-    """Returns (p_value, list_of_permuted_pfs)."""
+    """Returns (p_value, list_of_permuted_pfs).
+
+    For each permutation we shuffle log-returns AND derive a synthetic daily
+    frame from the shuffled intraday, so PDH/PDL/EQ50 stay consistent with
+    the noise. Otherwise targets would point at real-data levels that never
+    appear on the synthetic price path, biasing the test.
+    """
     if real_pf <= 0:
         return 1.0, []
     beats = 0
@@ -292,9 +305,10 @@ def permutation_test(signal_obj,
     for k in range(n):
         try:
             shuffled = _shuffle_returns(intraday, seed=k)
-            sigs = signal_obj.generate(shuffled, daily)
+            shuffled_daily = _resample_to_daily(shuffled)
+            sigs = signal_obj.generate(shuffled, shuffled_daily)
             trades = simulate_trades(sigs, shuffled,
-                                     daily=daily,
+                                     daily=shuffled_daily,
                                      stop_pts_default=stop_pts,
                                      target_rr_default=target_rr)
             s = compute_stats(trades)
