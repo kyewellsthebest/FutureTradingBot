@@ -66,8 +66,16 @@
     </div>
 
     <div class="card">
-      <div class="card-header">Whitelist</div>
-      <ul id="whitelist" class="list"></ul>
+      <div class="card-header">Filter mode <span id="filter-mode-pill" class="pill">—</span></div>
+      <table class="kv">
+        <tr><th>Proximity</th><td id="f-proximity">—</td></tr>
+        <tr><th>Min R:R</th><td id="f-minrr">—</td></tr>
+        <tr><th>Killzone</th><td id="f-killzone">—</td></tr>
+        <tr><th>Daily bias</th><td id="f-bias">—</td></tr>
+        <tr><th>Cooldown</th><td id="f-cooldown">—</td></tr>
+        <tr><th>Vol regime</th><td id="f-volregime">—</td></tr>
+      </table>
+      <div class="muted small" id="filter-summary">—</div>
     </div>
 
     <div class="card">
@@ -77,6 +85,26 @@
         <tr><th>z-score</th><td id="sa-z">—</td></tr>
         <tr><th>β</th><td id="sa-beta">—</td></tr>
         <tr><th>Coint p</th><td id="sa-p">—</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="card wide">
+      <div class="card-header">
+        Active strategies <span id="strategies-count" class="pill">—</span>
+        <span class="muted small" style="margin-left:1em">
+          5-min validated · v3 gold-standard · WR live-validated
+        </span>
+      </div>
+      <table id="strategies-table" class="trades">
+        <thead>
+          <tr>
+            <th>Name</th><th>Family</th><th>Side</th><th>WR</th>
+            <th>PF</th><th>Trades</th><th>Stop/Target</th><th>Rigor</th>
+          </tr>
+        </thead>
+        <tbody id="strategies-body"></tbody>
       </table>
     </div>
   </section>

@@ -55,7 +55,26 @@ from research.signal_filters import (
     min_rr_filter,
     vol_regime_at,
 )
-from research.signal_generator import ALL_SIGNALS, _attach_prev_day_levels
+from research.signal_generator import ALL_SIGNALS as _CORE_SIGNALS, _attach_prev_day_levels
+
+
+def _load_all_signals():
+    """Concatenate validated 5-min set + v3 gold-standard + WR survivors."""
+    all_sigs = list(_CORE_SIGNALS)
+    try:
+        from research.mined_v3_signals import ALL_V3_SIGNALS
+        all_sigs.extend(ALL_V3_SIGNALS)
+    except Exception as e:
+        logger.warning(f"v3 signals unavailable: {e!r}")
+    try:
+        from research.mined_wr_signals import ALL_WR_SIGNALS
+        all_sigs.extend(ALL_WR_SIGNALS)
+    except Exception as e:
+        logger.warning(f"WR signals unavailable: {e!r}")
+    return all_sigs
+
+
+ALL_SIGNALS = _load_all_signals()
 from research.vpin_calculator import VPINSnapshot, compute_vpin, vpin_filter
 
 logger = logging.getLogger("signal_engine")

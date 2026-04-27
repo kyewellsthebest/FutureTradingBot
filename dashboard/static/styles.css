@@ -78,3 +78,18 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 @media (max-width: 800px) {
   .row { grid-template-columns: 1fr; }
 }
+
+/* --- Lean mode dashboard additions --- */
+.pill {
+  display: inline-block; padding: 0.1em 0.6em; border-radius: 999px;
+  font-size: 0.75em; font-weight: 600; background: #232a3b; color: #d8def0;
+  vertical-align: middle; margin-left: 0.5em;
+}
+.pill.mode-lean        { background: #1f6feb; color: #fff; }
+.pill.mode-strict      { background: #6e7681; color: #fff; }
+.pill.mode-moderate    { background: #d29922; color: #1c1f26; }
+.pill.mode-aggressive  { background: #da3633; color: #fff; }
+.pill.family-5-min     { background: #2ecc71; color: #0d2818; }
+.pill.family-v3        { background: #1f6feb; color: #fff; }
+.pill.family-WR        { background: #d29922; color: #1c1f26; }
+.pill.family-HF        { background: #8957e5; color: #fff; }

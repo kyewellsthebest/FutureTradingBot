@@ -166,6 +166,68 @@ def api_validation():
         return jsonify({"signals": {}})
 
 
+@app.route("/api/filter_config")
+def api_filter_config():
+    """Live filter configuration + ablation findings."""
+    try:
+        from research.filter_config import CONFIG, describe, filter_status
+        return jsonify({
+            "mode": CONFIG.mode,
+            "summary": describe(CONFIG),
+            "status": filter_status(CONFIG),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ablation")
+def api_ablation():
+    """Ablation study results — which filters help vs hurt."""
+    p = DATA_DIR / "ablation_results.json"
+    if not p.exists():
+        return jsonify({"runs": []})
+    try:
+        return jsonify(json.loads(p.read_text()))
+    except Exception:
+        return jsonify({"runs": []})
+
+
+@app.route("/api/strategies")
+def api_strategies():
+    """Detailed list of every strategy on the whitelist + its rigor level."""
+    p = DATA_DIR / "validation_results.json"
+    if not p.exists():
+        return jsonify({"strategies": []})
+    try:
+        data = json.loads(p.read_text())
+        signals = data.get("signals") or {}
+        out = []
+        for name, info in signals.items():
+            if not info.get("recommended"):
+                continue
+            family = "5-min" if not (name.startswith("V3_") or name.startswith("WR_")
+                                      or name.startswith("HF_")) else (
+                "v3" if name.startswith("V3_") else
+                "WR" if name.startswith("WR_") else "HF")
+            side = info.get("side", "LONG" if "_LONG" in name else "SHORT")
+            out.append({
+                "name": name,
+                "side": side,
+                "family": family,
+                "win_rate": info.get("win_rate"),
+                "profit_factor": info.get("profit_factor"),
+                "trades": info.get("trades"),
+                "net_pnl": info.get("net_pnl"),
+                "rigor_level": info.get("rigor_level", "validated"),
+                "stop_pts": info.get("stop_pts"),
+                "target_pts": info.get("target_pts"),
+            })
+        out.sort(key=lambda s: -(s.get("net_pnl") or 0))
+        return jsonify({"strategies": out, "total": len(out)})
+    except Exception as e:
+        return jsonify({"strategies": [], "error": str(e)}), 500
+
+
 # ---------------------------------------------------------------------------
 # CNBC 5-second poller — own thread; not the main bot loop's monitor
 # ---------------------------------------------------------------------------

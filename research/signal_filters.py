@@ -308,7 +308,13 @@ def min_rr_filter(signal_name: str, side: str, entry_px: float,
 
 def cooldown_filter(ts: pd.Timestamp, prior_trades: list[TradeRef],
                      max_per_day: int | None = None) -> tuple[bool, str]:
-    """Cooldown thresholds come from filter_config.CONFIG (env-driven)."""
+    """Cooldown thresholds come from filter_config.CONFIG (env-driven).
+
+    When CONFIG.cooldown_disabled is True (LEAN mode default), this is a
+    no-op pass-through — ablation showed cooldown cost $47k over 2 years.
+    """
+    if CONFIG.cooldown_disabled:
+        return True, "cooldown disabled (lean mode)"
     if max_per_day is None:
         max_per_day = CONFIG.max_trades_per_day
     min_gap = CONFIG.min_gap_between_min
@@ -346,7 +352,12 @@ class VolRegimeInfo:
 
 
 def vol_regime_at(daily: pd.DataFrame, ts: pd.Timestamp) -> VolRegimeInfo:
-    """5-day avg daily range / 20-day avg daily range."""
+    """5-day avg daily range / 20-day avg daily range.
+
+    When CONFIG.vol_regime_enabled is False (LEAN mode default), returns a
+    fixed NORMAL regime — ablation showed adaptive sizing cost $50k/2yr."""
+    if not CONFIG.vol_regime_enabled:
+        return VolRegimeInfo("NORMAL", CONFIG.fixed_stop_pts, 1.0)
     if daily is None or len(daily) < 25:
         return VolRegimeInfo("NORMAL", 15.0, 1.0)
     if ts.tzinfo is None:

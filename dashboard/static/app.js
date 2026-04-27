@@ -91,9 +91,7 @@
     if (ms.gex) $("gex").textContent = `${ms.gex.regime} $${fmtNum(ms.gex.total_gex_billion, 1)}B`;
     if (ms.macro) $("macro").textContent = `${ms.macro.bias} ${fmtNum(ms.macro.score, 2)}`;
 
-    // Whitelist
-    const wl = d.whitelist || [];
-    $("whitelist").innerHTML = wl.map((s) => `<li>${s}</li>`).join("");
+    // (whitelist now lives in the Strategies card, populated by refreshStrategies)
 
     // Stat arb
     const sa = d.stat_arb || {};
@@ -117,6 +115,61 @@
         <td class="${cls}">${pnl ? fmtMoney(pnl) : "—"}</td>
       </tr>`;
     }).join("");
+  }
+
+  // ---- filter mode + ablation findings ------------------------------
+  async function refreshFilterConfig() {
+    try {
+      const r = await fetch("/api/filter_config");
+      const d = await r.json();
+      const mode = (d.mode || "—").toUpperCase();
+      const pill = $("filter-mode-pill");
+      pill.textContent = mode;
+      pill.className = "pill mode-" + mode.toLowerCase();
+      $("filter-summary").textContent = d.summary || "";
+      const f = (d.status || {}).filters || {};
+      function setRow(id, info) {
+        const el = $(id);
+        if (!el || !info) return;
+        const ok = info.enabled === true || info.as_veto === true;
+        el.innerHTML = (ok ? "<span class='pass-pill'>ON</span>" : "<span class='block-pill'>OFF</span>")
+          + ` <span class="muted small">${info.ablation || ""}</span>`;
+      }
+      setRow("f-proximity", f.proximity);
+      setRow("f-minrr",     f.min_rr ? { enabled: true, ablation: f.min_rr.ablation } : null);
+      setRow("f-killzone",  f.killzone);
+      setRow("f-bias",      f.daily_bias);
+      setRow("f-cooldown",  f.cooldown);
+      setRow("f-volregime", f.vol_regime);
+    } catch (e) { /* ignore */ }
+  }
+
+  async function refreshStrategies() {
+    try {
+      const r = await fetch("/api/strategies");
+      const d = await r.json();
+      const list = d.strategies || [];
+      $("strategies-count").textContent = `${list.length} active`;
+      const fmtPct = (x) => x == null ? "—" : (Math.round(x * 100) + "%");
+      const fmtRR = (s) => (s.stop_pts && s.target_pts) ? `${s.stop_pts}/${s.target_pts}` : "—";
+      $("strategies-body").innerHTML = list.map(s => {
+        const family = `<span class="pill family-${s.family}">${s.family}</span>`;
+        const sideCls = s.side === "LONG" ? "pos" : "neg";
+        const rigorCls = s.rigor_level === "5/5_PASS" ? "pass-pill" :
+                         s.rigor_level === "live_validated_60pct_WR" ? "pass-pill" :
+                         "muted";
+        return `<tr>
+          <td>${s.name}</td>
+          <td>${family}</td>
+          <td class="${sideCls}">${s.side || "—"}</td>
+          <td>${fmtPct(s.win_rate)}</td>
+          <td>${s.profit_factor ? Number(s.profit_factor).toFixed(2) : "—"}</td>
+          <td>${s.trades || "—"}</td>
+          <td>${fmtRR(s)}</td>
+          <td><span class="${rigorCls}">${s.rigor_level || "validated"}</span></td>
+        </tr>`;
+      }).join("");
+    } catch (e) { /* ignore */ }
   }
 
   // ---- price poll (500ms) -------------------------------------------
@@ -144,9 +197,13 @@
     ensureChart();
     refreshData();
     refreshCandles();
+    refreshFilterConfig();
+    refreshStrategies();
     setInterval(refreshData, 30_000);
     setInterval(refreshCandles, 60_000);
     setInterval(refreshPrice, 500);
+    setInterval(refreshFilterConfig, 60_000);
+    setInterval(refreshStrategies, 120_000);
     setInterval(tickAge, 1000);
   }
 
