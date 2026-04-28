@@ -258,6 +258,48 @@ def build_v3_features(intraday: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFra
 # Triple-barrier labeling at fixed 1:2 RR
 # ---------------------------------------------------------------------------
 
+try:
+    from numba import njit
+except ImportError:  # pragma: no cover — fallback path
+    def njit(*a, **k):  # noqa: D401
+        def deco(f): return f
+        return deco
+
+
+@njit(cache=True, fastmath=True)
+def _label_inner(h: np.ndarray, l: np.ndarray, c: np.ndarray,
+                 stop_pts: float, target_pts: float, max_hold: int,
+                 is_long: bool) -> tuple[np.ndarray, np.ndarray]:
+    n = len(c)
+    outcome = np.zeros(n, dtype=np.int8)
+    valid = np.zeros(n, dtype=np.bool_)
+    end = n - max_hold
+    for i in range(end):
+        entry = c[i]
+        won = False
+        decided = False
+        if is_long:
+            target = entry + target_pts
+            stop = entry - stop_pts
+            for j in range(i + 1, i + 1 + max_hold):
+                if l[j] <= stop:
+                    won = False; decided = True; break
+                if h[j] >= target:
+                    won = True; decided = True; break
+        else:
+            target = entry - target_pts
+            stop = entry + stop_pts
+            for j in range(i + 1, i + 1 + max_hold):
+                if h[j] >= stop:
+                    won = False; decided = True; break
+                if l[j] <= target:
+                    won = True; decided = True; break
+        if decided:
+            outcome[i] = 1 if won else 0
+        valid[i] = True
+    return outcome, valid
+
+
 def label_1_to_2_rr(intraday: pd.DataFrame, stop_pts: float, max_hold: int,
                      side: str) -> tuple[np.ndarray, np.ndarray]:
     """Label = 1 if target (= 2 × stop) hits before stop within max_hold."""
@@ -265,33 +307,7 @@ def label_1_to_2_rr(intraday: pd.DataFrame, stop_pts: float, max_hold: int,
     h = intraday["high"].to_numpy(dtype=np.float64)
     l = intraday["low"].to_numpy(dtype=np.float64)
     c = intraday["close"].to_numpy(dtype=np.float64)
-    n = len(c)
-    outcome = np.zeros(n, dtype=np.int8)
-    valid = np.zeros(n, dtype=bool)
-    for i in range(n - max_hold):
-        entry = c[i]
-        if side == "LONG":
-            target = entry + target_pts
-            stop = entry - stop_pts
-            won = False
-            for j in range(i + 1, i + 1 + max_hold):
-                if l[j] <= stop:
-                    won = False; break
-                if h[j] >= target:
-                    won = True; break
-            outcome[i] = 1 if won else 0
-        else:
-            target = entry - target_pts
-            stop = entry + stop_pts
-            won = False
-            for j in range(i + 1, i + 1 + max_hold):
-                if h[j] >= stop:
-                    won = False; break
-                if l[j] <= target:
-                    won = True; break
-            outcome[i] = 1 if won else 0
-        valid[i] = True
-    return outcome, valid
+    return _label_inner(h, l, c, stop_pts, target_pts, max_hold, side == "LONG")
 
 
 # ---------------------------------------------------------------------------
@@ -342,7 +358,9 @@ class V3Rule:
     constraints: list[tuple[str, str, float]]
 
 
-def _path_constraints(tree, leaf_id: int) -> list[tuple[str, str, float]]:
+def _path_constraints(tree, leaf_id: int,
+                       feature_names: list[str] | None = None) -> list[tuple[str, str, float]]:
+    names = feature_names if feature_names is not None else V3_FEATURES
     t = tree.tree_
     parents = {}
     for node in range(t.node_count):
@@ -353,7 +371,7 @@ def _path_constraints(tree, leaf_id: int) -> list[tuple[str, str, float]]:
     cur = leaf_id
     while cur in parents:
         parent, op = parents[cur]
-        chain.append((V3_FEATURES[int(t.feature[parent])],
+        chain.append((names[int(t.feature[parent])],
                       op, float(t.threshold[parent])))
         cur = parent
     return list(reversed(chain))
@@ -380,6 +398,11 @@ def parse_args():
     p.add_argument("--purge", type=int, default=30)
     p.add_argument("--top", type=int, default=8)
     p.add_argument("--emit", action="store_true")
+    p.add_argument("--with-cross-asset", action="store_true",
+                   help="Augment 50 NQ features with ES/RTY/VIX cross-asset features. "
+                        "Restricts mining window to ~2024+ (where all four assets overlap).")
+    p.add_argument("--results-path", type=str, default=None,
+                   help="Override output JSON path (so XA and non-XA runs don't clobber each other).")
     return p.parse_args()
 
 
@@ -400,9 +423,19 @@ def main() -> int:
     days = max(1, (intraday.index[-1] - intraday.index[0]).days)
     print(f"  1-min bars: {len(intraday):,}  ({days} days)")
 
-    print("[2/5] Building 50 features ...", flush=True)
+    print("[2/5] Building features ...", flush=True)
     t1 = time.time()
     X_full = build_v3_features(intraday, daily)
+    if args.with_cross_asset:
+        from research.cross_asset_features import build_cross_asset_features, CROSS_ASSET_FEATURES
+        xa = build_cross_asset_features(intraday.index)
+        X_full = pd.concat([X_full, xa], axis=1)
+        # Mining feature list = base + cross-asset
+        feature_names = list(V3_FEATURES) + list(CROSS_ASSET_FEATURES)
+        print(f"  cross-asset features added: {len(CROSS_ASSET_FEATURES)}  "
+              f"(total {len(feature_names)} cols)")
+    else:
+        feature_names = list(V3_FEATURES)
     feat_valid = X_full.notna().all(axis=1)
     print(f"  feature-valid bars: {feat_valid.sum():,}  ({time.time()-t1:.1f}s)")
 
@@ -509,7 +542,7 @@ def main() -> int:
                     cpcv_min_wr=min_wr,
                     cpcv_max_wr=max_wr,
                     cpcv_n_folds=len(fold_wrs),
-                    constraints=_path_constraints(tree, leaf),
+                    constraints=_path_constraints(tree, leaf, feature_names),
                 )
                 survivors.append(rule)
 
@@ -538,14 +571,21 @@ def main() -> int:
         r.name = f"V3_{r.side}_S{int(r.stop_pts)}T{int(r.target_pts)}_{by_side[r.side]:02d}"
 
     # Persist
+    out_path = Path(args.results_path) if args.results_path else RESULTS_PATH
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "params": vars(args),
-        "data_context": {"1min_bars": len(intraday), "days": days, "weeks": weeks},
+        "data_context": {"1min_bars": len(intraday), "days": days, "weeks": weeks,
+                         "with_cross_asset": args.with_cross_asset},
         "patterns": [asdict(r) for r in all_rules],
     }
-    RESULTS_PATH.write_text(json.dumps(payload, indent=2, default=str))
-    print(f"  Wrote -> {RESULTS_PATH.relative_to(PROJECT_ROOT)}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, indent=2, default=str))
+    try:
+        rel = out_path.relative_to(PROJECT_ROOT)
+    except ValueError:
+        rel = out_path
+    print(f"  Wrote -> {rel}")
 
     if args.emit and all_rules:
         lines = [
