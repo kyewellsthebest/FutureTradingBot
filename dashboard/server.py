@@ -194,7 +194,7 @@ def api_ablation():
 
 @app.route("/api/strategies")
 def api_strategies():
-    """Detailed list of every strategy on the whitelist + its rigor level."""
+    """Detailed list of every strategy on the whitelist OR watchlist + tier."""
     p = DATA_DIR / "validation_results.json"
     if not p.exists():
         return jsonify({"strategies": []})
@@ -203,17 +203,29 @@ def api_strategies():
         signals = data.get("signals") or {}
         out = []
         for name, info in signals.items():
-            if not info.get("recommended"):
+            recommended = bool(info.get("recommended"))
+            tier = info.get("tier")
+            # Show on dashboard if recommended (Tier A live-traded) OR Tier B watchlist
+            if not recommended and tier != "B":
                 continue
             family = "5-min" if not (name.startswith("V3_") or name.startswith("WR_")
                                       or name.startswith("HF_")) else (
                 "v3" if name.startswith("V3_") else
                 "WR" if name.startswith("WR_") else "HF")
             side = info.get("side", "LONG" if "_LONG" in name else "SHORT")
+            # Effective tier label: A = live, B = watchlist, otherwise validated
+            if recommended and tier == "A":
+                tier_label = "A"
+            elif tier == "B":
+                tier_label = "B"
+            else:
+                tier_label = "live"
             out.append({
                 "name": name,
                 "side": side,
                 "family": family,
+                "tier": tier_label,
+                "is_live": recommended,
                 "win_rate": info.get("win_rate"),
                 "profit_factor": info.get("profit_factor"),
                 "trades": info.get("trades"),
@@ -222,8 +234,12 @@ def api_strategies():
                 "stop_pts": info.get("stop_pts"),
                 "target_pts": info.get("target_pts"),
             })
-        out.sort(key=lambda s: -(s.get("net_pnl") or 0))
-        return jsonify({"strategies": out, "total": len(out)})
+        # Sort: live first (recommended), then by net P&L descending
+        out.sort(key=lambda s: (not s["is_live"], -(s.get("net_pnl") or 0)))
+        n_live = sum(1 for s in out if s["is_live"])
+        n_watch = sum(1 for s in out if not s["is_live"])
+        return jsonify({"strategies": out, "total": len(out),
+                         "n_live": n_live, "n_watch": n_watch})
     except Exception as e:
         return jsonify({"strategies": [], "error": str(e)}), 500
 

@@ -149,16 +149,20 @@
       const r = await fetch("/api/strategies");
       const d = await r.json();
       const list = d.strategies || [];
-      $("strategies-count").textContent = `${list.length} active`;
+      const nLive = d.n_live ?? list.filter(s => s.is_live).length;
+      const nWatch = d.n_watch ?? list.filter(s => !s.is_live).length;
+      $("strategies-count").textContent = `${nLive} live · ${nWatch} watchlist`;
       const fmtPct = (x) => x == null ? "—" : (Math.round(x * 100) + "%");
       const fmtRR = (s) => (s.stop_pts && s.target_pts) ? `${s.stop_pts}/${s.target_pts}` : "—";
       $("strategies-body").innerHTML = list.map(s => {
         const family = `<span class="pill family-${s.family}">${s.family}</span>`;
         const sideCls = s.side === "LONG" ? "pos" : "neg";
-        const rigorCls = s.rigor_level === "5/5_PASS" ? "pass-pill" :
-                         s.rigor_level === "live_validated_60pct_WR" ? "pass-pill" :
-                         "muted";
-        return `<tr>
+        const tierCls = s.tier === "A" ? "pass-pill" :
+                        s.tier === "B" ? "block-pill" : "muted";
+        const tierLabel = s.tier === "A" ? "A · LIVE" :
+                          s.tier === "B" ? "B · WATCH" : "live";
+        const rowCls = s.is_live ? "" : "muted-row";
+        return `<tr class="${rowCls}">
           <td>${s.name}</td>
           <td>${family}</td>
           <td class="${sideCls}">${s.side || "—"}</td>
@@ -166,7 +170,7 @@
           <td>${s.profit_factor ? Number(s.profit_factor).toFixed(2) : "—"}</td>
           <td>${s.trades || "—"}</td>
           <td>${fmtRR(s)}</td>
-          <td><span class="${rigorCls}">${s.rigor_level || "validated"}</span></td>
+          <td><span class="${tierCls}">${tierLabel}</span></td>
         </tr>`;
       }).join("");
     } catch (e) { /* ignore */ }

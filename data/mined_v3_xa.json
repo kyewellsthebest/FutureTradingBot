@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-04-28T13:36:53.558817+00:00",
+  "params": {
+    "combos": "6/20,8/25,10/30,12/35",
+    "max_depth": 10,
+    "min_leaf": 200,
+    "min_train_wr": 0.55,
+    "min_cpcv_mean_wr": 0.52,
+    "min_cpcv_fold_wr": 0.45,
+    "min_trades_per_week": 2.0,
+    "n_folds": 5,
+    "purge": 30,
+    "top": 12,
+    "emit": false,
+    "with_cross_asset": true,
+    "results_path": "data/mined_v3_xa.json"
+  },
+  "data_context": {
+    "1min_bars": 2828593,
+    "days": 2963,
+    "weeks": 423.2857142857143,
+    "with_cross_asset": true
+  },
+  "patterns": []
+}

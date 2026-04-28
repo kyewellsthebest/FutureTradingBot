@@ -60,7 +60,9 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 .readiness-detail { margin-top: 10px; font-size: 13px; }
 .readiness-detail > div { margin-top: 2px; }
 .pass-pill { color: var(--good); }
-.block-pill { color: var(--bad); }
+.block-pill { color: var(--warn); }
+tr.muted-row { opacity: 0.7; }
+tr.muted-row td:first-child { font-style: italic; }
 
 .kv { width: 100%; border-collapse: collapse; }
 .kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 0; width: 30%; }
