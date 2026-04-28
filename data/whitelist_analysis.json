@@ -1,0 +1,766 @@
+{
+  "generated_at": "2026-04-28T23:15:58.558991+00:00",
+  "starting_equity": 50000.0,
+  "final_equity": 274585.0,
+  "total_pnl": 224585.0,
+  "max_drawdown_dollars": 4685.0,
+  "max_drawdown_pct": 9.370000000000001,
+  "n_months": 99,
+  "monthly_median": 2227.5,
+  "monthly_mean": 2268.5353535353534,
+  "monthly_p10": -591.9999999999999,
+  "monthly_p90": 5081.5,
+  "monthly_best": 8205.0,
+  "monthly_worst": -2690.0,
+  "n_positive_months": 82,
+  "raw_signals": 49535,
+  "realized_trades": 6047,
+  "realized_per_week": 14.285858926763416,
+  "realized_per_month": 61.225109686128924,
+  "per_strategy": {
+    "V3_SHORT_S15T30_05": {
+      "tier": "A",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.6034231609613984,
+      "rr": 2.0,
+      "n_trades": 2746,
+      "per_week": 6.487343908201147,
+      "per_month": 28.208361457981773,
+      "net_pnl": 264845.0,
+      "ev_dollars": 96.44756008739985,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 502,
+          "win_rate": 0.9820717131474104,
+          "ev_dollars": 277.3605577689243,
+          "net_pnl": 139235.0,
+          "share_of_volume": 0.18281136198106337
+        },
+        "NY_PM": {
+          "n_trades": 166,
+          "win_rate": 0.9939759036144579,
+          "ev_dollars": 284.578313253012,
+          "net_pnl": 47240.0,
+          "share_of_volume": 0.06045156591405681
+        },
+        "NY_AH": {
+          "n_trades": 137,
+          "win_rate": 0.9416058394160584,
+          "ev_dollars": 215.3832116788321,
+          "net_pnl": 29507.5,
+          "share_of_volume": 0.04989075018208303
+        },
+        "ASIA": {
+          "n_trades": 1658,
+          "win_rate": 0.35705669481302776,
+          "ev_dollars": -16.275633293124248,
+          "net_pnl": -26985.0,
+          "share_of_volume": 0.6037873270211216
+        },
+        "NY_MIDDAY": {
+          "n_trades": 260,
+          "win_rate": 0.9576923076923077,
+          "ev_dollars": 268.8942307692308,
+          "net_pnl": 69912.5,
+          "share_of_volume": 0.09468317552804079
+        },
+        "LONDON": {
+          "n_trades": 23,
+          "win_rate": 0.9565217391304348,
+          "ev_dollars": 258.04347826086956,
+          "net_pnl": 5935.0,
+          "share_of_volume": 0.008375819373634377
+        }
+      },
+      "best_session": "NY_PM ($+285/t)"
+    },
+    "V3_LONG_S8T16_02": {
+      "tier": "B",
+      "side": "LONG",
+      "tf": "1m",
+      "win_rate": 0.48913896885632036,
+      "rr": 2.0,
+      "n_trades": 3821,
+      "per_week": 9.026999662504219,
+      "per_month": 39.25132888963888,
+      "net_pnl": 46762.5,
+      "ev_dollars": 12.238288406176393,
+      "sessions": {
+        "NY_AH": {
+          "n_trades": 255,
+          "win_rate": 0.396078431372549,
+          "ev_dollars": -10.303921568627452,
+          "net_pnl": -2627.5,
+          "share_of_volume": 0.06673645642501963
+        },
+        "NY_PM": {
+          "n_trades": 387,
+          "win_rate": 0.5658914728682171,
+          "ev_dollars": 34.75452196382429,
+          "net_pnl": 13450.0,
+          "share_of_volume": 0.10128238680973567
+        },
+        "NY_MIDDAY": {
+          "n_trades": 665,
+          "win_rate": 0.5593984962406015,
+          "ev_dollars": 32.58270676691729,
+          "net_pnl": 21667.5,
+          "share_of_volume": 0.17403820989269825
+        },
+        "NY_OPEN": {
+          "n_trades": 703,
+          "win_rate": 0.5803698435277382,
+          "ev_dollars": 35.90327169274538,
+          "net_pnl": 25240.0,
+          "share_of_volume": 0.1839832504579953
+        },
+        "ASIA": {
+          "n_trades": 1486,
+          "win_rate": 0.3654104979811575,
+          "ev_dollars": -18.901413189771198,
+          "net_pnl": -28087.5,
+          "share_of_volume": 0.3889034284218791
+        },
+        "LONDON": {
+          "n_trades": 325,
+          "win_rate": 0.64,
+          "ev_dollars": 52.676923076923075,
+          "net_pnl": 17120.0,
+          "share_of_volume": 0.08505626799267207
+        }
+      },
+      "best_session": "LONDON ($+53/t)"
+    },
+    "V3_SHORT_S8T16_01": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.4766209476309227,
+      "rr": 2.0,
+      "n_trades": 3208,
+      "per_week": 7.578805264934188,
+      "per_month": 32.95426932163348,
+      "net_pnl": 23447.5,
+      "ev_dollars": 7.309071072319202,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 305,
+          "win_rate": 0.6196721311475409,
+          "ev_dollars": 45.84426229508197,
+          "net_pnl": 13982.5,
+          "share_of_volume": 0.09507481296758105
+        },
+        "NY_PM": {
+          "n_trades": 604,
+          "win_rate": 0.5711920529801324,
+          "ev_dollars": 34.937913907284766,
+          "net_pnl": 21102.5,
+          "share_of_volume": 0.1882793017456359
+        },
+        "NY_MIDDAY": {
+          "n_trades": 447,
+          "win_rate": 0.6196868008948546,
+          "ev_dollars": 46.895973154362416,
+          "net_pnl": 20962.5,
+          "share_of_volume": 0.13933915211970074
+        },
+        "ASIA": {
+          "n_trades": 1366,
+          "win_rate": 0.34480234260614934,
+          "ev_dollars": -26.509882869692532,
+          "net_pnl": -36212.5,
+          "share_of_volume": 0.42581047381546133
+        },
+        "NY_AH": {
+          "n_trades": 215,
+          "win_rate": 0.29767441860465116,
+          "ev_dollars": -30.6046511627907,
+          "net_pnl": -6580.0,
+          "share_of_volume": 0.06701995012468828
+        },
+        "LONDON": {
+          "n_trades": 271,
+          "win_rate": 0.5867158671586716,
+          "ev_dollars": 37.61070110701107,
+          "net_pnl": 10192.5,
+          "share_of_volume": 0.08447630922693267
+        }
+      },
+      "best_session": "NY_MIDDAY ($+47/t)"
+    },
+    "V3_SHORT_S10T20_02": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.4862932061978546,
+      "rr": 2.0,
+      "n_trades": 2517,
+      "per_week": 5.946338170772865,
+      "per_month": 25.855952581842725,
+      "net_pnl": 40257.5,
+      "ev_dollars": 15.994239173619388,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 523,
+          "win_rate": 0.502868068833652,
+          "ev_dollars": 26.27151051625239,
+          "net_pnl": 13740.0,
+          "share_of_volume": 0.2077870480731029
+        },
+        "NY_PM": {
+          "n_trades": 451,
+          "win_rate": 0.541019955654102,
+          "ev_dollars": 37.971175166297115,
+          "net_pnl": 17125.0,
+          "share_of_volume": 0.17918156535558205
+        },
+        "NY_MIDDAY": {
+          "n_trades": 444,
+          "win_rate": 0.5518018018018018,
+          "ev_dollars": 38.66554054054054,
+          "net_pnl": 17167.5,
+          "share_of_volume": 0.1764004767580453
+        },
+        "ASIA": {
+          "n_trades": 753,
+          "win_rate": 0.38778220451527223,
+          "ev_dollars": -17.921646746347943,
+          "net_pnl": -13495.0,
+          "share_of_volume": 0.29916567342073896
+        },
+        "NY_AH": {
+          "n_trades": 175,
+          "win_rate": 0.38285714285714284,
+          "ev_dollars": -22.32857142857143,
+          "net_pnl": -3907.5,
+          "share_of_volume": 0.06952721493841875
+        },
+        "LONDON": {
+          "n_trades": 171,
+          "win_rate": 0.6140350877192983,
+          "ev_dollars": 56.301169590643276,
+          "net_pnl": 9627.5,
+          "share_of_volume": 0.06793802145411204
+        }
+      },
+      "best_session": "LONDON ($+56/t)"
+    },
+    "V3_SHORT_S10T20_03": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.4996651038178165,
+      "rr": 2.0,
+      "n_trades": 1493,
+      "per_week": 3.52716841039487,
+      "per_month": 15.336884070199122,
+      "net_pnl": 36852.5,
+      "ev_dollars": 24.68352310783657,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 521,
+          "win_rate": 0.5220729366602687,
+          "ev_dollars": 34.01151631477927,
+          "net_pnl": 17720.0,
+          "share_of_volume": 0.34896182183523106
+        },
+        "NY_MIDDAY": {
+          "n_trades": 507,
+          "win_rate": 0.49506903353057197,
+          "ev_dollars": 22.54930966469428,
+          "net_pnl": 11432.5,
+          "share_of_volume": 0.33958472873409246
+        },
+        "NY_PM": {
+          "n_trades": 175,
+          "win_rate": 0.4685714285714286,
+          "ev_dollars": 12.585714285714285,
+          "net_pnl": 2202.5,
+          "share_of_volume": 0.11721366376423309
+        },
+        "LONDON": {
+          "n_trades": 216,
+          "win_rate": 0.4166666666666667,
+          "ev_dollars": 7.546296296296297,
+          "net_pnl": 1630.0,
+          "share_of_volume": 0.144675150703282
+        },
+        "ASIA": {
+          "n_trades": 74,
+          "win_rate": 0.6081081081081081,
+          "ev_dollars": 52.263513513513516,
+          "net_pnl": 3867.5,
+          "share_of_volume": 0.04956463496316142
+        }
+      },
+      "best_session": "ASIA ($+52/t)"
+    },
+    "V3_LONG_S12T24_03": {
+      "tier": "B",
+      "side": "LONG",
+      "tf": "1m",
+      "win_rate": 0.5917220235053654,
+      "rr": 2.0,
+      "n_trades": 1957,
+      "per_week": 4.62335470806615,
+      "per_month": 20.10333698953763,
+      "net_pnl": 125142.5,
+      "ev_dollars": 63.9460909555442,
+      "sessions": {
+        "NY_AH": {
+          "n_trades": 137,
+          "win_rate": 0.48905109489051096,
+          "ev_dollars": 9.708029197080291,
+          "net_pnl": 1330.0,
+          "share_of_volume": 0.07000510986203373
+        },
+        "NY_MIDDAY": {
+          "n_trades": 349,
+          "win_rate": 0.7106017191977078,
+          "ev_dollars": 114.21203438395415,
+          "net_pnl": 39860.0,
+          "share_of_volume": 0.17833418497700562
+        },
+        "NY_PM": {
+          "n_trades": 260,
+          "win_rate": 0.65,
+          "ev_dollars": 89.02884615384616,
+          "net_pnl": 23147.5,
+          "share_of_volume": 0.13285641287685232
+        },
+        "NY_OPEN": {
+          "n_trades": 420,
+          "win_rate": 0.7023809523809523,
+          "ev_dollars": 104.92261904761905,
+          "net_pnl": 44067.5,
+          "share_of_volume": 0.21461420541645376
+        },
+        "ASIA": {
+          "n_trades": 645,
+          "win_rate": 0.4170542635658915,
+          "ev_dollars": 0.5426356589147286,
+          "net_pnl": 350.0,
+          "share_of_volume": 0.32958610117526826
+        },
+        "LONDON": {
+          "n_trades": 146,
+          "win_rate": 0.7191780821917808,
+          "ev_dollars": 112.2431506849315,
+          "net_pnl": 16387.5,
+          "share_of_volume": 0.0746039856923863
+        }
+      },
+      "best_session": "NY_MIDDAY ($+114/t)"
+    },
+    "V3_SHORT_S12T24_04": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.4865697930427125,
+      "rr": 2.0,
+      "n_trades": 2271,
+      "per_week": 5.365170435369558,
+      "per_month": 23.328910732365845,
+      "net_pnl": 63805.0,
+      "ev_dollars": 28.095552619991192,
+      "sessions": {
+        "NY_MIDDAY": {
+          "n_trades": 548,
+          "win_rate": 0.5492700729927007,
+          "ev_dollars": 52.21259124087591,
+          "net_pnl": 28612.5,
+          "share_of_volume": 0.2413033905768384
+        },
+        "NY_PM": {
+          "n_trades": 415,
+          "win_rate": 0.4795180722891566,
+          "ev_dollars": 27.674698795180724,
+          "net_pnl": 11485.0,
+          "share_of_volume": 0.18273888154997797
+        },
+        "NY_OPEN": {
+          "n_trades": 616,
+          "win_rate": 0.5438311688311688,
+          "ev_dollars": 56.375811688311686,
+          "net_pnl": 34727.5,
+          "share_of_volume": 0.2712461470717745
+        },
+        "ASIA": {
+          "n_trades": 478,
+          "win_rate": 0.3389121338912134,
+          "ev_dollars": -25.015690376569037,
+          "net_pnl": -11957.5,
+          "share_of_volume": 0.21047996477322764
+        },
+        "NY_AH": {
+          "n_trades": 165,
+          "win_rate": 0.4666666666666667,
+          "ev_dollars": 0.3939393939393939,
+          "net_pnl": 65.0,
+          "share_of_volume": 0.0726552179656539
+        },
+        "LONDON": {
+          "n_trades": 49,
+          "win_rate": 0.46938775510204084,
+          "ev_dollars": 17.806122448979593,
+          "net_pnl": 872.5,
+          "share_of_volume": 0.02157639806252752
+        }
+      },
+      "best_session": "NY_OPEN ($+56/t)"
+    },
+    "V3_LONG_S15T30_04": {
+      "tier": "B",
+      "side": "LONG",
+      "tf": "1m",
+      "win_rate": 0.9668552950687146,
+      "rr": 2.0,
+      "n_trades": 1237,
+      "per_week": 2.9223759703003713,
+      "per_month": 12.707116942288222,
+      "net_pnl": 337490.0,
+      "ev_dollars": 272.8294260307195,
+      "sessions": {
+        "NY_PM": {
+          "n_trades": 138,
+          "win_rate": 0.9492753623188406,
+          "ev_dollars": 266.15942028985506,
+          "net_pnl": 36730.0,
+          "share_of_volume": 0.11156022635408246
+        },
+        "NY_MIDDAY": {
+          "n_trades": 415,
+          "win_rate": 0.9879518072289156,
+          "ev_dollars": 282.80120481927713,
+          "net_pnl": 117362.5,
+          "share_of_volume": 0.3354890864995958
+        },
+        "NY_OPEN": {
+          "n_trades": 545,
+          "win_rate": 0.9486238532110092,
+          "ev_dollars": 264.0550458715596,
+          "net_pnl": 143910.0,
+          "share_of_volume": 0.44058205335489087
+        },
+        "LONDON": {
+          "n_trades": 101,
+          "win_rate": 0.9900990099009901,
+          "ev_dollars": 281.85643564356434,
+          "net_pnl": 28467.5,
+          "share_of_volume": 0.08164915117219078
+        },
+        "ASIA": {
+          "n_trades": 38,
+          "win_rate": 1.0,
+          "ev_dollars": 290.0,
+          "net_pnl": 11020.0,
+          "share_of_volume": 0.030719482619240096
+        }
+      },
+      "best_session": "ASIA ($+290/t)"
+    },
+    "V3_SHORT_S15T30_07": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.5177584846093133,
+      "rr": 2.0,
+      "n_trades": 1267,
+      "per_week": 2.9932500843739454,
+      "per_month": 13.01529277759028,
+      "net_pnl": 77912.5,
+      "ev_dollars": 61.49368587213891,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 1075,
+          "win_rate": 0.5013953488372093,
+          "ev_dollars": 53.853488372093025,
+          "net_pnl": 57892.5,
+          "share_of_volume": 0.8484609313338595
+        },
+        "NY_MIDDAY": {
+          "n_trades": 161,
+          "win_rate": 0.6024844720496895,
+          "ev_dollars": 104.23913043478261,
+          "net_pnl": 16782.5,
+          "share_of_volume": 0.1270718232044199
+        },
+        "NY_PM": {
+          "n_trades": 31,
+          "win_rate": 0.6129032258064516,
+          "ev_dollars": 104.43548387096774,
+          "net_pnl": 3237.5,
+          "share_of_volume": 0.0244672454617206
+        }
+      },
+      "best_session": "NY_PM ($+104/t)"
+    },
+    "V3_SHORT_S15T30_08": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.5256495669553631,
+      "rr": 2.0,
+      "n_trades": 1501,
+      "per_week": 3.5460681741478233,
+      "per_month": 15.419064292946338,
+      "net_pnl": 82907.5,
+      "ev_dollars": 55.23484343770819,
+      "sessions": {
+        "NY_OPEN": {
+          "n_trades": 286,
+          "win_rate": 0.6293706293706294,
+          "ev_dollars": 114.71153846153847,
+          "net_pnl": 32807.5,
+          "share_of_volume": 0.1905396402398401
+        },
+        "NY_PM": {
+          "n_trades": 294,
+          "win_rate": 0.5510204081632653,
+          "ev_dollars": 72.97619047619048,
+          "net_pnl": 21455.0,
+          "share_of_volume": 0.19586942038640906
+        },
+        "NY_AH": {
+          "n_trades": 90,
+          "win_rate": 0.4,
+          "ev_dollars": -33.833333333333336,
+          "net_pnl": -3045.0,
+          "share_of_volume": 0.05996002664890073
+        },
+        "ASIA": {
+          "n_trades": 353,
+          "win_rate": 0.3626062322946176,
+          "ev_dollars": -22.762039660056658,
+          "net_pnl": -8035.0,
+          "share_of_volume": 0.2351765489673551
+        },
+        "NY_MIDDAY": {
+          "n_trades": 421,
+          "win_rate": 0.5890736342042755,
+          "ev_dollars": 89.81591448931117,
+          "net_pnl": 37812.5,
+          "share_of_volume": 0.2804796802131912
+        },
+        "LONDON": {
+          "n_trades": 57,
+          "win_rate": 0.5087719298245614,
+          "ev_dollars": 33.55263157894737,
+          "net_pnl": 1912.5,
+          "share_of_volume": 0.0379746835443038
+        }
+      },
+      "best_session": "NY_OPEN ($+115/t)"
+    },
+    "PDH_TOUCH": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "5m",
+      "win_rate": 0.5384615384615384,
+      "rr": 2.0,
+      "n_trades": 442,
+      "per_week": 1.0442119473506581,
+      "per_month": 4.540457306783665,
+      "net_pnl": 153150.0,
+      "ev_dollars": 346.49321266968326,
+      "sessions": {
+        "ASIA": {
+          "n_trades": 249,
+          "win_rate": 0.40562248995983935,
+          "ev_dollars": -35.0,
+          "net_pnl": -8715.0,
+          "share_of_volume": 0.5633484162895928
+        },
+        "NY_OPEN": {
+          "n_trades": 79,
+          "win_rate": 0.759493670886076,
+          "ev_dollars": 1058.9240506329113,
+          "net_pnl": 83655.0,
+          "share_of_volume": 0.17873303167420815
+        },
+        "NY_PM": {
+          "n_trades": 54,
+          "win_rate": 0.7037037037037037,
+          "ev_dollars": 741.6666666666666,
+          "net_pnl": 40050.0,
+          "share_of_volume": 0.12217194570135746
+        },
+        "NY_MIDDAY": {
+          "n_trades": 8,
+          "win_rate": 0.375,
+          "ev_dollars": 61.875,
+          "net_pnl": 495.0,
+          "share_of_volume": 0.01809954751131222
+        },
+        "LONDON": {
+          "n_trades": 32,
+          "win_rate": 0.875,
+          "ev_dollars": 1302.1875,
+          "net_pnl": 41670.0,
+          "share_of_volume": 0.07239819004524888
+        },
+        "NY_AH": {
+          "n_trades": 20,
+          "win_rate": 0.3,
+          "ev_dollars": -200.25,
+          "net_pnl": -4005.0,
+          "share_of_volume": 0.04524886877828054
+        }
+      },
+      "best_session": "LONDON ($+1302/t)"
+    },
+    "WR_SHORT_T15S10_06": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.5450094756790903,
+      "rr": 1.5,
+      "n_trades": 12664,
+      "per_week": 29.918326020924738,
+      "per_month": 130.0912926088424,
+      "net_pnl": 91817.5,
+      "ev_dollars": 7.250276373973468,
+      "sessions": {
+        "ASIA": {
+          "n_trades": 6114,
+          "win_rate": 0.37176970886490024,
+          "ev_dollars": -20.944962381419693,
+          "net_pnl": -128057.5,
+          "share_of_volume": 0.48278584965255844
+        },
+        "NY_AH": {
+          "n_trades": 954,
+          "win_rate": 0.4727463312368973,
+          "ev_dollars": 3.4040880503144653,
+          "net_pnl": 3247.5,
+          "share_of_volume": 0.07533164876816172
+        },
+        "NY_OPEN": {
+          "n_trades": 1561,
+          "win_rate": 0.6258808456117874,
+          "ev_dollars": 32.524023062139655,
+          "net_pnl": 50770.0,
+          "share_of_volume": 0.12326279216677195
+        },
+        "NY_PM": {
+          "n_trades": 1529,
+          "win_rate": 0.6769130150425114,
+          "ev_dollars": 43.698495748855464,
+          "net_pnl": 66815.0,
+          "share_of_volume": 0.12073594440934933
+        },
+        "LONDON": {
+          "n_trades": 1057,
+          "win_rate": 0.6934720908230843,
+          "ev_dollars": 41.87795648060549,
+          "net_pnl": 44265.0,
+          "share_of_volume": 0.08346493998736576
+        },
+        "NY_MIDDAY": {
+          "n_trades": 1449,
+          "win_rate": 0.655624568668047,
+          "ev_dollars": 37.80365769496204,
+          "net_pnl": 54777.5,
+          "share_of_volume": 0.1144188250157928
+        }
+      },
+      "best_session": "NY_PM ($+44/t)"
+    },
+    "WR_SHORT_T15S12_10": {
+      "tier": "B",
+      "side": "SHORT",
+      "tf": "1m",
+      "win_rate": 0.552078273541045,
+      "rr": 1.25,
+      "n_trades": 14411,
+      "per_week": 34.04556193047587,
+      "per_month": 148.0373987512656,
+      "net_pnl": 131975.0,
+      "ev_dollars": 9.157934910832003,
+      "sessions": {
+        "ASIA": {
+          "n_trades": 8054,
+          "win_rate": 0.3673950831884778,
+          "ev_dollars": -22.73218276632729,
+          "net_pnl": -183085.0,
+          "share_of_volume": 0.558878634376518
+        },
+        "NY_PM": {
+          "n_trades": 1632,
+          "win_rate": 0.7542892156862745,
+          "ev_dollars": 58.14185049019608,
+          "net_pnl": 94887.5,
+          "share_of_volume": 0.11324682534175283
+        },
+        "LONDON": {
+          "n_trades": 1045,
+          "win_rate": 0.7444976076555024,
+          "ev_dollars": 54.311004784689,
+          "net_pnl": 56755.0,
+          "share_of_volume": 0.07251405176601207
+        },
+        "NY_OPEN": {
+          "n_trades": 1490,
+          "win_rate": 0.7261744966442953,
+          "ev_dollars": 54.598993288590606,
+          "net_pnl": 81352.5,
+          "share_of_volume": 0.10339324127402678
+        },
+        "NY_AH": {
+          "n_trades": 649,
+          "win_rate": 0.4221879815100154,
+          "ev_dollars": 1.174884437596302,
+          "net_pnl": 762.5,
+          "share_of_volume": 0.045035042675733813
+        },
+        "NY_MIDDAY": {
+          "n_trades": 1541,
+          "win_rate": 0.6982478909798832,
+          "ev_dollars": 52.75957170668397,
+          "net_pnl": 81302.5,
+          "share_of_volume": 0.10693220456595656
+        }
+      },
+      "best_session": "NY_PM ($+58/t)"
+    }
+  },
+  "session_breakdown": {
+    "ASIA": {
+      "n_trades": 2470,
+      "win_rate": 0.38582995951417004,
+      "ev_dollars": -19.38765182186235,
+      "net_pnl": -47887.5
+    },
+    "NY_AH": {
+      "n_trades": 360,
+      "win_rate": 0.4361111111111111,
+      "ev_dollars": -4.520833333333333,
+      "net_pnl": -1627.5
+    },
+    "NY_OPEN": {
+      "n_trades": 1147,
+      "win_rate": 0.6469049694856146,
+      "ev_dollars": 99.20444638186574,
+      "net_pnl": 113787.5
+    },
+    "NY_PM": {
+      "n_trades": 740,
+      "win_rate": 0.6040540540540541,
+      "ev_dollars": 55.554054054054056,
+      "net_pnl": 41110.0
+    },
+    "LONDON": {
+      "n_trades": 508,
+      "win_rate": 0.6929133858267716,
+      "ev_dollars": 93.24311023622047,
+      "net_pnl": 47367.5
+    },
+    "NY_MIDDAY": {
+      "n_trades": 822,
+      "win_rate": 0.6557177615571776,
+      "ev_dollars": 87.3905109489051,
+      "net_pnl": 71835.0
+    }
+  }
+}
