@@ -544,7 +544,7 @@
       "tests_passed": 5
     },
     "V3_LONG_S8T16_02": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.48913896885632036,
@@ -553,11 +553,11 @@
       "net_pnl": 46762.5,
       "stop_pts": 8.0,
       "target_pts": 16.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 4
     },
     "V3_SHORT_S8T16_01": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4766209476309227,
@@ -566,11 +566,11 @@
       "net_pnl": 23447.5,
       "stop_pts": 8.0,
       "target_pts": 16.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_SHORT_S10T20_02": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4862932061978546,
@@ -579,11 +579,11 @@
       "net_pnl": 40257.5,
       "stop_pts": 10.0,
       "target_pts": 20.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_SHORT_S10T20_03": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4996651038178165,
@@ -592,11 +592,11 @@
       "net_pnl": 36852.5,
       "stop_pts": 10.0,
       "target_pts": 20.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_LONG_S12T24_03": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.5917220235053654,
@@ -605,11 +605,11 @@
       "net_pnl": 125142.5,
       "stop_pts": 12.0,
       "target_pts": 24.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_SHORT_S12T24_04": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4865697930427125,
@@ -618,11 +618,11 @@
       "net_pnl": 63805.0,
       "stop_pts": 12.0,
       "target_pts": 24.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_LONG_S15T30_04": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.9668552950687146,
@@ -631,11 +631,11 @@
       "net_pnl": 337490.0,
       "stop_pts": 15.0,
       "target_pts": 30.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 4
     },
     "V3_SHORT_S15T30_07": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5177584846093133,
@@ -644,11 +644,11 @@
       "net_pnl": 77912.5,
       "stop_pts": 15.0,
       "target_pts": 30.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     },
     "V3_SHORT_S15T30_08": {
-      "recommended": false,
+      "recommended": true,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5256495669553631,
@@ -657,7 +657,7 @@
       "net_pnl": 82907.5,
       "stop_pts": 15.0,
       "target_pts": 30.0,
-      "rigor_level": "watchlist_3of5",
+      "rigor_level": "tier_b_live",
       "tests_passed": 5
     }
   },
@@ -737,5 +737,5 @@
     ]
   },
   "updated_at": "2026-04-27 lean mode + all strategies activated",
-  "last_updated": "2026-04-28T13:49:12.158206+00:00"
+  "last_updated": "2026-04-28T14:00:15.409813+00:00"
 }

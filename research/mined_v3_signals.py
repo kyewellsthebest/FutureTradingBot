@@ -1,6 +1,6 @@
 """
 Auto-generated v3 pattern Signal classes.
-Generated: 2026-04-28T13:49:12.157583+00:00
+Generated: 2026-04-28T14:00:15.409109+00:00
 Survivors: 10  
 Validation: 5-test rigor gauntlet (CPCV + permutation + MC + sensitivity + EV).
 """

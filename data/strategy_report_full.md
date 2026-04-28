@@ -1,6 +1,6 @@
 # Strategy Discovery — Full Report
 
-Generated: 2026-04-28T13:49:12.158986+00:00
+Generated: 2026-04-28T14:00:15.411134+00:00
 
 ## Sources
 
@@ -9,10 +9,10 @@ Generated: 2026-04-28T13:49:12.158986+00:00
 
 ## Bucketing rules
 
-  - **Tier A** (live-traded): WR ≥ 60% AND R:R ≥ 1:2 AND passes ALL 5 rigor tests
+  - **Tier A** (live, gold standard): WR ≥ 60% AND R:R ≥ 1:2 AND passes ALL 5 rigor tests
     (EV, 500-permutation, walk-forward CPCV, 10k Monte-Carlo, ±20% sensitivity)
-  - **Tier B** (watchlist): positive EV AND passes ≥3/5 tests AND walk-forward + permutation pass
-    Tracked on dashboard, not auto-traded — covers strategies with sub-60% WR but profitable due to 1:2 R:R
+  - **Tier B** (live, lower-WR): positive EV AND passes ≥3/5 tests AND walk-forward + permutation pass
+    Sub-60% WR but profitable due to 1:2 R:R; sized at 5 MNQ same as Tier A
   - **Reject**: negative EV, or fails permutation/walk-forward
 
 ## Tier A — Live-ready (1 strategies)

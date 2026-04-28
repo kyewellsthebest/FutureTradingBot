@@ -171,7 +171,10 @@ def update_validation_json(tier_a: list[dict], tier_b: list[dict]) -> None:
         }
     for r in tier_b:
         sigs[r["name"]] = {
-            "recommended": False,
+            # Tier B is live-traded too (user request) — promoted from watchlist.
+            # Edge is verified (positive EV, walk-forward + permutation pass) but
+            # WR is sub-60% — still profitable due to 1:2 R:R.
+            "recommended": True,
             "tier": "B",
             "side": r["side"],
             "win_rate": r.get("win_rate"),
@@ -180,7 +183,7 @@ def update_validation_json(tier_a: list[dict], tier_b: list[dict]) -> None:
             "net_pnl": r.get("net_pnl"),
             "stop_pts": r.get("stop_pts"),
             "target_pts": r.get("target_pts"),
-            "rigor_level": "watchlist_3of5",
+            "rigor_level": "tier_b_live",
             "tests_passed": r.get("n_passes"),
         }
     data["last_updated"] = datetime.now(timezone.utc).isoformat()
@@ -208,10 +211,10 @@ def render_report(tier_a, tier_b, rejects, sources) -> str:
         "",
         "## Bucketing rules",
         "",
-        "  - **Tier A** (live-traded): WR ≥ 60% AND R:R ≥ 1:2 AND passes ALL 5 rigor tests",
+        "  - **Tier A** (live, gold standard): WR ≥ 60% AND R:R ≥ 1:2 AND passes ALL 5 rigor tests",
         "    (EV, 500-permutation, walk-forward CPCV, 10k Monte-Carlo, ±20% sensitivity)",
-        "  - **Tier B** (watchlist): positive EV AND passes ≥3/5 tests AND walk-forward + permutation pass",
-        "    Tracked on dashboard, not auto-traded — covers strategies with sub-60% WR but profitable due to 1:2 R:R",
+        "  - **Tier B** (live, lower-WR): positive EV AND passes ≥3/5 tests AND walk-forward + permutation pass",
+        "    Sub-60% WR but profitable due to 1:2 R:R; sized at 5 MNQ same as Tier A",
         "  - **Reject**: negative EV, or fails permutation/walk-forward",
         "",
         f"## Tier A — Live-ready ({len(tier_a)} strategies)",

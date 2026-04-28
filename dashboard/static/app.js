@@ -149,9 +149,10 @@
       const r = await fetch("/api/strategies");
       const d = await r.json();
       const list = d.strategies || [];
-      const nLive = d.n_live ?? list.filter(s => s.is_live).length;
-      const nWatch = d.n_watch ?? list.filter(s => !s.is_live).length;
-      $("strategies-count").textContent = `${nLive} live · ${nWatch} watchlist`;
+      const nA = list.filter(s => s.tier === "A").length;
+      const nB = list.filter(s => s.tier === "B").length;
+      const nOther = list.length - nA - nB;
+      $("strategies-count").textContent = `${list.length} live  (A:${nA} · B:${nB} · core:${nOther})`;
       const fmtPct = (x) => x == null ? "—" : (Math.round(x * 100) + "%");
       const fmtRR = (s) => (s.stop_pts && s.target_pts) ? `${s.stop_pts}/${s.target_pts}` : "—";
       $("strategies-body").innerHTML = list.map(s => {
@@ -159,8 +160,8 @@
         const sideCls = s.side === "LONG" ? "pos" : "neg";
         const tierCls = s.tier === "A" ? "pass-pill" :
                         s.tier === "B" ? "block-pill" : "muted";
-        const tierLabel = s.tier === "A" ? "A · LIVE" :
-                          s.tier === "B" ? "B · WATCH" : "live";
+        const tierLabel = s.tier === "A" ? "A · 60%+ WR" :
+                          s.tier === "B" ? "B · pos EV" : "live";
         const rowCls = s.is_live ? "" : "muted-row";
         return `<tr class="${rowCls}">
           <td>${s.name}</td>
