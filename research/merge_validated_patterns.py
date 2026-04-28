@@ -33,9 +33,11 @@ VALIDATION_PATH = DATA_DIR / "validation_results.json"
 REPORT_PATH = DATA_DIR / "strategy_report_full.md"
 
 INPUT_PATHS = [
-    DATA_DIR / "validated_v3_8yr.json",
-    DATA_DIR / "validated_v3_xa.json",
+    DATA_DIR / "validated_v3_8yr.json",        # original V3 mine validated
+    DATA_DIR / "validated_v3_8yr_wide.json",   # wider V3 mine validated
+    DATA_DIR / "validated_v3_xa.json",         # cross-asset (was empty)
 ]
+EXISTING_VALIDATED = DATA_DIR / "validated_existing_8yr.json"  # 5-min + WR
 
 
 def _load(p: Path) -> dict | None:
@@ -138,9 +140,20 @@ def emit_signal_classes(patterns: list[dict], with_xa: bool) -> str:
     return "\n".join(lines)
 
 
-def update_validation_json(tier_a: list[dict], tier_b: list[dict]) -> None:
-    """Add tier-A patterns to validation_results.json with recommended=true.
-    Tier B kept with recommended=false (visible in dashboard, not auto-traded)."""
+def update_validation_json(tier_a: list[dict], tier_b: list[dict],
+                            tier_a_existing: list[dict] | None = None,
+                            tier_b_existing: list[dict] | None = None,
+                            existing_rejects: list[dict] | None = None) -> None:
+    """Rewrite validation_results.json from the rigor-validated truth.
+
+    Anything that didn't survive the 8yr 5-test gauntlet is marked
+    recommended=False so the bot's whitelist drops it.
+    Anything in Tier A or Tier B is marked recommended=True with tier label.
+    """
+    tier_a_existing = tier_a_existing or []
+    tier_b_existing = tier_b_existing or []
+    existing_rejects = existing_rejects or []
+
     data: dict = {}
     if VALIDATION_PATH.exists():
         try:
@@ -149,9 +162,13 @@ def update_validation_json(tier_a: list[dict], tier_b: list[dict]) -> None:
             data = {}
     sigs = data.setdefault("signals", {})
 
-    # Drop stale entries that came from previous v3 runs (so we always reflect
-    # the latest mining + validation pass)
-    stale = [k for k in sigs if k.startswith("V3_")]
+    # Drop ALL entries from prior runs that are V3 or WR or 5-min — we'll
+    # re-add only the ones that survived this round.
+    stale = [k for k in sigs if k.startswith("V3_") or k.startswith("WR_")
+              or k in {"PDL_TOUCH", "PDH_TOUCH", "EQ50_LONG", "EQ50_SHORT",
+                       "GAP_FILL_LONG", "GAP_FILL_SHORT", "ZSCORE_LONG",
+                       "ZSCORE_SHORT", "VOL_COMP_LONG", "VOL_COMP_SHORT",
+                       "VWAP_RECLAIM_LONG", "VWAP_REJECT_SHORT"}]
     for k in stale:
         del sigs[k]
 
@@ -184,6 +201,24 @@ def update_validation_json(tier_a: list[dict], tier_b: list[dict]) -> None:
             "stop_pts": r.get("stop_pts"),
             "target_pts": r.get("target_pts"),
             "rigor_level": "tier_b_live",
+            "tests_passed": r.get("n_passes"),
+        }
+    # Existing 5-min + WR strategies that survived 8yr validation (rule-based,
+    # not constraint-based — bot already has Signal classes for them)
+    for r in tier_a_existing + tier_b_existing:
+        is_a = (r in tier_a_existing)
+        sigs[r["name"]] = {
+            "recommended": True,
+            "tier": "A" if is_a else "B",
+            "side": r["side"],
+            "family": r.get("family", "5min"),
+            "win_rate": r.get("win_rate"),
+            "profit_factor": r.get("profit_factor"),
+            "trades": r.get("n_trades"),
+            "net_pnl": r.get("net_pnl"),
+            "stop_pts": r.get("stop_pts"),
+            "target_pts": r.get("target_pts"),
+            "rigor_level": "5/5_PASS_8yr" if is_a else "tier_b_live_8yr",
             "tests_passed": r.get("n_passes"),
         }
     data["last_updated"] = datetime.now(timezone.utc).isoformat()
@@ -317,18 +352,41 @@ def main() -> int:
     tier_b = [r for r in deduped if r["tier"] == "B"]
     reject = [r for r in deduped if r["tier"] == "REJECT"]
 
-    print(f"Total unique validated patterns: {len(deduped)}")
-    print(f"  Tier A: {len(tier_a)}    Tier B: {len(tier_b)}    Reject: {len(reject)}")
+    # Existing 5-min + WR strategies validated separately
+    tier_a_existing: list[dict] = []
+    tier_b_existing: list[dict] = []
+    existing_rejects: list[dict] = []
+    if EXISTING_VALIDATED.exists():
+        ex = json.loads(EXISTING_VALIDATED.read_text())
+        for p in ex.get("patterns", []):
+            p["tier"] = _rebucket(p)
+            if p["tier"] == "A":
+                tier_a_existing.append(p)
+            elif p["tier"] == "B":
+                tier_b_existing.append(p)
+            else:
+                existing_rejects.append(p)
 
-    # Emit Signal classes for tier A + B (B is just watchlist; only A gets recommended)
+    print(f"V3 mined patterns: {len(deduped)}  (A:{len(tier_a)}  B:{len(tier_b)}  R:{len(reject)})")
+    print(f"Existing strategies: {len(tier_a_existing)+len(tier_b_existing)+len(existing_rejects)}  "
+          f"(A:{len(tier_a_existing)}  B:{len(tier_b_existing)}  R:{len(existing_rejects)})")
+
+    # Emit Signal classes for V3 tier A + B (existing strategies have their own classes)
     code = emit_signal_classes(tier_a + tier_b, with_xa=used_xa)
     EMITTED_PATH.write_text(code)
     print(f"Wrote -> {EMITTED_PATH.relative_to(PROJECT_ROOT)}")
 
-    update_validation_json(tier_a, tier_b)
+    update_validation_json(tier_a, tier_b,
+                            tier_a_existing=tier_a_existing,
+                            tier_b_existing=tier_b_existing,
+                            existing_rejects=existing_rejects)
     print(f"Wrote -> {VALIDATION_PATH.relative_to(PROJECT_ROOT)}")
 
-    REPORT_PATH.write_text(render_report(tier_a, tier_b, reject, sources))
+    # Combined report includes both V3 and existing
+    all_a = tier_a + tier_a_existing
+    all_b = tier_b + tier_b_existing
+    all_reject = reject + existing_rejects
+    REPORT_PATH.write_text(render_report(all_a, all_b, all_reject, sources))
     print(f"Wrote -> {REPORT_PATH.relative_to(PROJECT_ROOT)}")
     return 0
 

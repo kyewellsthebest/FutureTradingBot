@@ -1,0 +1,1547 @@
+{
+  "generated_at": "2026-04-28T22:53:08.633755+00:00",
+  "n_perm": 300,
+  "n_mc": 10000,
+  "patterns": [
+    {
+      "name": "PDL_TOUCH",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 373,
+      "win_rate": 0.11796246648793565,
+      "ev_dollars": -766.1662198391421,
+      "net_pnl": -285780.0,
+      "profit_factor": 0.19346372026077385,
+      "tests": {
+        "ev": {
+          "value": -766.1662198391421,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.11797121797121798,
+          "fold_min": 0.08108108108108109,
+          "fold_wrs": [
+            0.10810810810810811,
+            0.08108108108108109,
+            0.13513513513513514,
+            0.14864864864864866,
+            0.11688311688311688
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -235780.0,
+          "p5_final": -235780.0,
+          "p95_final": -235780.0,
+          "median_max_dd": 284700.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.19346372026077385,
+          "pf_low_20pct": 0.1797435120670504,
+          "pf_high_20pct": 0.205591619946887,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "PDH_TOUCH",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 442,
+      "win_rate": 0.5384615384615384,
+      "ev_dollars": 346.49321266968326,
+      "net_pnl": 153150.0,
+      "profit_factor": 1.7442775914856392,
+      "tests": {
+        "ev": {
+          "value": 346.49321266968326,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.538888888888889,
+          "fold_min": 0.4444444444444444,
+          "fold_wrs": [
+            0.625,
+            0.5113636363636364,
+            0.5795454545454546,
+            0.5340909090909091,
+            0.4444444444444444
+          ],
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 203150.0,
+          "p5_final": 203150.0,
+          "p95_final": 203150.0,
+          "median_max_dd": 9720.0,
+          "p_dd_over_pct": 0.9999,
+          "p_apex_pass": 0.39,
+          "p_apex_blow": 0.61,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.7442775914856392,
+          "pf_low_20pct": 1.4918901811852203,
+          "pf_high_20pct": 1.8254291916069196,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "B"
+    },
+    {
+      "name": "EQ50_LONG",
+      "side": "LONG",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 8625,
+      "win_rate": 0.2822028985507246,
+      "ev_dollars": -287.4765217391304,
+      "net_pnl": -2479485.0,
+      "profit_factor": 0.628976795758683,
+      "tests": {
+        "ev": {
+          "value": -287.4765217391304,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.28220289855072467,
+          "fold_min": 0.2672463768115942,
+          "fold_wrs": [
+            0.27942028985507245,
+            0.2672463768115942,
+            0.27652173913043476,
+            0.30782608695652175,
+            0.28
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -2429485.0,
+          "p5_final": -2429485.0,
+          "p95_final": -2429485.0,
+          "median_max_dd": 2483085.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0146,
+          "p_apex_blow": 0.9854,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.628976795758683,
+          "pf_low_20pct": 0.5503643839650023,
+          "pf_high_20pct": 0.6827791662422927,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "EQ50_SHORT",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 10548,
+      "win_rate": 0.27360637087599543,
+      "ev_dollars": -317.84414106939704,
+      "net_pnl": -3352620.0,
+      "profit_factor": 0.5939068217578208,
+      "tests": {
+        "ev": {
+          "value": -317.84414106939704,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.27360850683219107,
+          "fold_min": 0.26609848484848486,
+          "fold_wrs": [
+            0.27643432906590804,
+            0.2721669037458511,
+            0.2797534376481745,
+            0.27358937885253676,
+            0.26609848484848486
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -3302620.0,
+          "p5_final": -3302620.0,
+          "p95_final": -3302620.0,
+          "median_max_dd": 3355680.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0106,
+          "p_apex_blow": 0.9894,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.5939068217578208,
+          "pf_low_20pct": 0.5546738051034066,
+          "pf_high_20pct": 0.6337499525490643,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "GAP_FILL_LONG",
+      "side": "LONG",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 285,
+      "win_rate": 0.4,
+      "ev_dollars": 48.0,
+      "net_pnl": 13680.0,
+      "profit_factor": 1.0740740740740742,
+      "tests": {
+        "ev": {
+          "value": 48.0,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.39999999999999997,
+          "fold_min": 0.3333333333333333,
+          "fold_wrs": [
+            0.5263157894736842,
+            0.3508771929824561,
+            0.3333333333333333,
+            0.45614035087719296,
+            0.3333333333333333
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 63680.0,
+          "p5_final": 63680.0,
+          "p95_final": 63680.0,
+          "median_max_dd": 20220.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.1048,
+          "p_apex_blow": 0.8952,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.0740740740740742,
+          "pf_low_20pct": 0.8677655677655678,
+          "pf_high_20pct": 1.216988022202746,
+          "pass": true
+        }
+      },
+      "n_passes": 3,
+      "tier": "REJECT"
+    },
+    {
+      "name": "GAP_FILL_SHORT",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 172,
+      "win_rate": 0.43023255813953487,
+      "ev_dollars": 133.25581395348837,
+      "net_pnl": 22920.0,
+      "profit_factor": 1.2165532879818595,
+      "tests": {
+        "ev": {
+          "value": 133.25581395348837,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.43169934640522883,
+          "fold_min": 0.29411764705882354,
+          "fold_wrs": [
+            0.7058823529411765,
+            0.29411764705882354,
+            0.35294117647058826,
+            0.5,
+            0.3055555555555556
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 72920.0,
+          "p5_final": 72920.0,
+          "p95_final": 72920.0,
+          "median_max_dd": 12840.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.1512,
+          "p_apex_blow": 0.8488,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.2165532879818595,
+          "pf_low_20pct": 0.9784126984126984,
+          "pf_high_20pct": 1.3829787234042554,
+          "pass": true
+        }
+      },
+      "n_passes": 3,
+      "tier": "REJECT"
+    },
+    {
+      "name": "ZSCORE_LONG",
+      "side": "LONG",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 27586,
+      "win_rate": 0.30910606829551224,
+      "ev_dollars": -240.85478141086057,
+      "net_pnl": -6644220.0,
+      "profit_factor": 0.6728475940765907,
+      "tests": {
+        "ev": {
+          "value": -240.85478141086057,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.3091070251539888,
+          "fold_min": 0.28271112722000724,
+          "fold_wrs": [
+            0.33804603951422874,
+            0.3164763458401305,
+            0.30415080659778865,
+            0.30415080659778865,
+            0.28271112722000724
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -6594220.0,
+          "p5_final": -6594220.0,
+          "p95_final": -6594220.0,
+          "median_max_dd": 6648652.5,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0189,
+          "p_apex_blow": 0.9811,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6728475940765907,
+          "pf_low_20pct": 0.5973604985306626,
+          "pf_high_20pct": 0.7210674924975361,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "ZSCORE_SHORT",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 29635,
+      "win_rate": 0.2922895225240425,
+      "ev_dollars": -282.46009785726335,
+      "net_pnl": -8370705.0,
+      "profit_factor": 0.6240350709355079,
+      "tests": {
+        "ev": {
+          "value": -282.46009785726335,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.2922895225240425,
+          "fold_min": 0.2842922220347562,
+          "fold_wrs": [
+            0.3042011135481694,
+            0.292728193015016,
+            0.295258984309094,
+            0.28496709971317696,
+            0.2842922220347562
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -8320705.0,
+          "p5_final": -8320705.0,
+          "p95_final": -8320705.0,
+          "median_max_dd": 8374185.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0113,
+          "p_apex_blow": 0.9887,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6240350709355079,
+          "pf_low_20pct": 0.5626923143173458,
+          "pf_high_20pct": 0.6665534576530879,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "VOL_COMP_LONG",
+      "side": "LONG",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 512,
+      "win_rate": 0.318359375,
+      "ev_dollars": -253.916015625,
+      "net_pnl": -130005.0,
+      "profit_factor": 0.6484831278390656,
+      "tests": {
+        "ev": {
+          "value": -253.916015625,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.3181372549019608,
+          "fold_min": 0.17647058823529413,
+          "fold_wrs": [
+            0.45098039215686275,
+            0.35294117647058826,
+            0.23529411764705882,
+            0.17647058823529413,
+            0.375
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -80005.0,
+          "p5_final": -80005.0,
+          "p95_final": -80005.0,
+          "median_max_dd": 133815.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.014,
+          "p_apex_blow": 0.986,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6484831278390656,
+          "pf_low_20pct": 0.6404634239754883,
+          "pf_high_20pct": 0.6793402591838921,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "VOL_COMP_SHORT",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 481,
+      "win_rate": 0.30145530145530147,
+      "ev_dollars": -250.6029106029106,
+      "net_pnl": -120540.0,
+      "profit_factor": 0.6583769077073502,
+      "tests": {
+        "ev": {
+          "value": -250.6029106029106,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.30152491408934706,
+          "fold_min": 0.26804123711340205,
+          "fold_wrs": [
+            0.3125,
+            0.3020833333333333,
+            0.34375,
+            0.28125,
+            0.26804123711340205
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -70540.0,
+          "p5_final": -70540.0,
+          "p95_final": -70540.0,
+          "median_max_dd": 124680.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0131,
+          "p_apex_blow": 0.9869,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6583769077073502,
+          "pf_low_20pct": 0.5744410817143415,
+          "pf_high_20pct": 0.7421407907425265,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "VWAP_RECLAIM_LONG",
+      "side": "LONG",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 2292,
+      "win_rate": 0.2870855148342059,
+      "ev_dollars": -286.75392670157066,
+      "net_pnl": -657240.0,
+      "profit_factor": 0.6259742033513449,
+      "tests": {
+        "ev": {
+          "value": -286.75392670157066,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.2870875261059427,
+          "fold_min": 0.2423580786026201,
+          "fold_wrs": [
+            0.2925764192139738,
+            0.31004366812227074,
+            0.2423580786026201,
+            0.3056768558951965,
+            0.2847826086956522
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -607240.0,
+          "p5_final": -607240.0,
+          "p95_final": -607240.0,
+          "median_max_dd": 660765.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0121,
+          "p_apex_blow": 0.9879,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6259742033513449,
+          "pf_low_20pct": 0.5462020282362299,
+          "pf_high_20pct": 0.6824866209956677,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "VWAP_REJECT_SHORT",
+      "side": "SHORT",
+      "family": "5min",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 80,
+      "n_trades": 2457,
+      "win_rate": 0.2922262922262922,
+      "ev_dollars": -261.34310134310135,
+      "net_pnl": -642120.0,
+      "profit_factor": 0.6563345455713173,
+      "tests": {
+        "ev": {
+          "value": -261.34310134310135,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.29222805633244237,
+          "fold_min": 0.2790224032586558,
+          "fold_wrs": [
+            0.31160896130346233,
+            0.28716904276985744,
+            0.2790224032586558,
+            0.29327902240325865,
+            0.29006085192697767
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -592120.0,
+          "p5_final": -592120.0,
+          "p95_final": -592120.0,
+          "median_max_dd": 646260.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0121,
+          "p_apex_blow": 0.9879,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6563345455713173,
+          "pf_low_20pct": 0.5699490582791981,
+          "pf_high_20pct": 0.7318491479021202,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_LONG_T12S10_01",
+      "side": "LONG",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 12.0,
+      "max_hold": 15,
+      "n_trades": 18395,
+      "win_rate": 0.46262571350910575,
+      "ev_dollars": -19.623403098668117,
+      "net_pnl": -360972.5,
+      "profit_factor": 0.7088772977561278,
+      "tests": {
+        "ev": {
+          "value": -19.623403098668117,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.46262571350910575,
+          "fold_min": 0.3916825224245719,
+          "fold_wrs": [
+            0.5120956781734167,
+            0.4272900244631693,
+            0.5458004892633868,
+            0.436259853220984,
+            0.3916825224245719
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -310972.5,
+          "p5_final": -310972.5,
+          "p95_final": -310972.5,
+          "median_max_dd": 361442.5,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.7088772977561278,
+          "pf_low_20pct": 0.5499052315608919,
+          "pf_high_20pct": 0.8412468688048439,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T12S10_02",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 12.0,
+      "max_hold": 15,
+      "n_trades": 72168,
+      "win_rate": 0.34358718545615785,
+      "ev_dollars": -29.667304068285112,
+      "net_pnl": -2141030.0,
+      "profit_factor": 0.38387758875340555,
+      "tests": {
+        "ev": {
+          "value": -29.667304068285112,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.34358561032924284,
+          "fold_min": 0.26979837871544377,
+          "fold_wrs": [
+            0.26979837871544377,
+            0.3180904870782235,
+            0.3874454375389732,
+            0.3611168849165108,
+            0.3814768633970629
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -2091030.0,
+          "p5_final": -2091030.0,
+          "p95_final": -2091030.0,
+          "median_max_dd": 2141100.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.38387758875340555,
+          "pf_low_20pct": 0.3201135240806293,
+          "pf_high_20pct": 0.4352498489156313,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T12S10_03",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 12.0,
+      "max_hold": 15,
+      "n_trades": 21421,
+      "win_rate": 0.5283133373792073,
+      "ev_dollars": -0.6064142663741189,
+      "net_pnl": -12990.0,
+      "profit_factor": 0.9844350050625176,
+      "tests": {
+        "ev": {
+          "value": -0.6064142663741189,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.5283134226074717,
+          "fold_min": 0.5065359477124183,
+          "fold_wrs": [
+            0.5065359477124183,
+            0.5163398692810458,
+            0.5562558356676004,
+            0.5359477124183006,
+            0.526487747957993
+          ],
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 37010.0,
+          "p5_final": 37010.0,
+          "p95_final": 37010.0,
+          "median_max_dd": 21278.75,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0209,
+          "p_apex_blow": 0.9791,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.9844350050625176,
+          "pf_low_20pct": 0.7152768348322674,
+          "pf_high_20pct": 1.2564817273380782,
+          "pass": true
+        }
+      },
+      "n_passes": 2,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_LONG_T15S10_04",
+      "side": "LONG",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 52570,
+      "win_rate": 0.39611945976792845,
+      "ev_dollars": -25.2763458246148,
+      "net_pnl": -1328777.5,
+      "profit_factor": 0.571052147358091,
+      "tests": {
+        "ev": {
+          "value": -25.2763458246148,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.39611945976792845,
+          "fold_min": 0.3774966711051931,
+          "fold_wrs": [
+            0.3776868936655887,
+            0.397279817386342,
+            0.4023207152368271,
+            0.42581320144569146,
+            0.3774966711051931
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -1278777.5,
+          "p5_final": -1278777.5,
+          "p95_final": -1278777.5,
+          "median_max_dd": 1329018.75,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.571052147358091,
+          "pf_low_20pct": 0.46883291754093215,
+          "pf_high_20pct": 0.6627598554028331,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T15S10_05",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 74724,
+      "win_rate": 0.36062041646592796,
+      "ev_dollars": -27.624692200631657,
+      "net_pnl": -2064227.5,
+      "profit_factor": 0.4589453874214735,
+      "tests": {
+        "ev": {
+          "value": -27.624692200631657,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.3606198955809118,
+          "fold_min": 0.3122992505353319,
+          "fold_wrs": [
+            0.3122992505353319,
+            0.33444860813704497,
+            0.4031049250535332,
+            0.38289614561027835,
+            0.37035054856837035
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -2014227.5,
+          "p5_final": -2014227.5,
+          "p95_final": -2014227.5,
+          "median_max_dd": 2064365.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.4589453874214735,
+          "pf_low_20pct": 0.3838018826532131,
+          "pf_high_20pct": 0.5114120986175323,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T15S10_06",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 12664,
+      "win_rate": 0.5450094756790903,
+      "ev_dollars": 7.250276373973468,
+      "net_pnl": 91817.5,
+      "profit_factor": 1.176025421048091,
+      "tests": {
+        "ev": {
+          "value": 7.250276373973468,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.545016844329491,
+          "fold_min": 0.5216876971608833,
+          "fold_wrs": [
+            0.5560821484992101,
+            0.5481832543443917,
+            0.5560821484992101,
+            0.5430489731437599,
+            0.5216876971608833
+          ],
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 141817.5,
+          "p5_final": 141817.5,
+          "p95_final": 141817.5,
+          "median_max_dd": 3735.0,
+          "p_dd_over_pct": 0.0936,
+          "p_apex_pass": 0.8396,
+          "p_apex_blow": 0.1604,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.176025421048091,
+          "pf_low_20pct": 0.8408819202787444,
+          "pf_high_20pct": 1.557446987590546,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "B"
+    },
+    {
+      "name": "WR_SHORT_T15S10_07",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 3524,
+      "win_rate": 0.4758796821793417,
+      "ev_dollars": -1.3755675368898979,
+      "net_pnl": -4847.5,
+      "profit_factor": 0.9796094349741832,
+      "tests": {
+        "ev": {
+          "value": -1.3755675368898979,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.4758972136620441,
+          "fold_min": 0.44886363636363635,
+          "fold_wrs": [
+            0.484375,
+            0.5028409090909091,
+            0.44886363636363635,
+            0.48295454545454547,
+            0.4604519774011299
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 45152.5,
+          "p5_final": 45152.5,
+          "p95_final": 45152.5,
+          "median_max_dd": 10990.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0087,
+          "p_apex_blow": 0.9913,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.9796094349741832,
+          "pf_low_20pct": 0.7089663719556052,
+          "pf_high_20pct": 1.2760248497976867,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_LONG_T15S12_08",
+      "side": "LONG",
+      "family": "wr",
+      "stop_pts": 12.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 15997,
+      "win_rate": 0.5003438144652123,
+      "ev_dollars": -6.711883478152154,
+      "net_pnl": -107370.0,
+      "profit_factor": 0.9074869086264128,
+      "tests": {
+        "ev": {
+          "value": -6.711883478152154,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.5003561816754083,
+          "fold_min": 0.401437050921587,
+          "fold_wrs": [
+            0.5386058143169741,
+            0.48608940293841824,
+            0.6136292591434823,
+            0.4620193810565802,
+            0.401437050921587
+          ],
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -57370.0,
+          "p5_final": -57370.0,
+          "p95_final": -57370.0,
+          "median_max_dd": 109685.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0005,
+          "p_apex_blow": 0.9995,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.9074869086264128,
+          "pf_low_20pct": 0.7396737953482324,
+          "pf_high_20pct": 1.0685993463998755,
+          "pass": true
+        }
+      },
+      "n_passes": 2,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T15S12_09",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 12.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 77745,
+      "win_rate": 0.3856196539970416,
+      "ev_dollars": -23.49504791304907,
+      "net_pnl": -1826622.5,
+      "profit_factor": 0.5310204723499716,
+      "tests": {
+        "ev": {
+          "value": -23.49504791304907,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.38561965399704157,
+          "fold_min": 0.3166763135892983,
+          "fold_wrs": [
+            0.3166763135892983,
+            0.35372049649495146,
+            0.44067142581516494,
+            0.4027911762814329,
+            0.4142388578043604
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -1776622.5,
+          "p5_final": -1776622.5,
+          "p95_final": -1776622.5,
+          "median_max_dd": 1826815.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.5310204723499716,
+          "pf_low_20pct": 0.45330559686153565,
+          "pf_high_20pct": 0.5919057720654183,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T15S12_10",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 12.0,
+      "target_pts": 15.0,
+      "max_hold": 20,
+      "n_trades": 14411,
+      "win_rate": 0.552078273541045,
+      "ev_dollars": 9.157934910832003,
+      "net_pnl": 131975.0,
+      "profit_factor": 1.2264615543010107,
+      "tests": {
+        "ev": {
+          "value": 9.157934910832003,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.5520777834986158,
+          "fold_min": 0.5208188757807078,
+          "fold_wrs": [
+            0.5402498265093685,
+            0.5208188757807078,
+            0.5721721027064538,
+            0.5680083275503123,
+            0.5591397849462365
+          ],
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 181975.0,
+          "p5_final": 181975.0,
+          "p95_final": 181975.0,
+          "median_max_dd": 3387.5,
+          "p_dd_over_pct": 0.0419,
+          "p_apex_pass": 0.9174,
+          "p_apex_blow": 0.0826,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.2264615543010107,
+          "pf_low_20pct": 0.9791719847438052,
+          "pf_high_20pct": 1.503370419951501,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "B"
+    },
+    {
+      "name": "WR_LONG_T20S10_11",
+      "side": "LONG",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 20029,
+      "win_rate": 0.39053372609715914,
+      "ev_dollars": -10.603749563133457,
+      "net_pnl": -212382.5,
+      "profit_factor": 0.863696166299245,
+      "tests": {
+        "ev": {
+          "value": -10.603749563133457,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.39055074895467723,
+          "fold_min": 0.3053130456472936,
+          "fold_wrs": [
+            0.45543071161048687,
+            0.3530586766541823,
+            0.49313358302122345,
+            0.34581772784019976,
+            0.3053130456472936
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -162382.5,
+          "p5_final": -162382.5,
+          "p95_final": -162382.5,
+          "median_max_dd": 214035.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0001,
+          "p_apex_blow": 0.9999,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.863696166299245,
+          "pf_low_20pct": 0.6895759723476909,
+          "pf_high_20pct": 1.0216620568077621,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T20S10_12",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 82794,
+      "win_rate": 0.3834939729932121,
+      "ev_dollars": -21.962400657052445,
+      "net_pnl": -1818355.0,
+      "profit_factor": 0.6045066133790085,
+      "tests": {
+        "ev": {
+          "value": -21.962400657052445,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.3834950506939347,
+          "fold_min": 0.35928252204372507,
+          "fold_wrs": [
+            0.3719048194226356,
+            0.35928252204372507,
+            0.41466360671578695,
+            0.41043604300036235,
+            0.3611882622871634
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -1768355.0,
+          "p5_final": -1768355.0,
+          "p95_final": -1768355.0,
+          "median_max_dd": 1818665.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.6045066133790085,
+          "pf_low_20pct": 0.5002570455065148,
+          "pf_high_20pct": 0.6919148608047411,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T20S10_13",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 3284,
+      "win_rate": 0.4585870889159562,
+      "ev_dollars": 15.656211936662606,
+      "net_pnl": 51415.0,
+      "profit_factor": 1.2239646291395776,
+      "tests": {
+        "ev": {
+          "value": 15.656211936662606,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "fold_mean": 0.45861234294161124,
+          "fold_min": 0.4344512195121951,
+          "fold_wrs": [
+            0.4344512195121951,
+            0.4817073170731707,
+            0.4481707317073171,
+            0.49085365853658536,
+            0.43787878787878787
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": 101415.0,
+          "p5_final": 101415.0,
+          "p95_final": 101415.0,
+          "median_max_dd": 3455.0,
+          "p_dd_over_pct": 0.0616,
+          "p_apex_pass": 0.8261,
+          "p_apex_blow": 0.1739,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.2239646291395776,
+          "pf_low_20pct": 0.9059414535899899,
+          "pf_high_20pct": 1.5934981646344035,
+          "pass": true
+        }
+      },
+      "n_passes": 4,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_LONG_T10S8_14",
+      "side": "LONG",
+      "family": "wr",
+      "stop_pts": 8.0,
+      "target_pts": 10.0,
+      "max_hold": 10,
+      "n_trades": 19299,
+      "win_rate": 0.4119384424063423,
+      "ev_dollars": -28.14252033784134,
+      "net_pnl": -543122.5,
+      "profit_factor": 0.5494862356783659,
+      "tests": {
+        "ev": {
+          "value": -28.14252033784134,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.4119505340900713,
+          "fold_min": 0.3536111830183795,
+          "fold_wrs": [
+            0.45659497279087846,
+            0.38455558434827675,
+            0.48224928738015027,
+            0.38274164291267165,
+            0.3536111830183795
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -493122.5,
+          "p5_final": -493122.5,
+          "p95_final": -493122.5,
+          "median_max_dd": 543302.5,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.5494862356783659,
+          "pf_low_20pct": 0.4291310786265853,
+          "pf_high_20pct": 0.679686148183725,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T10S8_15",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 8.0,
+      "target_pts": 10.0,
+      "max_hold": 10,
+      "n_trades": 73544,
+      "win_rate": 0.31454639399543133,
+      "ev_dollars": -30.906532144022627,
+      "net_pnl": -2272990.0,
+      "profit_factor": 0.3016841988841645,
+      "tests": {
+        "ev": {
+          "value": -30.906532144022627,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.3145445254904501,
+          "fold_min": 0.2510878433505575,
+          "fold_wrs": [
+            0.2510878433505575,
+            0.2873266249660049,
+            0.35341310851237423,
+            0.33199619254827306,
+            0.3488988580750408
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -2222990.0,
+          "p5_final": -2222990.0,
+          "p95_final": -2222990.0,
+          "median_max_dd": 2273015.0,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.3016841988841645,
+          "pf_low_20pct": 0.2506321661967899,
+          "pf_high_20pct": 0.3508011371317662,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    },
+    {
+      "name": "WR_SHORT_T10S8_16",
+      "side": "SHORT",
+      "family": "wr",
+      "stop_pts": 8.0,
+      "target_pts": 10.0,
+      "max_hold": 10,
+      "n_trades": 18725,
+      "win_rate": 0.44811748998664885,
+      "ev_dollars": -15.47770360480641,
+      "net_pnl": -289820.0,
+      "profit_factor": 0.623864403260136,
+      "tests": {
+        "ev": {
+          "value": -15.47770360480641,
+          "pass": false
+        },
+        "permutation": {
+          "p_value": 1.0,
+          "n_perm": 300,
+          "pass": false
+        },
+        "walk_forward": {
+          "fold_mean": 0.4481174899866489,
+          "fold_min": 0.41815754339118827,
+          "fold_wrs": [
+            0.41815754339118827,
+            0.4451268357810414,
+            0.4809078771695594,
+            0.4456608811748999,
+            0.4507343124165554
+          ],
+          "pass": false
+        },
+        "monte_carlo": {
+          "n_paths": 10000,
+          "median_final": -239820.0,
+          "p5_final": -239820.0,
+          "p95_final": -239820.0,
+          "median_max_dd": 290052.5,
+          "p_dd_over_pct": 1.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 1.0,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 0.623864403260136,
+          "pf_low_20pct": 0.47781205535181065,
+          "pf_high_20pct": 0.8038725204149856,
+          "pass": true
+        }
+      },
+      "n_passes": 1,
+      "tier": "REJECT"
+    }
+  ]
+}

@@ -397,6 +397,9 @@ def parse_args():
     p.add_argument("--n-folds", type=int, default=5)
     p.add_argument("--purge", type=int, default=30)
     p.add_argument("--top", type=int, default=8)
+    p.add_argument("--seeds", type=str, default="42",
+                   help="Comma-separated random seeds — runs the full mine "
+                        "once per seed and unions the survivors (more diverse trees).")
     p.add_argument("--emit", action="store_true")
     p.add_argument("--with-cross-asset", action="store_true",
                    help="Augment 50 NQ features with ES/RTY/VIX cross-asset features. "
@@ -457,6 +460,7 @@ def main() -> int:
         print(f"\n  --- stop={stop_pts}pt  target={target_pts}pt  "
               f"max_hold={max_hold}m  (BE-WR={be_wr:.1f}%) ---")
 
+        seeds = [int(s) for s in args.seeds.split(",")]
         for side in ("LONG", "SHORT"):
             t1 = time.time()
             outcome, valid = label_1_to_2_rr(intraday, stop_pts, max_hold, side)
@@ -467,33 +471,33 @@ def main() -> int:
             print(f"    {side}: usable={n:,}  base WR={y.mean()*100:.1f}%  "
                   f"({time.time()-t1:.1f}s)")
 
-            # Stage A: train deep tree on FIRST 70% of usable bars (train fit)
+            # Stage A: train deep tree(s) — one per random seed for diversity.
             t1 = time.time()
             cut = int(n * 0.70)
             X_tr, X_te = X[:cut], X[cut:]
             y_tr, y_te = y[:cut], y[cut:]
-            tree = DecisionTreeClassifier(
-                max_depth=args.max_depth,
-                min_samples_leaf=args.min_leaf,
-                random_state=42,
-                class_weight="balanced",
-            )
-            tree.fit(X_tr, y_tr)
-
-            # Find leaves with high train WR
-            leaf_tr = tree.apply(X_tr)
-            leaf_te = tree.apply(X_te)
-            candidates = []
-            for leaf in np.unique(leaf_tr):
-                m_tr = leaf_tr == leaf
-                m_te = leaf_te == leaf
-                if m_tr.sum() < args.min_leaf or m_te.sum() < 50:
-                    continue
-                tr_wr = float(y_tr[m_tr].mean())
-                te_wr = float(y_te[m_te].mean())
-                if tr_wr < args.min_train_wr or te_wr < args.min_cpcv_fold_wr:
-                    continue
-                candidates.append((leaf, tr_wr, te_wr, m_tr.sum() + m_te.sum()))
+            candidates = []   # (tree, leaf, tr_wr, te_wr, n_total)
+            for seed in seeds:
+                tree = DecisionTreeClassifier(
+                    max_depth=args.max_depth,
+                    min_samples_leaf=args.min_leaf,
+                    random_state=seed,
+                    class_weight="balanced",
+                )
+                tree.fit(X_tr, y_tr)
+                leaf_tr = tree.apply(X_tr)
+                leaf_te = tree.apply(X_te)
+                for leaf in np.unique(leaf_tr):
+                    m_tr = leaf_tr == leaf
+                    m_te = leaf_te == leaf
+                    if m_tr.sum() < args.min_leaf or m_te.sum() < 50:
+                        continue
+                    tr_wr = float(y_tr[m_tr].mean())
+                    te_wr = float(y_te[m_te].mean())
+                    if tr_wr < args.min_train_wr or te_wr < args.min_cpcv_fold_wr:
+                        continue
+                    candidates.append((tree, leaf, tr_wr, te_wr,
+                                        m_tr.sum() + m_te.sum()))
 
             if not candidates:
                 print(f"      no candidate leaves passed train_wr ≥ {args.min_train_wr*100:.0f}% "
@@ -507,9 +511,9 @@ def main() -> int:
             # whether THAT same leaf rule has stable WR across 5 chronological
             # folds spanning the entire usable range (with purge gaps).
             cpcv_pairs = cpcv_fold_indices(n, args.n_folds, args.purge)
-            full_leaf_assignments = tree.apply(X)
             survivors: list[V3Rule] = []
-            for leaf, tr_wr, te_wr, n_total in candidates:
+            for tree, leaf, tr_wr, te_wr, n_total in candidates:
+                full_leaf_assignments = tree.apply(X)
                 fold_wrs = []
                 for _, te_idx in cpcv_pairs:
                     in_leaf = full_leaf_assignments[te_idx] == leaf
