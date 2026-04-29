@@ -50,7 +50,7 @@ SLIP_TARGET_PTS = 0.0
 COMMISSION_DOLLARS = DEFAULT_CONTRACTS * COMMISSION_PER_CONTRACT  # $60
 
 
-def contracts_for(signal_name: str) -> int:
+def _base_contracts(signal_name: str) -> int:
     """5 MNQ for HF_*, MINED_*, WR_*, V3_* signals (1-min), 30 MNQ otherwise."""
     if signal_name and (signal_name.startswith(HF_SIGNAL_PREFIX)
                         or signal_name.startswith("MINED_")
@@ -58,6 +58,20 @@ def contracts_for(signal_name: str) -> int:
                         or signal_name.startswith("V3_")):
         return HF_CONTRACTS
     return DEFAULT_CONTRACTS
+
+
+def contracts_for(signal_name: str) -> int:
+    """Adaptive contract size = base × Kelly fraction (half-Kelly clipped to [0.1, 1.0]).
+    Falls back to base if kelly_state.json doesn't exist or signal not yet tracked.
+    Set HFT_DISABLE_KELLY=1 in env to revert to fixed sizing."""
+    base = _base_contracts(signal_name)
+    if _os.environ.get("HFT_DISABLE_KELLY") == "1":
+        return base
+    try:
+        from research.kelly_sizer import current_size
+        return current_size(signal_name, base_contracts=base)
+    except Exception:
+        return base
 
 
 def dollars_per_pt_for(signal_name: str) -> float:

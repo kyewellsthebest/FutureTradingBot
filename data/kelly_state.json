@@ -1,0 +1,401 @@
+{
+  "strategies": {
+    "V3_SHORT_S15T30_05": {
+      "kelly_fraction": 0.19231107315970564,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.6034231609613984,
+      "avg_win": 290.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_55": {
+      "kelly_fraction": 0.21990976105744792,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.6077384923282189,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S8T16_02": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.48913896885632036,
+      "avg_win": 150.0,
+      "avg_loss": 90.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S8T16_01": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4766209476309227,
+      "avg_win": 150.0,
+      "avg_loss": 90.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S10T20_02": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4862932061978546,
+      "avg_win": 190.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S10T20_03": {
+      "kelly_fraction": 0.10499876617196038,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4996651038178165,
+      "avg_win": 190.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T24_03": {
+      "kelly_fraction": 0.18071485729527878,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.5917220235053654,
+      "avg_win": 230.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S12T24_04": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4865697930427125,
+      "avg_win": 230.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T30_04": {
+      "kelly_fraction": 0.4742842806567613,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.9668552950687146,
+      "avg_win": 290.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S15T30_07": {
+      "kelly_fraction": 0.12555156071253476,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.5177584846093133,
+      "avg_win": 290.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_SHORT_S15T30_08": {
+      "kelly_fraction": 0.13224137931034485,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.5256495669553631,
+      "avg_win": 290.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_05": {
+      "kelly_fraction": 0.12386448808274624,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4734102833158447,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T37_06": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4286295655712687,
+      "avg_win": 365.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_07": {
+      "kelly_fraction": 0.1322743332373373,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.45758567817330403,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_08": {
+      "kelly_fraction": 0.13793781975600158,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4931129476584022,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T45_09": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.39938507209499574,
+      "avg_win": 440.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T37_10": {
+      "kelly_fraction": 0.10734248441640849,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4540190735694823,
+      "avg_win": 365.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_11": {
+      "kelly_fraction": 0.10770094303773597,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4212867898699521,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_12": {
+      "kelly_fraction": 0.31993540680440646,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.747909569526169,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T60_15": {
+      "kelly_fraction": 0.11345379606724604,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.39183397247913376,
+      "avg_win": 590.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T36_16": {
+      "kelly_fraction": 0.4573300062383032,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.9367502726281353,
+      "avg_win": 350.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_20": {
+      "kelly_fraction": 0.35420083834517946,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.7849462365591398,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_21": {
+      "kelly_fraction": 0.3117939725133559,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.7365115615186982,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_23": {
+      "kelly_fraction": 0.111742628502405,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.45643967990336703,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_27": {
+      "kelly_fraction": 0.298728813559322,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.7026022304832714,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S10T30_28": {
+      "kelly_fraction": 0.12432111064691323,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4552656104380242,
+      "avg_win": 290.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T30_29": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.44207631488484017,
+      "avg_win": 290.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T45_31": {
+      "kelly_fraction": 0.25948808473080315,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.6472491909385113,
+      "avg_win": 440.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_32": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.3975405600909373,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T37_33": {
+      "kelly_fraction": 0.3885273972602739,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.845,
+      "avg_win": 365.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_34": {
+      "kelly_fraction": 0.29006163328197226,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.6903409090909091,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S10T30_35": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4066006600660066,
+      "avg_win": 290.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_37": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.40256914948720607,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T30_38": {
+      "kelly_fraction": 0.2628226505702661,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.6720360824742269,
+      "avg_win": 290.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_43": {
+      "kelly_fraction": 0.1427659186279876,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4998722860791826,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T45_49": {
+      "kelly_fraction": 0.29853252083074244,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.7045143638850889,
+      "avg_win": 440.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S10T25_56": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4415112618067329,
+      "avg_win": 240.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T36_57": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.40459320791595405,
+      "avg_win": 350.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T60_59": {
+      "kelly_fraction": 0.20675356965625905,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.5674615152429822,
+      "avg_win": 590.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S10T30_60": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.34231697506033787,
+      "avg_win": 290.0,
+      "avg_loss": 110.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S20T50_61": {
+      "kelly_fraction": 0.3044444444444444,
+      "base_contracts": 5,
+      "sized_contracts": 2,
+      "wr": 0.7255772646536413,
+      "avg_win": 490.0,
+      "avg_loss": 210.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S12T30_63": {
+      "kelly_fraction": 0.1,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4259537398618204,
+      "avg_win": 290.0,
+      "avg_loss": 130.0,
+      "recent_pnls": []
+    },
+    "V3_LONG_S15T37_64": {
+      "kelly_fraction": 0.13838754790115843,
+      "base_contracts": 5,
+      "sized_contracts": 1,
+      "wr": 0.4971864951768489,
+      "avg_win": 365.0,
+      "avg_loss": 160.0,
+      "recent_pnls": []
+    },
+    "PDH_TOUCH": {
+      "kelly_fraction": 0.1419098143236074,
+      "base_contracts": 30,
+      "sized_contracts": 4,
+      "wr": 0.5384615384615384,
+      "avg_win": 1740.0,
+      "avg_loss": 960.0,
+      "recent_pnls": []
+    }
+  },
+  "last_updated": "2026-04-29T01:59:20.967631+00:00"
+}

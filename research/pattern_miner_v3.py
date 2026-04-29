@@ -410,6 +410,9 @@ def parse_args():
     p.add_argument("--with-cross-asset", action="store_true",
                    help="Augment 50 NQ features with ES/RTY/VIX cross-asset features. "
                         "Restricts mining window to ~2024+ (where all four assets overlap).")
+    p.add_argument("--with-smc", action="store_true",
+                   help="Augment with Smart Money Concepts features (order blocks, "
+                        "FVGs, liquidity sweeps, killzone confluence).")
     p.add_argument("--results-path", type=str, default=None,
                    help="Override output JSON path (so XA and non-XA runs don't clobber each other).")
     return p.parse_args()
@@ -435,12 +438,18 @@ def main() -> int:
     print("[2/5] Building features ...", flush=True)
     t1 = time.time()
     X_full = build_v3_features(intraday, daily)
+    feature_names = list(V3_FEATURES)
     if args.with_cross_asset:
         from research.cross_asset_features import build_cross_asset_features, CROSS_ASSET_FEATURES
         xa = build_cross_asset_features(intraday.index)
         X_full = pd.concat([X_full, xa], axis=1)
-        # Mining feature list = base + cross-asset
-        feature_names = list(V3_FEATURES) + list(CROSS_ASSET_FEATURES)
+        feature_names = feature_names + list(CROSS_ASSET_FEATURES)
+    if args.with_smc:
+        from research.smc_features import build_smc_features, SMC_FEATURES
+        smc = build_smc_features(intraday, daily)
+        X_full = pd.concat([X_full, smc], axis=1)
+        feature_names = feature_names + list(SMC_FEATURES)
+        print(f"  SMC features added: {len(SMC_FEATURES)}")
         print(f"  cross-asset features added: {len(CROSS_ASSET_FEATURES)}  "
               f"(total {len(feature_names)} cols)")
     else:

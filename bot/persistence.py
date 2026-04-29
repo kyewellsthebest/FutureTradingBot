@@ -117,10 +117,21 @@ def insert_trade(t: dict) -> int:
 def close_trade(trade_id: int, exit_time: str, exit_px: float,
                 exit_reason: str, pnl: float) -> None:
     with _conn() as conn:
+        # Need signal_name to update the Kelly sizer
+        row = conn.execute("SELECT signal_name FROM trades WHERE id=?",
+                            (trade_id,)).fetchone()
         conn.execute(
             "UPDATE trades SET exit_time=?, exit_px=?, exit_reason=?, pnl=? WHERE id=?",
             (exit_time, exit_px, exit_reason, pnl, trade_id),
         )
+    # Push the realized P&L into the Kelly sizer's rolling window so the
+    # next entry on this strategy sizes adaptively.
+    if row:
+        try:
+            from research.kelly_sizer import record_trade
+            record_trade(row["signal_name"], float(pnl))
+        except Exception:
+            pass   # never let Kelly bookkeeping break a trade close
 
 
 def load_trades(limit: int = 100, only_closed: bool = False) -> list[dict]:
