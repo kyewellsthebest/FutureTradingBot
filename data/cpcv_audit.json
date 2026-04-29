@@ -1,0 +1,399 @@
+{
+  "generated_at": "2026-04-29T08:07:55.304760+00:00",
+  "old_purge": 24,
+  "new_purge": 90,
+  "n_holds": 39,
+  "n_fails": 0,
+  "audit": [
+    {
+      "name": "V3_SHORT_S15T30_05",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.6214783390938706,
+      "new_cpcv_mean": 0.6214783390938706,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S20T50_55",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5220766952017852,
+      "new_cpcv_mean": 0.5220766952017852,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T30_57",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.7370088929178645,
+      "new_cpcv_mean": 0.7370088929178645,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.6193517559908359,
+      "new_cpcv_mean": 0.6193517559908359,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S15T30_69",
+      "side": "LONG",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.5293143292726669,
+      "new_cpcv_mean": 0.5293143292726669,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S10T20_03",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.6140005867641062,
+      "new_cpcv_mean": 0.6140005867641062,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S12T24_04",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.5492427835831222,
+      "new_cpcv_mean": 0.5492427835831222,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S15T30_04",
+      "side": "LONG",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.9943458550103015,
+      "new_cpcv_mean": 0.9943458550103015,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S15T37_06",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.4406544974479797,
+      "new_cpcv_mean": 0.4406544974479797,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S20T50_12",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.7763422944843958,
+      "new_cpcv_mean": 0.7763422944843958,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S20T50_21",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.7443505287332588,
+      "new_cpcv_mean": 0.7443505287332588,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S20T50_43",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5089571521670411,
+      "new_cpcv_mean": 0.5089571521670411,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S10T25_56",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5122732287415676,
+      "new_cpcv_mean": 0.5122732287415676,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S20T50_61",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.736443730918241,
+      "new_cpcv_mean": 0.736443730918241,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_LONG_S15T37_64",
+      "side": "LONG",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5446450451852394,
+      "new_cpcv_mean": 0.5446450451852394,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S12T24_39",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.9701605870220638,
+      "new_cpcv_mean": 0.9701605870220638,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S12T24_44",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.6969373822008628,
+      "new_cpcv_mean": 0.6969373822008628,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T30_53",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.5800135746609991,
+      "new_cpcv_mean": 0.5800135746609991,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T30_60",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.7010401050529536,
+      "new_cpcv_mean": 0.7010401050529536,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S18T36_72",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.9956784863649663,
+      "new_cpcv_mean": 0.9956784863649663,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S18T36_73",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.9981544866069847,
+      "new_cpcv_mean": 0.9981544866069847,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T40_78",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 0.5589365169911262,
+      "new_cpcv_mean": 0.5589365169911262,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T40_83",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 1.0,
+      "new_cpcv_mean": 1.0,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T40_88",
+      "side": "SHORT",
+      "rr": 2.0,
+      "old_cpcv_mean": 1.0,
+      "new_cpcv_mean": 1.0,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3833333333333333,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S8T20_101",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 1.0,
+      "new_cpcv_mean": 1.0,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S8T20_107",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.6475090940271919,
+      "new_cpcv_mean": 0.6475090940271919,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S8T20_110",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.7918167728537561,
+      "new_cpcv_mean": 0.7918167728537561,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S10T25_119",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.732509138751859,
+      "new_cpcv_mean": 0.732509138751859,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S12T30_125",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.8086627336297939,
+      "new_cpcv_mean": 0.8086627336297939,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S12T30_127",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.9977807436836551,
+      "new_cpcv_mean": 0.9977807436836551,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5743991467844902,
+      "new_cpcv_mean": 0.5743991467844902,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T50_143",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.5306580017631006,
+      "new_cpcv_mean": 0.5306580017631006,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.7370901833607387,
+      "new_cpcv_mean": 0.7370901833607387,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rr": 2.5,
+      "old_cpcv_mean": 0.49725781777201544,
+      "new_cpcv_mean": 0.49725781777201544,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3357142857142857,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S8T24_169",
+      "side": "SHORT",
+      "rr": 3.0,
+      "old_cpcv_mean": 0.6494736346686846,
+      "new_cpcv_mean": 0.6494736346686846,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S10T30_171",
+      "side": "SHORT",
+      "rr": 3.0,
+      "old_cpcv_mean": 0.48310304626477096,
+      "new_cpcv_mean": 0.48310304626477096,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T45_199",
+      "side": "SHORT",
+      "rr": 3.0,
+      "old_cpcv_mean": 0.4573066878803507,
+      "new_cpcv_mean": 0.4573066878803507,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.3,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T60_231",
+      "side": "SHORT",
+      "rr": 4.0,
+      "old_cpcv_mean": 0.9175271193075286,
+      "new_cpcv_mean": 0.9175271193075286,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.25,
+      "verdict": "HOLDS"
+    },
+    {
+      "name": "V3_SHORT_S15T60_238",
+      "side": "SHORT",
+      "rr": 4.0,
+      "old_cpcv_mean": 0.9965687240580335,
+      "new_cpcv_mean": 0.9965687240580335,
+      "delta_mean": 0.0,
+      "min_wr_required": 0.25,
+      "verdict": "HOLDS"
+    }
+  ]
+}
