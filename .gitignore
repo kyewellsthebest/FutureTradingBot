@@ -15,6 +15,7 @@ data/cot_cache.json
 data/insider_cache.json
 data/wsb_cache.json
 data/congress_cache.json
+data/scenarios_trades_cache.json
 
 # Editor
 .idea/
