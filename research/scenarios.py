@@ -259,24 +259,31 @@ def scenario_a(trades: list[dict]) -> dict:
 
 
 def scenario_b(trades: list[dict]) -> dict:
-    """$1k → compounding: contracts scale with equity. Risk ~2% per trade.
+    """$1k → compounding over the LAST 6 MONTHS: contracts scale with equity.
 
     Realistic caps:
-      - MNQ margin ≈ $1,800/contract day-trade  (worst-case overnight much higher)
-      - NQ  margin ≈ $18,000/contract day-trade
+      - MNQ day-trade margin ≈ $500/contract (broker like AMP, NinjaTrader)
+      - NQ  day-trade margin ≈ $5,000/contract
       - Max position size: 20 MNQ or 5 NQ (retail liquidity ceiling)
 
     Sizing rule:
         risk_per_unit = stop_pts × dpp + commission
         target_risk = equity * 0.02
-        n_units = floor(target_risk / risk_per_unit), clamped to:
-          - n × margin_per_unit ≤ equity
-          - n_units ≤ MAX (contract liquidity cap)
+        n_units = floor(target_risk / risk_per_unit), clamped by margin + cap
         if equity ≥ 25k:  switch from MNQ to NQ
         if equity drops < 20k after NQ: switch back to MNQ
     """
     if not trades:
         return {}
+    # Use the SAME 6-month window as Scenario A
+    last_ts = trades[-1]["ts"]
+    six_mo_ago = last_ts - pd.Timedelta(days=183)
+    sub = [t for t in trades if t["ts"] >= six_mo_ago]
+    if not sub:
+        return {}
+    print(f"  ScenarioB window: {six_mo_ago.date()} → {last_ts.date()}   "
+          f"trades in window: {len(sub):,}")
+
     bal = 1000.0
     starting = bal
     contract_type = "MNQ"   # $2/pt
@@ -288,7 +295,7 @@ def scenario_b(trades: list[dict]) -> dict:
     n_wins = n_losses = 0
     skipped_no_size = 0
     contract_changes: list[tuple] = []
-    for t in trades:
+    for t in sub:
         if bal <= 0:
             n_blowups += 1
             break
@@ -367,6 +374,44 @@ def _milestones(eq_curve: list[tuple]) -> list[dict]:
     return out
 
 
+def render_grid(a: dict, b: dict, n_strategies: int) -> str:
+    """Side-by-side month-by-month grid for both scenarios."""
+    # Build a unified month list from whichever has more rows
+    months_a = {r["month"]: r for r in (a.get("monthly_pnl") or [])}
+    months_b = {r["month"]: r for r in (b.get("monthly_pnl") or [])}
+    all_months = sorted(set(months_a) | set(months_b))
+
+    lines = ["", "=" * 96]
+    lines.append(f"  6-MONTH FORECAST — {n_strategies} validated strategies, take every trade")
+    lines.append("=" * 96)
+    lines.append("")
+    lines.append(f"  {'':<10}  {'$50,000 demo':^32}    {'$1,000 live (compounding)':^32}")
+    lines.append(f"  {'month':<10}  {'P&L':>12}  {'balance':>12}    {'P&L':>12}  {'balance':>12}")
+    lines.append(f"  {'-'*10}  {'-'*12}  {'-'*12}    {'-'*12}  {'-'*12}")
+    bal_a = a.get("starting_balance", 50000)
+    bal_b = b.get("starting_balance", 1000)
+    for m in all_months:
+        pa = months_a.get(m, {}).get("pnl", 0.0)
+        pb = months_b.get(m, {}).get("pnl", 0.0)
+        bal_a += pa
+        bal_b += pb
+        lines.append(
+            f"  {m:<10}  ${pa:>+10,.0f}  ${bal_a:>10,.0f}    ${pb:>+10,.0f}  ${bal_b:>10,.0f}"
+        )
+    lines.append(f"  {'-'*10}  {'-'*12}  {'-'*12}    {'-'*12}  {'-'*12}")
+    lines.append(
+        f"  {'TOTAL':<10}  ${a.get('total_pnl',0):>+10,.0f}  ${a.get('final_balance',0):>10,.0f}"
+        f"    ${b.get('final_balance',0)-b.get('starting_balance',0):>+10,.0f}  ${b.get('final_balance',0):>10,.0f}"
+    )
+    lines.append("")
+    lines.append(f"  Trades: {a.get('n_trades',0)} ($50k) / {b.get('n_trades',0)} taken ($1k, "
+                 f"{b.get('skipped_no_size',0)} skipped due to size)")
+    lines.append(f"  Win rate: {a.get('win_rate',0)*100:.1f}% / {b.get('win_rate',0)*100:.1f}%")
+    lines.append(f"  Max DD:   ${a.get('max_drawdown',0):,.0f} ({a.get('max_drawdown_pct',0):.1f}%) / "
+                 f"${b.get('max_drawdown',0):,.0f} ({b.get('max_drawdown_pct',0):.1f}% of peak)")
+    return "\n".join(lines)
+
+
 def render_markdown(a: dict, b: dict) -> str:
     lines = ["", "=" * 80]
     lines.append("SCENARIO A: $50,000 demo, 6 months, take every trade")
@@ -431,8 +476,10 @@ def main() -> int:
     a = scenario_a(taken)
     b = scenario_b(taken)
 
-    md = render_markdown(a, b)
-    print(md)
+    val = json.loads((PROJECT_ROOT / "data" / "validation_results.json").read_text())
+    n_active = sum(1 for s in val["signals"].values() if s.get("recommended"))
+    print(render_grid(a, b, n_active))
+    print(render_markdown(a, b))
 
     out_path = PROJECT_ROOT / "data" / "scenarios.json"
     out_path.write_text(json.dumps({
