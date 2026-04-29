@@ -1,0 +1,2156 @@
+{
+  "generated_at": "2026-04-29T07:57:44.055341+00:00",
+  "config": {
+    "starting_balance": 50000.0,
+    "initial_mll": 48000.0,
+    "profit_target": 53000.0,
+    "max_mnq_contracts": 50
+  },
+  "summaries_by_kelly_fraction": {
+    "Half-Kelly (0.50)": {
+      "kelly_fraction": 0.5,
+      "n_attempts": 100,
+      "n_passed": 94,
+      "n_blown": 0,
+      "n_timeout": 6,
+      "pass_rate": 0.94,
+      "blow_rate": 0.0,
+      "median_days_to_pass": 4,
+      "fastest_pass": 1,
+      "slowest_pass": 27,
+      "median_timeout_pnl": -1338.9500000000335,
+      "results": [
+        {
+          "start": "2024-01-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54036.8
+        },
+        {
+          "start": "2024-01-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54867.1
+        },
+        {
+          "start": "2024-01-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 53079.60000000002
+        },
+        {
+          "start": "2024-01-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53222.90000000001
+        },
+        {
+          "start": "2024-02-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53158.2
+        },
+        {
+          "start": "2024-02-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53477.5
+        },
+        {
+          "start": "2024-02-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53650.0
+        },
+        {
+          "start": "2024-02-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53838.4
+        },
+        {
+          "start": "2024-03-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54570.200000000004
+        },
+        {
+          "start": "2024-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53372.200000000004
+        },
+        {
+          "start": "2024-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53592.30000000001
+        },
+        {
+          "start": "2024-03-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54274.40000000001
+        },
+        {
+          "start": "2024-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53170.4
+        },
+        {
+          "start": "2024-04-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 27,
+          "ending_balance": 53646.299999999974
+        },
+        {
+          "start": "2024-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 22,
+          "ending_balance": 53716.49999999999
+        },
+        {
+          "start": "2024-04-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53720.29999999998
+        },
+        {
+          "start": "2024-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 54433.500000000015
+        },
+        {
+          "start": "2024-05-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53086.0
+        },
+        {
+          "start": "2024-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54053.99999999999
+        },
+        {
+          "start": "2024-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54305.799999999996
+        },
+        {
+          "start": "2024-05-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53140.700000000004
+        },
+        {
+          "start": "2024-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53910.8
+        },
+        {
+          "start": "2024-06-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53124.89999999998
+        },
+        {
+          "start": "2024-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54148.7
+        },
+        {
+          "start": "2024-06-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53432.0
+        },
+        {
+          "start": "2024-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.0
+        },
+        {
+          "start": "2024-07-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54137.6
+        },
+        {
+          "start": "2024-07-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54466.899999999994
+        },
+        {
+          "start": "2024-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 26,
+          "ending_balance": 54561.59999999997
+        },
+        {
+          "start": "2024-08-05",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 54377.99999999999
+        },
+        {
+          "start": "2024-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53181.999999999985
+        },
+        {
+          "start": "2024-08-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53553.8
+        },
+        {
+          "start": "2024-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54194.399999999994
+        },
+        {
+          "start": "2024-09-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53558.0
+        },
+        {
+          "start": "2024-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53408.5
+        },
+        {
+          "start": "2024-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 24,
+          "ending_balance": 54197.69999999998
+        },
+        {
+          "start": "2024-09-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53247.39999999998
+        },
+        {
+          "start": "2024-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54556.0
+        },
+        {
+          "start": "2024-10-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55037.6
+        },
+        {
+          "start": "2024-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55067.6
+        },
+        {
+          "start": "2024-10-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53737.999999999985
+        },
+        {
+          "start": "2024-11-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53820.799999999996
+        },
+        {
+          "start": "2024-11-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53175.2
+        },
+        {
+          "start": "2024-11-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 55636.39999999998
+        },
+        {
+          "start": "2024-11-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54743.799999999996
+        },
+        {
+          "start": "2024-12-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 56252.200000000004
+        },
+        {
+          "start": "2024-12-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53754.0
+        },
+        {
+          "start": "2024-12-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54304.0
+        },
+        {
+          "start": "2024-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54313.49999999999
+        },
+        {
+          "start": "2025-01-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53280.4
+        },
+        {
+          "start": "2025-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53231.2
+        },
+        {
+          "start": "2025-01-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54727.69999999998
+        },
+        {
+          "start": "2025-01-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54098.2
+        },
+        {
+          "start": "2025-01-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53814.299999999996
+        },
+        {
+          "start": "2025-02-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53966.8
+        },
+        {
+          "start": "2025-02-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53120.00000000001
+        },
+        {
+          "start": "2025-02-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55125.6
+        },
+        {
+          "start": "2025-03-01",
+          "passed": false,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 49015.79999999997
+        },
+        {
+          "start": "2025-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53166.200000000004
+        },
+        {
+          "start": "2025-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54054.799999999996
+        },
+        {
+          "start": "2025-03-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53677.599999999984
+        },
+        {
+          "start": "2025-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53451.2
+        },
+        {
+          "start": "2025-04-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53579.59999999999
+        },
+        {
+          "start": "2025-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54850.0
+        },
+        {
+          "start": "2025-04-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 53492.49999999999
+        },
+        {
+          "start": "2025-05-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 55213.099999999984
+        },
+        {
+          "start": "2025-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 11,
+          "ending_balance": 53473.09999999999
+        },
+        {
+          "start": "2025-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54220.09999999999
+        },
+        {
+          "start": "2025-05-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53817.399999999994
+        },
+        {
+          "start": "2025-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53893.99999999999
+        },
+        {
+          "start": "2025-06-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 53692.8
+        },
+        {
+          "start": "2025-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53039.799999999996
+        },
+        {
+          "start": "2025-06-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53208.20000000001
+        },
+        {
+          "start": "2025-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53386.9
+        },
+        {
+          "start": "2025-07-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54163.299999999996
+        },
+        {
+          "start": "2025-07-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53228.700000000004
+        },
+        {
+          "start": "2025-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53168.0
+        },
+        {
+          "start": "2025-08-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54779.200000000004
+        },
+        {
+          "start": "2025-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55612.8
+        },
+        {
+          "start": "2025-08-19",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54365.2
+        },
+        {
+          "start": "2025-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 54589.2
+        },
+        {
+          "start": "2025-09-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53826.8
+        },
+        {
+          "start": "2025-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53431.000000000015
+        },
+        {
+          "start": "2025-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.6
+        },
+        {
+          "start": "2025-09-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 53424.50000000001
+        },
+        {
+          "start": "2025-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53476.60000000001
+        },
+        {
+          "start": "2025-10-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53399.6
+        },
+        {
+          "start": "2025-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 54301.4
+        },
+        {
+          "start": "2025-10-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53744.3
+        },
+        {
+          "start": "2025-11-02",
+          "passed": false,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 48061.799999999996
+        },
+        {
+          "start": "2025-11-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53004.39999999999
+        },
+        {
+          "start": "2025-11-17",
+          "passed": false,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 48260.49999999998
+        },
+        {
+          "start": "2025-11-24",
+          "passed": false,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 49674.69999999999
+        },
+        {
+          "start": "2025-12-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-12-09",
+          "passed": false,
+          "blown": false,
+          "days_traded": 28,
+          "ending_balance": 48306.29999999997
+        },
+        {
+          "start": "2025-12-16",
+          "passed": false,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 49393.69999999995
+        },
+        {
+          "start": "2025-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 25,
+          "ending_balance": 53079.69999999996
+        },
+        {
+          "start": "2025-12-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 20,
+          "ending_balance": 53221.899999999965
+        },
+        {
+          "start": "2026-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54222.40000000001
+        }
+      ]
+    },
+    "Quarter-Kelly (0.25)": {
+      "kelly_fraction": 0.25,
+      "n_attempts": 100,
+      "n_passed": 94,
+      "n_blown": 0,
+      "n_timeout": 6,
+      "pass_rate": 0.94,
+      "blow_rate": 0.0,
+      "median_days_to_pass": 4,
+      "fastest_pass": 1,
+      "slowest_pass": 27,
+      "median_timeout_pnl": -1338.9500000000335,
+      "results": [
+        {
+          "start": "2024-01-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54036.8
+        },
+        {
+          "start": "2024-01-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54867.1
+        },
+        {
+          "start": "2024-01-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 53079.60000000002
+        },
+        {
+          "start": "2024-01-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53222.90000000001
+        },
+        {
+          "start": "2024-02-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53158.2
+        },
+        {
+          "start": "2024-02-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53477.5
+        },
+        {
+          "start": "2024-02-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53650.0
+        },
+        {
+          "start": "2024-02-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53838.4
+        },
+        {
+          "start": "2024-03-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54570.200000000004
+        },
+        {
+          "start": "2024-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53372.200000000004
+        },
+        {
+          "start": "2024-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53592.30000000001
+        },
+        {
+          "start": "2024-03-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54274.40000000001
+        },
+        {
+          "start": "2024-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53170.4
+        },
+        {
+          "start": "2024-04-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 27,
+          "ending_balance": 53646.299999999974
+        },
+        {
+          "start": "2024-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 22,
+          "ending_balance": 53716.49999999999
+        },
+        {
+          "start": "2024-04-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53720.29999999998
+        },
+        {
+          "start": "2024-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 54433.500000000015
+        },
+        {
+          "start": "2024-05-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53086.0
+        },
+        {
+          "start": "2024-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54053.99999999999
+        },
+        {
+          "start": "2024-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54305.799999999996
+        },
+        {
+          "start": "2024-05-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53140.700000000004
+        },
+        {
+          "start": "2024-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53910.8
+        },
+        {
+          "start": "2024-06-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53124.89999999998
+        },
+        {
+          "start": "2024-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54148.7
+        },
+        {
+          "start": "2024-06-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53432.0
+        },
+        {
+          "start": "2024-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.0
+        },
+        {
+          "start": "2024-07-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54137.6
+        },
+        {
+          "start": "2024-07-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54466.899999999994
+        },
+        {
+          "start": "2024-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 26,
+          "ending_balance": 54561.59999999997
+        },
+        {
+          "start": "2024-08-05",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 54377.99999999999
+        },
+        {
+          "start": "2024-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53181.999999999985
+        },
+        {
+          "start": "2024-08-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53553.8
+        },
+        {
+          "start": "2024-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54194.399999999994
+        },
+        {
+          "start": "2024-09-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53558.0
+        },
+        {
+          "start": "2024-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53408.5
+        },
+        {
+          "start": "2024-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 24,
+          "ending_balance": 54197.69999999998
+        },
+        {
+          "start": "2024-09-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53247.39999999998
+        },
+        {
+          "start": "2024-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54556.0
+        },
+        {
+          "start": "2024-10-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55037.6
+        },
+        {
+          "start": "2024-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55067.6
+        },
+        {
+          "start": "2024-10-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53737.999999999985
+        },
+        {
+          "start": "2024-11-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53820.799999999996
+        },
+        {
+          "start": "2024-11-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53175.2
+        },
+        {
+          "start": "2024-11-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 55636.39999999998
+        },
+        {
+          "start": "2024-11-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54743.799999999996
+        },
+        {
+          "start": "2024-12-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 56252.200000000004
+        },
+        {
+          "start": "2024-12-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53754.0
+        },
+        {
+          "start": "2024-12-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54304.0
+        },
+        {
+          "start": "2024-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54313.49999999999
+        },
+        {
+          "start": "2025-01-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53280.4
+        },
+        {
+          "start": "2025-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53231.2
+        },
+        {
+          "start": "2025-01-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54727.69999999998
+        },
+        {
+          "start": "2025-01-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54098.2
+        },
+        {
+          "start": "2025-01-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53814.299999999996
+        },
+        {
+          "start": "2025-02-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53966.8
+        },
+        {
+          "start": "2025-02-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53120.00000000001
+        },
+        {
+          "start": "2025-02-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55125.6
+        },
+        {
+          "start": "2025-03-01",
+          "passed": false,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 49015.79999999997
+        },
+        {
+          "start": "2025-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53166.200000000004
+        },
+        {
+          "start": "2025-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54054.799999999996
+        },
+        {
+          "start": "2025-03-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53677.599999999984
+        },
+        {
+          "start": "2025-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53451.2
+        },
+        {
+          "start": "2025-04-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53579.59999999999
+        },
+        {
+          "start": "2025-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54850.0
+        },
+        {
+          "start": "2025-04-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 53492.49999999999
+        },
+        {
+          "start": "2025-05-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 55213.099999999984
+        },
+        {
+          "start": "2025-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 11,
+          "ending_balance": 53473.09999999999
+        },
+        {
+          "start": "2025-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54220.09999999999
+        },
+        {
+          "start": "2025-05-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53817.399999999994
+        },
+        {
+          "start": "2025-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53893.99999999999
+        },
+        {
+          "start": "2025-06-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 53692.8
+        },
+        {
+          "start": "2025-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53039.799999999996
+        },
+        {
+          "start": "2025-06-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53208.20000000001
+        },
+        {
+          "start": "2025-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53386.9
+        },
+        {
+          "start": "2025-07-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54163.299999999996
+        },
+        {
+          "start": "2025-07-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53228.700000000004
+        },
+        {
+          "start": "2025-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53168.0
+        },
+        {
+          "start": "2025-08-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54779.200000000004
+        },
+        {
+          "start": "2025-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55612.8
+        },
+        {
+          "start": "2025-08-19",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54365.2
+        },
+        {
+          "start": "2025-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 54589.2
+        },
+        {
+          "start": "2025-09-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53826.8
+        },
+        {
+          "start": "2025-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53431.000000000015
+        },
+        {
+          "start": "2025-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.6
+        },
+        {
+          "start": "2025-09-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 53424.50000000001
+        },
+        {
+          "start": "2025-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53476.60000000001
+        },
+        {
+          "start": "2025-10-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53399.6
+        },
+        {
+          "start": "2025-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 54301.4
+        },
+        {
+          "start": "2025-10-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53744.3
+        },
+        {
+          "start": "2025-11-02",
+          "passed": false,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 48061.799999999996
+        },
+        {
+          "start": "2025-11-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53004.39999999999
+        },
+        {
+          "start": "2025-11-17",
+          "passed": false,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 48260.49999999998
+        },
+        {
+          "start": "2025-11-24",
+          "passed": false,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 49674.69999999999
+        },
+        {
+          "start": "2025-12-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-12-09",
+          "passed": false,
+          "blown": false,
+          "days_traded": 28,
+          "ending_balance": 48306.29999999997
+        },
+        {
+          "start": "2025-12-16",
+          "passed": false,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 49393.69999999995
+        },
+        {
+          "start": "2025-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 25,
+          "ending_balance": 53079.69999999996
+        },
+        {
+          "start": "2025-12-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 20,
+          "ending_balance": 53221.899999999965
+        },
+        {
+          "start": "2026-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54222.40000000001
+        }
+      ]
+    },
+    "Eighth-Kelly (0.125)": {
+      "kelly_fraction": 0.125,
+      "n_attempts": 100,
+      "n_passed": 94,
+      "n_blown": 0,
+      "n_timeout": 6,
+      "pass_rate": 0.94,
+      "blow_rate": 0.0,
+      "median_days_to_pass": 4,
+      "fastest_pass": 1,
+      "slowest_pass": 27,
+      "median_timeout_pnl": -1338.9500000000335,
+      "results": [
+        {
+          "start": "2024-01-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54036.8
+        },
+        {
+          "start": "2024-01-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54867.1
+        },
+        {
+          "start": "2024-01-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 53079.60000000002
+        },
+        {
+          "start": "2024-01-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53222.90000000001
+        },
+        {
+          "start": "2024-02-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53158.2
+        },
+        {
+          "start": "2024-02-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53477.5
+        },
+        {
+          "start": "2024-02-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53650.0
+        },
+        {
+          "start": "2024-02-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53838.4
+        },
+        {
+          "start": "2024-03-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54570.200000000004
+        },
+        {
+          "start": "2024-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53372.200000000004
+        },
+        {
+          "start": "2024-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53592.30000000001
+        },
+        {
+          "start": "2024-03-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54274.40000000001
+        },
+        {
+          "start": "2024-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53170.4
+        },
+        {
+          "start": "2024-04-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 27,
+          "ending_balance": 53646.299999999974
+        },
+        {
+          "start": "2024-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 22,
+          "ending_balance": 53716.49999999999
+        },
+        {
+          "start": "2024-04-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53720.29999999998
+        },
+        {
+          "start": "2024-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 54433.500000000015
+        },
+        {
+          "start": "2024-05-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53086.0
+        },
+        {
+          "start": "2024-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54053.99999999999
+        },
+        {
+          "start": "2024-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54305.799999999996
+        },
+        {
+          "start": "2024-05-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53140.700000000004
+        },
+        {
+          "start": "2024-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53910.8
+        },
+        {
+          "start": "2024-06-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53124.89999999998
+        },
+        {
+          "start": "2024-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54148.7
+        },
+        {
+          "start": "2024-06-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53432.0
+        },
+        {
+          "start": "2024-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.0
+        },
+        {
+          "start": "2024-07-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 54137.6
+        },
+        {
+          "start": "2024-07-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54466.899999999994
+        },
+        {
+          "start": "2024-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 26,
+          "ending_balance": 54561.59999999997
+        },
+        {
+          "start": "2024-08-05",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 54377.99999999999
+        },
+        {
+          "start": "2024-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53181.999999999985
+        },
+        {
+          "start": "2024-08-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53553.8
+        },
+        {
+          "start": "2024-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54194.399999999994
+        },
+        {
+          "start": "2024-09-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53558.0
+        },
+        {
+          "start": "2024-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53408.5
+        },
+        {
+          "start": "2024-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 24,
+          "ending_balance": 54197.69999999998
+        },
+        {
+          "start": "2024-09-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53247.39999999998
+        },
+        {
+          "start": "2024-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54556.0
+        },
+        {
+          "start": "2024-10-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55037.6
+        },
+        {
+          "start": "2024-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 55067.6
+        },
+        {
+          "start": "2024-10-26",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 53737.999999999985
+        },
+        {
+          "start": "2024-11-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53820.799999999996
+        },
+        {
+          "start": "2024-11-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53175.2
+        },
+        {
+          "start": "2024-11-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 55636.39999999998
+        },
+        {
+          "start": "2024-11-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54743.799999999996
+        },
+        {
+          "start": "2024-12-02",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 56252.200000000004
+        },
+        {
+          "start": "2024-12-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53754.0
+        },
+        {
+          "start": "2024-12-17",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54304.0
+        },
+        {
+          "start": "2024-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54313.49999999999
+        },
+        {
+          "start": "2025-01-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53280.4
+        },
+        {
+          "start": "2025-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53231.2
+        },
+        {
+          "start": "2025-01-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54727.69999999998
+        },
+        {
+          "start": "2025-01-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 54098.2
+        },
+        {
+          "start": "2025-01-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53814.299999999996
+        },
+        {
+          "start": "2025-02-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53966.8
+        },
+        {
+          "start": "2025-02-14",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53120.00000000001
+        },
+        {
+          "start": "2025-02-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55125.6
+        },
+        {
+          "start": "2025-03-01",
+          "passed": false,
+          "blown": false,
+          "days_traded": 15,
+          "ending_balance": 49015.79999999997
+        },
+        {
+          "start": "2025-03-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 9,
+          "ending_balance": 53166.200000000004
+        },
+        {
+          "start": "2025-03-16",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 54054.799999999996
+        },
+        {
+          "start": "2025-03-23",
+          "passed": true,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 53677.599999999984
+        },
+        {
+          "start": "2025-03-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53451.2
+        },
+        {
+          "start": "2025-04-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53579.59999999999
+        },
+        {
+          "start": "2025-04-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54850.0
+        },
+        {
+          "start": "2025-04-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-04-30",
+          "passed": true,
+          "blown": false,
+          "days_traded": 12,
+          "ending_balance": 53492.49999999999
+        },
+        {
+          "start": "2025-05-07",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 55213.099999999984
+        },
+        {
+          "start": "2025-05-15",
+          "passed": true,
+          "blown": false,
+          "days_traded": 11,
+          "ending_balance": 53473.09999999999
+        },
+        {
+          "start": "2025-05-22",
+          "passed": true,
+          "blown": false,
+          "days_traded": 6,
+          "ending_balance": 54220.09999999999
+        },
+        {
+          "start": "2025-05-29",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53817.399999999994
+        },
+        {
+          "start": "2025-06-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53893.99999999999
+        },
+        {
+          "start": "2025-06-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 53692.8
+        },
+        {
+          "start": "2025-06-21",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53039.799999999996
+        },
+        {
+          "start": "2025-06-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 14,
+          "ending_balance": 53208.20000000001
+        },
+        {
+          "start": "2025-07-06",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53386.9
+        },
+        {
+          "start": "2025-07-13",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54163.299999999996
+        },
+        {
+          "start": "2025-07-20",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53228.700000000004
+        },
+        {
+          "start": "2025-07-28",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 53168.0
+        },
+        {
+          "start": "2025-08-04",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 54779.200000000004
+        },
+        {
+          "start": "2025-08-12",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 55612.8
+        },
+        {
+          "start": "2025-08-19",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 54365.2
+        },
+        {
+          "start": "2025-08-27",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 54589.2
+        },
+        {
+          "start": "2025-09-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 2,
+          "ending_balance": 53826.8
+        },
+        {
+          "start": "2025-09-11",
+          "passed": true,
+          "blown": false,
+          "days_traded": 7,
+          "ending_balance": 53431.000000000015
+        },
+        {
+          "start": "2025-09-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 3,
+          "ending_balance": 53347.6
+        },
+        {
+          "start": "2025-09-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 13,
+          "ending_balance": 53424.50000000001
+        },
+        {
+          "start": "2025-10-03",
+          "passed": true,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 53476.60000000001
+        },
+        {
+          "start": "2025-10-10",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53399.6
+        },
+        {
+          "start": "2025-10-18",
+          "passed": true,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 54301.4
+        },
+        {
+          "start": "2025-10-25",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53744.3
+        },
+        {
+          "start": "2025-11-02",
+          "passed": false,
+          "blown": false,
+          "days_traded": 5,
+          "ending_balance": 48061.799999999996
+        },
+        {
+          "start": "2025-11-09",
+          "passed": true,
+          "blown": false,
+          "days_traded": 4,
+          "ending_balance": 53004.39999999999
+        },
+        {
+          "start": "2025-11-17",
+          "passed": false,
+          "blown": false,
+          "days_traded": 8,
+          "ending_balance": 48260.49999999998
+        },
+        {
+          "start": "2025-11-24",
+          "passed": false,
+          "blown": false,
+          "days_traded": 16,
+          "ending_balance": 49674.69999999999
+        },
+        {
+          "start": "2025-12-01",
+          "passed": true,
+          "blown": false,
+          "days_traded": 1,
+          "ending_balance": 53087.6
+        },
+        {
+          "start": "2025-12-09",
+          "passed": false,
+          "blown": false,
+          "days_traded": 28,
+          "ending_balance": 48306.29999999997
+        },
+        {
+          "start": "2025-12-16",
+          "passed": false,
+          "blown": false,
+          "days_traded": 23,
+          "ending_balance": 49393.69999999995
+        },
+        {
+          "start": "2025-12-24",
+          "passed": true,
+          "blown": false,
+          "days_traded": 25,
+          "ending_balance": 53079.69999999996
+        },
+        {
+          "start": "2025-12-31",
+          "passed": true,
+          "blown": false,
+          "days_traded": 20,
+          "ending_balance": 53221.899999999965
+        },
+        {
+          "start": "2026-01-08",
+          "passed": true,
+          "blown": false,
+          "days_traded": 10,
+          "ending_balance": 54222.40000000001
+        }
+      ]
+    }
+  }
+}
