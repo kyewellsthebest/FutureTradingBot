@@ -1,0 +1,1308 @@
+{
+  "generated_at": "2026-04-29T02:08:23.815199+00:00",
+  "input_file": "data/mined_v3_es.json",
+  "n_perm": 300,
+  "n_mc": 5000,
+  "with_cross_asset": false,
+  "n_validated": 15,
+  "n_tier_a": 4,
+  "n_tier_b": 9,
+  "n_reject": 2,
+  "patterns": [
+    {
+      "name": "ES_V3_LONG_S8T16_01",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 16.0,
+      "max_hold": 25,
+      "n_trades": 805,
+      "win_rate": 0.6782608695652174,
+      "ev_dollars": 45.77950310559006,
+      "net_pnl": 36852.5,
+      "profit_factor": 2.4201348747591522,
+      "cpcv_mean_wr": 0.8120190738191188,
+      "cpcv_min_wr": 0.6833333333333333,
+      "tests": {
+        "ev": {
+          "value": 45.77950310559006,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.8120190738191188,
+          "cpcv_min": 0.6833333333333333,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 86852.5,
+          "p5_final": 86852.5,
+          "p95_final": 86852.5,
+          "median_max_dd": 695.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.4201348747591522,
+          "pf_low_20pct": 1.6063584883466921,
+          "pf_high_20pct": 3.177486573576799,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.657066583633423
+        ],
+        [
+          "atr_5",
+          ">",
+          4.2001025676727295
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -3.8525466918945312
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          2.6280089616775513
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          1.6015412211418152
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          1.08460134267807
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_LONG_S10T20_02",
+      "side": "LONG",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 851,
+      "win_rate": 0.7085781433607521,
+      "ev_dollars": 66.25734430082257,
+      "net_pnl": 56385.0,
+      "profit_factor": 2.9749562171628723,
+      "cpcv_mean_wr": 0.6879946719122292,
+      "cpcv_min_wr": 0.5163934426229508,
+      "tests": {
+        "ev": {
+          "value": 66.25734430082257,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6879946719122292,
+          "cpcv_min": 0.5163934426229508,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 106385.0,
+          "p5_final": 106385.0,
+          "p95_final": 106385.0,
+          "median_max_dd": 715.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.9749562171628723,
+          "pf_low_20pct": 1.8187368421052632,
+          "pf_high_20pct": 4.138015040779578,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.911348342895508
+        ],
+        [
+          "atr_5",
+          ">",
+          4.364060163497925
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -4.190554618835449
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          3.250853419303894
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          1.8944806456565857
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -14.648489952087402
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S20T40_01",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "max_hold": 60,
+      "n_trades": 368,
+      "win_rate": 0.7336956521739131,
+      "ev_dollars": 200.99184782608697,
+      "net_pnl": 73965.0,
+      "profit_factor": 4.339654588554013,
+      "cpcv_mean_wr": 0.7253939646316834,
+      "cpcv_min_wr": 0.6076555023923444,
+      "tests": {
+        "ev": {
+          "value": 200.99184782608697,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.009966777408637873,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.7253939646316834,
+          "cpcv_min": 0.6076555023923444,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 123965.0,
+          "p5_final": 123965.0,
+          "p95_final": 123965.0,
+          "median_max_dd": 920.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 4.339654588554013,
+          "pf_low_20pct": 3.3930135909244075,
+          "pf_high_20pct": 5.477573182247403,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "A",
+      "constraints": [
+        [
+          "atr_5",
+          ">",
+          3.4499123096466064
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          5.653881788253784
+        ],
+        [
+          "atr_14",
+          ">",
+          4.705383062362671
+        ],
+        [
+          "atr_14",
+          ">",
+          6.158627986907959
+        ],
+        [
+          "dist_vwap_atr",
+          "<=",
+          -3.8593982458114624
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          14.12391471862793
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S15T30_02",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 45,
+      "n_trades": 273,
+      "win_rate": 0.6446886446886447,
+      "ev_dollars": 120.0,
+      "net_pnl": 32760.0,
+      "profit_factor": 2.910761154855643,
+      "cpcv_mean_wr": 0.7341048799676555,
+      "cpcv_min_wr": 0.6376811594202898,
+      "tests": {
+        "ev": {
+          "value": 120.0,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.006644518272425249,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.7341048799676555,
+          "cpcv_min": 0.6376811594202898,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 82760.0,
+          "p5_final": 82760.0,
+          "p95_final": 82760.0,
+          "median_max_dd": 900.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.910761154855643,
+          "pf_low_20pct": 1.9161379310344828,
+          "pf_high_20pct": 3.992775899169997,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_5",
+          ">",
+          3.2175403833389282
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          5.156219720840454
+        ],
+        [
+          "atr_5",
+          ">",
+          4.80181097984314
+        ],
+        [
+          "atr_14",
+          ">",
+          6.079191446304321
+        ],
+        [
+          "dist_vwap_atr",
+          "<=",
+          -6.007394313812256
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          14.12391471862793
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S12T24_03",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 24.0,
+      "max_hold": 35,
+      "n_trades": 665,
+      "win_rate": 0.5263157894736842,
+      "ev_dollars": 44.80827067669173,
+      "net_pnl": 29797.5,
+      "profit_factor": 1.665828724652254,
+      "cpcv_mean_wr": 0.6094467020143778,
+      "cpcv_min_wr": 0.5196850393700787,
+      "tests": {
+        "ev": {
+          "value": 44.80827067669173,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6094467020143778,
+          "cpcv_min": 0.5196850393700787,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 79797.5,
+          "p5_final": 79797.5,
+          "p95_final": 79797.5,
+          "median_max_dd": 1560.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 0.9986,
+          "p_apex_blow": 0.0014,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.665828724652254,
+          "pf_low_20pct": 1.3337289342511274,
+          "pf_high_20pct": 2.1084350845748854,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "REJECT",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.705695867538452
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          4.913482666015625
+        ],
+        [
+          "atr_5",
+          ">",
+          4.062073230743408
+        ],
+        [
+          "atr_5",
+          ">",
+          5.5419700145721436
+        ],
+        [
+          "range_pos_200",
+          "<=",
+          0.2463163584470749
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          17.19609832763672
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_LONG_S20T40_03",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "max_hold": 60,
+      "n_trades": 247,
+      "win_rate": 0.6477732793522267,
+      "ev_dollars": 168.92712550607288,
+      "net_pnl": 41725.0,
+      "profit_factor": 3.085207396301849,
+      "cpcv_mean_wr": 0.6828234094810026,
+      "cpcv_min_wr": 0.6463414634146342,
+      "tests": {
+        "ev": {
+          "value": 168.92712550607288,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.019933554817275746,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6828234094810026,
+          "cpcv_min": 0.6463414634146342,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 91725.0,
+          "p5_final": 91725.0,
+          "p95_final": 91725.0,
+          "median_max_dd": 1150.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 3.085207396301849,
+          "pf_low_20pct": 1.952420112781955,
+          "pf_high_20pct": 3.818566450970632,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          3.48638379573822
+        ],
+        [
+          "atr_14",
+          ">",
+          4.946934938430786
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -3.9312071800231934
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -8.324272632598877
+        ],
+        [
+          "atr_14",
+          ">",
+          5.666432619094849
+        ],
+        [
+          "range_pos_200",
+          "<=",
+          0.8657626509666443
+        ],
+        [
+          "dist_vwap_atr",
+          ">",
+          -4.426287651062012
+        ],
+        [
+          "atr_50",
+          ">",
+          8.448511600494385
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          9.703555583953857
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S8T16_04",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 16.0,
+      "max_hold": 25,
+      "n_trades": 339,
+      "win_rate": 0.5663716814159292,
+      "ev_dollars": 29.948377581120944,
+      "net_pnl": 10152.5,
+      "profit_factor": 1.692648814600034,
+      "cpcv_mean_wr": 0.6545743005796242,
+      "cpcv_min_wr": 0.48863636363636365,
+      "tests": {
+        "ev": {
+          "value": 29.948377581120944,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6545743005796242,
+          "cpcv_min": 0.48863636363636365,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 60152.5,
+          "p5_final": 60152.5,
+          "p95_final": 60152.5,
+          "median_max_dd": 868.75,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.692648814600034,
+          "pf_low_20pct": 1.1110262286732875,
+          "pf_high_20pct": 2.441656897225479,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.705695867538452
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          3.517611265182495
+        ],
+        [
+          "atr_5",
+          ">",
+          4.065537929534912
+        ],
+        [
+          "atr_14",
+          ">",
+          4.550705909729004
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -8.531864643096924
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          4.7422730922698975
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -1.8382608294487
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S10T20_05",
+      "side": "SHORT",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 352,
+      "win_rate": 0.6164772727272727,
+      "ev_dollars": 57.15198863636363,
+      "net_pnl": 20117.5,
+      "profit_factor": 2.2144581949894357,
+      "cpcv_mean_wr": 0.6609617529122778,
+      "cpcv_min_wr": 0.5094339622641509,
+      "tests": {
+        "ev": {
+          "value": 57.15198863636363,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6609617529122778,
+          "cpcv_min": 0.5094339622641509,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 70117.5,
+          "p5_final": 70117.5,
+          "p95_final": 70117.5,
+          "median_max_dd": 827.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.2144581949894357,
+          "pf_low_20pct": 1.6408037547667937,
+          "pf_high_20pct": 2.9524118889069353,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "A",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.7137562036514282
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          4.566998481750488
+        ],
+        [
+          "atr_5",
+          ">",
+          4.065537929534912
+        ],
+        [
+          "atr_5",
+          ">",
+          5.493957996368408
+        ],
+        [
+          "range_pos_50",
+          "<=",
+          0.41704143583774567
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          17.593965530395508
+        ],
+        [
+          "atr_50",
+          "<=",
+          4.994477987289429
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S20T40_06",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "max_hold": 60,
+      "n_trades": 524,
+      "win_rate": 0.6736641221374046,
+      "ev_dollars": 150.07156488549617,
+      "net_pnl": 78637.5,
+      "profit_factor": 3.711637931034483,
+      "cpcv_mean_wr": 0.6181550043378333,
+      "cpcv_min_wr": 0.5679012345679012,
+      "tests": {
+        "ev": {
+          "value": 150.07156488549617,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6181550043378333,
+          "cpcv_min": 0.5679012345679012,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 128637.5,
+          "p5_final": 128637.5,
+          "p95_final": 128637.5,
+          "median_max_dd": 1052.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 3.711637931034483,
+          "pf_low_20pct": 2.7647198857324233,
+          "pf_high_20pct": 5.624023668639054,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "A",
+      "constraints": [
+        [
+          "atr_5",
+          ">",
+          3.4499123096466064
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          5.653881788253784
+        ],
+        [
+          "atr_14",
+          ">",
+          4.705383062362671
+        ],
+        [
+          "atr_14",
+          "<=",
+          6.158627986907959
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          6.988938093185425
+        ],
+        [
+          "atr_50",
+          "<=",
+          5.107365608215332
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          7.996172189712524
+        ],
+        [
+          "range_pos_200",
+          "<=",
+          0.3866951912641525
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          18.842554092407227
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S10T20_07",
+      "side": "SHORT",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "max_hold": 30,
+      "n_trades": 356,
+      "win_rate": 0.601123595505618,
+      "ev_dollars": 44.508426966292134,
+      "net_pnl": 15845.0,
+      "profit_factor": 1.9920175301299108,
+      "cpcv_mean_wr": 0.6552781184377738,
+      "cpcv_min_wr": 0.5789473684210527,
+      "tests": {
+        "ev": {
+          "value": 44.508426966292134,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6552781184377738,
+          "cpcv_min": 0.5789473684210527,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 65845.0,
+          "p5_final": 65845.0,
+          "p95_final": 65845.0,
+          "median_max_dd": 872.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.9920175301299108,
+          "pf_low_20pct": 1.387139299838875,
+          "pf_high_20pct": 3.3859931575769773,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.7137562036514282
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          4.566998481750488
+        ],
+        [
+          "atr_5",
+          ">",
+          4.065537929534912
+        ],
+        [
+          "atr_5",
+          ">",
+          5.493957996368408
+        ],
+        [
+          "range_pos_50",
+          ">",
+          0.41704143583774567
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -6.519273281097412
+        ],
+        [
+          "atr_14",
+          "<=",
+          11.065822124481201
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -2.265183687210083
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_LONG_S8T16_04",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 16.0,
+      "max_hold": 25,
+      "n_trades": 439,
+      "win_rate": 0.48519362186788156,
+      "ev_dollars": 11.748291571753986,
+      "net_pnl": 5157.5,
+      "profit_factor": 1.2112430882654106,
+      "cpcv_mean_wr": 0.6243532362037467,
+      "cpcv_min_wr": 0.5,
+      "tests": {
+        "ev": {
+          "value": 11.748291571753986,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6243532362037467,
+          "cpcv_min": 0.5,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 55157.5,
+          "p5_final": 55157.5,
+          "p95_final": 55157.5,
+          "median_max_dd": 1635.0,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 0.0,
+          "p_apex_blow": 0.0146,
+          "pass": false
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.2112430882654106,
+          "pf_low_20pct": 0.8376126404147636,
+          "pf_high_20pct": 1.7050379839455958,
+          "pass": false
+        }
+      },
+      "n_passes": 3,
+      "tier": "REJECT",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.657066583633423
+        ],
+        [
+          "atr_5",
+          ">",
+          4.2001025676727295
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -3.8525466918945312
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          2.6280089616775513
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          1.6015412211418152
+        ],
+        [
+          "range_pos_200",
+          ">",
+          0.09877531602978706
+        ],
+        [
+          "atr_50",
+          ">",
+          4.632683038711548
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_LONG_S15T30_05",
+      "side": "LONG",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "max_hold": 45,
+      "n_trades": 433,
+      "win_rate": 0.6535796766743649,
+      "ev_dollars": 81.98036951501155,
+      "net_pnl": 35497.5,
+      "profit_factor": 2.5266100419309754,
+      "cpcv_mean_wr": 0.6579479799527277,
+      "cpcv_min_wr": 0.4594594594594595,
+      "tests": {
+        "ev": {
+          "value": 81.98036951501155,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6579479799527277,
+          "cpcv_min": 0.4594594594594595,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 85497.5,
+          "p5_final": 85497.5,
+          "p95_final": 85497.5,
+          "median_max_dd": 1047.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.5266100419309754,
+          "pf_low_20pct": 2.00443178220956,
+          "pf_high_20pct": 3.3274054412740544,
+          "pass": true
+        }
+      },
+      "n_passes": 5,
+      "tier": "A",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          3.116254687309265
+        ],
+        [
+          "atr_5",
+          ">",
+          4.506859302520752
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -7.498788118362427
+        ],
+        [
+          "atr_14",
+          ">",
+          5.42473578453064
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          13.60510540008545
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          2.806034207344055
+        ],
+        [
+          "autocorr_20",
+          ">",
+          0.03223901614546776
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_LONG_S8T16_06",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 16.0,
+      "max_hold": 25,
+      "n_trades": 462,
+      "win_rate": 0.564935064935065,
+      "ev_dollars": 20.4004329004329,
+      "net_pnl": 9425.0,
+      "profit_factor": 1.4471592930850432,
+      "cpcv_mean_wr": 0.5958447605642626,
+      "cpcv_min_wr": 0.5081967213114754,
+      "tests": {
+        "ev": {
+          "value": 20.4004329004329,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.5958447605642626,
+          "cpcv_min": 0.5081967213114754,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 59425.0,
+          "p5_final": 59425.0,
+          "p95_final": 59425.0,
+          "median_max_dd": 1137.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 1.4471592930850432,
+          "pf_low_20pct": 0.8137178647453741,
+          "pf_high_20pct": 2.722279721244739,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.657066583633423
+        ],
+        [
+          "atr_5",
+          ">",
+          4.2001025676727295
+        ],
+        [
+          "dist_pdh_atr",
+          "<=",
+          -3.8525466918945312
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          2.6280089616775513
+        ],
+        [
+          "dist_pdl_atr",
+          "<=",
+          1.6015412211418152
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          1.08460134267807
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S12T24_08",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 24.0,
+      "max_hold": 35,
+      "n_trades": 376,
+      "win_rate": 0.6595744680851063,
+      "ev_dollars": 71.42287234042553,
+      "net_pnl": 26855.0,
+      "profit_factor": 2.6549067940224926,
+      "cpcv_mean_wr": 0.6179568387270968,
+      "cpcv_min_wr": 0.5319148936170213,
+      "tests": {
+        "ev": {
+          "value": 71.42287234042553,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.6179568387270968,
+          "cpcv_min": 0.5319148936170213,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 76855.0,
+          "p5_final": 76855.0,
+          "p95_final": 76855.0,
+          "median_max_dd": 792.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 2.6549067940224926,
+          "pf_low_20pct": 1.639919172582489,
+          "pf_high_20pct": 3.630150681996715,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.705695867538452
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          4.913482666015625
+        ],
+        [
+          "atr_5",
+          ">",
+          4.062073230743408
+        ],
+        [
+          "atr_5",
+          ">",
+          5.5419700145721436
+        ],
+        [
+          "range_pos_200",
+          ">",
+          0.2463163584470749
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -7.356637477874756
+        ],
+        [
+          "dist_pdh_atr",
+          ">",
+          -2.2013434171676636
+        ]
+      ]
+    },
+    {
+      "name": "ES_V3_SHORT_S8T16_09",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 16.0,
+      "max_hold": 25,
+      "n_trades": 298,
+      "win_rate": 0.738255033557047,
+      "ev_dollars": 57.56711409395973,
+      "net_pnl": 17155.0,
+      "profit_factor": 3.142366531376834,
+      "cpcv_mean_wr": 0.5588430882380057,
+      "cpcv_min_wr": 0.49,
+      "tests": {
+        "ev": {
+          "value": 57.56711409395973,
+          "pass": true
+        },
+        "permutation": {
+          "p_value": 0.0033222591362126247,
+          "n_perm": 300,
+          "pass": true
+        },
+        "walk_forward": {
+          "cpcv_mean": 0.5588430882380057,
+          "cpcv_min": 0.49,
+          "pass": true
+        },
+        "monte_carlo": {
+          "n_paths": 5000,
+          "median_final": 67155.0,
+          "p5_final": 67155.0,
+          "p95_final": 67155.0,
+          "median_max_dd": 447.5,
+          "p_dd_over_pct": 0.0,
+          "p_apex_pass": 1.0,
+          "p_apex_blow": 0.0,
+          "pass": true
+        },
+        "parameter_sensitivity": {
+          "pf_default": 3.142366531376834,
+          "pf_low_20pct": 2.16284356271957,
+          "pf_high_20pct": 3.8293396489272777,
+          "pass": false
+        }
+      },
+      "n_passes": 4,
+      "tier": "B",
+      "constraints": [
+        [
+          "atr_14",
+          ">",
+          2.705695867538452
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          3.517611265182495
+        ],
+        [
+          "atr_5",
+          "<=",
+          4.065537929534912
+        ],
+        [
+          "dist_pdl_atr",
+          ">",
+          5.017570734024048
+        ],
+        [
+          "atr_50",
+          ">",
+          3.391430377960205
+        ],
+        [
+          "range_pos_200",
+          "<=",
+          0.23551778495311737
+        ],
+        [
+          "autocorr_20",
+          ">",
+          -0.14501014351844788
+        ],
+        [
+          "rsi_14",
+          ">",
+          36.976829528808594
+        ],
+        [
+          "dist_vwap_atr",
+          "<=",
+          -6.852686643600464
+        ]
+      ]
+    }
+  ]
+}
