@@ -54,6 +54,8 @@ def parse_args():
                    help="Override MC paths")
     p.add_argument("--with-cross-asset", action="store_true",
                    help="Build cross-asset features (use when mined with --with-cross-asset)")
+    p.add_argument("--asset", default="nq",
+                   help="Underlying for data loading (nq, es, rty). Default nq.")
     p.add_argument("--max-patterns", type=int, default=None,
                    help="Limit how many patterns get validated (for testing)")
     return p.parse_args()
@@ -179,8 +181,8 @@ def main() -> int:
 
     print("\n[1/3] Loading data + building features ...", flush=True)
     t0 = time.time()
-    intraday = load_intraday_1min()
-    daily = load_daily()
+    intraday = load_intraday_1min(args.asset)
+    daily = load_daily(args.asset)
     days = max(1, (intraday.index[-1] - intraday.index[0]).days)
     print(f"  1-min bars: {len(intraday):,}  ({days} days)")
     X = build_v3_features(intraday, daily)
