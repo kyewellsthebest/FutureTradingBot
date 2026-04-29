@@ -261,7 +261,8 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S20T50_55": {
       "recommended": true,
@@ -274,10 +275,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S10T20_37": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.628099173553719,
@@ -287,7 +289,8 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_57": {
       "recommended": true,
@@ -300,10 +303,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S18T36_68": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.6038543897216274,
@@ -313,10 +317,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_74": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.6366307541625857,
@@ -326,10 +331,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_87": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.6542239685658153,
@@ -339,7 +345,8 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_141": {
       "recommended": true,
@@ -352,10 +359,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T40_241": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.7336956521739131,
@@ -365,10 +373,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_245": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.6164772727272727,
@@ -378,10 +387,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_246": {
-      "recommended": true,
+      "recommended": false,
       "tier": "A",
       "side": "SHORT",
       "win_rate": 0.6736641221374046,
@@ -391,7 +401,8 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T30_69": {
       "recommended": true,
@@ -404,10 +415,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "5/5_PASS_60wr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S8T16_02": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.48913896885632036,
@@ -417,10 +429,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_01": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4766209476309227,
@@ -430,10 +443,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_02": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4862932061978546,
@@ -443,7 +457,8 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_03": {
       "recommended": true,
@@ -456,10 +471,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S12T24_03": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.5917220235053654,
@@ -469,7 +485,8 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_04": {
       "recommended": true,
@@ -482,7 +499,8 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S15T30_04": {
       "recommended": true,
@@ -495,10 +513,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T30_07": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5177584846093133,
@@ -508,10 +527,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_08": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5256495669553631,
@@ -521,10 +541,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_05": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4734102833158447,
@@ -534,7 +555,9 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_06": {
       "recommended": true,
@@ -547,10 +570,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S20T60_07": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.45758567817330403,
@@ -560,10 +584,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_08": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4931129476584022,
@@ -573,10 +598,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T45_09": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.39938507209499574,
@@ -586,10 +612,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_10": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4540190735694823,
@@ -599,10 +626,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_11": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4212867898699521,
@@ -612,7 +640,9 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_12": {
       "recommended": true,
@@ -625,10 +655,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S15T60_15": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.39183397247913376,
@@ -638,10 +669,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S12T36_16": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.9367502726281353,
@@ -651,10 +683,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_20": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7849462365591398,
@@ -664,7 +697,9 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_21": {
       "recommended": true,
@@ -677,10 +712,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S20T50_23": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.45643967990336703,
@@ -690,10 +726,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_27": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7026022304832714,
@@ -703,10 +740,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T30_28": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4552656104380242,
@@ -716,10 +754,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S12T30_29": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.44207631488484017,
@@ -729,10 +768,12 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T45_31": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.6472491909385113,
@@ -742,10 +783,12 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_32": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.3975405600909373,
@@ -755,10 +798,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_33": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.845,
@@ -768,10 +812,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_34": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.6903409090909091,
@@ -781,10 +826,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T30_35": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4066006600660066,
@@ -794,10 +840,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_37": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.40256914948720607,
@@ -807,10 +854,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S12T30_38": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.6720360824742269,
@@ -820,7 +868,8 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_43": {
       "recommended": true,
@@ -833,10 +882,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S15T45_49": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7045143638850889,
@@ -846,7 +896,8 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T25_56": {
       "recommended": true,
@@ -859,10 +910,11 @@
       "stop_pts": 10.0,
       "target_pts": 25.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S12T36_57": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.40459320791595405,
@@ -872,10 +924,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T60_59": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.5674615152429822,
@@ -885,10 +938,11 @@
       "stop_pts": 20.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T30_60": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.34231697506033787,
@@ -898,7 +952,8 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_61": {
       "recommended": true,
@@ -911,10 +966,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S12T30_63": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4259537398618204,
@@ -924,7 +980,8 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_64": {
       "recommended": true,
@@ -937,10 +994,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S8T16_24": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5865845311430528,
@@ -950,10 +1008,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_26": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.453551912568306,
@@ -963,10 +1022,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_28": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5072568940493469,
@@ -976,10 +1036,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_30": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7233115468409586,
@@ -989,10 +1050,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_31": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.49357072205736896,
@@ -1002,10 +1064,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_32": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4961672473867596,
@@ -1015,10 +1078,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_33": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5581683168316832,
@@ -1028,10 +1092,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_34": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5174291938997821,
@@ -1041,10 +1106,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_35": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5023866348448688,
@@ -1054,10 +1120,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_36": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.45276497695852536,
@@ -1067,10 +1134,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_38": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4545766198148783,
@@ -1080,7 +1148,8 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_39": {
       "recommended": true,
@@ -1093,10 +1162,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T24_40": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5117344018317115,
@@ -1106,10 +1176,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_41": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.605301914580265,
@@ -1119,10 +1190,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_42": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6955403087478559,
@@ -1132,10 +1204,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_43": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4248927038626609,
@@ -1145,7 +1218,8 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_44": {
       "recommended": true,
@@ -1158,10 +1232,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T24_45": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5038560411311054,
@@ -1171,10 +1246,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_46": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.46216216216216216,
@@ -1184,10 +1260,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_47": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.41617819460726846,
@@ -1197,10 +1274,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_48": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5918570009930486,
@@ -1210,10 +1288,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_49": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4792176039119804,
@@ -1223,10 +1302,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_50": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5716318785578748,
@@ -1236,10 +1316,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_51": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.49234076861058856,
@@ -1249,10 +1330,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_52": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5360824742268041,
@@ -1262,7 +1344,8 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_53": {
       "recommended": true,
@@ -1275,10 +1358,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T30_54": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6723095525997581,
@@ -1288,10 +1372,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_55": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6518518518518519,
@@ -1301,10 +1386,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_56": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5395051875498803,
@@ -1314,10 +1400,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_58": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5530054644808743,
@@ -1327,10 +1414,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_59": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.48027210884353744,
@@ -1340,7 +1428,8 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_60": {
       "recommended": true,
@@ -1353,10 +1442,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T30_61": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.467687074829932,
@@ -1366,10 +1456,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_62": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5258855585831063,
@@ -1379,10 +1470,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_63": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5280199252801993,
@@ -1392,10 +1484,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_64": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4693042291950887,
@@ -1405,10 +1498,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_65": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.44554455445544555,
@@ -1418,10 +1512,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_66": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5225225225225225,
@@ -1431,10 +1526,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_67": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.47058262155842917,
@@ -1444,10 +1540,12 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_69": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.8260135135135135,
@@ -1457,10 +1555,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_70": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7959183673469388,
@@ -1470,10 +1569,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_71": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5570503238664674,
@@ -1483,7 +1583,8 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_72": {
       "recommended": true,
@@ -1496,7 +1597,8 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S18T36_73": {
       "recommended": true,
@@ -1509,10 +1611,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S18T36_75": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.46116504854368934,
@@ -1522,10 +1625,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_76": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7041420118343196,
@@ -1535,10 +1639,11 @@
       "stop_pts": 18.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_77": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.47241361173933627,
@@ -1548,7 +1653,8 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_78": {
       "recommended": true,
@@ -1561,10 +1667,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T40_79": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7730061349693251,
@@ -1574,10 +1681,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_80": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.480881899475794,
@@ -1587,10 +1695,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_81": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9739130434782609,
@@ -1600,10 +1709,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_82": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9930434782608696,
@@ -1613,7 +1723,8 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_83": {
       "recommended": true,
@@ -1626,10 +1737,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T40_84": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.49541620828749544,
@@ -1639,10 +1751,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_85": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5268456375838926,
@@ -1652,10 +1765,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_86": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.8018691588785046,
@@ -1665,7 +1779,8 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_88": {
       "recommended": true,
@@ -1678,10 +1793,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T40_89": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.8573717948717948,
@@ -1691,10 +1807,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_90": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.46407185628742514,
@@ -1704,10 +1821,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S6T15_99": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4346368715083799,
@@ -1717,7 +1835,8 @@
       "stop_pts": 6.0,
       "target_pts": 15.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 3
+      "tests_passed": 3,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_101": {
       "recommended": true,
@@ -1730,10 +1849,11 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S8T20_103": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5598393574297189,
@@ -1743,10 +1863,11 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_105": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4192163177670424,
@@ -1756,7 +1877,8 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_107": {
       "recommended": true,
@@ -1769,10 +1891,11 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S8T20_109": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5736434108527132,
@@ -1782,7 +1905,8 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_110": {
       "recommended": true,
@@ -1795,10 +1919,11 @@
       "stop_pts": 8.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S10T25_116": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5255354200988468,
@@ -1808,10 +1933,11 @@
       "stop_pts": 10.0,
       "target_pts": 25.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T25_117": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5761455525606469,
@@ -1821,7 +1947,8 @@
       "stop_pts": 10.0,
       "target_pts": 25.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T25_119": {
       "recommended": true,
@@ -1834,10 +1961,11 @@
       "stop_pts": 10.0,
       "target_pts": 25.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T30_122": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9559965487489215,
@@ -1847,10 +1975,11 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_124": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9715832205683356,
@@ -1860,7 +1989,9 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_125": {
       "recommended": true,
@@ -1873,10 +2004,11 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T30_126": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4748876294703928,
@@ -1886,7 +2018,8 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_127": {
       "recommended": true,
@@ -1899,10 +2032,11 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T30_130": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.595,
@@ -1912,10 +2046,11 @@
       "stop_pts": 12.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_131": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.419269202087994,
@@ -1925,7 +2060,8 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_132": {
       "recommended": true,
@@ -1938,10 +2074,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T37_133": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6928297432871053,
@@ -1951,10 +2088,12 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_134": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7296450939457203,
@@ -1964,10 +2103,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_135": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.49717395855139207,
@@ -1977,10 +2117,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_136": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.45194456861868576,
@@ -1990,10 +2131,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_137": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.3953488372093023,
@@ -2003,10 +2145,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_138": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4108241082410824,
@@ -2016,10 +2159,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_139": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5291616038882139,
@@ -2029,10 +2173,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_140": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.56966618287373,
@@ -2042,10 +2187,11 @@
       "stop_pts": 15.0,
       "target_pts": 37.5,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_142": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.45492537313432835,
@@ -2055,7 +2201,8 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_143": {
       "recommended": true,
@@ -2068,10 +2215,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T50_144": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6559633027522935,
@@ -2081,7 +2229,9 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_145": {
       "recommended": true,
@@ -2094,10 +2244,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T50_146": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.427957566805425,
@@ -2107,10 +2258,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_147": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4217762326169406,
@@ -2120,7 +2272,8 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_148": {
       "recommended": true,
@@ -2133,10 +2286,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S20T50_149": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.734920634920635,
@@ -2146,10 +2300,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_150": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4256357564860005,
@@ -2159,10 +2314,11 @@
       "stop_pts": 20.0,
       "target_pts": 50.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S6T18_156": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4316353887399464,
@@ -2172,10 +2328,11 @@
       "stop_pts": 6.0,
       "target_pts": 18.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_162": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5714285714285714,
@@ -2185,10 +2342,11 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_164": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6635021097046413,
@@ -2198,10 +2356,11 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_165": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5206839492553779,
@@ -2211,10 +2370,11 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_167": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4786836200448766,
@@ -2224,10 +2384,11 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_168": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4347568208778173,
@@ -2237,7 +2398,8 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_169": {
       "recommended": true,
@@ -2250,7 +2412,8 @@
       "stop_pts": 8.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S10T30_171": {
       "recommended": true,
@@ -2263,10 +2426,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S10T30_173": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.74780526735834,
@@ -2276,10 +2440,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T30_176": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6105100463678517,
@@ -2289,10 +2454,12 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T30_177": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5935178933153274,
@@ -2302,10 +2469,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T30_178": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6538461538461539,
@@ -2315,10 +2483,11 @@
       "stop_pts": 10.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_181": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.398803383536208,
@@ -2328,10 +2497,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_184": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6179966044142614,
@@ -2341,10 +2511,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_185": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7716417910447761,
@@ -2354,10 +2525,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_186": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6034047919293821,
@@ -2367,10 +2539,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_188": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4280587833219412,
@@ -2380,10 +2553,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T36_190": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.3857724851143842,
@@ -2393,10 +2567,11 @@
       "stop_pts": 12.0,
       "target_pts": 36.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_191": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5240975609756098,
@@ -2406,10 +2581,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_192": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.410857868327187,
@@ -2419,10 +2595,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_195": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6812896405919662,
@@ -2432,10 +2609,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_196": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6720197652872143,
@@ -2445,10 +2623,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_197": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5000950751093364,
@@ -2458,10 +2637,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_198": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.48875479978058145,
@@ -2471,7 +2651,8 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_199": {
       "recommended": true,
@@ -2484,10 +2665,11 @@
       "stop_pts": 15.0,
       "target_pts": 45.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S8T32_201": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9354166666666667,
@@ -2497,10 +2679,11 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T32_203": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6147368421052631,
@@ -2510,10 +2693,11 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T32_204": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9246031746031746,
@@ -2523,10 +2707,12 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "portfolio_marginal_+_multi_window",
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T32_205": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6534788540245566,
@@ -2536,10 +2722,11 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T32_207": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.447000451059991,
@@ -2549,10 +2736,11 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T32_209": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5661846496106785,
@@ -2562,10 +2750,11 @@
       "stop_pts": 8.0,
       "target_pts": 32.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T40_213": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6283662477558348,
@@ -2575,10 +2764,11 @@
       "stop_pts": 10.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T40_214": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4863707165109034,
@@ -2588,10 +2778,11 @@
       "stop_pts": 10.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T40_216": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.518581081081081,
@@ -2601,10 +2792,11 @@
       "stop_pts": 10.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T40_218": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5557386051619989,
@@ -2614,10 +2806,11 @@
       "stop_pts": 10.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T48_221": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.41870261162594774,
@@ -2627,10 +2820,11 @@
       "stop_pts": 12.0,
       "target_pts": 48.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T48_224": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5447897623400365,
@@ -2640,10 +2834,11 @@
       "stop_pts": 12.0,
       "target_pts": 48.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T48_226": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6314720812182741,
@@ -2653,10 +2848,11 @@
       "stop_pts": 12.0,
       "target_pts": 48.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T48_228": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4673228346456693,
@@ -2666,10 +2862,11 @@
       "stop_pts": 12.0,
       "target_pts": 48.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T48_230": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6028192371475953,
@@ -2679,7 +2876,8 @@
       "stop_pts": 12.0,
       "target_pts": 48.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_231": {
       "recommended": true,
@@ -2692,10 +2890,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T60_232": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.38562591228192117,
@@ -2705,10 +2904,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_233": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.573170731707317,
@@ -2718,10 +2918,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_234": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.35764685129652496,
@@ -2731,10 +2932,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_235": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.538650580875782,
@@ -2744,7 +2946,8 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_238": {
       "recommended": true,
@@ -2757,10 +2960,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S15T60_239": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.37595002602811034,
@@ -2770,10 +2974,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_240": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.3837492391965916,
@@ -2783,10 +2988,11 @@
       "stop_pts": 15.0,
       "target_pts": 60.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S8T16_65": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.6782608695652174,
@@ -2796,10 +3002,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T20_66": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7085781433607521,
@@ -2809,10 +3016,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_242": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6446886446886447,
@@ -2822,10 +3030,11 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_243": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5263157894736842,
@@ -2835,10 +3044,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T40_67": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.6477732793522267,
@@ -2848,10 +3058,11 @@
       "stop_pts": 20.0,
       "target_pts": 40.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_244": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5663716814159292,
@@ -2861,10 +3072,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_247": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.601123595505618,
@@ -2874,10 +3086,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S8T16_68": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.48519362186788156,
@@ -2887,10 +3100,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 3
+      "tests_passed": 3,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S8T16_70": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.564935064935065,
@@ -2900,10 +3114,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_248": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6595744680851063,
@@ -2913,10 +3128,11 @@
       "stop_pts": 12.0,
       "target_pts": 24.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_249": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.738255033557047,
@@ -2926,10 +3142,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T16_250": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6746666666666666,
@@ -2939,10 +3156,11 @@
       "stop_pts": 8.0,
       "target_pts": 16.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T20_72": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.463768115942029,
@@ -2952,10 +3170,11 @@
       "stop_pts": 10.0,
       "target_pts": 20.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 4
+      "tests_passed": 4,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T30_73": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4702702702702703,
@@ -2965,7 +3184,8 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "PDH_TOUCH": {
       "recommended": true,
@@ -2979,7 +3199,8 @@
       "stop_pts": 15.0,
       "target_pts": 30.0,
       "rigor_level": "tier_b_live_8yr",
-      "tests_passed": 5
+      "tests_passed": 5,
+      "selection_method": "walk_forward_OOS_2024_2026"
     }
   },
   "system": {
@@ -3058,5 +3279,5 @@
     ]
   },
   "updated_at": "2026-04-27 lean mode + all strategies activated",
-  "last_updated": "2026-04-29T04:27:09.878124+00:00"
+  "last_updated": "2026-04-29T05:41:25.707829+00:00"
 }

@@ -64,12 +64,25 @@ def gather_trades(use_cache: bool = True) -> list[dict]:
     if use_cache and cache.exists():
         try:
             cached = json.loads(cache.read_text())
-            if cached.get("whitelist_hash") == wl_hash:
+            cached_names = {t["name"] for t in cached["trades"]}
+            current_names = set(whitelist.keys())
+            if cached["whitelist_hash"] == wl_hash:
                 print(f"  using cached trades (hash match) — {cached['n_trades']:,} signals")
                 trades = []
                 for t in cached["trades"]:
                     t["ts"] = pd.Timestamp(t["ts"])
                     trades.append(t)
+                return trades
+            elif current_names.issubset(cached_names):
+                print(f"  filtering cache: {len(cached_names)} cached names → "
+                      f"{len(current_names)} active")
+                trades = []
+                for t in cached["trades"]:
+                    if t["name"] in current_names:
+                        t["ts"] = pd.Timestamp(t["ts"])
+                        trades.append(t)
+                trades.sort(key=lambda t: t["ts"])
+                print(f"  filtered to {len(trades):,} signals")
                 return trades
         except Exception as e:
             print(f"  cache load failed ({e!r}) — rebuilding")

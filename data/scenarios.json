@@ -1,75 +1,110 @@
 {
-  "generated_at": "2026-04-29T05:27:23.326812+00:00",
+  "generated_at": "2026-04-29T05:41:44.389658+00:00",
   "scenario_a": {
     "starting_balance": 50000.0,
-    "final_balance": 16532.5,
-    "total_pnl": -33467.5,
-    "total_pnl_pct": -66.935,
-    "max_drawdown": 34510.0,
-    "max_drawdown_pct": 69.02000000000001,
-    "n_trades": 1063,
-    "n_wins": 331,
-    "n_losses": 732,
-    "win_rate": 0.31138287864534336,
+    "final_balance": 75685.0,
+    "total_pnl": 25685.0,
+    "total_pnl_pct": 51.370000000000005,
+    "max_drawdown": 2850.0,
+    "max_drawdown_pct": 5.7,
+    "n_trades": 461,
+    "n_wins": 198,
+    "n_losses": 263,
+    "win_rate": 0.42950108459869846,
     "monthly_pnl": [
       {
         "month": "2025-10",
-        "pnl": -3372.5,
-        "pct": -6.744999999999999
+        "pnl": 3317.5,
+        "pct": 6.635000000000001
       },
       {
         "month": "2025-11",
-        "pnl": -4380.0,
-        "pct": -8.76
+        "pnl": 1165.0,
+        "pct": 2.33
       },
       {
         "month": "2025-12",
-        "pnl": -9867.5,
-        "pct": -19.735
+        "pnl": 4375.0,
+        "pct": 8.75
       },
       {
         "month": "2026-01",
-        "pnl": -2090.0,
-        "pct": -4.18
+        "pnl": 1010.0,
+        "pct": 2.02
       },
       {
         "month": "2026-02",
-        "pnl": -4350.0,
-        "pct": -8.7
+        "pnl": 6907.5,
+        "pct": 13.815
       },
       {
         "month": "2026-03",
-        "pnl": -9022.5,
-        "pct": -18.045
+        "pnl": 9045.0,
+        "pct": 18.09
       },
       {
         "month": "2026-04",
-        "pnl": -385.0,
-        "pct": -0.77
+        "pnl": -135.0,
+        "pct": -0.27
       }
     ]
   },
   "scenario_b": {
     "starting_balance": 1000.0,
-    "final_balance": 486.0,
-    "peak_balance": 1000.0,
-    "n_trades": 147,
-    "n_wins": 52,
-    "n_losses": 95,
-    "win_rate": 0.35374149659863946,
-    "max_drawdown": 514.0,
-    "max_drawdown_pct": 51.4,
-    "skipped_no_size": 916,
+    "final_balance": 6797.0,
+    "peak_balance": 7609.0,
+    "n_trades": 461,
+    "n_wins": 198,
+    "n_losses": 263,
+    "win_rate": 0.42950108459869846,
+    "max_drawdown": 978.0,
+    "max_drawdown_pct": 12.853200157707978,
+    "skipped_no_size": 0,
     "blew_up": false,
     "contract_changes": [],
     "monthly_pnl": [
       {
         "month": "2025-10",
-        "pnl": -514.0
+        "pnl": 843.5
+      },
+      {
+        "month": "2025-11",
+        "pnl": 176.5
+      },
+      {
+        "month": "2025-12",
+        "pnl": 409.5
+      },
+      {
+        "month": "2026-01",
+        "pnl": 180.0
+      },
+      {
+        "month": "2026-02",
+        "pnl": 1113.5
+      },
+      {
+        "month": "2026-03",
+        "pnl": 3202.0
+      },
+      {
+        "month": "2026-04",
+        "pnl": -128.0
       }
     ],
-    "equity_milestones": []
+    "equity_milestones": [
+      {
+        "target": 2000,
+        "ts": "2025-11-12T09:43:00+00:00",
+        "equity": 2029.5
+      },
+      {
+        "target": 5000,
+        "ts": "2026-03-12T11:43:00+00:00",
+        "equity": 5155.0
+      }
+    ]
   },
-  "n_raw_signals": 1515128,
-  "n_taken": 14439
+  "n_raw_signals": 118833,
+  "n_taken": 5584
 }
