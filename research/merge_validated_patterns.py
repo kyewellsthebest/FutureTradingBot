@@ -39,7 +39,15 @@ INPUT_PATHS = [
     DATA_DIR / "validated_long_rr25.json",         # LONG-focused R:R 2.5 (legacy)
     DATA_DIR / "validated_long_rr30.json",         # LONG-focused R:R 3.0 (legacy)
     DATA_DIR / "validated_long_rr40.json",         # LONG-focused R:R 4.0 (legacy)
-    DATA_DIR / "validated_v3_long_top60.json",     # NEW: top-60 LONG R:R 2.5/3/4
+    DATA_DIR / "validated_v3_long_top60.json",     # top-60 LONG R:R 2.5/3/4
+    # SHORT-focused mines (this round)
+    DATA_DIR / "validated_short_rr20.json",
+    DATA_DIR / "validated_short_rr25.json",
+    DATA_DIR / "validated_short_rr30.json",
+    DATA_DIR / "validated_short_rr40.json",
+    # Multi-asset (ES, RTY)
+    DATA_DIR / "validated_es.json",
+    DATA_DIR / "validated_rty.json",
 ]
 EXISTING_VALIDATED = DATA_DIR / "validated_existing_8yr.json"  # 5-min + WR
 
