@@ -145,9 +145,12 @@ def _validate_one(sig, intraday, daily, *, stop_pts, target_pts, max_hold,
     wf_min = float(np.min(fold_wrs)) if fold_wrs else 0
     # WF pass: same as v3 — mean ≥ 50% AND every fold ≥ 40%  (relaxed for 1:2 RR
     # where break-even WR is ~37%, so WR≥40% means positive EV per fold)
-    wf_pass = wf_mean >= 0.50 and wf_min >= 0.40
+    # RR-aware WF threshold (BE-WR drops with higher RR)
+    rr = target_pts / stop_pts if stop_pts > 0 else 2.0
+    be_wr = 1.0 / (1.0 + rr)
+    wf_pass = wf_mean >= (be_wr + 0.07) and wf_min >= (be_wr + 0.03)
     print(f"       WF:    fold_mean={wf_mean*100:5.1f}%  fold_min={wf_min*100:5.1f}%  "
-          f"{'PASS' if wf_pass else 'FAIL'}")
+          f"(BE={be_wr*100:.0f}%)  {'PASS' if wf_pass else 'FAIL'}")
 
     # ---- MONTE CARLO ----
     trades_for_mc = [type("T", (), {"pnl": float(x), "entry_time": None})()

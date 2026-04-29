@@ -33,9 +33,13 @@ VALIDATION_PATH = DATA_DIR / "validation_results.json"
 REPORT_PATH = DATA_DIR / "strategy_report_full.md"
 
 INPUT_PATHS = [
-    DATA_DIR / "validated_v3_8yr.json",        # original V3 mine validated
-    DATA_DIR / "validated_v3_8yr_wide.json",   # wider V3 mine validated
-    DATA_DIR / "validated_v3_xa.json",         # cross-asset (was empty)
+    DATA_DIR / "validated_v3_8yr.json",            # original V3 mine validated
+    DATA_DIR / "validated_v3_8yr_wide.json",       # wider V3 mine validated
+    DATA_DIR / "validated_v3_xa.json",             # cross-asset (was empty)
+    DATA_DIR / "validated_long_rr25.json",         # LONG-focused R:R 2.5 (legacy)
+    DATA_DIR / "validated_long_rr30.json",         # LONG-focused R:R 3.0 (legacy)
+    DATA_DIR / "validated_long_rr40.json",         # LONG-focused R:R 4.0 (legacy)
+    DATA_DIR / "validated_v3_long_top60.json",     # NEW: top-60 LONG R:R 2.5/3/4
 ]
 EXISTING_VALIDATED = DATA_DIR / "validated_existing_8yr.json"  # 5-min + WR
 
@@ -292,13 +296,17 @@ def render_report(tier_a, tier_b, rejects, sources) -> str:
     return "\n".join(lines)
 
 
+MIN_RR = 2.0   # User-requested minimum R:R — drops 1.2:1 and 1.5:1 patterns
+
+
 def _rebucket(p: dict) -> str:
-    """Re-classify with relaxed Tier B (positive EV + 3/5 tests, 1:2 RR makes
+    """Re-classify with relaxed Tier B (positive EV + 3/5 tests, RR≥1:2 makes
     sub-60% WR still profitable).
 
-    Tier A : WR ≥ 60%  AND  5/5 tests PASS
-    Tier B : positive EV  AND  ≥3/5 tests PASS  AND  walk-forward (CPCV) PASS
-    Reject : everything else
+    Tier A : WR ≥ 60%  AND  5/5 tests PASS  AND  RR ≥ 1:2
+    Tier B : positive EV  AND  ≥3/5 tests PASS  AND  walk-forward + perm PASS
+             AND  RR ≥ 1:2
+    Reject : everything else (including RR < 1:2 — user requested)
     """
     wr = float(p.get("win_rate") or 0)
     n_pass = int(p.get("n_passes") or 0)
@@ -306,6 +314,11 @@ def _rebucket(p: dict) -> str:
     tests = p.get("tests") or {}
     wf_pass = bool((tests.get("walk_forward") or {}).get("pass"))
     perm_pass = bool((tests.get("permutation") or {}).get("pass"))
+    stop = float(p.get("stop_pts") or 0)
+    target = float(p.get("target_pts") or 0)
+    rr = target / stop if stop > 0 else 0
+    if rr < MIN_RR:
+        return "REJECT"   # below RR floor
     if wr >= 0.60 and n_pass == 5:
         return "A"
     if ev_dollars > 0 and n_pass >= 3 and wf_pass and perm_pass:

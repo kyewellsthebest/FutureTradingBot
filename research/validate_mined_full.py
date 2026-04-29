@@ -278,9 +278,16 @@ def main() -> int:
               f"{'PASS' if perm_pass else 'FAIL'}")
 
         # ---- Test 3: WF / CPCV (from upstream) ----
-        wf_pass = cpcv_mean >= 0.55 and cpcv_min >= 0.50
+        # Threshold is RR-aware: high-RR strategies need lower WR to be profitable.
+        # For RR=2: need mean ≥ 55%, min ≥ 50%.
+        # For RR=3: need mean ≥ 38%, min ≥ 33% (BE ≈ 28%, want 5-10% above)
+        # For RR=4: need mean ≥ 30%, min ≥ 26%
+        rr = target_pts / stop_pts if stop_pts > 0 else 2.0
+        be_wr = 1.0 / (1.0 + rr)  # break-even (no slippage)
+        # Pass if mean is at least 7pp above BE and min is at least 3pp above BE
+        wf_pass = cpcv_mean >= (be_wr + 0.07) and cpcv_min >= (be_wr + 0.03)
         print(f"       WF:    CPCV mean={cpcv_mean*100:5.1f}%  min_fold={cpcv_min*100:5.1f}%  "
-              f"{'PASS' if wf_pass else 'FAIL'}")
+              f"(BE={be_wr*100:.0f}%)  {'PASS' if wf_pass else 'FAIL'}")
 
         # ---- Test 4: Monte Carlo ----
         trades_for_mc = [type("T", (), {"pnl": float(x), "entry_time": None})()

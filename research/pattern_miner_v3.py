@@ -301,9 +301,9 @@ def _label_inner(h: np.ndarray, l: np.ndarray, c: np.ndarray,
 
 
 def label_1_to_2_rr(intraday: pd.DataFrame, stop_pts: float, max_hold: int,
-                     side: str) -> tuple[np.ndarray, np.ndarray]:
-    """Label = 1 if target (= 2 × stop) hits before stop within max_hold."""
-    target_pts = 2.0 * stop_pts
+                     side: str, target_rr: float = 2.0) -> tuple[np.ndarray, np.ndarray]:
+    """Label = 1 if target (= target_rr × stop) hits before stop within max_hold."""
+    target_pts = target_rr * stop_pts
     h = intraday["high"].to_numpy(dtype=np.float64)
     l = intraday["low"].to_numpy(dtype=np.float64)
     c = intraday["close"].to_numpy(dtype=np.float64)
@@ -384,7 +384,13 @@ def _path_constraints(tree, leaf_id: int,
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--combos", default="10/30,12/35,8/25",
-                   help="stop_pts/max_hold combos (target = 2× stop). Comma-separated.")
+                   help="stop_pts/max_hold combos. Target = stop × target_rr. Comma-separated.")
+    p.add_argument("--target-rr", type=float, default=2.0,
+                   help="Target / stop ratio. 2.0 = 1:2 R:R; 3.0 = 1:3; 4.0 = 1:4. "
+                        "Higher RR drops break-even WR but makes target harder to hit.")
+    p.add_argument("--side", choices=["LONG", "SHORT", "BOTH"], default="BOTH",
+                   help="Restrict mining to a single side (useful when looking for "
+                        "more LONG patterns in a SHORT-skewed dataset).")
     p.add_argument("--max-depth", type=int, default=10)
     p.add_argument("--min-leaf", type=int, default=300)
     p.add_argument("--min-train-wr", type=float, default=0.58,
@@ -453,17 +459,19 @@ def main() -> int:
     weeks = days / 7.0
 
     for stop_pts, max_hold in combos:
-        target_pts = 2.0 * stop_pts
+        target_pts = args.target_rr * stop_pts
         win_pts = target_pts - 1.0
         loss_pts = stop_pts + 3.0
         be_wr = loss_pts / (loss_pts + win_pts) * 100
-        print(f"\n  --- stop={stop_pts}pt  target={target_pts}pt  "
+        print(f"\n  --- stop={stop_pts}pt  target={target_pts:.0f}pt  RR=1:{args.target_rr}  "
               f"max_hold={max_hold}m  (BE-WR={be_wr:.1f}%) ---")
 
         seeds = [int(s) for s in args.seeds.split(",")]
-        for side in ("LONG", "SHORT"):
+        sides_to_mine = ("LONG", "SHORT") if args.side == "BOTH" else (args.side,)
+        for side in sides_to_mine:
             t1 = time.time()
-            outcome, valid = label_1_to_2_rr(intraday, stop_pts, max_hold, side)
+            outcome, valid = label_1_to_2_rr(intraday, stop_pts, max_hold, side,
+                                              target_rr=args.target_rr)
             mask_idx = (valid & feat_valid.to_numpy()).nonzero()[0]
             X = X_full.values[mask_idx]
             y = outcome[mask_idx]
