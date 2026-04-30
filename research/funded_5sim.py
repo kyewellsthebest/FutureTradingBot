@@ -37,6 +37,7 @@ import base64
 import io
 import json
 import math
+import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -49,6 +50,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.patches import Rectangle
+import mplfinance as mpf
+
+# Local NQ data loader for the candlestick chart
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from local_data_loader import load_intraday_5min
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA = PROJECT_ROOT / "data"
@@ -287,6 +294,132 @@ def fig_to_b64(fig) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def build_tradingview_chart(sim: dict, last_n_days: int = 90) -> str:
+    """Render a TradingView-style candlestick chart of the last N days of the
+    sim window with each trade drawn as a green target box / red stop box
+    (R:R rectangle), like the user's reference images.
+
+    Returns base64 PNG. Empty string if no data available.
+    """
+    if not sim["trade_log"]:
+        return ""
+    # Pick the last 3 months of the trade log (skip blown-up entries)
+    logs = [l for l in sim["trade_log"] if not l.get("blew_up")]
+    if not logs:
+        return ""
+    last_ts = pd.Timestamp(logs[-1]["ts"])
+    start_ts = last_ts - pd.Timedelta(days=last_n_days)
+    window_logs = [l for l in logs if pd.Timestamp(l["ts"]) >= start_ts]
+    if not window_logs:
+        return ""
+
+    # Need entry levels — re-load original cache to fetch stop_pts/target_pts/tf/max_hold
+    cache = json.loads((DATA/"scenarios_trades_cache.json").read_text())
+    by_ts_name = {}
+    for t in cache["trades"]:
+        key = (t["ts"], t["name"])
+        by_ts_name[key] = t
+
+    # Load 5-min NQ bars (covers both 1m and 5m signals — boxes will land on 5m grid)
+    try:
+        bars = load_intraday_5min("nq")
+    except Exception as e:
+        print(f"  (could not load NQ bars: {e})")
+        return ""
+    bars.index = bars.index.tz_localize(None) if bars.index.tz else bars.index
+    chart_start = pd.Timestamp(start_ts).tz_localize(None) if pd.Timestamp(start_ts).tz else pd.Timestamp(start_ts)
+    chart_end   = (pd.Timestamp(last_ts).tz_localize(None) if pd.Timestamp(last_ts).tz else pd.Timestamp(last_ts)) + pd.Timedelta(days=1)
+    bars = bars[(bars.index >= chart_start) & (bars.index <= chart_end)].copy()
+    if len(bars) < 50:
+        return ""
+    # mplfinance expects capitalized OHLCV column names
+    bars = bars.rename(columns={"open":"Open","high":"High","low":"Low","close":"Close","volume":"Volume"})
+
+    # Build figure with mplfinance — get back ax to draw R:R rectangles on top
+    mc = mpf.make_marketcolors(up="#26a69a", down="#ef5350",
+                               edge="inherit", wick={"up":"#26a69a","down":"#ef5350"},
+                               volume="in")
+    style = mpf.make_mpf_style(base_mpf_style="nightclouds", marketcolors=mc,
+                               facecolor="#131722", edgecolor="#131722",
+                               figcolor="#131722", gridcolor="#1e222d",
+                               gridstyle=":", rc={"axes.labelcolor":"#d1d4dc",
+                                                   "xtick.color":"#787b86",
+                                                   "ytick.color":"#787b86",
+                                                   "axes.edgecolor":"#363a45"})
+    fig, axes = mpf.plot(bars, type="candle", style=style,
+                          figsize=(14, 7), returnfig=True,
+                          datetime_format="%b %d", xrotation=0,
+                          tight_layout=True, axisoff=False,
+                          warn_too_much_data=100_000)
+    ax = axes[0]
+
+    # mplfinance uses an integer x-axis (one unit per bar). Build a ts→x lookup.
+    ts_to_x = {ts: i for i, ts in enumerate(bars.index)}
+    bar_minutes = 5
+
+    n_drawn = 0
+    n_wins = 0
+    n_losses = 0
+    for log in window_logs:
+        ts = pd.Timestamp(log["ts"])
+        ts = ts.tz_localize(None) if ts.tz else ts
+        # Snap to the 5-min bar that contains this timestamp
+        ts_5m = ts.floor("5min")
+        if ts_5m not in ts_to_x:
+            continue
+        x0 = ts_to_x[ts_5m]
+        # Get the original cache trade for stop/target distances
+        key_iso = ts.tz_localize("UTC").isoformat() if not ts.tzinfo else ts.isoformat()
+        meta = by_ts_name.get((key_iso, log["name"]))
+        if meta is None:
+            # Try alternate iso forms
+            for k_ts, k_name in by_ts_name.keys():
+                if k_name != log["name"]: continue
+                if pd.Timestamp(k_ts).tz_localize(None) == ts:
+                    meta = by_ts_name[(k_ts, k_name)]
+                    break
+        if meta is None: continue
+
+        # Entry price = open of the bar at or after entry timestamp
+        entry_px = float(bars.iloc[x0]["Open"])
+        side = log["side"]
+        stop_d = float(meta["stop_pts"])
+        tgt_d  = float(meta["target_pts"])
+        max_hold = int(meta["max_hold"])
+        tf_min = 5 if meta["tf"] == "5m" else 1
+        hold_minutes = max_hold * tf_min
+        # Convert hold to number of 5-min bars wide (min 1)
+        width_bars = max(1, hold_minutes // bar_minutes)
+        x1 = x0 + width_bars
+
+        if side == "LONG":
+            tgt_px  = entry_px + tgt_d
+            stop_px = entry_px - stop_d
+            green_y0, green_h = entry_px, tgt_px - entry_px        # reward zone above
+            red_y0,   red_h   = stop_px, entry_px - stop_px        # risk zone below
+        else:  # SHORT
+            tgt_px  = entry_px - tgt_d
+            stop_px = entry_px + stop_d
+            green_y0, green_h = tgt_px, entry_px - tgt_px          # reward zone below
+            red_y0,   red_h   = entry_px, stop_px - entry_px       # risk zone above
+
+        # Draw rectangles — TradingView style: green=target, red=stop
+        ax.add_patch(Rectangle((x0, green_y0), x1 - x0, green_h,
+                               facecolor="#26a69a", alpha=0.28,
+                               edgecolor="#26a69a", linewidth=0.8, zorder=3))
+        ax.add_patch(Rectangle((x0, red_y0), x1 - x0, red_h,
+                               facecolor="#ef5350", alpha=0.28,
+                               edgecolor="#ef5350", linewidth=0.8, zorder=3))
+        n_drawn += 1
+        if log["pnl"] > 0: n_wins += 1
+        else: n_losses += 1
+
+    ax.set_title(f"{sim['sim_label']} — last {last_n_days}d • {n_drawn} trades drawn "
+                 f"({n_wins}W / {n_losses}L)  •  green=target zone, red=stop zone",
+                 color="#d1d4dc", fontsize=12, loc="left")
+    return fig_to_b64(fig)
+
+
 def build_html(sims: list[dict], strat_summary: pd.DataFrame, window: tuple) -> str:
     """Build the HTML report with embedded charts + tables."""
     # ---- Chart 1: Equity curves for all 5 sims ----
@@ -337,6 +470,17 @@ def build_html(sims: list[dict], strat_summary: pd.DataFrame, window: tuple) -> 
     ax.set_xlabel("Trades per Month (avg across 5 sims)")
     ax.grid(axis="x", alpha=0.3)
     chart3 = fig_to_b64(fig)
+
+    # ---- Chart 4: TradingView-style candle chart, last 3 months of best sim ----
+    # Pick the most-profitable non-blown sim for the visualization
+    profitable = [s for s in sims if not s["blown"] and s["trade_log"]]
+    best_sim = max(profitable, key=lambda s: s["ending_balance"]) if profitable else (sims[0] if sims else None)
+    chart4 = ""
+    chart4_label = ""
+    if best_sim is not None:
+        print(f"  Building TradingView-style chart for {best_sim['sim_label']} ...")
+        chart4 = build_tradingview_chart(best_sim, last_n_days=90)
+        chart4_label = best_sim["sim_label"]
 
     # ---- Aggregate stats ----
     n_blown = sum(1 for s in sims if s["blown"])
@@ -455,6 +599,13 @@ img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.0
 {strat_rows}
 </table>
 <img src="data:image/png;base64,{chart3}" />
+
+<h2>Last 3 Months — Trade-by-Trade Visualization ({chart4_label})</h2>
+<p style="color:#666;">NQ 5-min candles. Each trade is drawn as a TradingView-style risk/reward box at the entry timestamp:
+<span style="color:#26a69a;"><b>green</b></span> = target zone (reward),
+<span style="color:#ef5350;"><b>red</b></span> = stop zone (risk).
+Box width = max-hold duration of the trade.</p>
+<img src="data:image/png;base64,{chart4}" />
 
 <div class="note">
 <b>Note on simulation realism:</b> This sim uses the bot's actual triple-barrier outcomes
