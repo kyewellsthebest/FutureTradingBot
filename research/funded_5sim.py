@@ -52,6 +52,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
 import mplfinance as mpf
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # Local NQ data loader for the candlestick chart
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -459,6 +461,167 @@ def build_tradingview_chart(sim: dict, last_n_days: int = 90) -> str:
     return fig_to_b64(fig)
 
 
+def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
+    """Interactive Plotly version of the trade-by-trade visualization.
+
+    Returns an embeddable HTML <div> (with plotly.js loaded from CDN). The user
+    can zoom/pan with the mouse — scroll-wheel = zoom, drag = pan, double-click
+    = autoscale, and the modebar gives box-zoom + reset.
+    """
+    if not sim["trade_log"]:
+        return ""
+    logs = [l for l in sim["trade_log"] if not l.get("blew_up")]
+    if not logs:
+        return ""
+    last_ts = pd.Timestamp(logs[-1]["ts"])
+    start_ts = last_ts - pd.Timedelta(days=last_n_days)
+    window_logs = [l for l in logs if pd.Timestamp(l["ts"]) >= start_ts]
+    if not window_logs:
+        return ""
+
+    cache = json.loads((DATA/"scenarios_trades_cache.json").read_text())
+    by_ts_name = {(t["ts"], t["name"]): t for t in cache["trades"]}
+
+    try:
+        bars = load_intraday_5min("nq")
+    except Exception as e:
+        print(f"  (could not load NQ bars: {e})")
+        return ""
+    bars.index = bars.index.tz_localize(None) if bars.index.tz else bars.index
+    chart_start = pd.Timestamp(start_ts).tz_localize(None) if pd.Timestamp(start_ts).tz else pd.Timestamp(start_ts)
+    chart_end   = (pd.Timestamp(last_ts).tz_localize(None) if pd.Timestamp(last_ts).tz else pd.Timestamp(last_ts)) + pd.Timedelta(days=1)
+    bars = bars[(bars.index >= chart_start) & (bars.index <= chart_end)].copy()
+    if len(bars) < 50:
+        return ""
+
+    # Use 5-min bars natively — plotly handles 6k candles fine, and zooming
+    # in lets the user inspect individual signals/exits.
+    bars_5m = bars
+
+    # Single panel — let user zoom freely across the whole 3-month window
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
+        x=bars_5m.index,
+        open=bars_5m["open"], high=bars_5m["high"],
+        low=bars_5m["low"],   close=bars_5m["close"],
+        increasing=dict(line=dict(color="#26a69a", width=1), fillcolor="#26a69a"),
+        decreasing=dict(line=dict(color="#ef5350", width=1), fillcolor="#ef5350"),
+        name="NQ", showlegend=False,
+        hovertext=[f"{ts.strftime('%Y-%m-%d %H:%M')}<br>O {o:.2f} H {h:.2f} L {l:.2f} C {c:.2f}"
+                   for ts, o, h, l, c in zip(bars_5m.index, bars_5m["open"],
+                                              bars_5m["high"], bars_5m["low"], bars_5m["close"])],
+        hoverinfo="text",
+    ))
+
+    # ---- Trade R:R rectangles as Plotly shapes ----
+    shapes = []
+    n_drawn = 0; n_wins = 0; n_losses = 0
+    bar_set = set(bars_5m.index)
+    bar_index_pos = {ts: i for i, ts in enumerate(bars_5m.index)}
+
+    for log in window_logs:
+        ts = pd.Timestamp(log["ts"])
+        ts_naive = ts.tz_localize(None) if ts.tz else ts
+        ts_5m = ts_naive.floor("5min")
+        if ts_5m not in bar_set:
+            continue
+        key_iso = ts_naive.tz_localize("UTC").isoformat()
+        meta = by_ts_name.get((key_iso, log["name"]))
+        if meta is None: continue
+
+        entry_px = float(bars_5m.loc[ts_5m, "open"])
+        side = log["side"]
+        stop_d = float(meta["stop_pts"])
+        tgt_d  = float(meta["target_pts"])
+        max_hold = int(meta["max_hold"])
+        tf_min = 5 if meta["tf"] == "5m" else 1
+        hold_minutes = max_hold * tf_min
+        exit_ts = ts_5m + pd.Timedelta(minutes=hold_minutes)
+
+        if side == "LONG":
+            tgt_px  = entry_px + tgt_d
+            stop_px = entry_px - stop_d
+            green_y0, green_y1 = entry_px, tgt_px       # reward above
+            red_y0,   red_y1   = stop_px, entry_px      # risk below
+        else:
+            tgt_px  = entry_px - tgt_d
+            stop_px = entry_px + stop_d
+            green_y0, green_y1 = tgt_px, entry_px       # reward below
+            red_y0,   red_y1   = entry_px, stop_px      # risk above
+
+        # Green target box
+        shapes.append(dict(type="rect", xref="x", yref="y",
+                            x0=ts_5m, x1=exit_ts,
+                            y0=green_y0, y1=green_y1,
+                            fillcolor="rgba(38,166,154,0.30)",
+                            line=dict(color="#26a69a", width=1),
+                            layer="above"))
+        # Red stop box
+        shapes.append(dict(type="rect", xref="x", yref="y",
+                            x0=ts_5m, x1=exit_ts,
+                            y0=red_y0, y1=red_y1,
+                            fillcolor="rgba(239,83,80,0.30)",
+                            line=dict(color="#ef5350", width=1),
+                            layer="above"))
+        # Entry line (white)
+        shapes.append(dict(type="line", xref="x", yref="y",
+                            x0=ts_5m, x1=exit_ts,
+                            y0=entry_px, y1=entry_px,
+                            line=dict(color="#ffffff", width=1),
+                            layer="above"))
+
+        n_drawn += 1
+        if log["pnl"] > 0: n_wins += 1
+        else: n_losses += 1
+
+    # Add an invisible scatter trace at each entry timestamp so users can hover
+    # to see trade name / side / pnl.
+    hov_x, hov_y, hov_text = [], [], []
+    for log in window_logs:
+        ts = pd.Timestamp(log["ts"])
+        ts_naive = ts.tz_localize(None) if ts.tz else ts
+        ts_5m = ts_naive.floor("5min")
+        if ts_5m not in bar_set: continue
+        entry_px = float(bars_5m.loc[ts_5m, "open"])
+        result = "WIN" if log["pnl"] > 0 else "LOSS"
+        hov_x.append(ts_5m); hov_y.append(entry_px)
+        hov_text.append(f"<b>{log['name']}</b><br>"
+                         f"{log['side']} • entry {entry_px:.2f}<br>"
+                         f"P&L ${log['pnl']:+,.0f} • size {log['n']} MNQ • {result}<br>"
+                         f"{ts_naive.strftime('%Y-%m-%d %H:%M')}")
+    fig.add_trace(go.Scatter(x=hov_x, y=hov_y, mode="markers",
+                              marker=dict(size=6, color="#ffffff", opacity=0.0),
+                              hovertext=hov_text, hoverinfo="text",
+                              showlegend=False, name="trades"))
+
+    fig.update_layout(
+        title=dict(text=f"{sim['sim_label']} — last {last_n_days}d  •  "
+                         f"{n_drawn} trades ({n_wins}W / {n_losses}L)  •  "
+                         f"green = target zone, red = stop zone, white line = entry",
+                    font=dict(color="#d1d4dc", size=13), x=0.01),
+        plot_bgcolor="#131722", paper_bgcolor="#131722",
+        font=dict(color="#d1d4dc"),
+        height=720,
+        margin=dict(l=60, r=20, t=50, b=40),
+        shapes=shapes,
+        xaxis=dict(rangeslider=dict(visible=False),
+                    gridcolor="#1e222d", color="#787b86",
+                    rangebreaks=[dict(bounds=["sat", "mon"])]),  # hide weekends
+        yaxis=dict(gridcolor="#1e222d", color="#787b86",
+                    title="NQ Price"),
+        dragmode="pan",
+        hovermode="x unified",
+    )
+    config = {
+        "scrollZoom": True,
+        "displayModeBar": True,
+        "modeBarButtonsToRemove": ["select2d", "lasso2d"],
+        "displaylogo": False,
+    }
+    return fig.to_html(include_plotlyjs="cdn", full_html=False,
+                        config=config, div_id="trade-chart")
+
+
 def build_html(sims: list[dict], strat_summary: pd.DataFrame, window: tuple) -> str:
     """Build the HTML report with embedded charts + tables."""
     # ---- Chart 1: Equity curves for all 5 sims ----
@@ -510,15 +673,14 @@ def build_html(sims: list[dict], strat_summary: pd.DataFrame, window: tuple) -> 
     ax.grid(axis="x", alpha=0.3)
     chart3 = fig_to_b64(fig)
 
-    # ---- Chart 4: TradingView-style candle chart, last 3 months of best sim ----
-    # Pick the most-profitable non-blown sim for the visualization
+    # ---- Chart 4: Interactive Plotly chart of the last 3 months ----
     profitable = [s for s in sims if not s["blown"] and s["trade_log"]]
     best_sim = max(profitable, key=lambda s: s["ending_balance"]) if profitable else (sims[0] if sims else None)
-    chart4 = ""
+    chart4_html = ""
     chart4_label = ""
     if best_sim is not None:
-        print(f"  Building TradingView-style chart for {best_sim['sim_label']} ...")
-        chart4 = build_tradingview_chart(best_sim, last_n_days=90)
+        print(f"  Building interactive Plotly chart for {best_sim['sim_label']} ...")
+        chart4_html = build_interactive_chart(best_sim, last_n_days=90)
         chart4_label = best_sim["sim_label"]
 
     # ---- Aggregate stats ----
@@ -640,13 +802,13 @@ img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.0
 <img src="data:image/png;base64,{chart3}" />
 
 <h2>Last 3 Months — Trade-by-Trade Visualization ({chart4_label})</h2>
-<p style="color:#666;">NQ hourly candles, split into 3 monthly panels. Every trade in the window is drawn as a TradingView-style R:R box at its entry timestamp:
+<p style="color:#666;">Interactive NQ 5-min candles. Every trade in the window is drawn as a TradingView-style R:R box at its entry timestamp:
 <span style="color:#26a69a;"><b>green</b></span> = target zone,
 <span style="color:#ef5350;"><b>red</b></span> = stop zone, white line = entry price.
-Left edge = entry time, right edge = exit time (max-hold).
-Boxes can overlap when multiple trades are open at once.</p>
-<div style="overflow-x:auto; margin: 0 -40px;">
-  <img src="data:image/png;base64,{chart4}" style="max-width:none; width:1800px; display:block; margin:0 auto;" />
+Left edge = entry time, right edge = exit time. Boxes overlap when multiple trades are open at once.<br>
+<b>Controls:</b> scroll to zoom • drag to pan • box-zoom (modebar) • double-click to reset • hover any candle or trade for details.</p>
+<div style="background:#131722; border-radius:8px; padding:6px;">
+  {chart4_html}
 </div>
 
 <div class="note">
