@@ -13,11 +13,16 @@ Specs:
 
   Sizing:        Half-Kelly with uncertainty haircut + 25% buffer cap
   Whitelist:     40 OOS-validated patterns (current bot)
-  Macro stack:   Conservative, +1.5x boost only:
+  Macro stack:   v2 — Sharpe-preserving boosts only (cap 1.5x):
+                  v1:
                    - SHORT when NAAIM > 90
                    - LONG when AAII bull-bear z52w < -1.5 (capitulation)
                    - SHORT when HY 5d change > +3%
                    - LONG/SHORT when CFTC AM-LM > |0.30|
+                  v2 (new from cross-dataset pattern miner):
+                   - SHORT when WTI 5d change > +5%
+                   - SHORT when yield-curve 20d change < -0.10
+                   - SHORT when AAII bear > 0.45 AND TGA-z < -0.5
 
   5 sims:        Same window, staggered start dates 7 days apart
                  (sims 1-5 = Mar 26, Apr 2, Apr 9, Apr 16, Apr 23)
@@ -111,29 +116,39 @@ def merge_macro(trades: list[dict]) -> pd.DataFrame:
     cftc = pd.read_csv(DATA/"cftc_nq_features.csv.gz", parse_dates=["date"])
     cftc = cftc[cftc["contract"].str.contains("Consolidated", case=False, na=False)].set_index("date").sort_index()
     macro = pd.read_csv(DATA/"macro_features.csv.gz", parse_dates=["date"]).set_index("date").sort_index()
+    tga   = pd.read_csv(DATA/"tga_features.csv.gz", parse_dates=["date"]).set_index("date").sort_index()
     naaim = pd.read_csv(DATA/"naaim_features.csv.gz").rename(columns={"Unnamed: 0":"date"})
     naaim["date"] = pd.to_datetime(naaim["date"]); naaim = naaim.set_index("date").sort_index()
     aaii = pd.read_csv(DATA/"aaii_features.csv.gz").rename(columns={"Unnamed: 0":"date"})
     aaii["date"] = pd.to_datetime(aaii["date"]); aaii = aaii.set_index("date").sort_index()
-    for d in [cftc, macro, naaim, aaii]:
+    for d in [cftc, macro, tga, naaim, aaii]:
         d.index = d.index.tz_localize(None) if d.index.tz else d.index
 
     m = pd.merge_asof(tdf, cftc, left_on="date_only", right_index=True, direction="backward")
     m = pd.merge_asof(m, macro, left_on="date_only", right_index=True, direction="backward")
+    m = pd.merge_asof(m, tga,   left_on="date_only", right_index=True, direction="backward")
     m = pd.merge_asof(m, naaim, left_on="date_only", right_index=True, direction="backward")
     m = pd.merge_asof(m, aaii,  left_on="date_only", right_index=True, direction="backward", suffixes=("","_a"))
     return m
 
 
 def get_size_mult(row: pd.Series) -> float:
-    """Conservative macro boost stack — capped at 1.5x."""
+    """v2 macro boost stack — v1 + 3 new filters from cross-dataset pattern miner.
+    Each new filter passed risk-adjusted screening (P&L ↑ ≥1%, Sharpe degradation ≤5%).
+    Capped at 1.5x."""
     mult = 1.0
     side = row["side"]
+    # v1 (validated)
     if side == "SHORT" and row.get("naaim", 50) > 90:                   mult = 1.5
     if side == "LONG"  and row.get("bull_bear_z52w", 0) < -1.5:         mult = 1.5
     if side == "SHORT" and row.get("hy_5d_change", 0) > 0.03:           mult = 1.5
     if side == "LONG"  and row.get("am_minus_lm", 0) >  0.30:           mult = 1.5
     if side == "SHORT" and row.get("am_minus_lm", 0) < -0.30:           mult = 1.5
+    # v2 (Sharpe-preserving additions from macro_v2_test.py)
+    if side == "SHORT" and row.get("wti_5d_change", 0) >  0.05:         mult = 1.5
+    if side == "SHORT" and row.get("yc_change_20d",  0) < -0.10:        mult = 1.5
+    if side == "SHORT" and row.get("bear", 0) > 0.45 and row.get("tga_z_1y", 0) < -0.5:
+        mult = 1.5
     return mult
 
 
@@ -408,7 +423,7 @@ img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.0
 <body>
 
 <h1>HFTBot — 12-Month TopStep Funded Simulation</h1>
-<p style="color:#666;">5 staggered sims • Window: <b>{window[0]} → {window[1]}</b> • $50K Live Funded rules • Conservative macro boost (NAAIM + AAII + HY + CFTC)</p>
+<p style="color:#666;">5 staggered sims • Window: <b>{window[0]} → {window[1]}</b> • $50K Live Funded rules • v2 macro stack (NAAIM + AAII + HY + CFTC + WTI + yield-curve + TGA)</p>
 
 <h2>Headline Numbers</h2>
 <div class="summary">

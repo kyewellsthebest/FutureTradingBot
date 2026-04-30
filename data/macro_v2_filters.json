@@ -1,0 +1,16 @@
+{
+  "v2_kept_filters": [
+    "WTI 5d > +5% \u2192 boost SHORTs",
+    "Yield-curve 20d ch < -0.10 \u2192 boost SHORTs (curve flattening fast)",
+    "Pair: AAII-bear>0.45 + TGA-z<-0.5 \u2192 boost SHORTs"
+  ],
+  "v2_summary": {
+    "baseline_pnl": 152680.0,
+    "baseline_sharpe": 0.28922398313553704,
+    "v1_pnl": 187082.5,
+    "v1_sharpe": 0.27693756212204024,
+    "v2_pnl": 196635.0,
+    "v2_sharpe": 0.2802082974314411,
+    "v2_max_dd": 3195.0
+  }
+}
