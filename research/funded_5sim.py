@@ -639,7 +639,9 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
         "displaylogo": False,
         "responsive": True,
     }
-    return fig.to_html(include_plotlyjs="cdn", full_html=False,
+    # Inline plotly.js (don't use CDN) — htmlpreview.github.io's sandboxed
+    # iframe blocks external script fetches, leaving the chart empty.
+    return fig.to_html(include_plotlyjs="inline", full_html=False,
                         config=config, div_id="trade-chart")
 
 
