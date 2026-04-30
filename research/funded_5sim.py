@@ -299,11 +299,18 @@ def build_tradingview_chart(sim: dict, last_n_days: int = 90) -> str:
     sim window with each trade drawn as a green target box / red stop box
     (R:R rectangle), like the user's reference images.
 
+    Layout per trade:
+      - left edge   = entry timestamp
+      - right edge  = exit timestamp (entry + max-hold or earlier barrier hit)
+      - bottom-of-green / top-of-red = entry price
+      - top-of-green = target price
+      - bottom-of-red = stop price
+      (For SHORTs, the stop is above and the target below — colors swap in y.)
+
     Returns base64 PNG. Empty string if no data available.
     """
     if not sim["trade_log"]:
         return ""
-    # Pick the last 3 months of the trade log (skip blown-up entries)
     logs = [l for l in sim["trade_log"] if not l.get("blew_up")]
     if not logs:
         return ""
@@ -313,14 +320,9 @@ def build_tradingview_chart(sim: dict, last_n_days: int = 90) -> str:
     if not window_logs:
         return ""
 
-    # Need entry levels — re-load original cache to fetch stop_pts/target_pts/tf/max_hold
     cache = json.loads((DATA/"scenarios_trades_cache.json").read_text())
-    by_ts_name = {}
-    for t in cache["trades"]:
-        key = (t["ts"], t["name"])
-        by_ts_name[key] = t
+    by_ts_name = {(t["ts"], t["name"]): t for t in cache["trades"]}
 
-    # Load 5-min NQ bars (covers both 1m and 5m signals — boxes will land on 5m grid)
     try:
         bars = load_intraday_5min("nq")
     except Exception as e:
@@ -332,91 +334,128 @@ def build_tradingview_chart(sim: dict, last_n_days: int = 90) -> str:
     bars = bars[(bars.index >= chart_start) & (bars.index <= chart_end)].copy()
     if len(bars) < 50:
         return ""
-    # mplfinance expects capitalized OHLCV column names
-    bars = bars.rename(columns={"open":"Open","high":"High","low":"Low","close":"Close","volume":"Volume"})
 
-    # Build figure with mplfinance — get back ax to draw R:R rectangles on top
-    mc = mpf.make_marketcolors(up="#26a69a", down="#ef5350",
-                               edge="inherit", wick={"up":"#26a69a","down":"#ef5350"},
-                               volume="in")
-    style = mpf.make_mpf_style(base_mpf_style="nightclouds", marketcolors=mc,
-                               facecolor="#131722", edgecolor="#131722",
-                               figcolor="#131722", gridcolor="#1e222d",
-                               gridstyle=":", rc={"axes.labelcolor":"#d1d4dc",
-                                                   "xtick.color":"#787b86",
-                                                   "ytick.color":"#787b86",
-                                                   "axes.edgecolor":"#363a45"})
-    fig, axes = mpf.plot(bars, type="candle", style=style,
-                          figsize=(14, 7), returnfig=True,
-                          datetime_format="%b %d", xrotation=0,
-                          tight_layout=True, axisoff=False,
-                          warn_too_much_data=100_000)
-    ax = axes[0]
+    # Resample 5-min → 1-hour candles so 90 days fits readably in a chart panel
+    bars_h = bars.resample("1h").agg({"open":"first","high":"max","low":"min","close":"last","volume":"sum"}).dropna(how="any")
 
-    # mplfinance uses an integer x-axis (one unit per bar). Build a ts→x lookup.
-    ts_to_x = {ts: i for i, ts in enumerate(bars.index)}
-    bar_minutes = 5
+    # Split window into 3 ~equal monthly panels so R:R boxes have horizontal room
+    span = chart_end - chart_start
+    seg_len = span / 3
+    segments = []
+    for i in range(3):
+        s = chart_start + seg_len * i
+        e = chart_start + seg_len * (i + 1)
+        seg_bars = bars_h[(bars_h.index >= s) & (bars_h.index < e)].copy()
+        if len(seg_bars) >= 20:
+            segments.append((s, e, seg_bars))
+    if not segments:
+        return ""
 
-    n_drawn = 0
-    n_wins = 0
-    n_losses = 0
-    for log in window_logs:
-        ts = pd.Timestamp(log["ts"])
-        ts = ts.tz_localize(None) if ts.tz else ts
-        # Snap to the 5-min bar that contains this timestamp
-        ts_5m = ts.floor("5min")
-        if ts_5m not in ts_to_x:
-            continue
-        x0 = ts_to_x[ts_5m]
-        # Get the original cache trade for stop/target distances
-        key_iso = ts.tz_localize("UTC").isoformat() if not ts.tzinfo else ts.isoformat()
-        meta = by_ts_name.get((key_iso, log["name"]))
-        if meta is None:
-            # Try alternate iso forms
-            for k_ts, k_name in by_ts_name.keys():
-                if k_name != log["name"]: continue
-                if pd.Timestamp(k_ts).tz_localize(None) == ts:
-                    meta = by_ts_name[(k_ts, k_name)]
-                    break
-        if meta is None: continue
+    n_drawn_total = 0; n_wins_total = 0; n_losses_total = 0
+    fig, axes = plt.subplots(len(segments), 1, figsize=(18, 5 * len(segments)),
+                              facecolor="#131722")
+    if len(segments) == 1: axes = [axes]
 
-        # Entry price = open of the bar at or after entry timestamp
-        entry_px = float(bars.iloc[x0]["Open"])
-        side = log["side"]
-        stop_d = float(meta["stop_pts"])
-        tgt_d  = float(meta["target_pts"])
-        max_hold = int(meta["max_hold"])
-        tf_min = 5 if meta["tf"] == "5m" else 1
-        hold_minutes = max_hold * tf_min
-        # Convert hold to number of 5-min bars wide (min 1)
-        width_bars = max(1, hold_minutes // bar_minutes)
-        x1 = x0 + width_bars
+    for ax, (s, e, seg_bars) in zip(axes, segments):
+        seg_bars = seg_bars.reset_index(drop=False).rename(columns={"ts": "ts"})
+        seg_bars["x"] = np.arange(len(seg_bars))
+        ts_to_x = {ts: i for i, ts in enumerate(seg_bars["ts"])}
+        ax.set_facecolor("#131722")
 
-        if side == "LONG":
-            tgt_px  = entry_px + tgt_d
-            stop_px = entry_px - stop_d
-            green_y0, green_h = entry_px, tgt_px - entry_px        # reward zone above
-            red_y0,   red_h   = stop_px, entry_px - stop_px        # risk zone below
-        else:  # SHORT
-            tgt_px  = entry_px - tgt_d
-            stop_px = entry_px + stop_d
-            green_y0, green_h = tgt_px, entry_px - tgt_px          # reward zone below
-            red_y0,   red_h   = entry_px, stop_px - entry_px       # risk zone above
+        # Candles (hourly)
+        up   = seg_bars[seg_bars["close"] >= seg_bars["open"]]
+        down = seg_bars[seg_bars["close"] <  seg_bars["open"]]
+        ax.vlines(up["x"],   up["low"],   up["high"],   color="#26a69a", linewidth=0.7, zorder=2)
+        ax.vlines(down["x"], down["low"], down["high"], color="#ef5350", linewidth=0.7, zorder=2)
+        body_w = 0.65
+        for _, r in up.iterrows():
+            ax.add_patch(Rectangle((r["x"] - body_w/2, r["open"]),
+                                   body_w, max(r["close"] - r["open"], 0.25),
+                                   facecolor="#26a69a", edgecolor="#26a69a", linewidth=0, zorder=2))
+        for _, r in down.iterrows():
+            ax.add_patch(Rectangle((r["x"] - body_w/2, r["close"]),
+                                   body_w, max(r["open"] - r["close"], 0.25),
+                                   facecolor="#ef5350", edgecolor="#ef5350", linewidth=0, zorder=2))
 
-        # Draw rectangles — TradingView style: green=target, red=stop
-        ax.add_patch(Rectangle((x0, green_y0), x1 - x0, green_h,
-                               facecolor="#26a69a", alpha=0.28,
-                               edgecolor="#26a69a", linewidth=0.8, zorder=3))
-        ax.add_patch(Rectangle((x0, red_y0), x1 - x0, red_h,
-                               facecolor="#ef5350", alpha=0.28,
-                               edgecolor="#ef5350", linewidth=0.8, zorder=3))
-        n_drawn += 1
-        if log["pnl"] > 0: n_wins += 1
-        else: n_losses += 1
+        # ---- Trade R:R rectangles for trades whose entry falls in this segment ----
+        n_drawn = 0; n_wins = 0; n_losses = 0
+        for log in window_logs:
+            ts = pd.Timestamp(log["ts"])
+            ts_naive = ts.tz_localize(None) if ts.tz else ts
+            if not (s <= ts_naive < e):
+                continue
+            ts_h = ts_naive.floor("1h")
+            if ts_h not in ts_to_x:
+                continue
+            x0_int = ts_to_x[ts_h]
+            # Fractional x: place left edge at the precise minute within the hour
+            frac_in_hour = (ts_naive - ts_h).total_seconds() / 3600.0
+            x0 = x0_int + frac_in_hour
 
-    ax.set_title(f"{sim['sim_label']} — last {last_n_days}d • {n_drawn} trades drawn "
-                 f"({n_wins}W / {n_losses}L)  •  green=target zone, red=stop zone",
-                 color="#d1d4dc", fontsize=12, loc="left")
+            key_iso = ts_naive.tz_localize("UTC").isoformat()
+            meta = by_ts_name.get((key_iso, log["name"]))
+            if meta is None: continue
+
+            # Entry price = open of the hour bar containing entry (close approximation)
+            entry_px = float(seg_bars.iloc[x0_int]["open"])
+            side = log["side"]
+            stop_d = float(meta["stop_pts"])
+            tgt_d  = float(meta["target_pts"])
+            max_hold = int(meta["max_hold"])
+            tf_min = 5 if meta["tf"] == "5m" else 1
+            hold_hours = (max_hold * tf_min) / 60.0
+            # Width in hours; clamp to a min so boxes stay visible at chart scale
+            width_h = max(8.0, hold_hours)
+            x1 = x0 + width_h
+
+            if side == "LONG":
+                tgt_px  = entry_px + tgt_d
+                stop_px = entry_px - stop_d
+                green_y, green_h = entry_px, tgt_px - entry_px      # reward above entry
+                red_y,   red_h   = stop_px, entry_px - stop_px      # risk below entry
+            else:
+                tgt_px  = entry_px - tgt_d
+                stop_px = entry_px + stop_d
+                green_y, green_h = tgt_px, entry_px - tgt_px        # reward below entry
+                red_y,   red_h   = entry_px, stop_px - entry_px     # risk above entry
+
+            ax.add_patch(Rectangle((x0, green_y), x1 - x0, green_h,
+                                   facecolor="#26a69a", alpha=0.55,
+                                   edgecolor="#4ed8c8", linewidth=1.6, zorder=4))
+            ax.add_patch(Rectangle((x0, red_y), x1 - x0, red_h,
+                                   facecolor="#ef5350", alpha=0.55,
+                                   edgecolor="#ff8783", linewidth=1.6, zorder=4))
+            # Entry-price line (bottom-of-green / top-of-red)
+            ax.hlines(entry_px, x0, x1, color="#ffffff", linewidth=1.1, alpha=0.95, zorder=5)
+            n_drawn += 1
+            if log["pnl"] > 0: n_wins += 1
+            else: n_losses += 1
+
+        # ---- Axes / cosmetics ----
+        ax.set_xlim(-2, len(seg_bars) + 2)
+        pmin = seg_bars["low"].min(); pmax = seg_bars["high"].max()
+        pad = (pmax - pmin) * 0.04
+        ax.set_ylim(pmin - pad, pmax + pad)
+        tick_step = max(1, len(seg_bars) // 14)
+        ticks = list(range(0, len(seg_bars), tick_step))
+        ax.set_xticks(ticks)
+        ax.set_xticklabels([seg_bars.iloc[t]["ts"].strftime("%b %d") for t in ticks],
+                           color="#787b86", fontsize=10)
+        ax.tick_params(axis="y", colors="#787b86")
+        for spine in ax.spines.values():
+            spine.set_color("#363a45")
+        ax.grid(True, color="#1e222d", linestyle=":", linewidth=0.6, zorder=1)
+        ax.set_ylabel("NQ Price", color="#d1d4dc", fontsize=10)
+        ax.set_title(f"{s.strftime('%b %d %Y')} → {e.strftime('%b %d %Y')}  •  "
+                     f"{n_drawn} trades ({n_wins}W / {n_losses}L)",
+                     color="#d1d4dc", fontsize=12, loc="left", pad=8)
+        n_drawn_total += n_drawn; n_wins_total += n_wins; n_losses_total += n_losses
+
+    fig.suptitle(f"{sim['sim_label']} — last {last_n_days}d • {n_drawn_total} trades "
+                 f"({n_wins_total}W / {n_losses_total}L)  •  "
+                 f"green = target zone, red = stop zone, white line = entry price",
+                 color="#d1d4dc", fontsize=14, y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.985])
     return fig_to_b64(fig)
 
 
@@ -601,11 +640,14 @@ img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.0
 <img src="data:image/png;base64,{chart3}" />
 
 <h2>Last 3 Months — Trade-by-Trade Visualization ({chart4_label})</h2>
-<p style="color:#666;">NQ 5-min candles. Each trade is drawn as a TradingView-style risk/reward box at the entry timestamp:
-<span style="color:#26a69a;"><b>green</b></span> = target zone (reward),
-<span style="color:#ef5350;"><b>red</b></span> = stop zone (risk).
-Box width = max-hold duration of the trade.</p>
-<img src="data:image/png;base64,{chart4}" />
+<p style="color:#666;">NQ hourly candles, split into 3 monthly panels. Every trade in the window is drawn as a TradingView-style R:R box at its entry timestamp:
+<span style="color:#26a69a;"><b>green</b></span> = target zone,
+<span style="color:#ef5350;"><b>red</b></span> = stop zone, white line = entry price.
+Left edge = entry time, right edge = exit time (max-hold).
+Boxes can overlap when multiple trades are open at once.</p>
+<div style="overflow-x:auto; margin: 0 -40px;">
+  <img src="data:image/png;base64,{chart4}" style="max-width:none; width:1800px; display:block; margin:0 auto;" />
+</div>
 
 <div class="note">
 <b>Note on simulation realism:</b> This sim uses the bot's actual triple-barrier outcomes
