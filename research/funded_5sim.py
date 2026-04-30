@@ -597,18 +597,38 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
     fig.update_layout(
         title=dict(text=f"{sim['sim_label']} — last {last_n_days}d  •  "
                          f"{n_drawn} trades ({n_wins}W / {n_losses}L)  •  "
-                         f"green = target zone, red = stop zone, white line = entry",
+                         f"green = target, red = stop, white line = entry  •  "
+                         f"<span style='color:#26a69a;'>scroll/pinch to zoom on chart</span>",
                     font=dict(color="#d1d4dc", size=13), x=0.01),
         plot_bgcolor="#131722", paper_bgcolor="#131722",
         font=dict(color="#d1d4dc"),
-        height=720,
-        margin=dict(l=60, r=20, t=50, b=40),
+        height=820,
+        margin=dict(l=60, r=20, t=70, b=70),
         shapes=shapes,
-        xaxis=dict(rangeslider=dict(visible=False),
-                    gridcolor="#1e222d", color="#787b86",
-                    rangebreaks=[dict(bounds=["sat", "mon"])]),  # hide weekends
-        yaxis=dict(gridcolor="#1e222d", color="#787b86",
-                    title="NQ Price"),
+        xaxis=dict(
+            # Default zoom = last 14 days so candles are crisp from the start
+            range=[bars_5m.index[-1] - pd.Timedelta(days=14), bars_5m.index[-1]],
+            rangeslider=dict(visible=True, thickness=0.06,
+                              bgcolor="#1e222d", bordercolor="#363a45"),
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1,  label="1d",  step="day",   stepmode="backward"),
+                    dict(count=3,  label="3d",  step="day",   stepmode="backward"),
+                    dict(count=7,  label="1w",  step="day",   stepmode="backward"),
+                    dict(count=14, label="2w",  step="day",   stepmode="backward"),
+                    dict(count=1,  label="1m",  step="month", stepmode="backward"),
+                    dict(step="all", label="3m"),
+                ],
+                bgcolor="#1e222d", activecolor="#26a69a",
+                font=dict(color="#d1d4dc"), bordercolor="#363a45",
+                x=0.01, y=1.06,
+            ),
+            gridcolor="#1e222d", color="#787b86",
+            rangebreaks=[dict(bounds=["sat", "mon"])],  # hide weekends
+            type="date",
+        ),
+        yaxis=dict(gridcolor="#1e222d", color="#787b86", title="NQ Price",
+                    fixedrange=False),  # allow y-axis zoom independently
         dragmode="pan",
         hovermode="x unified",
     )
@@ -617,6 +637,7 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
         "displayModeBar": True,
         "modeBarButtonsToRemove": ["select2d", "lasso2d"],
         "displaylogo": False,
+        "responsive": True,
     }
     return fig.to_html(include_plotlyjs="cdn", full_html=False,
                         config=config, div_id="trade-chart")
@@ -802,11 +823,17 @@ img {{ max-width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.0
 <img src="data:image/png;base64,{chart3}" />
 
 <h2>Last 3 Months — Trade-by-Trade Visualization ({chart4_label})</h2>
-<p style="color:#666;">Interactive NQ 5-min candles. Every trade in the window is drawn as a TradingView-style R:R box at its entry timestamp:
+<p style="color:#666;">Interactive NQ 5-min candles. Every trade is drawn as a TradingView-style R:R box at its entry timestamp:
 <span style="color:#26a69a;"><b>green</b></span> = target zone,
 <span style="color:#ef5350;"><b>red</b></span> = stop zone, white line = entry price.
-Left edge = entry time, right edge = exit time. Boxes overlap when multiple trades are open at once.<br>
-<b>Controls:</b> scroll to zoom • drag to pan • box-zoom (modebar) • double-click to reset • hover any candle or trade for details.</p>
+Left edge = entry time, right edge = exit time. Boxes overlap when multiple trades are open at once.</p>
+<div style="background:#fff3cd; padding:10px 14px; border-left:4px solid #ffc107; border-radius:4px; font-size:13px; margin-bottom:8px;">
+<b>How to zoom (don't pinch the page — pinch the chart):</b><br>
+&bull; Tap a range button at the top of the chart (<b>1d / 3d / 1w / 2w / 1m / 3m</b>) for instant zoom.<br>
+&bull; Drag the rangeslider at the bottom to scrub through the 3 months.<br>
+&bull; Desktop: scroll-wheel zooms, drag pans, double-click resets.<br>
+&bull; Mobile: pinch <i>inside</i> the chart area to zoom (don't pinch-zoom the whole page — that just scales pixels and looks blurry).
+</div>
 <div style="background:#131722; border-radius:8px; padding:6px;">
   {chart4_html}
 </div>
