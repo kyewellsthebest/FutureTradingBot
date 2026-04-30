@@ -519,6 +519,29 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
     bar_set = set(bars_5m.index)
     bar_index_pos = {ts: i for i, ts in enumerate(bars_5m.index)}
 
+    def find_exit_idx(entry_idx, side, entry_px, tgt_px, stop_px, max_hold_5m):
+        """Walk forward through 5-min bars until the first one whose range
+        touches the target or the stop, or until max-hold is reached.
+        Returns the bar index of the exit and the reason ('TARGET'/'STOP'/'TIME').
+        """
+        end_idx = min(entry_idx + max(1, max_hold_5m), len(bars_5m) - 1)
+        for i in range(entry_idx + 1, end_idx + 1):
+            row = bars_5m.iloc[i]
+            h = float(row["high"]); l = float(row["low"])
+            if side == "LONG":
+                hit_tgt  = h >= tgt_px
+                hit_stop = l <= stop_px
+            else:
+                hit_tgt  = l <= tgt_px
+                hit_stop = h >= stop_px
+            if hit_tgt and hit_stop:
+                # Both touched in same bar — assume the closer one was hit first
+                # (stop is typically closer, so call it a stop in that ambiguous case)
+                return i, "STOP"
+            if hit_tgt:  return i, "TARGET"
+            if hit_stop: return i, "STOP"
+        return end_idx, "TIME"
+
     for log in window_logs:
         ts = pd.Timestamp(log["ts"])
         ts_naive = ts.tz_localize(None) if ts.tz else ts
@@ -535,17 +558,28 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
         tgt_d  = float(meta["target_pts"])
         max_hold = int(meta["max_hold"])
         tf_min = 5 if meta["tf"] == "5m" else 1
-        hold_minutes = max_hold * tf_min
-        exit_ts = ts_5m + pd.Timedelta(minutes=hold_minutes)
+        max_hold_minutes = max_hold * tf_min
+        max_hold_5m = max(1, max_hold_minutes // 5)
 
         if side == "LONG":
             tgt_px  = entry_px + tgt_d
             stop_px = entry_px - stop_d
-            green_y0, green_y1 = entry_px, tgt_px       # reward above
-            red_y0,   red_y1   = stop_px, entry_px      # risk below
         else:
             tgt_px  = entry_px - tgt_d
             stop_px = entry_px + stop_d
+
+        # Walk bars to find when the trade actually exited
+        entry_idx = bar_index_pos[ts_5m]
+        exit_idx, exit_reason = find_exit_idx(entry_idx, side, entry_px,
+                                               tgt_px, stop_px, max_hold_5m)
+        # Right edge = end of the exit bar (one 5-min later) so rectangle
+        # encloses the bar that touched the level.
+        exit_ts = bars_5m.index[exit_idx] + pd.Timedelta(minutes=5)
+
+        if side == "LONG":
+            green_y0, green_y1 = entry_px, tgt_px       # reward above
+            red_y0,   red_y1   = stop_px, entry_px      # risk below
+        else:
             green_y0, green_y1 = tgt_px, entry_px       # reward below
             red_y0,   red_y1   = entry_px, stop_px      # risk above
 
@@ -570,6 +604,10 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
                             line=dict(color="#ffffff", width=1),
                             layer="above"))
 
+        # Stash exit info on the log for the hover trace below
+        log["_exit_ts"] = exit_ts
+        log["_exit_reason"] = exit_reason
+
         n_drawn += 1
         if log["pnl"] > 0: n_wins += 1
         else: n_losses += 1
@@ -584,11 +622,15 @@ def build_interactive_chart(sim: dict, last_n_days: int = 90) -> str:
         if ts_5m not in bar_set: continue
         entry_px = float(bars_5m.loc[ts_5m, "open"])
         result = "WIN" if log["pnl"] > 0 else "LOSS"
+        exit_ts = log.get("_exit_ts")
+        exit_reason = log.get("_exit_reason", "?")
+        exit_str = (f"<br>Exit: {pd.Timestamp(exit_ts).strftime('%m-%d %H:%M')} "
+                    f"({exit_reason})") if exit_ts is not None else ""
         hov_x.append(ts_5m); hov_y.append(entry_px)
         hov_text.append(f"<b>{log['name']}</b><br>"
                          f"{log['side']} • entry {entry_px:.2f}<br>"
                          f"P&L ${log['pnl']:+,.0f} • size {log['n']} MNQ • {result}<br>"
-                         f"{ts_naive.strftime('%Y-%m-%d %H:%M')}")
+                         f"{ts_naive.strftime('%Y-%m-%d %H:%M')}{exit_str}")
     fig.add_trace(go.Scatter(x=hov_x, y=hov_y, mode="markers",
                               marker=dict(size=6, color="#ffffff", opacity=0.0),
                               hovertext=hov_text, hoverinfo="text",
