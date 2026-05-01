@@ -100,21 +100,13 @@ def _merge_live_bars(intraday: pd.DataFrame) -> pd.DataFrame:
 
 def _readiness_from_microstructure(ms: dict, in_trade: bool, kz_name: str,
                                     cand: Optional[object]) -> dict:
-    """Build the dashboard's trade-readiness card."""
+    """Build the dashboard's trade-readiness card.
+
+    Lucid-era checks only — legacy VPIN/Adverse/Regime/GEX/Macro pills were
+    removed because they came from older microstructure work that doesn't
+    influence the Lucid bot's entry decisions.
+    """
     checks: list[tuple[str, bool]] = []
-    vpin = ms.get("vpin")
-    if vpin:
-        checks.append(("VPIN", vpin.get("regime") not in ("HIGH", "EXTREME")
-                       and not vpin.get("crash_warning")))
-    adverse = ms.get("adverse_selection")
-    if adverse:
-        checks.append(("Adverse Selection", adverse.get("regime") not in ("HIGH", "EXTREME")))
-    if ms.get("regime"):
-        checks.append(("Regime", True))
-    if ms.get("gex"):
-        checks.append(("GEX", True))
-    if ms.get("macro"):
-        checks.append(("Macro", True))
     checks.append(("Kill Zone", bool(kz_name)))
     checks.append(("Signal Firing", in_trade or cand is not None))
     passing = [n for n, ok in checks if ok]

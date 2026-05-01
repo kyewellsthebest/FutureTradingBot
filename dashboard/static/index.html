@@ -88,9 +88,10 @@
     <div class="card-header">
       NQ — last ~24h
       <span class="pill" id="freshness-pill">checking…</span>
-      <span class="muted small" style="margin-left:1em">last 100 trades drawn as R:R boxes</span>
     </div>
-    <div id="live-chart" style="height:560px;background:#131722;border-radius:6px;"></div>
+    <div id="live-chart" style="height:560px;background:#131722;border-radius:6px;
+                                 display:flex;align-items:center;justify-content:center;
+                                 color:#787b86;font-size:13px;">loading chart…</div>
   </div>
 </section>
 
@@ -113,11 +114,11 @@
   <div class="card">
     <div class="card-header">Right Now</div>
     <table class="kv">
-      <tr><th>Bot is</th><td id="brain-doing">—</td></tr>
+      <tr><th>State</th><td id="brain-doing">—</td></tr>
       <tr><th>Last tick</th><td id="brain-last-tick">—</td></tr>
-      <tr><th>Kill zone</th><td id="brain-kz">—</td></tr>
-      <tr><th>Strategies watched</th><td id="brain-watched">—</td></tr>
-      <tr><th>Today: entries / blocks / exits</th><td id="brain-counts">—</td></tr>
+      <tr><th>Kill zone <span class="muted small">(active = trade window allowed)</span></th><td id="brain-kz">—</td></tr>
+      <tr><th>Strategies on whitelist</th><td id="brain-watched">—</td></tr>
+      <tr><th>Recent activity <span class="muted small">(last ~100 events)</span></th><td id="brain-counts">—</td></tr>
     </table>
   </div>
 
@@ -145,9 +146,8 @@
   <div class="card">
     <div class="card-header">
       Funded Accounts
-      <span id="funded-passed-pill" class="pill" style="background:#28a745;color:white">— passed</span>
+      <span id="funded-active-pill" class="pill" style="background:#28a745;color:white">active #—</span>
       <span id="funded-failed-pill" class="pill" style="background:#dc3545;color:white">— failed</span>
-      <span id="funded-active-pill" class="pill">active #—</span>
     </div>
     <table class="trades">
       <thead><tr>

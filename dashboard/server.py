@@ -309,27 +309,49 @@ def api_funded_accounts():
 
 @app.route("/api/live_chart")
 def api_live_chart():
-    """Plotly figure JSON: last ~24h of NQ 5-min candles + R:R boxes for each
-    of the last 100 closed trades (target=green, stop=red, white entry line).
+    """Plotly figure JSON: last ~24h of NQ 5-min candles, pure price chart.
 
-    Returns a Plotly figure dict that the frontend can render with
-    Plotly.newPlot().
+    Tries yfinance first (force-refresh, no cache). If that fails, falls back
+    to the CNBC live-bar ledger (data/live_bars.json). If both are empty,
+    returns an error string the frontend can show in the chart container.
     """
     import plotly.graph_objects as go
+    df = None
+    source = None
+    err = None
+    # Try yfinance
     try:
-        # Force-refresh for the live chart so we get the freshest yfinance bars,
-        # not the cached file (cache is fine for backtest code paths).
-        df = download_nq("5min", force_refresh=True).tail(288)   # ~24h of 5-min bars
+        df = download_nq("5min", force_refresh=True).tail(288)
+        if df is not None and not df.empty:
+            source = "yfinance"
     except Exception as e:
-        logger.warning(f"live_chart bars fetch failed: {e}")
-        # Fall back to cached
+        err = f"yfinance: {e!r}"
+        df = None
+    # If yfinance gave nothing, fall back to the CNBC live-bar ledger
+    if (df is None or df.empty) and LIVE_BARS_PATH.exists():
         try:
-            df = download_nq("5min").tail(288)
-        except Exception:
-            return jsonify({"error": str(e)})
-    # Merge live-bars (CNBC poller — fresher than yfinance for the most recent
-    # 1-2 bars). Index uses tz-aware Timestamps so coercion is consistent.
-    if LIVE_BARS_PATH.exists():
+            live = json.loads(LIVE_BARS_PATH.read_text())
+            if live:
+                rows = []
+                for b in live[-288:]:
+                    rows.append({
+                        "ts": pd.Timestamp(b["ts"]),
+                        "open": float(b["open"]), "high": float(b["high"]),
+                        "low": float(b["low"]), "close": float(b["close"]),
+                        "volume": float(b.get("volume", 0)),
+                    })
+                df = pd.DataFrame(rows).set_index("ts").sort_index()
+                source = "cnbc_live_bars"
+        except Exception as e:
+            err = f"{err or ''} | cnbc: {e!r}"
+    if df is None or df.empty:
+        return jsonify({
+            "error": "no price data — yfinance and CNBC feeds both unavailable",
+            "detail": err or "(no data)",
+        })
+
+    # Merge live-bars on top of yfinance for the most recent 1-2 bars
+    if source == "yfinance" and LIVE_BARS_PATH.exists():
         try:
             live = json.loads(LIVE_BARS_PATH.read_text())
             for b in live[-100:]:
@@ -346,9 +368,8 @@ def api_live_chart():
             df = df[~df.index.duplicated(keep="last")]
         except Exception as e:
             logger.warning(f"live_chart merge live_bars failed: {e}")
-    if df.empty:
-        return jsonify({"error": "no bars"})
-    # Strip timezone for plotly so x-axis displays UTC times consistently
+
+    # Strip timezone for plotly
     if df.index.tz is not None:
         df.index = df.index.tz_localize(None)
 
@@ -360,55 +381,11 @@ def api_live_chart():
         decreasing=dict(line=dict(color="#ef5350", width=1), fillcolor="#ef5350"),
         name="NQ", showlegend=False,
     ))
-
-    # Overlay R:R boxes for the last 100 trades that fall in the chart window
-    shapes = []
-    trades = persistence.load_trades(limit=100)
-    chart_start = df.index[0]; chart_end = df.index[-1] + pd.Timedelta(minutes=5)
-    for t in trades:
-        try:
-            entry_t = pd.Timestamp(t["entry_time"])
-            if entry_t.tz is not None: entry_t = entry_t.tz_localize(None)
-            if not (chart_start <= entry_t <= chart_end):
-                continue
-            entry_px = float(t["entry_px"])
-            stop_px  = float(t["stop_px"])
-            tgt_px   = float(t["target_px"])
-            side = t["side"]
-            exit_t = pd.Timestamp(t["exit_time"]) if t.get("exit_time") else (entry_t + pd.Timedelta(minutes=30))
-            if exit_t.tz is not None: exit_t = exit_t.tz_localize(None)
-            if side == "LONG":
-                green_y0, green_y1 = entry_px, tgt_px
-                red_y0,   red_y1   = stop_px, entry_px
-            else:
-                green_y0, green_y1 = tgt_px, entry_px
-                red_y0,   red_y1   = entry_px, stop_px
-            shapes.append(dict(type="rect", xref="x", yref="y",
-                                x0=entry_t, x1=exit_t,
-                                y0=green_y0, y1=green_y1,
-                                fillcolor="rgba(38,166,154,0.30)",
-                                line=dict(color="#26a69a", width=1),
-                                layer="above"))
-            shapes.append(dict(type="rect", xref="x", yref="y",
-                                x0=entry_t, x1=exit_t,
-                                y0=red_y0, y1=red_y1,
-                                fillcolor="rgba(239,83,80,0.30)",
-                                line=dict(color="#ef5350", width=1),
-                                layer="above"))
-            shapes.append(dict(type="line", xref="x", yref="y",
-                                x0=entry_t, x1=exit_t,
-                                y0=entry_px, y1=entry_px,
-                                line=dict(color="#ffffff", width=1),
-                                layer="above"))
-        except Exception:
-            continue
-
     fig.update_layout(
         plot_bgcolor="#131722", paper_bgcolor="#131722",
         font=dict(color="#d1d4dc"),
         height=520,
-        margin=dict(l=50, r=20, t=30, b=40),
-        shapes=shapes,
+        margin=dict(l=50, r=20, t=10, b=40),
         xaxis=dict(
             rangeslider=dict(visible=False),
             gridcolor="#1e222d", color="#787b86",
@@ -417,9 +394,14 @@ def api_live_chart():
         ),
         yaxis=dict(gridcolor="#1e222d", color="#787b86",
                     title="NQ", fixedrange=False),
-        dragmode="pan", hovermode="x unified",
+        dragmode="pan", hovermode="x",
     )
-    return jsonify(fig.to_dict())
+    # Plotly figures contain numpy arrays — go through plotly's own JSON
+    # encoder so they serialize cleanly, then re-merge with our `source` tag.
+    import plotly.io as pio
+    payload = json.loads(pio.to_json(fig))
+    payload["source"] = source
+    return jsonify(payload)
 
 
 @app.route("/api/validation")

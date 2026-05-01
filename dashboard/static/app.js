@@ -102,9 +102,8 @@
 
   function paintFunded(F) {
     if (!F) return;
-    $("funded-passed-pill").textContent = `${F.n_passed ?? 0} passed`;
-    $("funded-failed-pill").textContent = `${F.n_failed ?? 0} failed`;
     $("funded-active-pill").textContent = `active #${F.active_account_id ?? "—"}`;
+    $("funded-failed-pill").textContent = `${F.n_failed ?? 0} failed`;
     const hist = (F.history || []).slice().reverse();
     $("funded-body").innerHTML = hist.map((h) => {
       const cls = h.outcome === "PASSED" ? "pos" : "neg";
@@ -204,17 +203,35 @@
 
   // ---- /api/live_chart — Plotly figure ------------------------------
   async function refreshLiveChart() {
-    if (!window.Plotly) return;
+    const el = $("live-chart");
+    if (!window.Plotly) {
+      el.innerHTML = `<div style="color:#ef5350">Plotly failed to load — check network</div>`;
+      return;
+    }
     try {
       const r = await fetch("/api/live_chart");
       const fig = await r.json();
-      if (fig.error) return;
+      if (fig.error) {
+        el.innerHTML = `<div style="text-align:center;padding:30px">
+          <div style="color:#ef5350;font-weight:600;margin-bottom:6px">${fig.error}</div>
+          <div style="color:#787b86;font-size:11px">${fig.detail || ""}</div>
+          <div style="color:#787b86;font-size:11px;margin-top:8px">
+            (yfinance / CNBC are blocked or returning empty — chart will populate
+            once a feed comes back online)
+          </div></div>`;
+        return;
+      }
+      // Reset the placeholder styles before Plotly takes over
+      el.style.display = "block"; el.style.alignItems = ""; el.style.justifyContent = "";
+      el.style.color = ""; el.style.fontSize = "";
       Plotly.react("live-chart", fig.data, fig.layout, {
         responsive: true, scrollZoom: true,
         modeBarButtonsToRemove: ["select2d", "lasso2d"],
         displaylogo: false,
       });
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      el.innerHTML = `<div style="color:#ef5350;padding:30px">chart fetch failed: ${e}</div>`;
+    }
   }
 
   // ---- /api/brain — Brain tab ---------------------------------------
@@ -224,14 +241,14 @@
       const b = await r.json();
       window._brainWatchedN = b.n_strategies_watched;
       $("brain-doing").innerHTML = b.in_trade
-        ? `<span class="pos">IN TRADE</span>`
-        : `<span class="muted">FLAT — watching the tape</span>`;
+        ? `<span class="pos">IN TRADE</span> — managing an open position`
+        : `<span class="muted">FLAT</span> — no open trade, evaluating new signals each tick`;
       const ago = b.as_of ? Math.round((Date.now() - new Date(b.as_of).getTime()) / 1000) : null;
       $("brain-last-tick").textContent = ago != null ? `${ago}s ago (cycle ${b.cycle})` : "—";
-      $("brain-kz").textContent = b.kill_zone?.active ? `ACTIVE — ${b.kill_zone.name}` : (b.kill_zone?.next || "—");
-      $("brain-watched").textContent = `${b.n_strategies_watched} strategies on whitelist`;
-      $("brain-counts").innerHTML = `<span class="pos">${b.n_recent_entries} entries</span> · `
-        + `<span class="neg">${b.n_recent_blocked} blocks</span> · `
+      $("brain-kz").textContent = b.kill_zone?.active ? `ACTIVE — ${b.kill_zone.name}` : (`outside trade window — next: ${b.kill_zone?.next || "—"}`);
+      $("brain-watched").textContent = `${b.n_strategies_watched} strategies (entry triggers being checked every tick)`;
+      $("brain-counts").innerHTML = `<span class="pos">${b.n_recent_entries} entries taken</span> · `
+        + `<span class="neg">${b.n_recent_blocked} signals blocked by Lucid guard</span> · `
         + `<span class="muted">${b.n_recent_exits} exits</span>`;
       // Events
       const evs = (b.events || []).slice().reverse();
