@@ -271,9 +271,16 @@
       borderUpColor: "#26a69a", borderDownColor: "#ef5350",
       wickUpColor: "#26a69a", wickDownColor: "#ef5350",
     });
-    new ResizeObserver(() => _chart.applyOptions({
-      width: el.clientWidth, height: 560,
-    })).observe(el);
+    // Apply initial size from the container
+    const _resize = () => {
+      const w = Math.max(280, el.clientWidth);
+      const h = Math.min(560, Math.max(320, window.innerHeight * 0.55));
+      _chart.applyOptions({ width: w, height: h });
+      el.style.height = h + "px";
+    };
+    _resize();
+    new ResizeObserver(_resize).observe(el);
+    window.addEventListener("resize", _resize);
   }
 
   async function refreshCandles() {
