@@ -187,9 +187,12 @@
     if (_tvInit) return;
     if (!window.TradingView) return;   // tv.js still loading
     if (!document.getElementById("tradingview-chart")) return;
+    // CME_MINI:NQ1! is restricted to "open in TradingView" in the free
+    // embed. OANDA:NAS100USD is a Nasdaq 100 CFD that tracks NQ futures
+    // almost 1:1, trades 24/5, and is freely embeddable.
     new TradingView.widget({
       autosize: true,
-      symbol: "CME_MINI:NQ1!",       // E-mini NQ continuous front-month
+      symbol: "OANDA:NAS100USD",
       interval: "5",                   // 5-min candles
       timezone: "Etc/UTC",
       theme: "dark",
