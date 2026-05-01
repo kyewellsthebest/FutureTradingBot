@@ -69,8 +69,10 @@ OUT_HTML = DATA / "funded_5sim_report.html"
 # (Apr 2026 — confirmed against lucidtrading.com screenshots)
 START_BAL          = 50_000.0
 INITIAL_TRAIL      = 48_000.0   # Max Loss Limit $2,000 below start
-TRAIL_DROP         =  2_000.0   # peak EOD high - $2,000 (perpetually trailing, never locks)
-LUCIDSCALE_RATIO   = 0.60       # Above Initial Trail: floor = 60% of peak EOD (Lucid's lenient mode)
+TRAIL_DROP         =  2_000.0   # standard trail = peak EOD - $2K
+TRAIL_LOCK_AT      = 52_000.0   # once peak EOD hits $52K, trail locks at break-even
+TRAIL_LOCKED_FLOOR = 50_000.0   # break-even = starting balance
+LUCIDSCALE_RATIO   = 0.60       # LucidScale: floor = 60% of peak EOD (kicks in when 60%·peak > $50K, i.e. peak > $83K)
 DLL                =  1_200.0   # Daily Loss Limit auto-flatten
 MAX_MNQ            = 40         # 4 Mini OR 40 Micro
 CONSISTENCY_PCT    = 0.40       # No single day > 40% of total profit
@@ -83,8 +85,8 @@ COMM = 0.40   # round-trip commission per MNQ
 
 # Backwards-compat aliases used elsewhere in the file
 INITIAL_MLL = INITIAL_TRAIL
-MLL_LOCK_BAL = float("inf")  # Lucid does NOT lock the trail at $52K (unlike TopStep)
-LOCKED_MLL = INITIAL_TRAIL
+MLL_LOCK_BAL = TRAIL_LOCK_AT
+LOCKED_MLL = TRAIL_LOCKED_FLOOR
 
 WIN_DAYS = 365
 
@@ -173,27 +175,33 @@ def get_size_mult(row: pd.Series) -> float:
     return mult
 
 
-def lucid_floor(peak_eod: float) -> float:
+def lucid_floor(peak_eod: float, mll_locked: bool) -> float:
     """Lucid trailing drawdown floor.
 
-    Standard trail: peak EOD - $2,000 (Initial Trail $48K when peak=$50K).
-    LucidScale: once peak EOD > $50K, the floor is the LARGER of the
-    standard trail and 60% of peak EOD. (60% rule is far more lenient
-    once profitable, so the standard trail is the binding constraint at
-    typical balance levels — we keep it active for safety.)
+    Phase 1 (peak_eod < $52K): standard $2K trail below peak EOD.
+    Phase 2 (peak_eod >= $52K): trail LOCKS at break-even ($50K). This is
+        Lucid's "End of Day Drawdowns" feature — once you've earned the
+        initial buffer back, your floor stays at start.
+    Phase 3 (LucidScale): floor = max($50K, 60% of peak EOD). 60%-of-peak
+        binds once peak EOD > $83.3K, i.e. once you've earned $33K+ of
+        cumulative profit. Above that, the floor scales with your gains
+        (still permissive — at peak $200K, floor = $120K, $80K buffer).
     """
-    standard = peak_eod - TRAIL_DROP
-    if peak_eod <= START_BAL:
-        return standard
+    if not mll_locked:
+        # Phase 1: standard $2K trail
+        return peak_eod - TRAIL_DROP
+    # Phase 2/3: trail is locked at break-even, then scales up with LucidScale
+    locked = TRAIL_LOCKED_FLOOR
     scale = LUCIDSCALE_RATIO * peak_eod
-    return max(standard, scale)
+    return max(locked, scale)
 
 
 def simulate_one(taken_with_macro: pd.DataFrame, sim_label: str,
                   per_strat_wr: dict, per_strat_n: dict) -> dict:
     """Run one Lucid $50K Pro Funded simulation."""
     bal = START_BAL
-    mll = lucid_floor(START_BAL)        # $48K initially
+    mll = INITIAL_TRAIL        # $48K initially
+    mll_locked = False
     eod_high = START_BAL
     blown = False
     blow_reason = None
@@ -221,9 +229,13 @@ def simulate_one(taken_with_macro: pd.DataFrame, sim_label: str,
             current_day = day
             today_pnl_at_open = cum_pnl
         if day != current_day:
-            # End-of-day: update peak EOD high + trailing floor (never locks on Lucid)
+            # End-of-day: update peak EOD high
             eod_high = max(eod_high, bal)
-            mll = max(mll, lucid_floor(eod_high))
+            # Latch the trail-lock the first time peak EOD reaches $52K
+            if not mll_locked and eod_high >= TRAIL_LOCK_AT:
+                mll_locked = True
+            # Recompute floor for the new phase + EOD high
+            mll = max(mll, lucid_floor(eod_high, mll_locked))
             # Roll today's P&L into cumulative
             cum_pnl += realized_today
             current_day = day

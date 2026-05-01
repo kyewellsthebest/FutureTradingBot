@@ -41,7 +41,9 @@ from typing import Optional
 START_BAL          = 50_000.0
 INITIAL_TRAIL      = 48_000.0   # Max Loss Limit $2,000 below start
 TRAIL_DROP         =  2_000.0
-LUCIDSCALE_RATIO   = 0.60       # 60% of peak EOD once above initial trail
+TRAIL_LOCK_AT      = 52_000.0   # peak EOD threshold at which trail locks at break-even
+TRAIL_LOCKED_FLOOR = 50_000.0   # break-even = starting balance
+LUCIDSCALE_RATIO   = 0.60       # 60% of peak EOD once locked (binds when peak > ~$83K)
 DLL                =  1_200.0   # Daily Loss Limit auto-flatten
 MAX_MNQ            = 40         # 4 Mini OR 40 Micro
 CONSISTENCY_PCT    = 0.40       # No single day > 40% of total profit
@@ -75,6 +77,7 @@ class LucidState:
     balance: float = START_BAL
     peak_eod_high: float = START_BAL
     trail_floor: float = INITIAL_TRAIL
+    trail_locked: bool = False
     cum_pnl: float = 0.0          # cumulative realized P&L (closed days only)
     today_pnl: float = 0.0
     current_day: Optional[str] = None
@@ -93,13 +96,17 @@ class LucidState:
         self.peak_eod_high = max(self.peak_eod_high, self.balance)
         self.cum_pnl += self.today_pnl
         self.today_pnl = 0.0
-        # Recompute trail floor (Lucid: never locks, perpetually trails)
-        standard = self.peak_eod_high - TRAIL_DROP
-        if self.peak_eod_high > START_BAL:
-            scale = LUCIDSCALE_RATIO * self.peak_eod_high
-            self.trail_floor = max(self.trail_floor, max(standard, scale))
+        # Latch the lock the first time peak EOD reaches $52K
+        if not self.trail_locked and self.peak_eod_high >= TRAIL_LOCK_AT:
+            self.trail_locked = True
+        if not self.trail_locked:
+            # Phase 1: standard $2K trail
+            new_floor = self.peak_eod_high - TRAIL_DROP
         else:
-            self.trail_floor = max(self.trail_floor, standard)
+            # Phase 2/3: locked at break-even, LucidScale 60%-of-peak above
+            scale = LUCIDSCALE_RATIO * self.peak_eod_high
+            new_floor = max(TRAIL_LOCKED_FLOOR, scale)
+        self.trail_floor = max(self.trail_floor, new_floor)
         self.current_day = day
 
     def on_fill(self, side: str, n_contracts: int, realized_pnl: float,
