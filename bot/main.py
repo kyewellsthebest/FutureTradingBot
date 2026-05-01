@@ -102,26 +102,33 @@ def _readiness_from_microstructure(ms: dict, in_trade: bool, kz_name: str,
                                     cand: Optional[object]) -> dict:
     """Build the dashboard's trade-readiness card.
 
-    Each pill represents an actual filter the SignalEngine applies before
-    accepting a trade — VPIN, Adverse Selection, Regime, GEX, Macro all
-    reject candidates inside research/signal_engine.py:evaluate(). Kill
-    Zone is enforced at the bot loop level. "Signal Firing" is a hint
-    that an entry candidate exists this tick (or that a trade is open).
+    Only shows checks that ACTUALLY veto trades — not informational signals.
+    GEX, Macro, and Regime never block; they only scale position size, so
+    showing them as "passing" pills is misleading.
+
+    Real vetoes:
+      - VPIN              (research/vpin_calculator.py:vpin_filter)
+                          rejects EXTREME, HIGH+LONG, spike+LONG, crash-warn
+      - Adverse Selection (research/adverse_selection_detector.py)
+                          rejects HIGH or EXTREME
+      - Kill Zone         (research/signal_filters.py:kill_zone_filter)
+                          rejects trades outside defined trade windows
+      - Signal Firing     true while a candidate is being evaluated or a
+                          position is open
     """
     checks: list[tuple[str, bool]] = []
     vpin = ms.get("vpin")
     if vpin:
-        checks.append(("VPIN", vpin.get("regime") not in ("HIGH", "EXTREME")
-                       and not vpin.get("crash_warning")))
+        # Approximation: pill is "pass" if neither HIGH nor EXTREME and no
+        # crash-warn. (Full vpin_filter() is side-dependent — this is a
+        # best-effort summary for the readiness card.)
+        ok = (vpin.get("regime") not in ("HIGH", "EXTREME")
+              and not vpin.get("crash_warning"))
+        checks.append(("VPIN", ok))
     adverse = ms.get("adverse_selection")
     if adverse:
-        checks.append(("Adverse Selection", adverse.get("regime") not in ("HIGH", "EXTREME")))
-    if ms.get("regime"):
-        checks.append(("Regime", True))
-    if ms.get("gex"):
-        checks.append(("GEX", True))
-    if ms.get("macro"):
-        checks.append(("Macro", True))
+        checks.append(("Adverse Selection",
+                        adverse.get("regime") not in ("HIGH", "EXTREME")))
     checks.append(("Kill Zone", bool(kz_name)))
     checks.append(("Signal Firing", in_trade or cand is not None))
     passing = [n for n, ok in checks if ok]
