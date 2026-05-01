@@ -7,3 +7,5 @@ yfinance>=0.2.40
 flask>=3.0
 flask-cors>=4.0
 requests>=2.31
+plotly>=5.20
+gunicorn>=21.2

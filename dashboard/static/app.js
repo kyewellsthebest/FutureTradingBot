@@ -115,6 +115,103 @@
         <td class="${cls}">${pnl ? fmtMoney(pnl) : "—"}</td>
       </tr>`;
     }).join("");
+
+    // ---- Lucid account panel ----
+    paintLucid(d.lucid_account || {});
+    paintFundedAccounts(d.funded_accounts || {});
+  }
+
+  function paintLucid(L) {
+    if (!L || !Object.keys(L).length) return;
+    $("lucid-account-id").textContent = `account #${L.account_id ?? "—"}`;
+    $("lucid-blown-pill").style.display = L.blown ? "inline-block" : "none";
+    $("lucid-balance").textContent = fmtMoney(L.balance);
+    $("lucid-trail").textContent = fmtMoney(L.trail_floor);
+    $("lucid-trail-locked").textContent = L.trail_locked ? "locked at break-even" : "trailing $2K below peak";
+    $("lucid-buffer").textContent = fmtMoney(L.buffer_to_trail);
+    const tp = L.today_pnl ?? 0;
+    const tpEl = $("lucid-today-pnl");
+    tpEl.textContent = (tp >= 0 ? "+" : "") + fmtMoney(tp);
+    tpEl.className = "big-number " + (tp > 0 ? "pos" : tp < 0 ? "neg" : "");
+    $("lucid-dll-remaining").textContent = L.dll_hit ? "DLL HIT — no new entries" : `DLL room ${fmtMoney(L.dll_remaining)}`;
+    const cp = L.cum_pnl ?? 0;
+    const cpEl = $("lucid-cum-pnl");
+    cpEl.textContent = (cp >= 0 ? "+" : "") + fmtMoney(cp);
+    cpEl.className = "big-number " + (cp > 0 ? "pos" : cp < 0 ? "neg" : "");
+    $("lucid-trading-days").textContent = `${L.n_trading_days ?? 0} trading days`;
+    const share = L.today_share_of_total ?? 0;
+    const shareEl = $("lucid-consistency");
+    shareEl.textContent = `${Math.round(share * 100)}%`;
+    shareEl.className = "big-number " + (L.consistency_ok ? "pos" : "neg");
+    $("lucid-takehome").textContent = fmtMoney(L.take_home_at_split);
+    const peEl = $("lucid-payout");
+    peEl.textContent = L.payout_eligible ? "READY" : "—";
+    peEl.className = "big-number " + (L.payout_eligible ? "pos" : "");
+    $("lucid-payout-reason").textContent = L.payout_reason || "—";
+  }
+
+  function paintFundedAccounts(F) {
+    if (!F) return;
+    $("funded-passed-pill").textContent = `${F.n_passed ?? 0} passed`;
+    $("funded-failed-pill").textContent = `${F.n_failed ?? 0} failed`;
+    $("funded-active-pill").textContent = `active #${F.active_account_id ?? "—"}`;
+    const hist = (F.history || []).slice().reverse();
+    $("funded-body").innerHTML = hist.map((h) => {
+      const cls = h.outcome === "PASSED" ? "pos" : "neg";
+      const pnl = h.cum_pnl ?? 0;
+      return `<tr>
+        <td>#${h.account_id ?? "—"}</td>
+        <td>${(h.started_at || "").slice(0,10)}</td>
+        <td>${(h.ended_at || "").slice(0,10)}</td>
+        <td class="${cls}">${h.outcome || "—"}</td>
+        <td>${h.n_trading_days ?? "—"}</td>
+        <td>${h.n_trades ?? "—"}</td>
+        <td>${h.wins ?? "—"}</td>
+        <td>${h.losses ?? "—"}</td>
+        <td class="${pnl >= 0 ? 'pos':'neg'}">${fmtMoney(pnl)}</td>
+        <td>${fmtMoney(h.ending_balance)}</td>
+        <td class="muted small">${h.blow_reason || "—"}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="11" class="muted">no archived accounts yet — current account is the first run</td></tr>`;
+  }
+
+  // ---- Last 100 trades table ----
+  async function refreshLast100() {
+    try {
+      const r = await fetch("/api/last_trades");
+      const arr = await r.json();
+      $("last100-body").innerHTML = arr.map((t) => {
+        const pnl = t.pnl ?? 0;
+        const cls = pnl > 0 ? "pos" : (pnl < 0 ? "neg" : "");
+        return `<tr>
+          <td>${(t.entry_time || "").slice(0, 19).replace("T", " ")}</td>
+          <td>${t.signal_name || ""}</td>
+          <td>${t.side || ""}</td>
+          <td>${t.qty ?? "—"}</td>
+          <td>${fmtNum(t.entry_px, 2)}</td>
+          <td>${fmtNum(t.stop_px, 2)}</td>
+          <td>${fmtNum(t.target_px, 2)}</td>
+          <td>${fmtNum(t.exit_px, 2)}</td>
+          <td>${t.exit_reason || "—"}</td>
+          <td class="${cls}">${pnl ? fmtMoney(pnl) : "—"}</td>
+        </tr>`;
+      }).join("");
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---- Live trade chart (Plotly) ----
+  async function refreshLiveChart() {
+    if (!window.Plotly) return;
+    try {
+      const r = await fetch("/api/live_chart");
+      const fig = await r.json();
+      if (fig.error) return;
+      Plotly.react("live-chart", fig.data, fig.layout, {
+        responsive: true, scrollZoom: true,
+        modeBarButtonsToRemove: ["select2d", "lasso2d"],
+        displaylogo: false,
+      });
+    } catch (e) { /* ignore */ }
   }
 
   // ---- filter mode + ablation findings ------------------------------
@@ -204,11 +301,15 @@
     refreshCandles();
     refreshFilterConfig();
     refreshStrategies();
+    refreshLast100();
+    refreshLiveChart();
     setInterval(refreshData, 30_000);
     setInterval(refreshCandles, 60_000);
     setInterval(refreshPrice, 500);
     setInterval(refreshFilterConfig, 60_000);
     setInterval(refreshStrategies, 120_000);
+    setInterval(refreshLast100, 30_000);
+    setInterval(refreshLiveChart, 60_000);
     setInterval(tickAge, 1000);
   }
 

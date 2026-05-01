@@ -1,0 +1,15 @@
+{
+  "account_id": 1,
+  "started_at": "2026-05-01T02:50:19.082620+00:00",
+  "peak_eod_high": 50000.0,
+  "trail_floor": 48000.0,
+  "trail_locked": false,
+  "cum_pnl_closed_days": 0.0,
+  "today_pnl": 0.0,
+  "today_date": null,
+  "n_trading_days": 0,
+  "micro_total_profit": 0.0,
+  "micro_short_profit": 0.0,
+  "blown": false,
+  "blow_reason": null
+}

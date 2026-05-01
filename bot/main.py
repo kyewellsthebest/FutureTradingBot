@@ -32,10 +32,11 @@ from typing import Optional
 import pandas as pd
 
 from bot import persistence
-from bot.paper_trading import PaperAccount
+from bot.lucid_account import LucidAccount
 from bot.price_monitor import PriceMonitor
 from research.clock_sync import sync_clock, real_utc_now
 from research.data_loader import DATA_DIR, download_nq
+from research.lucid_guard import DLL as LUCID_DLL, MAX_MNQ as LUCID_MAX_MNQ
 from research.signal_engine import SignalEngine
 from research.signal_filters import (
     DOLLARS_PER_POINT,
@@ -147,7 +148,7 @@ def _active_kill_zone(now: pd.Timestamp) -> str:
 
 class Runtime:
     def __init__(self) -> None:
-        self.account = PaperAccount()
+        self.account = LucidAccount()
         self.engine = SignalEngine()
         self.monitor = PriceMonitor()
         self.cycle = 0
@@ -247,21 +248,40 @@ class Runtime:
 
         cand = self.engine.evaluate(intraday, daily, prior_trades=prior_trades)
         if cand is not None:
-            self.account.enter(
-                signal_name=cand.signal_name, side=cand.side,
-                entry_px_raw=float(cand.entry_px),
-                stop_px=float(cand.stop_px), target_px=float(cand.target_px),
-                qty=int(cand.contracts),
-                ml_decision=cand.ml_decision, ml_confidence=float(cand.ml_confidence),
-                vol_regime=cand.vol_regime, daily_bias=cand.daily_bias, rr=float(cand.rr),
-                now=now,
-            )
-            persistence.push_signal_event({
-                "type": "ENTRY", "ts": now.isoformat(),
-                "signal": cand.signal_name, "side": cand.side,
-                "entry_px": cand.entry_px, "contracts": cand.contracts,
-                "ml": cand.ml_decision, "trace": cand.filter_trace,
-            })
+            # Lucid pre-trade compliance guard — clamp size to 40 MNQ first,
+            # then ask the runtime guard if the trade is allowed.
+            qty = min(int(cand.contracts), LUCID_MAX_MNQ)
+            stop_pts = abs(float(cand.entry_px) - float(cand.stop_px))
+            tgt_pts  = abs(float(cand.target_px) - float(cand.entry_px))
+            stop_pnl = -stop_pts * DOLLARS_PER_POINT * (qty / 30.0)
+            tgt_pnl  =  tgt_pts  * DOLLARS_PER_POINT * (qty / 30.0)
+            decision = self.account.can_enter(side=cand.side, qty=qty,
+                                                target_pnl=tgt_pnl,
+                                                stop_pnl=stop_pnl, now=now)
+            if not decision.allowed:
+                logger.warning(f"[lucid_guard] BLOCK {cand.signal_name} {cand.side} "
+                               f"x{qty}: {decision.reason} ({decision.rule})")
+                persistence.push_signal_event({
+                    "type": "BLOCKED", "ts": now.isoformat(),
+                    "signal": cand.signal_name, "side": cand.side,
+                    "rule": decision.rule, "reason": decision.reason,
+                })
+            else:
+                self.account.enter(
+                    signal_name=cand.signal_name, side=cand.side,
+                    entry_px_raw=float(cand.entry_px),
+                    stop_px=float(cand.stop_px), target_px=float(cand.target_px),
+                    qty=qty,
+                    ml_decision=cand.ml_decision, ml_confidence=float(cand.ml_confidence),
+                    vol_regime=cand.vol_regime, daily_bias=cand.daily_bias,
+                    rr=float(cand.rr), now=now,
+                )
+                persistence.push_signal_event({
+                    "type": "ENTRY", "ts": now.isoformat(),
+                    "signal": cand.signal_name, "side": cand.side,
+                    "entry_px": cand.entry_px, "contracts": qty,
+                    "ml": cand.ml_decision, "trace": cand.filter_trace,
+                })
         self.last_error = None
 
     # ---- dashboard ------------------------------------------------------
@@ -336,6 +356,9 @@ class Runtime:
                 "next": _next_kill_zone(now),
             },
             "trade_readiness": readiness,
+            # Lucid Trading $50K Pro Funded — live runtime account state
+            "lucid_account": self.account.lucid_snapshot(),
+            "funded_accounts": self.account.ledger.snapshot(),
         }
         persistence.save_dashboard(state)
 

@@ -95,3 +95,19 @@ tr.muted-row td:first-child { font-style: italic; }
 .pill.family-v3        { background: #1f6feb; color: #fff; }
 .pill.family-WR        { background: #d29922; color: #1c1f26; }
 .pill.family-HF        { background: #8957e5; color: #fff; }
+
+/* --- Lucid panel --- */
+.lucid-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  margin-top: 6px;
+}
+.lucid-grid > div {
+  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
+  border: 1px solid var(--border);
+}
+.lucid-grid .big-number { font-size: 20px; }
+.big-number.pos { color: var(--good); }
+.big-number.neg { color: var(--bad); }
+@media (max-width: 800px) {
+  .lucid-grid { grid-template-columns: 1fr 1fr; }
+}

@@ -26,6 +26,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
@@ -150,6 +151,129 @@ def api_strategy_levels():
 @app.route("/api/trades")
 def api_trades():
     return jsonify(persistence.load_trades(limit=200))
+
+
+@app.route("/api/last_trades")
+def api_last_trades():
+    """Last 100 trades for the live dashboard table + chart."""
+    return jsonify(persistence.load_trades(limit=100))
+
+
+@app.route("/api/lucid_account")
+def api_lucid_account():
+    """Live Lucid 50K Pro Funded account state."""
+    state = persistence.load_dashboard()
+    return jsonify(state.get("lucid_account") or {})
+
+
+@app.route("/api/funded_accounts")
+def api_funded_accounts():
+    """Funded-accounts ledger: passed/failed counts + archived account history."""
+    state = persistence.load_dashboard()
+    return jsonify(state.get("funded_accounts") or {
+        "n_passed": 0, "n_failed": 0, "active_account_id": 1,
+        "total_runs": 0, "history": [],
+    })
+
+
+@app.route("/api/live_chart")
+def api_live_chart():
+    """Plotly figure JSON: last ~24h of NQ 5-min candles + R:R boxes for each
+    of the last 100 closed trades (target=green, stop=red, white entry line).
+
+    Returns a Plotly figure dict that the frontend can render with
+    Plotly.newPlot().
+    """
+    import plotly.graph_objects as go
+    try:
+        df = download_nq("5min").tail(288)   # ~24h of 5-min bars
+    except Exception as e:
+        logger.warning(f"live_chart bars fetch failed: {e}")
+        return jsonify({"error": str(e)})
+    # Merge live-bars
+    if LIVE_BARS_PATH.exists():
+        try:
+            live = json.loads(LIVE_BARS_PATH.read_text())
+            for b in live[-100:]:
+                df.loc[b["ts"]] = [b["open"], b["high"], b["low"], b["close"], b["volume"]]
+            df = df.sort_index()
+            df = df[~df.index.duplicated(keep="last")]
+        except Exception:
+            pass
+    if df.empty:
+        return jsonify({"error": "no bars"})
+    # Strip timezone for plotly
+    if df.index.tz is not None:
+        df.index = df.index.tz_localize(None)
+
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
+        x=df.index, open=df["open"], high=df["high"],
+        low=df["low"], close=df["close"],
+        increasing=dict(line=dict(color="#26a69a", width=1), fillcolor="#26a69a"),
+        decreasing=dict(line=dict(color="#ef5350", width=1), fillcolor="#ef5350"),
+        name="NQ", showlegend=False,
+    ))
+
+    # Overlay R:R boxes for the last 100 trades that fall in the chart window
+    shapes = []
+    trades = persistence.load_trades(limit=100)
+    chart_start = df.index[0]; chart_end = df.index[-1] + pd.Timedelta(minutes=5)
+    for t in trades:
+        try:
+            entry_t = pd.Timestamp(t["entry_time"])
+            if entry_t.tz is not None: entry_t = entry_t.tz_localize(None)
+            if not (chart_start <= entry_t <= chart_end):
+                continue
+            entry_px = float(t["entry_px"])
+            stop_px  = float(t["stop_px"])
+            tgt_px   = float(t["target_px"])
+            side = t["side"]
+            exit_t = pd.Timestamp(t["exit_time"]) if t.get("exit_time") else (entry_t + pd.Timedelta(minutes=30))
+            if exit_t.tz is not None: exit_t = exit_t.tz_localize(None)
+            if side == "LONG":
+                green_y0, green_y1 = entry_px, tgt_px
+                red_y0,   red_y1   = stop_px, entry_px
+            else:
+                green_y0, green_y1 = tgt_px, entry_px
+                red_y0,   red_y1   = entry_px, stop_px
+            shapes.append(dict(type="rect", xref="x", yref="y",
+                                x0=entry_t, x1=exit_t,
+                                y0=green_y0, y1=green_y1,
+                                fillcolor="rgba(38,166,154,0.30)",
+                                line=dict(color="#26a69a", width=1),
+                                layer="above"))
+            shapes.append(dict(type="rect", xref="x", yref="y",
+                                x0=entry_t, x1=exit_t,
+                                y0=red_y0, y1=red_y1,
+                                fillcolor="rgba(239,83,80,0.30)",
+                                line=dict(color="#ef5350", width=1),
+                                layer="above"))
+            shapes.append(dict(type="line", xref="x", yref="y",
+                                x0=entry_t, x1=exit_t,
+                                y0=entry_px, y1=entry_px,
+                                line=dict(color="#ffffff", width=1),
+                                layer="above"))
+        except Exception:
+            continue
+
+    fig.update_layout(
+        plot_bgcolor="#131722", paper_bgcolor="#131722",
+        font=dict(color="#d1d4dc"),
+        height=520,
+        margin=dict(l=50, r=20, t=30, b=40),
+        shapes=shapes,
+        xaxis=dict(
+            rangeslider=dict(visible=False),
+            gridcolor="#1e222d", color="#787b86",
+            rangebreaks=[dict(bounds=["sat", "mon"])],
+            type="date",
+        ),
+        yaxis=dict(gridcolor="#1e222d", color="#787b86",
+                    title="NQ", fixedrange=False),
+        dragmode="pan", hovermode="x unified",
+    )
+    return jsonify(fig.to_dict())
 
 
 @app.route("/api/validation")
