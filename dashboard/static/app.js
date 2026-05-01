@@ -23,10 +23,8 @@
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
     document.querySelectorAll(".tabpane").forEach(p =>
       p.classList.toggle("active", p.id === "pane-" + name));
-    // The chart needs a relayout when its container becomes visible
-    if (name === "chart" && window.Plotly && document.getElementById("live-chart").data) {
-      try { Plotly.Plots.resize("live-chart"); } catch (e) {}
-    }
+    // TradingView widget needs to be initialised once the chart tab is visible
+    if (name === "chart") ensureTradingViewChart();
   }
   document.querySelectorAll(".tab").forEach(t => {
     t.addEventListener("click", () => activateTab(t.dataset.tab));
@@ -183,55 +181,27 @@
       </div>`;
   }
 
-  // ---- /api/freshness — chart staleness pill -----------------------
-  async function refreshFreshness() {
-    try {
-      const r = await fetch("/api/freshness");
-      const f = await r.json();
-      const pill = $("freshness-pill");
-      if (f.age_seconds == null) { pill.textContent = "no data"; pill.className = "pill bad"; return; }
-      const min = Math.round(f.age_seconds / 60);
-      let label, cls;
-      if (min <= 6)     { label = `live (${min} min ago)`;    cls = "pill pos"; }
-      else if (min <= 20) { label = `delayed ${min} min`;     cls = "pill"; }
-      else              { label = `stale ${min} min`;          cls = "pill bad"; }
-      label += ` • ${f.source || ""}`;
-      pill.textContent = label;
-      pill.className = cls;
-    } catch (e) { /* ignore */ }
-  }
-
-  // ---- /api/live_chart — Plotly figure ------------------------------
-  async function refreshLiveChart() {
-    const el = $("live-chart");
-    if (!window.Plotly) {
-      el.innerHTML = `<div style="color:#ef5350">Plotly failed to load — check network</div>`;
-      return;
-    }
-    try {
-      const r = await fetch("/api/live_chart");
-      const fig = await r.json();
-      if (fig.error) {
-        el.innerHTML = `<div style="text-align:center;padding:30px">
-          <div style="color:#ef5350;font-weight:600;margin-bottom:6px">${fig.error}</div>
-          <div style="color:#787b86;font-size:11px">${fig.detail || ""}</div>
-          <div style="color:#787b86;font-size:11px;margin-top:8px">
-            (yfinance / CNBC are blocked or returning empty — chart will populate
-            once a feed comes back online)
-          </div></div>`;
-        return;
-      }
-      // Reset the placeholder styles before Plotly takes over
-      el.style.display = "block"; el.style.alignItems = ""; el.style.justifyContent = "";
-      el.style.color = ""; el.style.fontSize = "";
-      Plotly.react("live-chart", fig.data, fig.layout, {
-        responsive: true, scrollZoom: true,
-        modeBarButtonsToRemove: ["select2d", "lasso2d"],
-        displaylogo: false,
-      });
-    } catch (e) {
-      el.innerHTML = `<div style="color:#ef5350;padding:30px">chart fetch failed: ${e}</div>`;
-    }
+  // ---- TradingView widget — initialise once on page load ----------
+  let _tvInit = false;
+  function ensureTradingViewChart() {
+    if (_tvInit) return;
+    if (!window.TradingView) return;   // tv.js still loading
+    if (!document.getElementById("tradingview-chart")) return;
+    new TradingView.widget({
+      autosize: true,
+      symbol: "CME_MINI:NQ1!",       // E-mini NQ continuous front-month
+      interval: "5",                   // 5-min candles
+      timezone: "Etc/UTC",
+      theme: "dark",
+      style: "1",                       // 1 = candles
+      locale: "en",
+      enable_publishing: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: true,
+      container_id: "tradingview-chart",
+      studies: ["Volume@tv-basicstudies"],
+    });
+    _tvInit = true;
   }
 
   // ---- /api/brain — Brain tab ---------------------------------------
@@ -320,14 +290,11 @@
   function start() {
     refreshData();
     refreshLivePosition();
-    refreshFreshness();
-    refreshLiveChart();
     refreshBrain();
     refreshLast100();
+    // TradingView widget loads lazily on the first Chart-tab activation
     setInterval(refreshData,         15_000);
     setInterval(refreshLivePosition,  3_000);
-    setInterval(refreshFreshness,    30_000);
-    setInterval(refreshLiveChart,    60_000);
     setInterval(refreshBrain,        15_000);
     setInterval(refreshLast100,      30_000);
     setInterval(tickAge,              1_000);
