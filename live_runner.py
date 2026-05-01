@@ -2,12 +2,14 @@
 24/7 live entrypoint for Railway / any single-process host.
 
 Spawns:
-  1. The 60-second bot loop (bot.main.Runtime.run) in a background thread
-  2. The Flask dashboard (dashboard.server.app) bound to $PORT in the main thread
+  1. The 60-second bot loop (bot.main.Runtime.run) on the main thread
+  2. The Flask dashboard (dashboard.server.app) on $PORT in a daemon thread
 
-Railway sets PORT — we honor it. State persists to data/ which Railway keeps
-across restarts as long as a volume is mounted (otherwise the funded-account
-ledger and trade DB are ephemeral).
+On startup we ALSO seed the runtime data dir (`data/`) from the bundled
+static config (`bundled/`) — this is critical because Railway Volumes
+mounted at `/app/data` SHADOW the repo's `data/` directory, hiding the
+config files (validation_results.json, macro CSVs) that ship with the
+code. Bootstrap copies those over once on first boot if missing.
 
 Crash recovery: if the bot thread dies the dashboard keeps serving the last
 snapshot. The Procfile / railway.json restarts the whole container if the
@@ -17,13 +19,18 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import sys
 import threading
 import time
+from pathlib import Path
 
 # Bind once before importing anything else that touches DATA_DIR
-os.makedirs("data", exist_ok=True)
-os.makedirs("logs", exist_ok=True)
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+BUNDLED_DIR = ROOT / "bundled"
+DATA_DIR.mkdir(exist_ok=True)
+(ROOT / "logs").mkdir(exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +38,32 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 log = logging.getLogger("live_runner")
+
+
+def _bootstrap_bundled_config() -> None:
+    """Copy bundled config files into data/ if missing — needed when a
+    Railway Volume is mounted at /app/data and shadows the repo's data dir.
+    Without this, validation_results.json (the strategy whitelist) and the
+    macro CSVs would all be invisible to the live bot."""
+    if not BUNDLED_DIR.exists():
+        log.warning(f"bundled/ not found at {BUNDLED_DIR}; skipping bootstrap")
+        return
+    copied = 0
+    for src in BUNDLED_DIR.iterdir():
+        if not src.is_file():
+            continue
+        dst = DATA_DIR / src.name
+        if not dst.exists():
+            try:
+                shutil.copy2(src, dst)
+                copied += 1
+                log.info(f"bootstrapped data/{src.name} from bundled/ ({src.stat().st_size:,} bytes)")
+            except Exception as e:
+                log.error(f"failed to copy {src} -> {dst}: {e}")
+    if copied:
+        log.info(f"bootstrap copied {copied} static config files into data/")
+    else:
+        log.info("bundled config already present in data/ — no bootstrap needed")
 
 
 def _bot_thread() -> None:
@@ -62,6 +95,7 @@ def _flask_thread() -> None:
 
 
 def main() -> int:
+    _bootstrap_bundled_config()
     # Background dashboard
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
     t.start()

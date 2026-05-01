@@ -103,6 +103,24 @@
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-brain">
   <div class="card">
+    <div class="card-header">Live Filter Values <span class="muted small" style="margin-left:1em">how close each filter is to blocking a trade</span></div>
+    <div class="filter-grid">
+      <div><span class="muted small">VPIN</span><div class="big-number" id="filt-vpin-val">—</div>
+           <span class="muted small" id="filt-vpin-meta">—</span></div>
+      <div><span class="muted small">Adverse Selection</span><div class="big-number" id="filt-adverse-val">—</div>
+           <span class="muted small" id="filt-adverse-meta">—</span></div>
+      <div><span class="muted small">Regime</span><div class="big-number" id="filt-regime-val">—</div>
+           <span class="muted small" id="filt-regime-meta">—</span></div>
+      <div><span class="muted small">GEX</span><div class="big-number" id="filt-gex-val">—</div>
+           <span class="muted small" id="filt-gex-meta">—</span></div>
+      <div><span class="muted small">Macro</span><div class="big-number" id="filt-macro-val">—</div>
+           <span class="muted small" id="filt-macro-meta">—</span></div>
+      <div><span class="muted small">Kill Zone</span><div class="big-number" id="filt-kz-val">—</div>
+           <span class="muted small" id="filt-kz-meta">—</span></div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-header">Trade Readiness</div>
     <div id="readiness-card-inner">
       <div class="big-number" id="readiness-pct">—</div>
@@ -127,18 +145,18 @@
 
   <div class="card">
     <div class="card-header">Recent Activity (last 30 events)</div>
-    <table class="trades">
+    <div class="table-wrap"><table class="trades">
       <thead><tr><th>Time</th><th>Type</th><th>Signal</th><th>Side</th><th>Detail</th></tr></thead>
       <tbody id="brain-events"></tbody>
-    </table>
+    </table></div>
   </div>
 
   <div class="card">
     <div class="card-header">Strategies on Whitelist</div>
-    <table class="trades">
+    <div class="table-wrap"><table class="trades">
       <thead><tr><th>Name</th><th>Side</th><th>Stop / Target</th><th>WR (backtest)</th></tr></thead>
       <tbody id="brain-whitelist"></tbody>
-    </table>
+    </table></div>
   </div>
 </section>
 
@@ -154,7 +172,7 @@
         click any row to see what triggers it
       </span>
     </div>
-    <table class="trades clickable-rows">
+    <div class="table-wrap"><table class="trades clickable-rows">
       <thead><tr>
         <th>Name</th><th>Family</th><th>Side</th>
         <th>Stop / Target (pts)</th><th>R:R</th>
@@ -162,7 +180,7 @@
         <th>Net P&amp;L</th><th>Tier</th>
       </tr></thead>
       <tbody id="strategies-body"></tbody>
-    </table>
+    </table></div>
   </div>
 </section>
 
@@ -185,14 +203,14 @@
       <span id="funded-active-pill" class="pill" style="background:#28a745;color:white">active #—</span>
       <span id="funded-failed-pill" class="pill" style="background:#dc3545;color:white">— failed</span>
     </div>
-    <table class="trades">
+    <div class="table-wrap"><table class="trades">
       <thead><tr>
         <th>#</th><th>Started</th><th>Ended</th><th>Outcome</th>
         <th>Days</th><th>Trades</th><th>Wins</th><th>Losses</th>
         <th>Cum P&amp;L</th><th>End Bal</th><th>Reason</th>
       </tr></thead>
       <tbody id="funded-body"></tbody>
-    </table>
+    </table></div>
   </div>
 </section>
 
@@ -202,14 +220,14 @@
 <section class="tabpane" id="pane-trades">
   <div class="card">
     <div class="card-header">Last 100 Trades</div>
-    <table class="trades">
+    <div class="table-wrap"><table class="trades">
       <thead><tr>
         <th>Time</th><th>Signal</th><th>Side</th><th>Qty</th>
         <th>Entry</th><th>Stop</th><th>Target</th>
         <th>Exit</th><th>Reason</th><th>P&amp;L</th>
       </tr></thead>
       <tbody id="last100-body"></tbody>
-    </table>
+    </table></div>
   </div>
 </section>
 

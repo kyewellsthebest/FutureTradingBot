@@ -209,7 +209,51 @@ tr.muted-row { opacity: 0.55; }
 .trades td.pos { color: var(--good); }
 .trades td.neg { color: var(--bad); }
 
+/* Tables that overflow horizontally — keep the SCROLL inside the card,
+   not on the whole page (mobile UX). */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;        /* a tiny bleed so the scroll edges aren't crammed */
+}
+.table-wrap > table { min-width: 640px; }   /* forces horiz scroll on phones */
+
+/* Live filter values panel (Brain tab) */
+.filter-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.filter-grid > div {
+  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
+  border: 1px solid var(--border);
+}
+.filter-grid .big-number { font-size: 18px; }
+
+/* ---- Mobile (≤ 800px) ---- */
 @media (max-width: 800px) {
-  .ribbon { grid-template-columns: 1fr; gap: 6px; }
+  .ribbon { grid-template-columns: 1fr; gap: 6px; padding: 8px 12px; }
   .ribbon-mid { gap: 14px; }
+  main { padding: 10px; }
+  .card { padding: 12px; margin-bottom: 10px; }
+  .card-header { font-size: 11px; }
+  .big-number { font-size: 18px; }
+  /* Tabs stay horizontal but scroll if too many */
+  .tabs { padding: 0 6px; }
+  .tab { padding: 9px 12px; font-size: 13px; }
+  /* Tables — make text smaller, ensure horizontal scroll, sticky first col */
+  .trades { font-size: 12px; }
+  .trades th, .trades td { padding: 5px 6px; }
+  /* Compact card grids */
+  .lucid-grid, .live-pos-grid, .filter-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lucid-grid > div, .live-pos-grid > div, .filter-grid > div { padding: 8px 10px; }
+  .lucid-grid .big-number, .live-pos-grid .big-number, .filter-grid .big-number { font-size: 16px; }
+  /* Modal full-width on phones */
+  .modal-body { padding: 16px; max-height: 95vh; }
+  .modal-body h2 { font-size: 16px; }
+}
+
+/* ---- Very small (≤ 480px) ---- */
+@media (max-width: 480px) {
+  .lucid-grid, .live-pos-grid, .filter-grid { grid-template-columns: 1fr; }
+  .ribbon-mid { flex-wrap: wrap; gap: 10px; }
+  .ribbon-mid .ribbon-stat > span:last-child { font-size: 14px; }
 }

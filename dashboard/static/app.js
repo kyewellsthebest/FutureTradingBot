@@ -45,8 +45,69 @@
       paintLucid(d.lucid_account || {});
       paintFunded(d.funded_accounts || {});
       paintReadiness(d.trade_readiness || {});
+      paintFilterValues(d);
     } catch (e) {
       $("health-dot").className = "dot bad";
+    }
+  }
+
+  // ---- Live filter values (Brain tab) ------------------------------
+  function paintFilterValues(d) {
+    const ms = d.microstructure || {};
+    const kz = d.kill_zone || {};
+    const blk = (el) => { if ($(el)) $(el).className = "big-number neg"; };
+    const ok  = (el) => { if ($(el)) $(el).className = "big-number pos"; };
+    const yel = (el) => { if ($(el)) $(el).className = "big-number"; };
+
+    // VPIN: blocking when regime in HIGH/EXTREME or crash_warning
+    const vp = ms.vpin;
+    if (vp) {
+      $("filt-vpin-val").textContent = (vp.value ?? 0).toFixed(3);
+      const reg = vp.regime || "—";
+      const crash = vp.crash_warning ? " ⚠ crash" : "";
+      $("filt-vpin-meta").textContent = `${reg}${crash}  •  blocks at HIGH or EXTREME`;
+      if (reg === "EXTREME" || vp.crash_warning) blk("filt-vpin-val");
+      else if (reg === "HIGH" || reg === "ELEVATED") yel("filt-vpin-val");
+      else ok("filt-vpin-val");
+    }
+    // Adverse Selection
+    const ad = ms.adverse_selection;
+    if (ad) {
+      $("filt-adverse-val").textContent = (ad.score ?? 0).toFixed(3);
+      const reg = ad.regime || "—";
+      $("filt-adverse-meta").textContent = `${reg}  •  blocks at HIGH or EXTREME`;
+      if (reg === "EXTREME" || reg === "HIGH") blk("filt-adverse-val");
+      else if (reg === "ELEVATED") yel("filt-adverse-val");
+      else ok("filt-adverse-val");
+    }
+    // Regime (multiplier only, never a hard block)
+    const rg = ms.regime;
+    if (rg) {
+      $("filt-regime-val").textContent = rg.state || "—";
+      $("filt-regime-meta").textContent = `confidence ${(rg.confidence ?? 0).toFixed(2)}  •  scales position size`;
+      yel("filt-regime-val");
+    }
+    // GEX (sizing only)
+    const gx = ms.gex;
+    if (gx) {
+      const b = (gx.total_gex_billion ?? 0).toFixed(1);
+      $("filt-gex-val").textContent = `$${b}B`;
+      $("filt-gex-meta").textContent = `${gx.regime || "—"}  •  scales position size`;
+      yel("filt-gex-val");
+    }
+    // Macro (sizing only)
+    const mc = ms.macro;
+    if (mc) {
+      const sc = mc.score ?? 0;
+      $("filt-macro-val").textContent = sc.toFixed(2);
+      $("filt-macro-meta").textContent = `${mc.bias || "—"}  •  scales position size`;
+      yel("filt-macro-val");
+    }
+    // Kill zone — actual hard block
+    if (kz) {
+      $("filt-kz-val").textContent = kz.active ? (kz.name || "ACTIVE") : "OFF";
+      $("filt-kz-meta").textContent = kz.active ? "trades allowed" : `next: ${kz.next || "—"}`;
+      if (kz.active) ok("filt-kz-val"); else blk("filt-kz-val");
     }
   }
 
