@@ -283,7 +283,15 @@ def simulate_one(taken_with_macro: pd.DataFrame, sim_label: str,
         size_mult = get_size_mult(t)
         n_contracts = int(n_contracts * size_mult)
         n_contracts = min(n_contracts, MAX_MNQ)
-        if n_contracts < 1 and risk_per_mnq < buffer * 0.6:
+        # Projected DLL cap — a single trade's stop must not push today's
+        # realized P&L past -DLL. This stops the "two losers in a row at the
+        # full position cap" scenario where today goes from -$800 → -$1,600.
+        dll_room = max(0.0, DLL + realized_today)   # how much more we can lose today
+        if dll_room <= 0:
+            skipped += 1; continue
+        max_n_dll = int(dll_room // risk_per_mnq) if risk_per_mnq > 0 else 0
+        n_contracts = min(n_contracts, max_n_dll)
+        if n_contracts < 1 and risk_per_mnq < buffer * 0.6 and risk_per_mnq <= dll_room:
             n_contracts = 1
         if n_contracts < 1:
             skipped += 1; continue
