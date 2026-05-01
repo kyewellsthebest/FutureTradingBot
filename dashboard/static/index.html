@@ -40,6 +40,7 @@
   <button class="tab active" data-tab="live">Live</button>
   <button class="tab" data-tab="chart">Chart</button>
   <button class="tab" data-tab="brain">Brain</button>
+  <button class="tab" data-tab="strategies">Strategies</button>
   <button class="tab" data-tab="funded">Funded</button>
   <button class="tab" data-tab="trades">Trades</button>
 </nav>
@@ -137,6 +138,30 @@
     <table class="trades">
       <thead><tr><th>Name</th><th>Side</th><th>Stop / Target</th><th>WR (backtest)</th></tr></thead>
       <tbody id="brain-whitelist"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!-- TAB: STRATEGIES — every whitelisted strategy + backtest stats   -->
+<!-- ============================================================== -->
+<section class="tabpane" id="pane-strategies">
+  <div class="card">
+    <div class="card-header">
+      Strategies
+      <span id="strategies-count" class="pill">— total</span>
+      <span class="muted small" style="margin-left:1em">
+        backtest stats from validation_results.json (out-of-sample 2024-2026)
+      </span>
+    </div>
+    <table class="trades">
+      <thead><tr>
+        <th>Name</th><th>Family</th><th>Side</th>
+        <th>Stop / Target (pts)</th><th>R:R</th>
+        <th>Trades</th><th>Win Rate</th><th>Profit Factor</th>
+        <th>Net P&amp;L</th><th>Tier</th>
+      </tr></thead>
+      <tbody id="strategies-body"></tbody>
     </table>
   </div>
 </section>

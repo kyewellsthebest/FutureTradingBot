@@ -157,6 +157,13 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 .pass-pill { color: var(--good); margin-right: 6px; }
 .block-pill { color: var(--warn); margin-right: 6px; }
 
+/* Strategies tab — strategy family pills + muted rows for non-live */
+.pill.family-5-min     { background: #2ecc71; color: #0d2818; }
+.pill.family-v3        { background: #1f6feb; color: #fff; }
+.pill.family-WR        { background: #d29922; color: #1c1f26; }
+.pill.family-HF        { background: #8957e5; color: #fff; }
+tr.muted-row { opacity: 0.55; }
+
 /* ---- tables ---- */
 .kv { width: 100%; border-collapse: collapse; }
 .kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 0; width: 38%; }

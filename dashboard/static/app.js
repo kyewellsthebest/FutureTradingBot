@@ -294,6 +294,42 @@
     } catch (e) { /* ignore */ }
   }
 
+  // ---- /api/strategies — Strategies tab -----------------------------
+  async function refreshStrategies() {
+    try {
+      const r = await fetch("/api/strategies");
+      const d = await r.json();
+      const list = d.strategies || [];
+      $("strategies-count").textContent = `${list.length} total · ${d.n_live ?? 0} live · ${d.n_watch ?? 0} watch`;
+      const fmtPct = (x) => x == null ? "—" : (Math.round(x * 100) + "%");
+      const fmtPF  = (x) => x == null ? "—" : Number(x).toFixed(2);
+      const fmtRR  = (s) => (s.stop_pts && s.target_pts)
+        ? `${s.stop_pts} / ${s.target_pts}` : "—";
+      const fmtRRRatio = (s) => (s.stop_pts && s.target_pts)
+        ? (s.target_pts / s.stop_pts).toFixed(2) : "—";
+      $("strategies-body").innerHTML = list.map(s => {
+        const family = `<span class="pill family-${s.family}">${s.family}</span>`;
+        const sCls = s.side === "LONG" ? "pos" : "neg";
+        const tierCls = s.tier === "A" ? "pass-pill" : (s.tier === "B" ? "block-pill" : "muted");
+        const tierLabel = s.tier === "A" ? "A · live" : (s.tier === "B" ? "B · watch" : "live");
+        const pnl = s.net_pnl ?? 0;
+        const pnlCls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+        return `<tr class="${s.is_live ? '' : 'muted-row'}">
+          <td>${s.name}</td>
+          <td>${family}</td>
+          <td class="${sCls}">${s.side || "—"}</td>
+          <td>${fmtRR(s)}</td>
+          <td>${fmtRRRatio(s)}</td>
+          <td>${s.trades ?? "—"}</td>
+          <td>${fmtPct(s.win_rate)}</td>
+          <td>${fmtPF(s.profit_factor)}</td>
+          <td class="${pnlCls}">${pnl ? fmtMoney(pnl) : "—"}</td>
+          <td><span class="${tierCls}">${tierLabel}</span></td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="10" class="muted">No strategies loaded.</td></tr>`;
+    } catch (e) { /* ignore */ }
+  }
+
   // ---- /api/last_trades — Trades tab --------------------------------
   async function refreshLast100() {
     try {
@@ -334,12 +370,14 @@
     refreshLivePosition();
     refreshBrain();
     refreshLast100();
+    refreshStrategies();
     refreshCandles();
     refreshTradeMarkers();
     setInterval(refreshData,         15_000);
     setInterval(refreshLivePosition,  3_000);
     setInterval(refreshBrain,        15_000);
     setInterval(refreshLast100,      30_000);
+    setInterval(refreshStrategies,  120_000);   // backtest stats rarely change
     setInterval(refreshCandles,      30_000);
     setInterval(refreshTradeMarkers, 30_000);
     setInterval(tickAge,              1_000);
