@@ -23,8 +23,13 @@
     document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
     document.querySelectorAll(".tabpane").forEach(p =>
       p.classList.toggle("active", p.id === "pane-" + name));
-    // TradingView widget needs to be initialised once the chart tab is visible
-    if (name === "chart") ensureTradingViewChart();
+    // Chart needs to be (re)sized once visible
+    if (name === "chart") {
+      ensureChart();
+      if (_chart) {
+        try { _chart.timeScale().fitContent(); } catch (e) {}
+      }
+    }
   }
   document.querySelectorAll(".tab").forEach(t => {
     t.addEventListener("click", () => activateTab(t.dataset.tab));
@@ -181,30 +186,64 @@
       </div>`;
   }
 
-  // ---- TradingView widget — initialise once on page load ----------
-  let _tvInit = false;
-  function ensureTradingViewChart() {
-    if (_tvInit) return;
-    if (!window.TradingView) return;   // tv.js still loading
-    if (!document.getElementById("tradingview-chart")) return;
-    // CME_MINI:NQ1! is restricted to "open in TradingView" in the free
-    // embed. OANDA:NAS100USD is a Nasdaq 100 CFD that tracks NQ futures
-    // almost 1:1, trades 24/5, and is freely embeddable.
-    new TradingView.widget({
-      autosize: true,
-      symbol: "OANDA:NAS100USD",
-      interval: "5",                   // 5-min candles
-      timezone: "Etc/UTC",
-      theme: "dark",
-      style: "1",                       // 1 = candles
-      locale: "en",
-      enable_publishing: false,
-      hide_side_toolbar: false,
-      allow_symbol_change: true,
-      container_id: "tradingview-chart",
-      studies: ["Volume@tv-basicstudies"],
+  // ---- TradingView Lightweight Charts (NQ=F, yfinance feed) --------
+  // Uses the open-source library bundled in /static/lightweightcharts.js.
+  // Same chart engine as TradingView's web app, just rendered with our own
+  // data so it actually shows real NQ futures (CME_MINI:NQ1! is restricted
+  // in the free Advanced Chart widget).
+  let _chart = null, _candleSeries = null;
+
+  function ensureChart() {
+    if (_chart) return;
+    if (!window.LightweightCharts) return;
+    const el = document.getElementById("lwchart");
+    if (!el) return;
+    _chart = LightweightCharts.createChart(el, {
+      layout: { background: { color: "#131722" }, textColor: "#d8def0" },
+      grid:   { horzLines: { color: "#1e222d" }, vertLines: { color: "#1e222d" } },
+      timeScale: { timeVisible: true, secondsVisible: false, borderColor: "#363a45" },
+      rightPriceScale: { borderColor: "#363a45" },
+      crosshair: { mode: 1 },
     });
-    _tvInit = true;
+    _candleSeries = _chart.addCandlestickSeries({
+      upColor: "#26a69a", downColor: "#ef5350",
+      borderUpColor: "#26a69a", borderDownColor: "#ef5350",
+      wickUpColor: "#26a69a", wickDownColor: "#ef5350",
+    });
+    new ResizeObserver(() => _chart.applyOptions({
+      width: el.clientWidth, height: 560,
+    })).observe(el);
+  }
+
+  async function refreshCandles() {
+    ensureChart();
+    if (!_candleSeries) return;
+    try {
+      const r = await fetch("/api/candles");
+      const arr = await r.json();
+      if (!Array.isArray(arr) || !arr.length) return;
+      _candleSeries.setData(arr);
+      // Freshness pill
+      const lastSec = arr[arr.length - 1].time;
+      const ageMin = Math.round((Date.now() / 1000 - lastSec) / 60);
+      const pill = document.getElementById("freshness-pill");
+      if (pill) {
+        let label, cls;
+        if (ageMin <= 6)       { label = `live (${ageMin} min)`;     cls = "pill pos"; }
+        else if (ageMin <= 20) { label = `delayed ${ageMin} min`;    cls = "pill"; }
+        else                    { label = `stale ${ageMin} min`;       cls = "pill bad"; }
+        pill.textContent = label; pill.className = cls;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  async function refreshTradeMarkers() {
+    if (!_candleSeries) return;
+    try {
+      const r = await fetch("/api/trade_markers");
+      const m = await r.json();
+      if (Array.isArray(m)) _candleSeries.setMarkers(m);
+    } catch (e) { /* ignore */ }
   }
 
   // ---- /api/brain — Brain tab ---------------------------------------
@@ -295,11 +334,14 @@
     refreshLivePosition();
     refreshBrain();
     refreshLast100();
-    // TradingView widget loads lazily on the first Chart-tab activation
+    refreshCandles();
+    refreshTradeMarkers();
     setInterval(refreshData,         15_000);
     setInterval(refreshLivePosition,  3_000);
     setInterval(refreshBrain,        15_000);
     setInterval(refreshLast100,      30_000);
+    setInterval(refreshCandles,      30_000);
+    setInterval(refreshTradeMarkers, 30_000);
     setInterval(tickAge,              1_000);
   }
   if (document.readyState === "loading") {

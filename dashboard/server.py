@@ -82,31 +82,92 @@ def api_price():
 
 @app.route("/api/candles")
 def api_candles():
+    """NQ=F 5-min bars for the lightweight-charts chart. Force-refreshes
+    yfinance (no cache) and merges the CNBC live-bar ledger on top so the
+    most recent 1-2 bars are as fresh as possible."""
+    df = None
     try:
-        df = download_nq("5min").tail(500)
+        df = download_nq("5min", force_refresh=True).tail(500)
     except Exception as e:
         logger.warning(f"candles fetch failed: {e}")
+        try:
+            df = download_nq("5min").tail(500)
+        except Exception:
+            return jsonify([])
+    if df is None or df.empty:
         return jsonify([])
-    # Merge live bars
+    # Merge live bars (CNBC poller — fresher than yfinance for the
+    # most recent 1-2 5-min windows)
     if LIVE_BARS_PATH.exists():
         try:
             live = json.loads(LIVE_BARS_PATH.read_text())
             for b in live[-100:]:
-                df.loc[b["ts"]] = [b["open"], b["high"], b["low"], b["close"], b["volume"]]
+                ts = pd.Timestamp(b["ts"])
+                if ts.tz is None: ts = ts.tz_localize("UTC")
+                if df.index.tz is None and ts.tz is not None:
+                    ts = ts.tz_localize(None)
+                df.loc[ts, "open"]   = float(b["open"])
+                df.loc[ts, "high"]   = float(b["high"])
+                df.loc[ts, "low"]    = float(b["low"])
+                df.loc[ts, "close"]  = float(b["close"])
+                df.loc[ts, "volume"] = float(b.get("volume", 0))
             df = df.sort_index()
             df = df[~df.index.duplicated(keep="last")]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"candles merge live_bars failed: {e}")
     out = []
     for ts, row in df.iterrows():
+        try:
+            t = int(pd.Timestamp(ts).timestamp())
+        except Exception:
+            continue
         out.append({
-            "time": int(ts.timestamp()) if hasattr(ts, "timestamp") else 0,
+            "time": t,
             "open": float(row["open"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
             "close": float(row["close"]),
             "volume": float(row.get("volume", 0)),
         })
+    return jsonify(out)
+
+
+@app.route("/api/trade_markers")
+def api_trade_markers():
+    """Up/down arrow markers for the last 100 trades, ready to drop into
+    lightweight-charts via series.setMarkers()."""
+    trades = persistence.load_trades(limit=100)
+    out = []
+    for t in trades:
+        try:
+            entry_t = int(pd.Timestamp(t["entry_time"]).timestamp())
+        except Exception:
+            continue
+        side = t.get("side")
+        pnl = t.get("pnl")
+        won = pnl is not None and pnl > 0
+        out.append({
+            "time": entry_t,
+            "position": "belowBar" if side == "LONG" else "aboveBar",
+            "color": "#26a69a" if side == "LONG" else "#ef5350",
+            "shape": "arrowUp" if side == "LONG" else "arrowDown",
+            "text": f"{side[0]}{int(t.get('qty') or 0)}",  # L12 / S8
+        })
+        # Add an exit marker if the trade is closed
+        if t.get("exit_time"):
+            try:
+                exit_t = int(pd.Timestamp(t["exit_time"]).timestamp())
+            except Exception:
+                continue
+            out.append({
+                "time": exit_t,
+                "position": "aboveBar" if side == "LONG" else "belowBar",
+                "color": "#26a69a" if won else "#ef5350",
+                "shape": "circle",
+                "text": (f"+${pnl:.0f}" if won else f"-${abs(pnl):.0f}") if pnl is not None else "",
+            })
+    # lightweight-charts requires markers sorted by time
+    out.sort(key=lambda m: m["time"])
     return jsonify(out)
 
 
