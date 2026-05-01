@@ -148,6 +148,137 @@ def api_strategy_levels():
     return jsonify(out)
 
 
+@app.route("/api/live_position")
+def api_live_position():
+    """Open-position state with live unrealized P&L vs the latest price."""
+    state = persistence.load_dashboard()
+    acct = state.get("account") or {}
+    op = acct.get("open_position")
+    px = state.get("price")
+    if not op or px is None:
+        return jsonify({"in_trade": False, "price": px})
+    side = op.get("side")
+    entry = float(op.get("entry_px") or 0)
+    stop  = float(op.get("stop_px")  or 0)
+    tgt   = float(op.get("target_px") or 0)
+    qty   = int(op.get("qty") or 0)
+    dpp   = float(state.get("dollars_per_point") or 2.0)  # MNQ = $2/pt
+    if side == "LONG":
+        pts_pnl = px - entry
+        pts_to_stop   = px - stop
+        pts_to_target = tgt - px
+    else:
+        pts_pnl = entry - px
+        pts_to_stop   = stop - px
+        pts_to_target = px - tgt
+    unrealized = pts_pnl * dpp * qty
+    risk = abs(entry - stop) * dpp * qty
+    reward = abs(tgt - entry) * dpp * qty
+    # progress 0..1 from stop -> target
+    span = abs(tgt - stop)
+    progress = max(0.0, min(1.0, abs(px - stop) / span)) if span > 0 else 0.5
+    if side == "SHORT":
+        progress = 1 - progress  # SHORT: stop above, target below
+    return jsonify({
+        "in_trade": True,
+        "signal": op.get("signal_name"),
+        "side": side, "qty": qty,
+        "entry_px": entry, "stop_px": stop, "target_px": tgt,
+        "current_px": px,
+        "unrealized_pnl": unrealized,
+        "pts_pnl": pts_pnl,
+        "pts_to_stop": pts_to_stop,
+        "pts_to_target": pts_to_target,
+        "risk_at_stop": -risk,
+        "reward_at_target": reward,
+        "progress_to_target": progress,
+        "entry_time": op.get("entry_time"),
+    })
+
+
+@app.route("/api/brain")
+def api_brain():
+    """What the bot is thinking right now: readiness, signal events, watchlist."""
+    state = persistence.load_dashboard()
+    acct = state.get("account") or {}
+    in_trade = bool(acct.get("open_position"))
+    # Most recent signal events (entries / exits / blocks)
+    events = persistence.load_signal_events(limit=20) or []
+    # Whitelist of strategies being evaluated each tick
+    p = DATA_DIR / "validation_results.json"
+    whitelist = []
+    if p.exists():
+        try:
+            data = json.loads(p.read_text())
+            for n, info in (data.get("signals") or {}).items():
+                if info.get("recommended"):
+                    whitelist.append({
+                        "name": n,
+                        "side": info.get("side") or ("LONG" if "_LONG" in n else "SHORT"),
+                        "win_rate": info.get("win_rate"),
+                        "stop_pts": info.get("stop_pts"),
+                        "target_pts": info.get("target_pts"),
+                    })
+        except Exception:
+            pass
+    today = state.get("today") or {}
+    n_entries = sum(1 for e in events if e.get("type") == "ENTRY")
+    n_blocked = sum(1 for e in events if e.get("type") == "BLOCKED")
+    n_exits = sum(1 for e in events if e.get("type") == "EXIT")
+    return jsonify({
+        "cycle": state.get("cycle"),
+        "as_of": state.get("as_of"),
+        "in_trade": in_trade,
+        "kill_zone": state.get("kill_zone") or {},
+        "trade_readiness": state.get("trade_readiness") or {},
+        "today_trades": today.get("trades", 0),
+        "today_wins": today.get("wins", 0),
+        "today_losses": today.get("losses", 0),
+        "n_recent_entries": n_entries,
+        "n_recent_blocked": n_blocked,
+        "n_recent_exits": n_exits,
+        "events": events[-30:],
+        "whitelist": whitelist,
+        "n_strategies_watched": len(whitelist),
+    })
+
+
+@app.route("/api/freshness")
+def api_freshness():
+    """Last 5-min bar timestamp + age in seconds, for the chart freshness pill."""
+    try:
+        df = download_nq("5min").tail(1)
+        if LIVE_BARS_PATH.exists():
+            try:
+                live = json.loads(LIVE_BARS_PATH.read_text())
+                if live:
+                    latest_live = pd.Timestamp(live[-1]["ts"])
+                    if latest_live.tz is None:
+                        latest_live = latest_live.tz_localize("UTC")
+                    if not df.empty:
+                        latest_yf = df.index[-1]
+                        if latest_yf.tz is None:
+                            latest_yf = pd.Timestamp(latest_yf).tz_localize("UTC")
+                        if latest_live > latest_yf:
+                            age = (pd.Timestamp.now(tz="UTC") - latest_live).total_seconds()
+                            return jsonify({"last_bar": latest_live.isoformat(),
+                                              "age_seconds": int(age),
+                                              "source": "cnbc_live"})
+            except Exception:
+                pass
+        if df.empty:
+            return jsonify({"last_bar": None, "age_seconds": None, "source": "none"})
+        latest = df.index[-1]
+        if latest.tz is None:
+            latest = pd.Timestamp(latest).tz_localize("UTC")
+        age = (pd.Timestamp.now(tz="UTC") - latest).total_seconds()
+        return jsonify({"last_bar": latest.isoformat(),
+                          "age_seconds": int(age),
+                          "source": "yfinance"})
+    except Exception as e:
+        return jsonify({"last_bar": None, "age_seconds": None, "error": str(e)})
+
+
 @app.route("/api/trades")
 def api_trades():
     return jsonify(persistence.load_trades(limit=200))
@@ -186,23 +317,38 @@ def api_live_chart():
     """
     import plotly.graph_objects as go
     try:
-        df = download_nq("5min").tail(288)   # ~24h of 5-min bars
+        # Force-refresh for the live chart so we get the freshest yfinance bars,
+        # not the cached file (cache is fine for backtest code paths).
+        df = download_nq("5min", force_refresh=True).tail(288)   # ~24h of 5-min bars
     except Exception as e:
         logger.warning(f"live_chart bars fetch failed: {e}")
-        return jsonify({"error": str(e)})
-    # Merge live-bars
+        # Fall back to cached
+        try:
+            df = download_nq("5min").tail(288)
+        except Exception:
+            return jsonify({"error": str(e)})
+    # Merge live-bars (CNBC poller — fresher than yfinance for the most recent
+    # 1-2 bars). Index uses tz-aware Timestamps so coercion is consistent.
     if LIVE_BARS_PATH.exists():
         try:
             live = json.loads(LIVE_BARS_PATH.read_text())
             for b in live[-100:]:
-                df.loc[b["ts"]] = [b["open"], b["high"], b["low"], b["close"], b["volume"]]
+                ts = pd.Timestamp(b["ts"])
+                if ts.tz is None: ts = ts.tz_localize("UTC")
+                if df.index.tz is None and ts.tz is not None:
+                    ts = ts.tz_localize(None)
+                df.loc[ts, "open"]   = float(b["open"])
+                df.loc[ts, "high"]   = float(b["high"])
+                df.loc[ts, "low"]    = float(b["low"])
+                df.loc[ts, "close"]  = float(b["close"])
+                df.loc[ts, "volume"] = float(b.get("volume", 0))
             df = df.sort_index()
             df = df[~df.index.duplicated(keep="last")]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"live_chart merge live_bars failed: {e}")
     if df.empty:
         return jsonify({"error": "no bars"})
-    # Strip timezone for plotly
+    # Strip timezone for plotly so x-axis displays UTC times consistently
     if df.index.tz is not None:
         df.index = df.index.tz_localize(None)
 
