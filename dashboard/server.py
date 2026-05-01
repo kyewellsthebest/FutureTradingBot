@@ -340,6 +340,35 @@ def api_freshness():
         return jsonify({"last_bar": None, "age_seconds": None, "error": str(e)})
 
 
+@app.route("/api/strategy/<path:name>")
+def api_strategy_detail(name):
+    """Plain-English description + backtest stats for one strategy."""
+    from research.strategy_descriptions import describe
+    info = describe(name)
+    # Attach the backtest stats from validation_results.json so the modal
+    # has everything it needs in one fetch.
+    p = DATA_DIR / "validation_results.json"
+    if p.exists():
+        try:
+            data = json.loads(p.read_text())
+            sig = (data.get("signals") or {}).get(name)
+            if sig:
+                info["stats"] = {
+                    "win_rate":     sig.get("win_rate"),
+                    "profit_factor": sig.get("profit_factor"),
+                    "trades":       sig.get("trades"),
+                    "net_pnl":      sig.get("net_pnl"),
+                    "stop_pts":     sig.get("stop_pts"),
+                    "target_pts":   sig.get("target_pts"),
+                    "tier":         sig.get("tier"),
+                    "is_live":      bool(sig.get("recommended")),
+                    "rigor_level":  sig.get("rigor_level"),
+                }
+        except Exception:
+            pass
+    return jsonify(info)
+
+
 @app.route("/api/trades")
 def api_trades():
     return jsonify(persistence.load_trades(limit=200))

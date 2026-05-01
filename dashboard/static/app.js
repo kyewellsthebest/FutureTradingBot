@@ -314,7 +314,7 @@
         const tierLabel = s.tier === "A" ? "A · live" : (s.tier === "B" ? "B · watch" : "live");
         const pnl = s.net_pnl ?? 0;
         const pnlCls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
-        return `<tr class="${s.is_live ? '' : 'muted-row'}">
+        return `<tr data-strat="${s.name}" class="${s.is_live ? '' : 'muted-row'}">
           <td>${s.name}</td>
           <td>${family}</td>
           <td class="${sCls}">${s.side || "—"}</td>
@@ -327,8 +327,62 @@
           <td><span class="${tierCls}">${tierLabel}</span></td>
         </tr>`;
       }).join("") || `<tr><td colspan="10" class="muted">No strategies loaded.</td></tr>`;
+      // Wire click-to-open-modal on every row
+      document.querySelectorAll("#strategies-body tr[data-strat]").forEach(tr => {
+        tr.addEventListener("click", () => openStrategyModal(tr.dataset.strat));
+      });
     } catch (e) { /* ignore */ }
   }
+
+  // ---- Strategy detail modal ----------------------------------------
+  async function openStrategyModal(name) {
+    const modal = $("strat-modal");
+    const content = $("strat-modal-content");
+    modal.style.display = "flex";
+    content.innerHTML = `<p class="muted">loading ${name}…</p>`;
+    try {
+      const r = await fetch(`/api/strategy/${encodeURIComponent(name)}`);
+      const d = await r.json();
+      const stats = d.stats || {};
+      const fmtPct = (x) => x == null ? "—" : (Math.round(x * 100) + "%");
+      const fmtPF  = (x) => x == null ? "—" : Number(x).toFixed(2);
+      const sCls = d.side === "LONG" ? "pos" : d.side === "SHORT" ? "neg" : "";
+      const triggersHtml = (d.triggers || []).length
+        ? `<h4>Triggers</h4><ol class="trig-list">${d.triggers.map(t => `<li>${t}</li>`).join("")}</ol>`
+        : "";
+      const ideaHtml = d.idea ? `<p>${d.idea}</p>` : "";
+      const descHtml = d.description ? `<p>${d.description}</p>` : "";
+      const notesHtml = d.notes ? `<p class="muted small"><b>Notes:</b> ${d.notes}</p>` : "";
+      const statsHtml = Object.keys(stats).length ? `
+        <h4>Backtest Stats <span class="muted small">(out-of-sample 2024-2026)</span></h4>
+        <table class="kv">
+          <tr><th>Side</th><td class="${sCls}">${d.side || "—"}</td></tr>
+          <tr><th>Stop / Target</th><td>${stats.stop_pts ?? "—"} / ${stats.target_pts ?? "—"} pts</td></tr>
+          <tr><th>Trades (sample)</th><td>${stats.trades ?? "—"}</td></tr>
+          <tr><th>Win rate</th><td>${fmtPct(stats.win_rate)}</td></tr>
+          <tr><th>Profit factor</th><td>${fmtPF(stats.profit_factor)}</td></tr>
+          <tr><th>Net P&amp;L</th><td>${stats.net_pnl != null ? fmtMoney(stats.net_pnl) : "—"}</td></tr>
+          <tr><th>Tier</th><td>${stats.tier || "—"} ${stats.is_live ? "<span class='pass-pill'>LIVE</span>" : ""}</td></tr>
+          <tr><th>Rigor</th><td>${stats.rigor_level || "—"}</td></tr>
+        </table>` : "";
+      content.innerHTML = `
+        <div class="modal-head">
+          <div>
+            <div style="font-size:11px;letter-spacing:.06em;color:#8a93a8;text-transform:uppercase">${d.family || ""} • ${d.side || ""}</div>
+            <h2 style="margin:4px 0 2px 0">${d.title || name}</h2>
+            <div class="muted small" style="font-family:monospace">${name}</div>
+          </div>
+        </div>
+        ${ideaHtml}
+        ${triggersHtml}
+        ${descHtml}
+        ${statsHtml}
+        ${notesHtml}`;
+    } catch (e) {
+      content.innerHTML = `<p class="neg">failed to load: ${e}</p>`;
+    }
+  }
+  function closeStrategyModal() { $("strat-modal").style.display = "none"; }
 
   // ---- /api/last_trades — Trades tab --------------------------------
   async function refreshLast100() {
@@ -382,7 +436,17 @@
     setInterval(refreshTradeMarkers, 30_000);
     setInterval(tickAge,              1_000);
   }
+  // Wire modal close handlers once DOM is ready
+  function wireModal() {
+    const close = $("strat-modal-close");
+    const bg = $("strat-modal-bg");
+    if (close) close.addEventListener("click", closeStrategyModal);
+    if (bg) bg.addEventListener("click", closeStrategyModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeStrategyModal();
+    });
+  }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
-  } else { start(); }
+    document.addEventListener("DOMContentLoaded", () => { start(); wireModal(); });
+  } else { start(); wireModal(); }
 })();

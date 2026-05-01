@@ -164,6 +164,40 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 .pill.family-HF        { background: #8957e5; color: #fff; }
 tr.muted-row { opacity: 0.55; }
 
+/* Clickable rows on the Strategies tab */
+.trades.clickable-rows tbody tr { cursor: pointer; }
+.trades.clickable-rows tbody tr:hover { background: var(--panel2); }
+
+/* Strategy detail modal */
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(2px);
+}
+.modal-body {
+  position: relative; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px 28px; max-width: 720px; width: calc(100% - 40px);
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal-close {
+  position: absolute; top: 8px; right: 12px; background: transparent;
+  border: none; color: var(--muted); font-size: 28px; cursor: pointer;
+  width: 32px; height: 32px; line-height: 28px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-head { margin-bottom: 14px; }
+.modal-body h4 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin: 16px 0 6px 0;
+}
+.modal-body h2 { font-size: 19px; }
+.trig-list { padding-left: 18px; margin: 4px 0; }
+.trig-list li { padding: 2px 0; font-size: 13px; }
+
 /* ---- tables ---- */
 .kv { width: 100%; border-collapse: collapse; }
 .kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 0; width: 38%; }
