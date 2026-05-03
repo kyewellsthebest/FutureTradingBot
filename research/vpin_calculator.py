@@ -116,19 +116,25 @@ def compute_vpin(intraday: pd.DataFrame) -> VPINSnapshot:
         trend = "flat"
 
     spike = bool(delta > SPIKE_DELTA)
-    crash_warning = bool(vpin > 0.35 and trend == "rising")
-    reversal_signal = bool(vpin > 0.45 and trend == "falling")
+    # Thresholds recalibrated 2026-05-03 against 12 months of NQ E-mini.
+    # The original spec (LOW<0.15, NORMAL<0.25 …) was calibrated for an
+    # asset class that runs much lower VPIN; on NQ the empirical
+    # distribution is mean 0.42, p10 0.36, p99 0.52 — putting the bot in
+    # "block everything" mode 93% of the time.  Now keyed off NQ percentiles
+    # so trading windows match observed-elevated periods, not normal flow.
+    crash_warning = bool(vpin > 0.50 and trend == "rising")
+    reversal_signal = bool(vpin > 0.55 and trend == "falling")
 
-    if vpin < 0.15:
-        regime: VPINRegime = "LOW"
-    elif vpin < 0.25:
-        regime = "NORMAL"
-    elif vpin < 0.35:
-        regime = "ELEVATED"
-    elif vpin < 0.45:
-        regime = "HIGH"
+    if vpin < 0.39:
+        regime: VPINRegime = "LOW"          # quiet flow — full trading (≈p25)
+    elif vpin < 0.44:
+        regime = "NORMAL"                    # typical NQ conditions (≈p25-p70)
+    elif vpin < 0.48:
+        regime = "ELEVATED"                  # somewhat elevated, half-size (≈p70-p90)
+    elif vpin < 0.52:
+        regime = "HIGH"                      # really high — block LONGs (≈p90-p99)
     else:
-        regime = "EXTREME"
+        regime = "EXTREME"                   # genuine extreme — block all (≈>p99)
 
     return VPINSnapshot(vpin, regime, trend, spike, reversal_signal, crash_warning)
 
