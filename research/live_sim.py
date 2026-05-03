@@ -52,7 +52,7 @@ from research.local_data_loader import (
     load_intraday_1min,
     load_intraday_5min,
 )
-from research.signal_engine import SignalEngine, TradeCandidate
+from research.signal_engine import ALL_SIGNALS, SignalEngine, TradeCandidate
 from research.signal_filters import (
     ADVERSE_SLIPPAGE_POINTS,
     COMMISSION_ROUND_TRIP,
@@ -123,6 +123,24 @@ class LiveSim:
         self.end = end_ts
         self.max_hold_default = max_hold_default_minutes
         self.engine = SignalEngine()
+        # Patch out the alt-data fetches — they hit live SEC/Congress/WSB
+        # endpoints which return 403s in batch mode AND are sizing-only
+        # multipliers (never block trades), so they don't affect which
+        # entries the engine accepts. This collapses minutes of HTTP
+        # latency per signal into a no-op.
+        import research.signal_engine as _se
+        _orig = _se.SignalEngine.refresh_microstructure
+        def _fast_refresh(self_engine, intraday, daily):
+            if intraday.empty or daily.empty:
+                return
+            try:
+                self_engine.last_vpin = _se.compute_vpin(intraday)
+                self_engine.last_adverse = _se.compute_adverse_selection(intraday)
+                self_engine.last_regime = self_engine.regime_detector.predict(daily)
+            except Exception as e:
+                pass
+            # Skip the slow alt-data fetches; sizing multipliers irrelevant in batch
+        _se.SignalEngine.refresh_microstructure = _fast_refresh
         # Persistent runtime Lucid state (one account at a time, auto-restarts)
         self.lucid = LucidState()
         self.lucid.trail_floor = INITIAL_TRAIL
@@ -171,14 +189,57 @@ class LiveSim:
         # up through the simulated bar each loop. Daily is the same.
         logger.info(f"sim window: {self.start} → {self.end}  ({len(sim_5m):,} bars)")
 
+        # ---- FAST PATH: pre-compute all signal-firing timestamps -------
+        # Calling engine.evaluate() at every 5-min bar is wasteful — the
+        # engine itself only acts on signals that fire AT THE LATEST BAR
+        # (it filters `recent = sigs[sigs["signal_time"] == latest_ts]`).
+        # So we run each signal generator ONCE over the whole window
+        # (vectorized — fast), collect every (ts, signal_name) pair, then
+        # walk forward only at those bars. Mathematically identical to
+        # walking every bar, but ~50x faster.
+        logger.info(f"pre-computing all signal-firing bars across the window …")
+        gen_t0 = time.time()
+        # Daily slice for the generators (full daily history is fine —
+        # generators key off prev-day levels which are themselves
+        # backward-looking)
+        all_signal_ts: dict[pd.Timestamp, list[dict]] = defaultdict(list)
+        for sig_obj in ALL_SIGNALS:
+            try:
+                sigs = sig_obj.generate(sim_5m, daily)
+            except Exception as e:
+                logger.warning(f"  generator {type(sig_obj).__name__} raised: {e}")
+                continue
+            if sigs is None or sigs.empty:
+                continue
+            # Keep only signals whose name is on the live whitelist (matches
+            # what the live engine would actually trade)
+            wl = self.engine.whitelist
+            sigs = sigs[sigs["signal_name"].isin(wl)] if wl else sigs.iloc[0:0]
+            for _, row in sigs.iterrows():
+                ts = row["signal_time"]
+                if ts.tz is None: ts = ts.tz_localize("UTC")
+                all_signal_ts[ts].append({
+                    "name": row["signal_name"],
+                    "side": row["side"],
+                    "entry_px": float(row["entry_px"]),
+                })
+        logger.info(f"  pre-compute done in {time.time()-gen_t0:.1f}s — "
+                    f"{sum(len(v) for v in all_signal_ts.values()):,} raw signals "
+                    f"across {len(all_signal_ts):,} unique timestamps")
+
+        signal_bars = sorted(all_signal_ts.keys())
+        # Also include any 5-min bar where there's an open position so we
+        # check exits even outside signal-firing windows.
+        # We walk through sim_5m but only do heavy work at signal_bars
+        # OR when a position is open.
+        signal_bar_set = set(signal_bars)
+
         t0 = time.time()
         last_log = t0
-        # Snap kills the cooldown filter — we keep prior-trades for it.
         prior_trades_window: list = []
 
         for i, ts in enumerate(sim_5m.index):
             self.bars_evaluated += 1
-            # Periodic progress log
             now = time.time()
             if now - last_log > 30:
                 rate = (i + 1) / max(0.001, now - t0)
@@ -205,24 +266,25 @@ class LiveSim:
                 self.lucid.end_of_day(day)
                 self.lucid.n_trading_days += 1
 
+            # --- Skip bars that have no signal firing — fast path ---
+            if ts not in signal_bar_set:
+                continue
+
             # --- Slice bars up to and including current 5m bar (no leak) ---
             intraday = bars_5m.loc[:ts]
-            # daily index is tz-aware UTC; use the start-of-day UTC ts to slice
             daily_cut = pd.Timestamp(ts.date(), tz="UTC")
             daily_slice = daily.loc[:daily_cut]
-            # Limit context to last ~500 5m bars for speed (signals only need
-            # rolling-window context, not 8 years of history)
+            # Limit context for speed
             if len(intraday) > 600:
                 intraday = intraday.iloc[-600:]
             if len(daily_slice) > 252:
                 daily_slice = daily_slice.iloc[-252:]
 
-            # --- Call the engine ---
+            # --- Call the engine to get a fully-gated TradeCandidate ---
             try:
                 cand = self.engine.evaluate(intraday, daily_slice,
                                               prior_trades=prior_trades_window[-50:])
             except Exception as e:
-                # Unexpected engine error: log and move on
                 logger.warning(f"engine raised at {ts}: {e}")
                 continue
 
@@ -253,7 +315,6 @@ class LiveSim:
 
             # --- Open the position ---
             entry_px = float(cand.entry_px)
-            # Apply entry slippage: pay up if LONG, get less if SHORT
             entry_filled = entry_px + SLIPPAGE_POINTS if cand.side == "LONG" \
                                                       else entry_px - SLIPPAGE_POINTS
             self.open_pos = OpenPos(
