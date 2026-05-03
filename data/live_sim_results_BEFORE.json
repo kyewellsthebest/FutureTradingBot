@@ -1,0 +1,1503 @@
+{
+  "window": [
+    "2025-04-08T11:10:00+00:00",
+    "2026-04-08T11:10:00+00:00"
+  ],
+  "elapsed_seconds": 5729.381799936295,
+  "bars_evaluated": 70116,
+  "signals_fired": 328,
+  "trades_taken": 2,
+  "trades_blocked": 326,
+  "veto_counts": {
+    "trail_floor": 325,
+    "dll_projected": 1
+  },
+  "block_reasons_top": [
+    [
+      "trail_floor",
+      325
+    ],
+    [
+      "dll_projected",
+      1
+    ]
+  ],
+  "n_wins": 0,
+  "n_losses": 2,
+  "win_rate": 0.0,
+  "total_pnl": -1960.0,
+  "ending_balance": 48040.0,
+  "ending_account_id": 1,
+  "n_failed_accounts": 0,
+  "best_day": -680.0,
+  "worst_day": -1280.0,
+  "by_strategy": {
+    "V3_SHORT_S20T50_141": {
+      "n": 1,
+      "wins": 0,
+      "pnl": -1280.0
+    },
+    "V3_SHORT_S20T50_145": {
+      "n": 1,
+      "wins": 0,
+      "pnl": -680.0
+    }
+  },
+  "trades": [
+    {
+      "entry_ts": "2025-04-25T00:20:00+00:00",
+      "exit_ts": "2025-04-25T00:28:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "qty": 32,
+      "entry_px": 19417.25,
+      "stop_px": 19434.25,
+      "target_px": 19369.25,
+      "exit_px": 19436.25,
+      "exit_reason": "STOP",
+      "pnl": -1280.0,
+      "points": -19.0,
+      "hold_min": 8.0,
+      "rr": 3.3333333333333335,
+      "ml_decision": "AGREE",
+      "vpin": 0.4435629400149469,
+      "adverse": 0.14866693321790037
+    },
+    {
+      "entry_ts": "2025-08-05T00:50:00+00:00",
+      "exit_ts": "2025-08-05T00:51:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "qty": 17,
+      "entry_px": 23338.25,
+      "stop_px": 23355.25,
+      "target_px": 23290.25,
+      "exit_px": 23357.25,
+      "exit_reason": "STOP",
+      "pnl": -680.0,
+      "points": -19.0,
+      "hold_min": 1.0,
+      "rr": 3.3333333333333335,
+      "ml_decision": "AGREE",
+      "vpin": 0.3824490037680473,
+      "adverse": 0.6427734553086142
+    }
+  ],
+  "blocked_sample": [
+    {
+      "ts": "2025-05-01T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-12T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-12T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-12T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-12T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-12T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:20:00+00:00",
+      "signal": "V3_SHORT_S12T30_125",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:30:00+00:00",
+      "signal": "V3_SHORT_S12T30_125",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-20T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-29T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-29T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-05-29T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:15:00+00:00",
+      "signal": "PDH_TOUCH",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-16T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-20T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-24T02:05:00+00:00",
+      "signal": "PDH_TOUCH",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-30T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-06-30T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-18T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-18T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-24T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-28T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-28T00:50:00+00:00",
+      "signal": "V3_SHORT_S12T30_125",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-28T00:55:00+00:00",
+      "signal": "V3_SHORT_S12T30_125",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-07-31T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-04T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-05T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "dll_projected",
+      "reason": "stop+today would breach DLL; reduce size to <= 17"
+    },
+    {
+      "ts": "2025-08-07T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-07T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-13T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-13T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-08-18T00:55:00+00:00",
+      "signal": "V3_SHORT_S15T30_53",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-01T00:55:00+00:00",
+      "signal": "V3_SHORT_S15T30_53",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-04T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-04T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-04T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-04T02:10:00+00:00",
+      "signal": "PDH_TOUCH",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-05T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-08T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-15T00:35:00+00:00",
+      "signal": "V3_LONG_S15T37_06",
+      "side": "LONG",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-22T00:05:00+00:00",
+      "signal": "V3_SHORT_S10T30_171",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-09-29T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-02T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-13T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-13T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-13T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-13T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-14T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-14T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-14T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-18T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-10-24T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_148",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T01:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T01:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T01:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-03T01:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-04T00:15:00+00:00",
+      "signal": "V3_LONG_S15T37_06",
+      "side": "LONG",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-10T01:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_145",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-11T01:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-17T01:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-17T01:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-26T01:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:40:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T00:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:00:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:05:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:10:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:15:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:20:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:25:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:30:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:35:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:40:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:45:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:50:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-11-28T01:55:00+00:00",
+      "signal": "V3_SHORT_S20T50_141",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-08T01:35:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-08T01:40:00+00:00",
+      "signal": "V3_SHORT_S15T30_05",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-08T01:45:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-08T01:50:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-08T01:55:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    },
+    {
+      "ts": "2025-12-15T01:40:00+00:00",
+      "signal": "V3_SHORT_S15T37_132",
+      "side": "SHORT",
+      "rule": "trail_floor",
+      "reason": "stop would breach trail floor $48000"
+    }
+  ],
+  "account_history": [],
+  "daily_pnl": {
+    "2025-04-25": -1280.0,
+    "2025-08-05": -680.0
+  },
+  "balance_curve": [
+    [
+      "2025-04-25T00:28:00+00:00",
+      48720.0
+    ],
+    [
+      "2025-08-05T00:51:00+00:00",
+      48040.0
+    ]
+  ]
+}
