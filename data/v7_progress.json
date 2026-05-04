@@ -1,5 +1,11 @@
 {
   "completed": [
+    "V7A_LONG_momentum_burst_dow_x_mid_range_MR_quick_0106",
+    "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_balanced_0103",
+    "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_quick_0101",
+    "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_std_0102",
+    "V7A_LONG_momentum_burst_dow_x_rth_afternoon_RR1_0104",
+    "V7A_LONG_momentum_burst_dow_x_rth_afternoon_RR1_5_0105",
     "V7A_LONG_momentum_burst_dow_x_rth_midday_MR_balanced_0098",
     "V7A_LONG_momentum_burst_dow_x_rth_midday_MR_quick_0096",
     "V7A_LONG_momentum_burst_dow_x_rth_midday_MR_std_0097",
@@ -3701,6 +3707,222 @@
       "stop_atr": 1.0,
       "target_atr": 1.5,
       "max_hold_min": 45
+    },
+    {
+      "n_train": 5770,
+      "n_test": 2268,
+      "train": {
+        "n": 5770,
+        "wr": 0.5152512998266898,
+        "pf": 0.6958346601170678,
+        "sharpe": -0.13267876375895477,
+        "net": -27374.326035569582
+      },
+      "test": {
+        "n": 2268,
+        "wr": 0.5326278659611993,
+        "pf": 0.7248813574886633,
+        "sharpe": -0.12118264118791897,
+        "net": -14246.898129653184
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_quick_0101",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 5770,
+      "n_test": 2268,
+      "train": {
+        "n": 5770,
+        "wr": 0.5095320623916811,
+        "pf": 0.7837293063550426,
+        "sharpe": -0.08854893270227576,
+        "net": -22850.05917410417
+      },
+      "test": {
+        "n": 2268,
+        "wr": 0.5110229276895943,
+        "pf": 0.7717416373876205,
+        "sharpe": -0.09563483728626322,
+        "net": -14287.591662998908
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_std_0102",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 5770,
+      "n_test": 2268,
+      "train": {
+        "n": 5770,
+        "wr": 0.48076256499133446,
+        "pf": 0.7449612751303726,
+        "sharpe": -0.11192750057542546,
+        "net": -27098.936407219036
+      },
+      "test": {
+        "n": 2268,
+        "wr": 0.4929453262786596,
+        "pf": 0.7720981265269105,
+        "sharpe": -0.09972703172354147,
+        "net": -13865.55073407851
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_rth_afternoon_MR_balanced_0103",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 5770,
+      "n_test": 2268,
+      "train": {
+        "n": 5770,
+        "wr": 0.410051993067591,
+        "pf": 0.6838264505481385,
+        "sharpe": -0.15219333216377248,
+        "net": -31936.08632919278
+      },
+      "test": {
+        "n": 2268,
+        "wr": 0.4312169312169312,
+        "pf": 0.7353123887224462,
+        "sharpe": -0.1245345451116157,
+        "net": -15136.647792449212
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_rth_afternoon_RR1_0104",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 5770,
+      "n_test": 2268,
+      "train": {
+        "n": 5770,
+        "wr": 0.361525129982669,
+        "pf": 0.7180686156115094,
+        "sharpe": -0.13010259630408588,
+        "net": -32122.347077479033
+      },
+      "test": {
+        "n": 2268,
+        "wr": 0.39021164021164023,
+        "pf": 0.729282834988122,
+        "sharpe": -0.1265810027837855,
+        "net": -17872.096244858913
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_rth_afternoon_RR1_5_0105",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 25245,
+      "n_test": 9501,
+      "train": {
+        "n": 25245,
+        "wr": 0.4705486234898,
+        "pf": 0.5597000174390708,
+        "sharpe": -0.20746606892679617,
+        "net": -148662.2238504148
+      },
+      "test": {
+        "n": 9501,
+        "wr": 0.5416271971371435,
+        "pf": 0.717676766150734,
+        "sharpe": -0.1218380059287998,
+        "net": -49587.87482924018
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_LONG_momentum_burst_dow_x_mid_range_MR_quick_0106",
+      "side": "LONG",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "momentum_burst_down",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
     }
   ]
 }
