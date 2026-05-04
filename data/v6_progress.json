@@ -1,12 +1,28 @@
 {
   "completed": [
+    "V6_LONG_bullish_engulfing_x_asian_session_RR1_5_0322",
+    "V6_LONG_bullish_engulfing_x_asian_session_RR1_short_0321",
+    "V6_LONG_bullish_engulfing_x_asian_session_RR1_wide_0325",
+    "V6_LONG_bullish_engulfing_x_asian_session_RR2_runner_0323",
+    "V6_LONG_bullish_engulfing_x_asian_session_RR2_tight_0324",
     "V6_LONG_bullish_engulfing_x_compressed_vol_RR1_5_0282",
     "V6_LONG_bullish_engulfing_x_compressed_vol_RR1_short_0281",
     "V6_LONG_bullish_engulfing_x_compressed_vol_RR1_wide_0285",
     "V6_LONG_bullish_engulfing_x_compressed_vol_RR2_runner_0283",
     "V6_LONG_bullish_engulfing_x_compressed_vol_RR2_tight_0284",
+    "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_5_0347",
+    "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_short_0346",
+    "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_wide_0350",
+    "V6_LONG_bullish_engulfing_x_dried_up_vol_RR2_runner_0348",
+    "V6_LONG_bullish_engulfing_x_dried_up_vol_RR2_tight_0349",
+    "V6_LONG_bullish_engulfing_x_high_volume_RR1_5_0337",
+    "V6_LONG_bullish_engulfing_x_high_volume_RR1_short_0336",
+    "V6_LONG_bullish_engulfing_x_high_volume_RR1_wide_0340",
+    "V6_LONG_bullish_engulfing_x_high_volume_RR2_runner_0338",
+    "V6_LONG_bullish_engulfing_x_high_volume_RR2_tight_0339",
     "V6_LONG_bullish_engulfing_x_mid_range_RR1_5_0302",
     "V6_LONG_bullish_engulfing_x_mid_range_RR1_short_0301",
+    "V6_LONG_bullish_engulfing_x_mid_range_RR1_wide_0305",
     "V6_LONG_bullish_engulfing_x_mid_range_RR2_runner_0303",
     "V6_LONG_bullish_engulfing_x_mid_range_RR2_tight_0304",
     "V6_LONG_bullish_engulfing_x_near_50bar_low_RR1_5_0297",
@@ -14,6 +30,31 @@
     "V6_LONG_bullish_engulfing_x_near_50bar_low_RR1_wide_0300",
     "V6_LONG_bullish_engulfing_x_near_50bar_low_RR2_runner_0298",
     "V6_LONG_bullish_engulfing_x_near_50bar_low_RR2_tight_0299",
+    "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_5_0327",
+    "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_short_0326",
+    "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_wide_0330",
+    "V6_LONG_bullish_engulfing_x_nq_outperformi_RR2_runner_0328",
+    "V6_LONG_bullish_engulfing_x_nq_outperformi_RR2_tight_0329",
+    "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_5_0342",
+    "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_short_0341",
+    "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_wide_0345",
+    "V6_LONG_bullish_engulfing_x_recent_low_cli_RR2_runner_0343",
+    "V6_LONG_bullish_engulfing_x_recent_low_cli_RR2_tight_0344",
+    "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_5_0317",
+    "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_short_0316",
+    "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_wide_0320",
+    "V6_LONG_bullish_engulfing_x_rth_afternoon_RR2_runner_0318",
+    "V6_LONG_bullish_engulfing_x_rth_afternoon_RR2_tight_0319",
+    "V6_LONG_bullish_engulfing_x_rth_midday_RR1_5_0312",
+    "V6_LONG_bullish_engulfing_x_rth_midday_RR1_short_0311",
+    "V6_LONG_bullish_engulfing_x_rth_midday_RR1_wide_0315",
+    "V6_LONG_bullish_engulfing_x_rth_midday_RR2_runner_0313",
+    "V6_LONG_bullish_engulfing_x_rth_midday_RR2_tight_0314",
+    "V6_LONG_bullish_engulfing_x_rth_morning_RR1_5_0307",
+    "V6_LONG_bullish_engulfing_x_rth_morning_RR1_short_0306",
+    "V6_LONG_bullish_engulfing_x_rth_morning_RR1_wide_0310",
+    "V6_LONG_bullish_engulfing_x_rth_morning_RR2_runner_0308",
+    "V6_LONG_bullish_engulfing_x_rth_morning_RR2_tight_0309",
     "V6_LONG_bullish_engulfing_x_uptrend_strong_RR1_5_0287",
     "V6_LONG_bullish_engulfing_x_uptrend_strong_RR1_short_0286",
     "V6_LONG_bullish_engulfing_x_uptrend_strong_RR1_wide_0290",
@@ -24,6 +65,11 @@
     "V6_LONG_bullish_engulfing_x_uptrend_weak_RR1_wide_0295",
     "V6_LONG_bullish_engulfing_x_uptrend_weak_RR2_runner_0293",
     "V6_LONG_bullish_engulfing_x_uptrend_weak_RR2_tight_0294",
+    "V6_LONG_bullish_engulfing_x_vix_low_RR1_5_0332",
+    "V6_LONG_bullish_engulfing_x_vix_low_RR1_short_0331",
+    "V6_LONG_bullish_engulfing_x_vix_low_RR1_wide_0335",
+    "V6_LONG_bullish_engulfing_x_vix_low_RR2_runner_0333",
+    "V6_LONG_bullish_engulfing_x_vix_low_RR2_tight_0334",
     "V6_LONG_momentum_burst_up_x_asian_session_RR1_5_0182",
     "V6_LONG_momentum_burst_up_x_asian_session_RR1_short_0181",
     "V6_LONG_momentum_burst_up_x_asian_session_RR1_wide_0185",
@@ -164,6 +210,65 @@
     "V6_LONG_pullback_from_high_x_vix_low_RR1_wide_0055",
     "V6_LONG_pullback_from_high_x_vix_low_RR2_runner_0053",
     "V6_LONG_pullback_from_high_x_vix_low_RR2_tight_0054",
+    "V6_SHORT_bearish_engulfing_x_asian_session_RR1_5_0392",
+    "V6_SHORT_bearish_engulfing_x_asian_session_RR1_short_0391",
+    "V6_SHORT_bearish_engulfing_x_asian_session_RR1_wide_0395",
+    "V6_SHORT_bearish_engulfing_x_asian_session_RR2_runner_0393",
+    "V6_SHORT_bearish_engulfing_x_asian_session_RR2_tight_0394",
+    "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_5_0352",
+    "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_short_0351",
+    "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_wide_0355",
+    "V6_SHORT_bearish_engulfing_x_compressed_vol_RR2_runner_0353",
+    "V6_SHORT_bearish_engulfing_x_compressed_vol_RR2_tight_0354",
+    "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_5_0357",
+    "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_short_0356",
+    "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_wide_0360",
+    "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR2_runner_0358",
+    "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR2_tight_0359",
+    "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_5_0362",
+    "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_short_0361",
+    "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_wide_0365",
+    "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR2_runner_0363",
+    "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR2_tight_0364",
+    "V6_SHORT_bearish_engulfing_x_high_volume_RR1_5_0407",
+    "V6_SHORT_bearish_engulfing_x_high_volume_RR1_short_0406",
+    "V6_SHORT_bearish_engulfing_x_high_volume_RR2_runner_0408",
+    "V6_SHORT_bearish_engulfing_x_high_volume_RR2_tight_0409",
+    "V6_SHORT_bearish_engulfing_x_mid_range_RR1_5_0372",
+    "V6_SHORT_bearish_engulfing_x_mid_range_RR1_short_0371",
+    "V6_SHORT_bearish_engulfing_x_mid_range_RR1_wide_0375",
+    "V6_SHORT_bearish_engulfing_x_mid_range_RR2_runner_0373",
+    "V6_SHORT_bearish_engulfing_x_mid_range_RR2_tight_0374",
+    "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_5_0367",
+    "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_short_0366",
+    "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_wide_0370",
+    "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR2_runner_0368",
+    "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR2_tight_0369",
+    "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_5_0397",
+    "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_short_0396",
+    "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_wide_0400",
+    "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR2_runner_0398",
+    "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR2_tight_0399",
+    "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_5_0387",
+    "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_short_0386",
+    "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_wide_0390",
+    "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR2_runner_0388",
+    "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR2_tight_0389",
+    "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_5_0382",
+    "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_short_0381",
+    "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_wide_0385",
+    "V6_SHORT_bearish_engulfing_x_rth_midday_RR2_runner_0383",
+    "V6_SHORT_bearish_engulfing_x_rth_midday_RR2_tight_0384",
+    "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_5_0377",
+    "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_short_0376",
+    "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_wide_0380",
+    "V6_SHORT_bearish_engulfing_x_rth_morning_RR2_runner_0378",
+    "V6_SHORT_bearish_engulfing_x_rth_morning_RR2_tight_0379",
+    "V6_SHORT_bearish_engulfing_x_vix_high_RR1_5_0402",
+    "V6_SHORT_bearish_engulfing_x_vix_high_RR1_short_0401",
+    "V6_SHORT_bearish_engulfing_x_vix_high_RR1_wide_0405",
+    "V6_SHORT_bearish_engulfing_x_vix_high_RR2_runner_0403",
+    "V6_SHORT_bearish_engulfing_x_vix_high_RR2_tight_0404",
     "V6_SHORT_momentum_burst_dow_x_asian_session_RR1_5_0252",
     "V6_SHORT_momentum_burst_dow_x_asian_session_RR1_short_0251",
     "V6_SHORT_momentum_burst_dow_x_asian_session_RR1_wide_0255",
@@ -11246,6 +11351,3786 @@
         "mid_range"
       ],
       "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 17591,
+      "n_test": 6796,
+      "train": {
+        "n": 17591,
+        "wr": 0.4087885850719118,
+        "pf": 0.6867363596544517,
+        "sharpe": -0.1443297403652719,
+        "net": -109787.48514037003
+      },
+      "test": {
+        "n": 6796,
+        "wr": 0.446291936433196,
+        "pf": 0.7675590905047184,
+        "sharpe": -0.10349898827630098,
+        "net": -45744.724027676726
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_mid_range_RR1_wide_0305",
+      "side": "LONG",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4685,
+      "n_test": 1780,
+      "train": {
+        "n": 4685,
+        "wr": 0.43735325506937034,
+        "pf": 0.7401972683109105,
+        "sharpe": -0.1281647926960376,
+        "net": -26019.878007728166
+      },
+      "test": {
+        "n": 1780,
+        "wr": 0.4657303370786517,
+        "pf": 0.8230703910989668,
+        "sharpe": -0.08439639380732948,
+        "net": -10069.0093648494
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_morning_RR1_short_0306",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 4685,
+      "n_test": 1780,
+      "train": {
+        "n": 4685,
+        "wr": 0.3660618996798292,
+        "pf": 0.7668601830312748,
+        "sharpe": -0.111435490040485,
+        "net": -26785.626925486347
+      },
+      "test": {
+        "n": 1780,
+        "wr": 0.3865168539325843,
+        "pf": 0.8199733630664952,
+        "sharpe": -0.08559638152279218,
+        "net": -11932.742754817795
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_morning_RR1_5_0307",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4685,
+      "n_test": 1780,
+      "train": {
+        "n": 4685,
+        "wr": 0.32102454642475986,
+        "pf": 0.772312391620413,
+        "sharpe": -0.10574791033915901,
+        "net": -28490.61669294713
+      },
+      "test": {
+        "n": 1780,
+        "wr": 0.3325842696629214,
+        "pf": 0.8124319171921008,
+        "sharpe": -0.08679992699217823,
+        "net": -13548.665484622768
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_morning_RR2_runner_0308",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4685,
+      "n_test": 1780,
+      "train": {
+        "n": 4685,
+        "wr": 0.29669156883671294,
+        "pf": 0.7140027657125761,
+        "sharpe": -0.13871430579279562,
+        "net": -30659.241951826232
+      },
+      "test": {
+        "n": 1780,
+        "wr": 0.32865168539325845,
+        "pf": 0.8058924300194491,
+        "sharpe": -0.09134706705628272,
+        "net": -11739.170668480947
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_morning_RR2_tight_0309",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4685,
+      "n_test": 1780,
+      "train": {
+        "n": 4685,
+        "wr": 0.4599786552828175,
+        "pf": 0.8108172318323033,
+        "sharpe": -0.0879922703927077,
+        "net": -25797.66302215537
+      },
+      "test": {
+        "n": 1780,
+        "wr": 0.48146067415730337,
+        "pf": 0.871846166955435,
+        "sharpe": -0.05912236706828536,
+        "net": -10056.481717076174
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_morning_RR1_wide_0310",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 6154,
+      "n_test": 2447,
+      "train": {
+        "n": 6154,
+        "wr": 0.4289892752681183,
+        "pf": 0.691080952622761,
+        "sharpe": -0.15516672854683342,
+        "net": -39211.562497777515
+      },
+      "test": {
+        "n": 2447,
+        "wr": 0.4446260727421332,
+        "pf": 0.7665229903529677,
+        "sharpe": -0.11161266259176401,
+        "net": -17764.07438279104
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_midday_RR1_short_0311",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 6154,
+      "n_test": 2447,
+      "train": {
+        "n": 6154,
+        "wr": 0.3709782255443614,
+        "pf": 0.7204735486597015,
+        "sharpe": -0.13675702287936362,
+        "net": -40835.01724386455
+      },
+      "test": {
+        "n": 2447,
+        "wr": 0.38291785860237026,
+        "pf": 0.7850045044411008,
+        "sharpe": -0.1000882555260652,
+        "net": -18871.255825886277
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_midday_RR1_5_0312",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 6154,
+      "n_test": 2447,
+      "train": {
+        "n": 6154,
+        "wr": 0.3331166720831979,
+        "pf": 0.7316980065220794,
+        "sharpe": -0.1276573369154373,
+        "net": -42556.95514283402
+      },
+      "test": {
+        "n": 2447,
+        "wr": 0.3420514916223948,
+        "pf": 0.7802008873924668,
+        "sharpe": -0.10045297264572128,
+        "net": -21139.890401464778
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_midday_RR2_runner_0313",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 6154,
+      "n_test": 2447,
+      "train": {
+        "n": 6154,
+        "wr": 0.31117972050698733,
+        "pf": 0.6952154390847045,
+        "sharpe": -0.14994057752694676,
+        "net": -41411.039395601794
+      },
+      "test": {
+        "n": 2447,
+        "wr": 0.33428688189619943,
+        "pf": 0.8002438161008563,
+        "sharpe": -0.0896503807969744,
+        "net": -15897.097615499355
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_midday_RR2_tight_0314",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 6154,
+      "n_test": 2447,
+      "train": {
+        "n": 6154,
+        "wr": 0.45807604809879754,
+        "pf": 0.7788927068819848,
+        "sharpe": -0.10333655883457744,
+        "net": -38004.11763460013
+      },
+      "test": {
+        "n": 2447,
+        "wr": 0.46260727421332243,
+        "pf": 0.8122412540311252,
+        "sharpe": -0.08671638267257038,
+        "net": -19583.341914430348
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_midday_RR1_wide_0315",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4339,
+      "n_test": 1657,
+      "train": {
+        "n": 4339,
+        "wr": 0.40470154413459325,
+        "pf": 0.6796685553701461,
+        "sharpe": -0.1526399272164736,
+        "net": -24146.378658491427
+      },
+      "test": {
+        "n": 1657,
+        "wr": 0.40434520217260106,
+        "pf": 0.6505463434163822,
+        "sharpe": -0.17413169633071307,
+        "net": -15517.809535532415
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_short_0316",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 4339,
+      "n_test": 1657,
+      "train": {
+        "n": 4339,
+        "wr": 0.36137358838442035,
+        "pf": 0.709651704128336,
+        "sharpe": -0.1329873925858082,
+        "net": -24727.450163770576
+      },
+      "test": {
+        "n": 1657,
+        "wr": 0.36149668074834035,
+        "pf": 0.6747775037374232,
+        "sharpe": -0.15691002563459086,
+        "net": -16084.82686737873
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_5_0317",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4339,
+      "n_test": 1657,
+      "train": {
+        "n": 4339,
+        "wr": 0.3309518322194054,
+        "pf": 0.7177503886526772,
+        "sharpe": -0.12571647996592716,
+        "net": -25765.99016261239
+      },
+      "test": {
+        "n": 1657,
+        "wr": 0.32347616173808086,
+        "pf": 0.6658726343523084,
+        "sharpe": -0.16103111109481083,
+        "net": -17751.965042457912
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_afternoon_RR2_runner_0318",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4339,
+      "n_test": 1657,
+      "train": {
+        "n": 4339,
+        "wr": 0.31551048628716294,
+        "pf": 0.6906260671663785,
+        "sharpe": -0.14180986771530138,
+        "net": -24511.362550617385
+      },
+      "test": {
+        "n": 1657,
+        "wr": 0.31623415811707906,
+        "pf": 0.6527666395240931,
+        "sharpe": -0.17046167270581136,
+        "net": -15923.125150932983
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_afternoon_RR2_tight_0319",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4339,
+      "n_test": 1657,
+      "train": {
+        "n": 4339,
+        "wr": 0.4388107858953676,
+        "pf": 0.7721261576294529,
+        "sharpe": -0.09943662361144708,
+        "net": -22086.785796588087
+      },
+      "test": {
+        "n": 1657,
+        "wr": 0.4194327097163549,
+        "pf": 0.7075049315718746,
+        "sharpe": -0.1367757583772052,
+        "net": -16979.5902931909
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_rth_afternoon_RR1_wide_0320",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 11877,
+      "n_test": 4647,
+      "train": {
+        "n": 11877,
+        "wr": 0.313126210322472,
+        "pf": 0.4112607681594504,
+        "sharpe": -0.37704247225869414,
+        "net": -80753.24491211827
+      },
+      "test": {
+        "n": 4647,
+        "wr": 0.395093608779858,
+        "pf": 0.5841887560729354,
+        "sharpe": -0.21906529237441183,
+        "net": -29658.81073340771
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_asian_session_RR1_short_0321",
+      "side": "LONG",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 11877,
+      "n_test": 4647,
+      "train": {
+        "n": 11877,
+        "wr": 0.27498526563947123,
+        "pf": 0.45779666896399884,
+        "sharpe": -0.3276595537843163,
+        "net": -82490.6536053089
+      },
+      "test": {
+        "n": 4647,
+        "wr": 0.3369916074887024,
+        "pf": 0.6232272786551337,
+        "sharpe": -0.18924217870491805,
+        "net": -30535.80090720713
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_asian_session_RR1_5_0322",
+      "side": "LONG",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 11877,
+      "n_test": 4647,
+      "train": {
+        "n": 11877,
+        "wr": 0.24341163593500043,
+        "pf": 0.4888786139804155,
+        "sharpe": -0.29087560051121986,
+        "net": -83165.76356025907
+      },
+      "test": {
+        "n": 4647,
+        "wr": 0.30277598450613297,
+        "pf": 0.6546750546116639,
+        "sharpe": -0.1638037319543538,
+        "net": -30045.94141547138
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_asian_session_RR2_runner_0323",
+      "side": "LONG",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 11877,
+      "n_test": 4647,
+      "train": {
+        "n": 11877,
+        "wr": 0.20796497432011452,
+        "pf": 0.4016785660664576,
+        "sharpe": -0.38095347751614395,
+        "net": -87263.65791049354
+      },
+      "test": {
+        "n": 4647,
+        "wr": 0.276307295029051,
+        "pf": 0.5960522527169394,
+        "sharpe": -0.20392359429167836,
+        "net": -30454.683129423367
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_asian_session_RR2_tight_0324",
+      "side": "LONG",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 11877,
+      "n_test": 4647,
+      "train": {
+        "n": 11877,
+        "wr": 0.3761892733855351,
+        "pf": 0.5539991062817677,
+        "sharpe": -0.2418921394364422,
+        "net": -76111.93655536266
+      },
+      "test": {
+        "n": 4647,
+        "wr": 0.43554981708629226,
+        "pf": 0.7076129793501496,
+        "sharpe": -0.1377159907750409,
+        "net": -26944.956467599164
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_asian_session_RR1_wide_0325",
+      "side": "LONG",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 236,
+      "n_test": 7499,
+      "train": {
+        "n": 236,
+        "wr": 0.3474576271186441,
+        "pf": 0.4052543290689458,
+        "sharpe": -0.379358145492347,
+        "net": -1792.409859653401
+      },
+      "test": {
+        "n": 7499,
+        "wr": 0.42045606080810777,
+        "pf": 0.7054757208939774,
+        "sharpe": -0.1383917942901648,
+        "net": -44914.084874883585
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_short_0326",
+      "side": "LONG",
+      "contexts": [
+        "nq_outperforming_es"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 236,
+      "n_test": 7499,
+      "train": {
+        "n": 236,
+        "wr": 0.2966101694915254,
+        "pf": 0.45787930271795846,
+        "sharpe": -0.3321222016487965,
+        "net": -1825.565972342551
+      },
+      "test": {
+        "n": 7499,
+        "wr": 0.3605814108547806,
+        "pf": 0.7444334398746997,
+        "sharpe": -0.1148666632990781,
+        "net": -44197.369574723096
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_5_0327",
+      "side": "LONG",
+      "contexts": [
+        "nq_outperforming_es"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 236,
+      "n_test": 7500,
+      "train": {
+        "n": 236,
+        "wr": 0.2711864406779661,
+        "pf": 0.49855974498273453,
+        "sharpe": -0.28893506881929815,
+        "net": -1778.704958147568
+      },
+      "test": {
+        "n": 7500,
+        "wr": 0.3221333333333333,
+        "pf": 0.7610476345988341,
+        "sharpe": -0.10383557764634561,
+        "net": -44836.62474106756
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_nq_outperformi_RR2_runner_0328",
+      "side": "LONG",
+      "contexts": [
+        "nq_outperforming_es"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 236,
+      "n_test": 7499,
+      "train": {
+        "n": 236,
+        "wr": 0.2288135593220339,
+        "pf": 0.40863702580646055,
+        "sharpe": -0.3804529739045927,
+        "net": -1910.667611183248
+      },
+      "test": {
+        "n": 7499,
+        "wr": 0.30030670756100813,
+        "pf": 0.7052818792913358,
+        "sharpe": -0.13329255469978749,
+        "net": -47559.36598649953
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_nq_outperformi_RR2_tight_0329",
+      "side": "LONG",
+      "contexts": [
+        "nq_outperforming_es"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 236,
+      "n_test": 7500,
+      "train": {
+        "n": 236,
+        "wr": 0.4194915254237288,
+        "pf": 0.6319351405347883,
+        "sharpe": -0.19131547084080194,
+        "net": -1322.4590723841452
+      },
+      "test": {
+        "n": 7500,
+        "wr": 0.4508,
+        "pf": 0.7985086211481283,
+        "sharpe": -0.0879875410007506,
+        "net": -40742.67870364607
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_nq_outperformi_RR1_wide_0330",
+      "side": "LONG",
+      "contexts": [
+        "nq_outperforming_es"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 0,
+      "n_test": 3988,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3988,
+        "wr": 0.42552657973921765,
+        "pf": 0.6859238982926451,
+        "sharpe": -0.15256314376440105,
+        "net": -30836.04210197046
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_vix_low_RR1_short_0331",
+      "side": "LONG",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 0,
+      "n_test": 3988,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3988,
+        "wr": 0.35832497492477433,
+        "pf": 0.6810788467753431,
+        "sharpe": -0.1558980744161368,
+        "net": -36119.91617924991
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_vix_low_RR1_5_0332",
+      "side": "LONG",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 3988,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3988,
+        "wr": 0.3094282848545637,
+        "pf": 0.6784524596267468,
+        "sharpe": -0.15497274019532456,
+        "net": -39749.618576868335
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_vix_low_RR2_runner_0333",
+      "side": "LONG",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 0,
+      "n_test": 3988,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3988,
+        "wr": 0.29889669007021064,
+        "pf": 0.6536699249297534,
+        "sharpe": -0.16976392921995404,
+        "net": -36296.338358496556
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_vix_low_RR2_tight_0334",
+      "side": "LONG",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 3988,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3988,
+        "wr": 0.4380641925777332,
+        "pf": 0.71380400660292,
+        "sharpe": -0.13618899244268018,
+        "net": -38844.83941504202
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_vix_low_RR1_wide_0335",
+      "side": "LONG",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 18428,
+      "n_test": 7156,
+      "train": {
+        "n": 18428,
+        "wr": 0.370468851747341,
+        "pf": 0.5923157041264385,
+        "sharpe": -0.2085130903038471,
+        "net": -117915.15550509485
+      },
+      "test": {
+        "n": 7156,
+        "wr": 0.4116825041922862,
+        "pf": 0.672400219693379,
+        "sharpe": -0.1573111388352338,
+        "net": -52152.95328378602
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_high_volume_RR1_short_0336",
+      "side": "LONG",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 18428,
+      "n_test": 7156,
+      "train": {
+        "n": 18428,
+        "wr": 0.31696331669199046,
+        "pf": 0.6332458864590802,
+        "sharpe": -0.17899792798989375,
+        "net": -119345.03479858705
+      },
+      "test": {
+        "n": 7156,
+        "wr": 0.34991615427613193,
+        "pf": 0.7058370853703221,
+        "sharpe": -0.1359022576937035,
+        "net": -53230.564230586984
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_high_volume_RR1_5_0337",
+      "side": "LONG",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 18428,
+      "n_test": 7156,
+      "train": {
+        "n": 18428,
+        "wr": 0.2816366398958107,
+        "pf": 0.6501479630054652,
+        "sharpe": -0.16410548963102142,
+        "net": -122327.72116889883
+      },
+      "test": {
+        "n": 7156,
+        "wr": 0.30701509223029627,
+        "pf": 0.713087137461345,
+        "sharpe": -0.12934491704523976,
+        "net": -56190.2967174537
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_high_volume_RR2_runner_0338",
+      "side": "LONG",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 18428,
+      "n_test": 7156,
+      "train": {
+        "n": 18428,
+        "wr": 0.2545582808769264,
+        "pf": 0.5882027238707592,
+        "sharpe": -0.20437431712048712,
+        "net": -125491.04604808602
+      },
+      "test": {
+        "n": 7156,
+        "wr": 0.29206260480715485,
+        "pf": 0.6797673088835116,
+        "sharpe": -0.14781199560017244,
+        "net": -53431.60941396047
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_high_volume_RR2_tight_0339",
+      "side": "LONG",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 18428,
+      "n_test": 7156,
+      "train": {
+        "n": 18428,
+        "wr": 0.41675710874755806,
+        "pf": 0.7064498628165917,
+        "sharpe": -0.13539068124443804,
+        "net": -109941.48519569586
+      },
+      "test": {
+        "n": 7156,
+        "wr": 0.4389323644494131,
+        "pf": 0.7514057484302565,
+        "sharpe": -0.11176283218086247,
+        "net": -53080.835461220435
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_high_volume_RR1_wide_0340",
+      "side": "LONG",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 863,
+      "n_test": 290,
+      "train": {
+        "n": 863,
+        "wr": 0.3939745075318656,
+        "pf": 0.617757684810906,
+        "sharpe": -0.18781228003784012,
+        "net": -6275.813839196815
+      },
+      "test": {
+        "n": 290,
+        "wr": 0.4103448275862069,
+        "pf": 0.8059928241641281,
+        "sharpe": -0.08417075433726447,
+        "net": -1341.6883775205135
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_short_0341",
+      "side": "LONG",
+      "contexts": [
+        "recent_low_climax"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 863,
+      "n_test": 290,
+      "train": {
+        "n": 863,
+        "wr": 0.3267670915411356,
+        "pf": 0.605892106729845,
+        "sharpe": -0.19182869391338017,
+        "net": -7505.570797514369
+      },
+      "test": {
+        "n": 290,
+        "wr": 0.38275862068965516,
+        "pf": 0.9235717551169079,
+        "sharpe": -0.03022499820741957,
+        "net": -603.4518133800889
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_5_0342",
+      "side": "LONG",
+      "contexts": [
+        "recent_low_climax"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 863,
+      "n_test": 290,
+      "train": {
+        "n": 863,
+        "wr": 0.28968713789107764,
+        "pf": 0.6248978909964885,
+        "sharpe": -0.17536809658863572,
+        "net": -7529.37684780462
+      },
+      "test": {
+        "n": 290,
+        "wr": 0.3275862068965517,
+        "pf": 0.8906726113322203,
+        "sharpe": -0.04263647998445538,
+        "net": -929.8453888130247
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_recent_low_cli_RR2_runner_0343",
+      "side": "LONG",
+      "contexts": [
+        "recent_low_climax"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 863,
+      "n_test": 290,
+      "train": {
+        "n": 863,
+        "wr": 0.2688296639629201,
+        "pf": 0.5914961150022355,
+        "sharpe": -0.19841253529402092,
+        "net": -7133.527097408301
+      },
+      "test": {
+        "n": 290,
+        "wr": 0.31724137931034485,
+        "pf": 0.7902085671036992,
+        "sharpe": -0.08943264382551384,
+        "net": -1542.7481261571093
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_recent_low_cli_RR2_tight_0344",
+      "side": "LONG",
+      "contexts": [
+        "recent_low_climax"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 863,
+      "n_test": 290,
+      "train": {
+        "n": 863,
+        "wr": 0.3951332560834299,
+        "pf": 0.6199635809425419,
+        "sharpe": -0.18175149290708797,
+        "net": -8658.721151564363
+      },
+      "test": {
+        "n": 290,
+        "wr": 0.46551724137931033,
+        "pf": 0.8823740343390227,
+        "sharpe": -0.047424314594023395,
+        "net": -1099.881591026257
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_recent_low_cli_RR1_wide_0345",
+      "side": "LONG",
+      "contexts": [
+        "recent_low_climax"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 19759,
+      "n_test": 8311,
+      "train": {
+        "n": 19759,
+        "wr": 0.3457158763095298,
+        "pf": 0.5175873613433681,
+        "sharpe": -0.2622276391703527,
+        "net": -127981.00568883418
+      },
+      "test": {
+        "n": 8311,
+        "wr": 0.4016363855131753,
+        "pf": 0.6304431990952678,
+        "sharpe": -0.17983413368704948,
+        "net": -57684.132339463926
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_short_0346",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 19759,
+      "n_test": 8312,
+      "train": {
+        "n": 19759,
+        "wr": 0.3017865276582823,
+        "pf": 0.5586790404196265,
+        "sharpe": -0.22819591401956665,
+        "net": -131815.1252185811
+      },
+      "test": {
+        "n": 8312,
+        "wr": 0.3502165543792108,
+        "pf": 0.6658461340317461,
+        "sharpe": -0.15542608738927763,
+        "net": -59151.079077006805
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_5_0347",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 19759,
+      "n_test": 8313,
+      "train": {
+        "n": 19759,
+        "wr": 0.26848524722911077,
+        "pf": 0.5831076777637872,
+        "sharpe": -0.20543743108895812,
+        "net": -133815.75909317832
+      },
+      "test": {
+        "n": 8313,
+        "wr": 0.3146878383255143,
+        "pf": 0.68843051103597,
+        "sharpe": -0.13997669188994588,
+        "net": -59637.138412787346
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_dried_up_vol_RR2_runner_0348",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 19759,
+      "n_test": 8312,
+      "train": {
+        "n": 19759,
+        "wr": 0.24439495925907181,
+        "pf": 0.52165584937037,
+        "sharpe": -0.2527300188089633,
+        "net": -134552.94519258887
+      },
+      "test": {
+        "n": 8312,
+        "wr": 0.2915062560153994,
+        "pf": 0.6405262686810419,
+        "sharpe": -0.16652526845059723,
+        "net": -59162.59932171151
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_dried_up_vol_RR2_tight_0349",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 19759,
+      "n_test": 8313,
+      "train": {
+        "n": 19759,
+        "wr": 0.3925805961840174,
+        "pf": 0.6310352357663809,
+        "sharpe": -0.17821221155597886,
+        "net": -126574.53257822961
+      },
+      "test": {
+        "n": 8313,
+        "wr": 0.43558282208588955,
+        "pf": 0.7075451800151467,
+        "sharpe": -0.13272164621577928,
+        "net": -61043.717824971536
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_bullish_engulfing_x_dried_up_vol_RR1_wide_0350",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "bullish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 10694,
+      "n_test": 4666,
+      "train": {
+        "n": 10694,
+        "wr": 0.3040957546287638,
+        "pf": 0.3938400429830238,
+        "sharpe": -0.3999914253341871,
+        "net": -73571.01222056226
+      },
+      "test": {
+        "n": 4666,
+        "wr": 0.36712387483926273,
+        "pf": 0.5337070765082332,
+        "sharpe": -0.26428856836046616,
+        "net": -32082.94008940245
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_short_0351",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 10694,
+      "n_test": 4666,
+      "train": {
+        "n": 10694,
+        "wr": 0.26257714606321303,
+        "pf": 0.43289483826570024,
+        "sharpe": -0.35550172812955605,
+        "net": -76179.65702738124
+      },
+      "test": {
+        "n": 4666,
+        "wr": 0.30090012858979853,
+        "pf": 0.5414631557245266,
+        "sharpe": -0.25479125166495264,
+        "net": -36501.61740404821
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_5_0352",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 10694,
+      "n_test": 4666,
+      "train": {
+        "n": 10694,
+        "wr": 0.22966149242565925,
+        "pf": 0.4525650776290159,
+        "sharpe": -0.32830124881661477,
+        "net": -78848.25988713097
+      },
+      "test": {
+        "n": 4666,
+        "wr": 0.26060865837976854,
+        "pf": 0.5339306428718271,
+        "sharpe": -0.25586258569933246,
+        "net": -40480.44414041565
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_compressed_vol_RR2_runner_0353",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 10694,
+      "n_test": 4666,
+      "train": {
+        "n": 10694,
+        "wr": 0.20067327473349542,
+        "pf": 0.3887037284235686,
+        "sharpe": -0.400755724769388,
+        "net": -78250.10533594445
+      },
+      "test": {
+        "n": 4666,
+        "wr": 0.24324903557651092,
+        "pf": 0.5110204044866028,
+        "sharpe": -0.27606257606833023,
+        "net": -36346.96645301224
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_compressed_vol_RR2_tight_0354",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 10694,
+      "n_test": 4666,
+      "train": {
+        "n": 10694,
+        "wr": 0.35936038900317935,
+        "pf": 0.5203332118277751,
+        "sharpe": -0.27182731518009684,
+        "net": -72450.22652189678
+      },
+      "test": {
+        "n": 4666,
+        "wr": 0.39134162023146163,
+        "pf": 0.6155245147962045,
+        "sharpe": -0.19997591644018,
+        "net": -35199.18233342467
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_compressed_vol_RR1_wide_0355",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 15545,
+      "n_test": 6344,
+      "train": {
+        "n": 15545,
+        "wr": 0.3680926342875523,
+        "pf": 0.5886202922563036,
+        "sharpe": -0.21574509570625772,
+        "net": -109712.39544103251
+      },
+      "test": {
+        "n": 6344,
+        "wr": 0.43080075662042877,
+        "pf": 0.734655436755228,
+        "sharpe": -0.12543027849682845,
+        "net": -39512.03896665475
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_short_0356",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 15545,
+      "n_test": 6344,
+      "train": {
+        "n": 15545,
+        "wr": 0.3075587005467996,
+        "pf": 0.6190345818714172,
+        "sharpe": -0.191465036544708,
+        "net": -115571.44691395278
+      },
+      "test": {
+        "n": 6344,
+        "wr": 0.3546658259773014,
+        "pf": 0.7429374533573274,
+        "sharpe": -0.11989628249225305,
+        "net": -44718.48967737181
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_5_0357",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 15546,
+      "n_test": 6344,
+      "train": {
+        "n": 15546,
+        "wr": 0.2666923967580085,
+        "pf": 0.6321272419674059,
+        "sharpe": -0.17741693124470834,
+        "net": -120253.83264639036
+      },
+      "test": {
+        "n": 6344,
+        "wr": 0.3128940731399748,
+        "pf": 0.7589152866124022,
+        "sharpe": -0.10805772290330033,
+        "net": -45541.15879342293
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR2_runner_0358",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 15545,
+      "n_test": 6344,
+      "train": {
+        "n": 15545,
+        "wr": 0.24844001286587328,
+        "pf": 0.5880596488812858,
+        "sharpe": -0.20861109936282862,
+        "net": -115580.34431534553
+      },
+      "test": {
+        "n": 6344,
+        "wr": 0.29192938209331654,
+        "pf": 0.7168478601265473,
+        "sharpe": -0.1320004207223573,
+        "net": -45533.36365520002
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR2_tight_0359",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 15546,
+      "n_test": 6344,
+      "train": {
+        "n": 15546,
+        "wr": 0.39907371671169434,
+        "pf": 0.6723245718344155,
+        "sharpe": -0.15800938129606878,
+        "net": -116130.7014674963
+      },
+      "test": {
+        "n": 6344,
+        "wr": 0.457124842370744,
+        "pf": 0.8240284865252945,
+        "sharpe": -0.0772323959060795,
+        "net": -35302.56110051448
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_stro_RR1_wide_0360",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 16044,
+      "n_test": 6436,
+      "train": {
+        "n": 16044,
+        "wr": 0.36487160309149835,
+        "pf": 0.5837945390281976,
+        "sharpe": -0.21842877158474922,
+        "net": -113421.79556326258
+      },
+      "test": {
+        "n": 6436,
+        "wr": 0.42945929148539463,
+        "pf": 0.730511149927961,
+        "sharpe": -0.12764307151585183,
+        "net": -40610.92416718891
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_short_0361",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 16044,
+      "n_test": 6436,
+      "train": {
+        "n": 16044,
+        "wr": 0.3054101221640489,
+        "pf": 0.6144763538982803,
+        "sharpe": -0.19375060501753594,
+        "net": -119379.08183562955
+      },
+      "test": {
+        "n": 6436,
+        "wr": 0.353325046612803,
+        "pf": 0.7384193322775499,
+        "sharpe": -0.12225539779348907,
+        "net": -46033.69061502005
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_5_0362",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 16045,
+      "n_test": 6436,
+      "train": {
+        "n": 16045,
+        "wr": 0.26512932377687753,
+        "pf": 0.628386088670915,
+        "sharpe": -0.17908611918241044,
+        "net": -123913.56875117353
+      },
+      "test": {
+        "n": 6436,
+        "wr": 0.3115288999378496,
+        "pf": 0.754159622885109,
+        "sharpe": -0.11043074879952232,
+        "net": -46964.760398853614
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR2_runner_0363",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 16044,
+      "n_test": 6436,
+      "train": {
+        "n": 16044,
+        "wr": 0.2463849414111194,
+        "pf": 0.5830410001355467,
+        "sharpe": -0.21125901282580628,
+        "net": -119457.58770309738
+      },
+      "test": {
+        "n": 6436,
+        "wr": 0.2910192666252331,
+        "pf": 0.7128705336879071,
+        "sharpe": -0.13409454033292498,
+        "net": -46685.589404814644
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR2_tight_0364",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 16045,
+      "n_test": 6436,
+      "train": {
+        "n": 16045,
+        "wr": 0.3978186350888127,
+        "pf": 0.6699501655104927,
+        "sharpe": -0.1587608202299591,
+        "net": -119145.78966046288
+      },
+      "test": {
+        "n": 6436,
+        "wr": 0.45587321317588564,
+        "pf": 0.8210914475610946,
+        "sharpe": -0.07858091872539436,
+        "net": -36277.2678933282
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_downtrend_weak_RR1_wide_0365",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 12773,
+      "n_test": 5647,
+      "train": {
+        "n": 12773,
+        "wr": 0.3569247631723166,
+        "pf": 0.5736619180102409,
+        "sharpe": -0.22288061050645883,
+        "net": -80206.55643341718
+      },
+      "test": {
+        "n": 5647,
+        "wr": 0.40056667256950595,
+        "pf": 0.648260270421927,
+        "sharpe": -0.16879773522728583,
+        "net": -40655.66074337886
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_short_0366",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 12773,
+      "n_test": 5647,
+      "train": {
+        "n": 12773,
+        "wr": 0.3047835277538558,
+        "pf": 0.6261328048467999,
+        "sharpe": -0.1834353800106975,
+        "net": -79418.96616359404
+      },
+      "test": {
+        "n": 5647,
+        "wr": 0.33274304940676463,
+        "pf": 0.6492908923390468,
+        "sharpe": -0.16685582638273594,
+        "net": -47163.3854562204
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_5_0367",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 12773,
+      "n_test": 5647,
+      "train": {
+        "n": 12773,
+        "wr": 0.26986612385500663,
+        "pf": 0.6492660019204783,
+        "sharpe": -0.1634446667899383,
+        "net": -80188.5018816794
+      },
+      "test": {
+        "n": 5647,
+        "wr": 0.28546130688861343,
+        "pf": 0.6368289541075401,
+        "sharpe": -0.1716924740725608,
+        "net": -53667.27241535172
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR2_runner_0368",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 12773,
+      "n_test": 5647,
+      "train": {
+        "n": 12773,
+        "wr": 0.24105535113129256,
+        "pf": 0.5780881397986631,
+        "sharpe": -0.21148225912479093,
+        "net": -84409.17705933709
+      },
+      "test": {
+        "n": 5647,
+        "wr": 0.2673986187356118,
+        "pf": 0.6019871418345624,
+        "sharpe": -0.1955144284972113,
+        "net": -50081.46747779282
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR2_tight_0369",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 12773,
+      "n_test": 5647,
+      "train": {
+        "n": 12773,
+        "wr": 0.3979487982463008,
+        "pf": 0.6839435139806153,
+        "sharpe": -0.1484308147186104,
+        "net": -77773.07479935962
+      },
+      "test": {
+        "n": 5647,
+        "wr": 0.4150876571630954,
+        "pf": 0.703967383141674,
+        "sharpe": -0.13407502669014526,
+        "net": -46657.053407479936
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_near_50bar_hig_RR1_wide_0370",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 17001,
+      "n_test": 6902,
+      "train": {
+        "n": 17001,
+        "wr": 0.35339097700135286,
+        "pf": 0.5533604509739101,
+        "sharpe": -0.23603229702480955,
+        "net": -119895.82127441408
+      },
+      "test": {
+        "n": 6902,
+        "wr": 0.4145175311503912,
+        "pf": 0.6966804281726101,
+        "sharpe": -0.14363997209450413,
+        "net": -45270.75737265844
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_mid_range_RR1_short_0371",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 17001,
+      "n_test": 6902,
+      "train": {
+        "n": 17001,
+        "wr": 0.29457090759367094,
+        "pf": 0.5838170940286201,
+        "sharpe": -0.21026375970903227,
+        "net": -126589.21920525502
+      },
+      "test": {
+        "n": 6902,
+        "wr": 0.3396117067516662,
+        "pf": 0.6993202551283207,
+        "sharpe": -0.1408338388504946,
+        "net": -52252.21189675541
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_mid_range_RR1_5_0372",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 17001,
+      "n_test": 6902,
+      "train": {
+        "n": 17001,
+        "wr": 0.2555143815069702,
+        "pf": 0.5995460772666755,
+        "sharpe": -0.19351882341805238,
+        "net": -130906.30691211863
+      },
+      "test": {
+        "n": 6902,
+        "wr": 0.2977397855694002,
+        "pf": 0.712427237231259,
+        "sharpe": -0.1296611580203365,
+        "net": -54347.31961865303
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_mid_range_RR2_runner_0373",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 17001,
+      "n_test": 6902,
+      "train": {
+        "n": 17001,
+        "wr": 0.231692253396859,
+        "pf": 0.5427581317870762,
+        "sharpe": -0.23479925961880638,
+        "net": -129458.55179277298
+      },
+      "test": {
+        "n": 6902,
+        "wr": 0.27803535207186325,
+        "pf": 0.6650311431826972,
+        "sharpe": -0.1588597177557027,
+        "net": -54037.27322234573
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_mid_range_RR2_tight_0374",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 17001,
+      "n_test": 6902,
+      "train": {
+        "n": 17001,
+        "wr": 0.3926239632962767,
+        "pf": 0.656389484639183,
+        "sharpe": -0.16383531310698096,
+        "net": -120787.15172848114
+      },
+      "test": {
+        "n": 6902,
+        "wr": 0.4314691393798899,
+        "pf": 0.7525167911930014,
+        "sharpe": -0.11077222786759962,
+        "net": -50254.81218697671
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_mid_range_RR1_wide_0375",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4481,
+      "n_test": 1814,
+      "train": {
+        "n": 4481,
+        "wr": 0.4255746485159563,
+        "pf": 0.7100198752249621,
+        "sharpe": -0.14722211657948334,
+        "net": -28416.318423389428
+      },
+      "test": {
+        "n": 1814,
+        "wr": 0.4503858875413451,
+        "pf": 0.7735381241704264,
+        "sharpe": -0.11054646974060493,
+        "net": -13716.829207292165
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_short_0376",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 4481,
+      "n_test": 1814,
+      "train": {
+        "n": 4481,
+        "wr": 0.3441196161571078,
+        "pf": 0.7260786405742221,
+        "sharpe": -0.13509914721293725,
+        "net": -31254.504840553116
+      },
+      "test": {
+        "n": 1814,
+        "wr": 0.37045203969129,
+        "pf": 0.7936653158403257,
+        "sharpe": -0.09841607442863629,
+        "net": -14557.035507671691
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_5_0377",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4481,
+      "n_test": 1814,
+      "train": {
+        "n": 4481,
+        "wr": 0.30015621513055124,
+        "pf": 0.7568783025121009,
+        "sharpe": -0.1140649324957379,
+        "net": -29808.273148507054
+      },
+      "test": {
+        "n": 1814,
+        "wr": 0.3219404630650496,
+        "pf": 0.8001366765948957,
+        "sharpe": -0.09343866319103435,
+        "net": -15355.988426191721
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_morning_RR2_runner_0378",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4481,
+      "n_test": 1814,
+      "train": {
+        "n": 4481,
+        "wr": 0.28252622182548537,
+        "pf": 0.7007776445903757,
+        "sharpe": -0.14687924492565288,
+        "net": -31172.24197611986
+      },
+      "test": {
+        "n": 1814,
+        "wr": 0.3081587651598677,
+        "pf": 0.7830521602398156,
+        "sharpe": -0.10291415398377524,
+        "net": -13906.902064238313
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_morning_RR2_tight_0379",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4481,
+      "n_test": 1814,
+      "train": {
+        "n": 4481,
+        "wr": 0.4338317339879491,
+        "pf": 0.7559423907016565,
+        "sharpe": -0.11829679214286201,
+        "net": -33277.354450599
+      },
+      "test": {
+        "n": 1814,
+        "wr": 0.47078280044101434,
+        "pf": 0.8287648927254516,
+        "sharpe": -0.07973455597013977,
+        "net": -14394.599118347283
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_morning_RR1_wide_0380",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 5925,
+      "n_test": 2396,
+      "train": {
+        "n": 5925,
+        "wr": 0.40962025316455697,
+        "pf": 0.6502604088404442,
+        "sharpe": -0.18387746506108374,
+        "net": -46662.16285539912
+      },
+      "test": {
+        "n": 2396,
+        "wr": 0.46494156928213687,
+        "pf": 0.8135163558834824,
+        "sharpe": -0.08798470990180594,
+        "net": -13873.015854483783
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_short_0381",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 5925,
+      "n_test": 2396,
+      "train": {
+        "n": 5925,
+        "wr": 0.3382278481012658,
+        "pf": 0.684087351612646,
+        "sharpe": -0.15995690062679144,
+        "net": -48322.6426037279
+      },
+      "test": {
+        "n": 2396,
+        "wr": 0.38564273789649417,
+        "pf": 0.7893828058554552,
+        "sharpe": -0.10035926751688955,
+        "net": -18548.4074371464
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_5_0382",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 5925,
+      "n_test": 2396,
+      "train": {
+        "n": 5925,
+        "wr": 0.2983966244725738,
+        "pf": 0.7039606310899522,
+        "sharpe": -0.14399517447646873,
+        "net": -49082.364066974245
+      },
+      "test": {
+        "n": 2396,
+        "wr": 0.335559265442404,
+        "pf": 0.7759696021933673,
+        "sharpe": -0.10570661641136682,
+        "net": -22014.859479391445
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_midday_RR2_runner_0383",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 5925,
+      "n_test": 2396,
+      "train": {
+        "n": 5925,
+        "wr": 0.27864978902953585,
+        "pf": 0.6644804489646748,
+        "sharpe": -0.16952607628298716,
+        "net": -47261.743418378916
+      },
+      "test": {
+        "n": 2396,
+        "wr": 0.32053422370617696,
+        "pf": 0.7432294576949378,
+        "sharpe": -0.1255773360719632,
+        "net": -21190.427330423037
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_midday_RR2_tight_0384",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 5925,
+      "n_test": 2396,
+      "train": {
+        "n": 5925,
+        "wr": 0.42059071729957803,
+        "pf": 0.706860376924265,
+        "sharpe": -0.14586709547770224,
+        "net": -53871.71029252643
+      },
+      "test": {
+        "n": 2396,
+        "wr": 0.4682804674457429,
+        "pf": 0.8394934208435485,
+        "sharpe": -0.07331228052369694,
+        "net": -16751.986977564084
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_midday_RR1_wide_0385",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4082,
+      "n_test": 1688,
+      "train": {
+        "n": 4082,
+        "wr": 0.38975992160705536,
+        "pf": 0.6341851027270584,
+        "sharpe": -0.18584645329090585,
+        "net": -28263.46863119462
+      },
+      "test": {
+        "n": 1688,
+        "wr": 0.4354265402843602,
+        "pf": 0.7640583423545334,
+        "sharpe": -0.1085506309712529,
+        "net": -10272.784301261423
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_short_0386",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 4082,
+      "n_test": 1688,
+      "train": {
+        "n": 4082,
+        "wr": 0.3419892209701127,
+        "pf": 0.6840501308679467,
+        "sharpe": -0.15131063090349012,
+        "net": -27347.558396040695
+      },
+      "test": {
+        "n": 1688,
+        "wr": 0.3815165876777251,
+        "pf": 0.7553637455183734,
+        "sharpe": -0.11110111729111212,
+        "net": -12362.571521513888
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_5_0387",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4082,
+      "n_test": 1688,
+      "train": {
+        "n": 4082,
+        "wr": 0.30475257226849584,
+        "pf": 0.6975053830913293,
+        "sharpe": -0.13799363620581032,
+        "net": -27902.34532767014
+      },
+      "test": {
+        "n": 1688,
+        "wr": 0.3524881516587678,
+        "pf": 0.7732610440480325,
+        "sharpe": -0.09907137817378098,
+        "net": -12341.433819239546
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR2_runner_0388",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 4082,
+      "n_test": 1688,
+      "train": {
+        "n": 4082,
+        "wr": 0.288094071533562,
+        "pf": 0.6441297786892335,
+        "sharpe": -0.17287148058771715,
+        "net": -28860.71572074189
+      },
+      "test": {
+        "n": 1688,
+        "wr": 0.3293838862559242,
+        "pf": 0.7120140318307184,
+        "sharpe": -0.13477777316616754,
+        "net": -13750.83979019937
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR2_tight_0389",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 4082,
+      "n_test": 1688,
+      "train": {
+        "n": 4082,
+        "wr": 0.40445859872611467,
+        "pf": 0.6990058470246241,
+        "sharpe": -0.1413616835901988,
+        "net": -30330.256331972592
+      },
+      "test": {
+        "n": 1688,
+        "wr": 0.4597156398104265,
+        "pf": 0.8475294780025363,
+        "sharpe": -0.06372455012231039,
+        "net": -8493.656223302716
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_rth_afternoon_RR1_wide_0390",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 11443,
+      "n_test": 4722,
+      "train": {
+        "n": 11443,
+        "wr": 0.3048151708468059,
+        "pf": 0.4096574290678982,
+        "sharpe": -0.3799175840880439,
+        "net": -79881.65306799722
+      },
+      "test": {
+        "n": 4722,
+        "wr": 0.3784413384159255,
+        "pf": 0.5727831802313225,
+        "sharpe": -0.22940820082597124,
+        "net": -31142.368099110303
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_asian_session_RR1_short_0391",
+      "side": "SHORT",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 11443,
+      "n_test": 4722,
+      "train": {
+        "n": 11443,
+        "wr": 0.25893559381281134,
+        "pf": 0.44922617150630373,
+        "sharpe": -0.33538917801895207,
+        "net": -82735.87566442823
+      },
+      "test": {
+        "n": 4722,
+        "wr": 0.30855569673867006,
+        "pf": 0.5841370928858083,
+        "sharpe": -0.21927740835447102,
+        "net": -35162.83341057257
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_asian_session_RR1_5_0392",
+      "side": "SHORT",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 11443,
+      "n_test": 4722,
+      "train": {
+        "n": 11443,
+        "wr": 0.22450406361968014,
+        "pf": 0.4624985289127227,
+        "sharpe": -0.313823120381094,
+        "net": -86622.31804386998
+      },
+      "test": {
+        "n": 4722,
+        "wr": 0.26577721304531976,
+        "pf": 0.5832947951734839,
+        "sharpe": -0.21568382953075488,
+        "net": -38514.31304373835
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_asian_session_RR2_runner_0393",
+      "side": "SHORT",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 11443,
+      "n_test": 4722,
+      "train": {
+        "n": 11443,
+        "wr": 0.19662675871711963,
+        "pf": 0.40477043009395475,
+        "sharpe": -0.3758879502189253,
+        "net": -84573.7309697855
+      },
+      "test": {
+        "n": 4722,
+        "wr": 0.24269377382465057,
+        "pf": 0.5333098547427636,
+        "sharpe": -0.25433595094390743,
+        "net": -37205.71734881832
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_asian_session_RR2_tight_0394",
+      "side": "SHORT",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 11443,
+      "n_test": 4722,
+      "train": {
+        "n": 11443,
+        "wr": 0.36196801538058204,
+        "pf": 0.5411427842948938,
+        "sharpe": -0.2540574313404463,
+        "net": -77450.23137718995
+      },
+      "test": {
+        "n": 4722,
+        "wr": 0.40448962304108427,
+        "pf": 0.6726051752756862,
+        "sharpe": -0.16065180872716903,
+        "net": -31835.762279164635
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_asian_session_RR1_wide_0395",
+      "side": "SHORT",
+      "contexts": [
+        "asian_session"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 222,
+      "n_test": 7471,
+      "train": {
+        "n": 222,
+        "wr": 0.28378378378378377,
+        "pf": 0.4385358908427062,
+        "sharpe": -0.3577067584901576,
+        "net": -1751.669499035376
+      },
+      "test": {
+        "n": 7471,
+        "wr": 0.41346539954490696,
+        "pf": 0.677824303216664,
+        "sharpe": -0.15999783625877761,
+        "net": -50822.607667939235
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_short_0396",
+      "side": "SHORT",
+      "contexts": [
+        "nq_underperforming_es"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 222,
+      "n_test": 7471,
+      "train": {
+        "n": 222,
+        "wr": 0.23423423423423423,
+        "pf": 0.4762402557821358,
+        "sharpe": -0.30985963798403743,
+        "net": -1778.2225491886543
+      },
+      "test": {
+        "n": 7471,
+        "wr": 0.3418551733369027,
+        "pf": 0.698417106568313,
+        "sharpe": -0.1458950354286091,
+        "net": -55058.91979045363
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_5_0397",
+      "side": "SHORT",
+      "contexts": [
+        "nq_underperforming_es"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 222,
+      "n_test": 7471,
+      "train": {
+        "n": 222,
+        "wr": 0.19369369369369369,
+        "pf": 0.5140099255006801,
+        "sharpe": -0.26183710171724706,
+        "net": -1733.0859042966856
+      },
+      "test": {
+        "n": 7471,
+        "wr": 0.2962120198099317,
+        "pf": 0.6994080850962272,
+        "sharpe": -0.14102555760763022,
+        "net": -59807.085757714885
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR2_runner_0398",
+      "side": "SHORT",
+      "contexts": [
+        "nq_underperforming_es"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 222,
+      "n_test": 7471,
+      "train": {
+        "n": 222,
+        "wr": 0.19369369369369369,
+        "pf": 0.4794249419709324,
+        "sharpe": -0.2984623498275948,
+        "net": -1645.8010493681404
+      },
+      "test": {
+        "n": 7471,
+        "wr": 0.2833623343595235,
+        "pf": 0.6784708292754036,
+        "sharpe": -0.15515975111669877,
+        "net": -54048.24192424845
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR2_tight_0399",
+      "side": "SHORT",
+      "contexts": [
+        "nq_underperforming_es"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 222,
+      "n_test": 7471,
+      "train": {
+        "n": 222,
+        "wr": 0.3063063063063063,
+        "pf": 0.5052348924576139,
+        "sharpe": -0.28072596522961574,
+        "net": -1951.8022671700828
+      },
+      "test": {
+        "n": 7471,
+        "wr": 0.4351492437424709,
+        "pf": 0.7705772083444863,
+        "sharpe": -0.105143364979679,
+        "net": -48460.10345598559
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_nq_underperfor_RR1_wide_0400",
+      "side": "SHORT",
+      "contexts": [
+        "nq_underperforming_es"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 0,
+      "n_test": 3347,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3347,
+        "wr": 0.4493576337018225,
+        "pf": 0.7830438695958404,
+        "sharpe": -0.09942780047951426,
+        "net": -18996.357556019182
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_vix_high_RR1_short_0401",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 0,
+      "n_test": 3347,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3347,
+        "wr": 0.37645652823423964,
+        "pf": 0.7987377771907185,
+        "sharpe": -0.09053363519836459,
+        "net": -20507.849410389805
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_vix_high_RR1_5_0402",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 3347,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3347,
+        "wr": 0.32387212429040935,
+        "pf": 0.7988359307347285,
+        "sharpe": -0.08830630581040097,
+        "net": -22538.687250384763
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_vix_high_RR2_runner_0403",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 0,
+      "n_test": 3347,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3347,
+        "wr": 0.31281744846130866,
+        "pf": 0.7743706942820976,
+        "sharpe": -0.10148562560231583,
+        "net": -21178.547369303516
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_vix_high_RR2_tight_0404",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 3347,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 3347,
+        "wr": 0.4672841350463101,
+        "pf": 0.8454077799582198,
+        "sharpe": -0.06724320179786811,
+        "net": -18456.731487776546
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_vix_high_RR1_wide_0405",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 17720,
+      "n_test": 7201,
+      "train": {
+        "n": 17720,
+        "wr": 0.3637133182844244,
+        "pf": 0.5900308170349844,
+        "sharpe": -0.21302572594753033,
+        "net": -115617.92195616278
+      },
+      "test": {
+        "n": 7201,
+        "wr": 0.4149423691154006,
+        "pf": 0.7011256384063683,
+        "sharpe": -0.14000871115500577,
+        "net": -47883.27282788446
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_high_volume_RR1_short_0406",
+      "side": "SHORT",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 17720,
+      "n_test": 7201,
+      "train": {
+        "n": 17720,
+        "wr": 0.3038939051918736,
+        "pf": 0.629935600876434,
+        "sharpe": -0.1821454766337834,
+        "net": -117924.60040179009
+      },
+      "test": {
+        "n": 7201,
+        "wr": 0.3410637411470629,
+        "pf": 0.712254909932916,
+        "sharpe": -0.13194612206181744,
+        "net": -53492.74353656496
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_high_volume_RR1_5_0407",
+      "side": "SHORT",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 17721,
+      "n_test": 7201,
+      "train": {
+        "n": 17721,
+        "wr": 0.2670842503244738,
+        "pf": 0.6545465874801532,
+        "sharpe": -0.16128261379781778,
+        "net": -117905.87014151616
+      },
+      "test": {
+        "n": 7201,
+        "wr": 0.29565338147479514,
+        "pf": 0.7179895845049181,
+        "sharpe": -0.12573749177657087,
+        "net": -56969.31053913328
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_high_volume_RR2_runner_0408",
+      "side": "SHORT",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bearish_engulfing",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 17720,
+      "n_test": 7201,
+      "train": {
+        "n": 17720,
+        "wr": 0.2427765237020316,
+        "pf": 0.5893723180760714,
+        "sharpe": -0.20447735007036183,
+        "net": -121779.3877493455
+      },
+      "test": {
+        "n": 7201,
+        "wr": 0.2796833773087071,
+        "pf": 0.6824338890761684,
+        "sharpe": -0.14725162475659057,
+        "net": -54432.4810458062
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_bearish_engulfing_x_high_volume_RR2_tight_0409",
+      "side": "SHORT",
+      "contexts": [
+        "high_volume"
+      ],
+      "trigger": "bearish_engulfing",
       "stop_atr": 0.8,
       "target_atr": 1.6,
       "max_hold_min": 45
