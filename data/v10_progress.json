@@ -1,0 +1,2406 @@
+{
+  "completed": [
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_2_00002",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_5_00003",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_5tight_00006",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_7wide_00009",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_8_00004",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_std_00001",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_wide_00008",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR3_std_00005",
+    "V10TC_LONG_pullback_to_vw_x_trend_am_RR3_tight_00007",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_2_00011",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_5_00012",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_5tight_00015",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_7wide_00018",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_8_00013",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_std_00010",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_wide_00017",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR3_std_00014",
+    "V10TC_LONG_pullback_to_vw_x_trend_midda_RR3_tight_00016",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_2_00020",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_5_00021",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_5tight_00024",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_7wide_00027",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_8_00022",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_std_00019",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_wide_00026",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR3_std_00023",
+    "V10TC_LONG_pullback_to_vw_x_trend_pm_RR3_tight_00025",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_2_00029",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_5_00030",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_5tight_00033",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_7wide_00036",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_8_00031",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_std_00028",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_wide_00035",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR3_std_00032",
+    "V10TC_LONG_pullback_to_vw_x_trend_rth_RR3_tight_00034",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_2_00038",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_5_00039",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_5tight_00042",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_7wide_00045",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_8_00040",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_std_00037",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_wide_00044",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR3_std_00041",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR3_tight_00043",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_2_00047",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_5_00048",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_5tight_00051",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_7wide_00054",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_8_00049",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_std_00046",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_wide_00053",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR3_std_00050",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR3_tight_00052",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_2_00056",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_5_00057",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_5tight_00060",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_8_00058",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_std_00055",
+    "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR3_std_00059"
+  ],
+  "results": [
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.2822822822822823,
+        "pf": 0.559866306326154,
+        "sharpe": -0.24512913880778772,
+        "net": -4208.670870528667
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.2462686567164179,
+        "pf": 0.504476772501324,
+        "sharpe": -0.2753914900718122,
+        "net": -2889.315648116093
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_std_00001",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.27627627627627627,
+        "pf": 0.5572008665158944,
+        "sharpe": -0.2461060002789691,
+        "net": -4312.505484138217
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.23134328358208955,
+        "pf": 0.5365579431421553,
+        "sharpe": -0.24767001899339194,
+        "net": -2767.873077769831
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_2_00002",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.25225225225225223,
+        "pf": 0.5490816015412139,
+        "sharpe": -0.2488316678240172,
+        "net": -4515.32224128322
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.21641791044776118,
+        "pf": 0.5450976764387861,
+        "sharpe": -0.23512847052510585,
+        "net": -2805.3785133781657
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_5_00003",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.23423423423423423,
+        "pf": 0.5583818707539678,
+        "sharpe": -0.2350806749049561,
+        "net": -4523.0292239870905
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.208955223880597,
+        "pf": 0.5489613118689405,
+        "sharpe": -0.22260402008545843,
+        "net": -2796.547767172162
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_8_00004",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.22822822822822822,
+        "pf": 0.5640203808842704,
+        "sharpe": -0.22540449012096078,
+        "net": -4463.250010780733
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.20149253731343283,
+        "pf": 0.5809176948653133,
+        "sharpe": -0.19801194756800014,
+        "net": -2624.3153547735146
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR3_std_00005",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.24324324324324326,
+        "pf": 0.5563890975670207,
+        "sharpe": -0.24378060742493501,
+        "net": -3701.0182801632104
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.1865671641791045,
+        "pf": 0.46901190221139494,
+        "sharpe": -0.2909428941777113,
+        "net": -2708.2096212751953
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_5tight_00006",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.21921921921921922,
+        "pf": 0.5491827596465855,
+        "sharpe": -0.24298630519696385,
+        "net": -3916.092467785498
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.15671641791044777,
+        "pf": 0.49741155834164474,
+        "sharpe": -0.25202816180465554,
+        "net": -2690.613678440628
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR3_tight_00007",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.32732732732732733,
+        "pf": 0.5952839453901151,
+        "sharpe": -0.21159485701109862,
+        "net": -5121.468128635093
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.34328358208955223,
+        "pf": 0.7019146802968055,
+        "sharpe": -0.13799964812427631,
+        "net": -2170.444379462703
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_wide_00008",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 333,
+      "n_test": 134,
+      "train": {
+        "n": 333,
+        "wr": 0.29429429429429427,
+        "pf": 0.5612159397222374,
+        "sharpe": -0.23133446691077494,
+        "net": -5912.526176971376
+      },
+      "test": {
+        "n": 134,
+        "wr": 0.29850746268656714,
+        "pf": 0.7560081337524632,
+        "sharpe": -0.10234673804612296,
+        "net": -1864.7308314511342
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_am_RR2_7wide_00009",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "am"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.2383177570093458,
+        "pf": 0.41801315718146836,
+        "sharpe": -0.3546236041906104,
+        "net": -3387.2200160315642
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.35789473684210527,
+        "pf": 0.8473922587408377,
+        "sharpe": -0.0702522312871679,
+        "net": -504.9531967920557
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_std_00010",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.2383177570093458,
+        "pf": 0.40101445163363914,
+        "sharpe": -0.365855794920546,
+        "net": -3656.025449480203
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.3368421052631579,
+        "pf": 0.8164424057462721,
+        "sharpe": -0.0847296914242138,
+        "net": -626.169218550778
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_2_00011",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.22429906542056074,
+        "pf": 0.3788669544233409,
+        "sharpe": -0.3867754556599489,
+        "net": -3876.7905343272027
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.28421052631578947,
+        "pf": 0.6335484801243949,
+        "sharpe": -0.19118923470645127,
+        "net": -1331.4503217014287
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_5_00012",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.2102803738317757,
+        "pf": 0.43736396423508067,
+        "sharpe": -0.3206118786697761,
+        "net": -3540.8572574100563
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.2631578947368421,
+        "pf": 0.6395756017289801,
+        "sharpe": -0.17896390047830835,
+        "net": -1328.569630088154
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_8_00013",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.2102803738317757,
+        "pf": 0.3879467404450324,
+        "sharpe": -0.37075953905215187,
+        "net": -3901.6054682792
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.2736842105263158,
+        "pf": 0.6823293189682899,
+        "sharpe": -0.15053012270344743,
+        "net": -1184.8618813052606
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR3_std_00014",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.21495327102803738,
+        "pf": 0.46412901645533566,
+        "sharpe": -0.30646121204140864,
+        "net": -2746.0109056176425
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.3157894736842105,
+        "pf": 0.8371804580818705,
+        "sharpe": -0.07389340485066236,
+        "net": -483.0564194981854
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_5tight_00015",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.20093457943925233,
+        "pf": 0.42962961393079047,
+        "sharpe": -0.3268903981833941,
+        "net": -3064.986737678906
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.24210526315789474,
+        "pf": 0.6000000132799227,
+        "sharpe": -0.21202221714211628,
+        "net": -1311.7456385676276
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR3_tight_00016",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.3598130841121495,
+        "pf": 0.5375084593038076,
+        "sharpe": -0.2456236296011412,
+        "net": -3245.0227226946904
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.3684210526315789,
+        "pf": 0.6956968573583884,
+        "sharpe": -0.142769118187839,
+        "net": -1291.637106113471
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_wide_00017",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 214,
+      "n_test": 95,
+      "train": {
+        "n": 214,
+        "wr": 0.3177570093457944,
+        "pf": 0.5251901713290313,
+        "sharpe": -0.24788094126981736,
+        "net": -3553.428297887207
+      },
+      "test": {
+        "n": 95,
+        "wr": 0.3473684210526316,
+        "pf": 0.6867755667736372,
+        "sharpe": -0.14627691305767865,
+        "net": -1387.2163546251545
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_midda_RR2_7wide_00018",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "midday"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.2761904761904762,
+        "pf": 0.5632824686204436,
+        "sharpe": -0.21489296756451481,
+        "net": -1114.7513532752948
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.6344735404929351,
+        "sharpe": -0.17966138517985175,
+        "net": -491.65764290604557
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_std_00019",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.2571428571428571,
+        "pf": 0.5603426891878199,
+        "sharpe": -0.2142282913719667,
+        "net": -1177.3218473335983
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.6898309454602616,
+        "sharpe": -0.14474366404094416,
+        "net": -414.25160847790676
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_2_00020",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.24761904761904763,
+        "pf": 0.5072887638978775,
+        "sharpe": -0.24736078476442186,
+        "net": -1362.1859168115097
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.6582567181069833,
+        "sharpe": -0.16278548406424914,
+        "net": -450.0988594462556
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_5_00021",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.23809523809523808,
+        "pf": 0.521930795912235,
+        "sharpe": -0.23000083676970526,
+        "net": -1340.5445716918657
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.5956816513503788,
+        "sharpe": -0.1971208976970014,
+        "net": -533.7273809984632
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_8_00022",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.24761904761904763,
+        "pf": 0.4231222795729775,
+        "sharpe": -0.3127400810832817,
+        "net": -1664.9322754790464
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.559925274809829,
+        "sharpe": -0.2161612497806515,
+        "net": -580.928200028125
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR3_std_00023",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.24761904761904763,
+        "pf": 0.5570223545077283,
+        "sharpe": -0.21681781489009344,
+        "net": -1089.9174732531028
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.2564102564102564,
+        "pf": 0.5732030752731855,
+        "sharpe": -0.22247252986525576,
+        "net": -523.740999665782
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_5tight_00024",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.21904761904761905,
+        "pf": 0.5181119395458026,
+        "sharpe": -0.2319714206756868,
+        "net": -1228.816955867649
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.2564102564102564,
+        "pf": 0.538649598568707,
+        "sharpe": -0.24902155285948516,
+        "net": -564.759016945734
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR3_tight_00025",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.3333333333333333,
+        "pf": 0.4825257869879273,
+        "sharpe": -0.27137582888980727,
+        "net": -1815.350070675182
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.3076923076923077,
+        "pf": 0.458979601207665,
+        "sharpe": -0.28726248526010434,
+        "net": -871.2571601901959
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_wide_00026",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 105,
+      "n_test": 39,
+      "train": {
+        "n": 105,
+        "wr": 0.29523809523809524,
+        "pf": 0.4388026827183092,
+        "sharpe": -0.2969011622667796,
+        "net": -2070.851822196777
+      },
+      "test": {
+        "n": 39,
+        "wr": 0.2564102564102564,
+        "pf": 0.3744310030951716,
+        "sharpe": -0.3658370860478809,
+        "net": -1090.144157685174
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_pm_RR2_7wide_00027",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "pm"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.26798561151079137,
+        "pf": 0.5076440104885721,
+        "sharpe": -0.2787653744789184,
+        "net": -7515.773832116539
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.2948717948717949,
+        "pf": 0.6378698285364643,
+        "sharpe": -0.18276156023717022,
+        "net": -3269.5316505540404
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_std_00028",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.2607913669064748,
+        "pf": 0.506291389880581,
+        "sharpe": -0.2776850869824108,
+        "net": -7743.5456166404465
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.28205128205128205,
+        "pf": 0.6568665718759378,
+        "sharpe": -0.1678978521211556,
+        "net": -3152.2390669873434
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_2_00029",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.2446043165467626,
+        "pf": 0.49331050396840936,
+        "sharpe": -0.28549098186416805,
+        "net": -8137.321089487306
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.25213675213675213,
+        "pf": 0.6027116683437156,
+        "sharpe": -0.1979284688270664,
+        "net": -3807.515149956992
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_5_00030",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.2302158273381295,
+        "pf": 0.5184573179872782,
+        "sharpe": -0.25880625239697463,
+        "net": -7875.381750690351
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.23931623931623933,
+        "pf": 0.6015379923270142,
+        "sharpe": -0.19043811988465922,
+        "net": -3853.4351020919503
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_8_00031",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.2302158273381295,
+        "pf": 0.5019667746417811,
+        "sharpe": -0.2681186251210202,
+        "net": -8186.648389140761
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.23931623931623933,
+        "pf": 0.6326314131460269,
+        "sharpe": -0.1686887563344911,
+        "net": -3592.7922399947793
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR3_std_00032",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.2356115107913669,
+        "pf": 0.5137932364230584,
+        "sharpe": -0.26975459558986065,
+        "net": -6570.671526899249
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.24358974358974358,
+        "pf": 0.6096699164382199,
+        "sharpe": -0.1950809321580932,
+        "net": -3128.146178280587
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_5tight_00033",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.21402877697841727,
+        "pf": 0.5054824085392798,
+        "sharpe": -0.26916903806810855,
+        "net": -6935.8397220712095
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.20085470085470086,
+        "pf": 0.5563387667296906,
+        "sharpe": -0.21962607204801948,
+        "net": -3778.988173832376
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR3_tight_00034",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.34172661870503596,
+        "pf": 0.5732689561627416,
+        "sharpe": -0.22162779235513058,
+        "net": -8354.805280512632
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.34615384615384615,
+        "pf": 0.7053631880385106,
+        "sharpe": -0.13459234249445537,
+        "net": -3357.0339850502214
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_wide_00035",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 556,
+      "n_test": 234,
+      "train": {
+        "n": 556,
+        "wr": 0.30935251798561153,
+        "pf": 0.5508858167750244,
+        "sharpe": -0.232750657172916,
+        "net": -9298.997905217766
+      },
+      "test": {
+        "n": 234,
+        "wr": 0.31196581196581197,
+        "pf": 0.7223920523691952,
+        "sharpe": -0.11897171066156788,
+        "net": -3319.8981097955484
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_rth_RR2_7wide_00036",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "rth"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.2552083333333333,
+        "pf": 0.5501595746899747,
+        "sharpe": -0.251510730114132,
+        "net": -2684.120502365126
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.24390243902439024,
+        "pf": 0.5390557232552785,
+        "sharpe": -0.23807317693105504,
+        "net": -1629.0148382282105
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_std_00037",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.24479166666666666,
+        "pf": 0.5523901115664359,
+        "sharpe": -0.24874545086840144,
+        "net": -2704.686410988256
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.24390243902439024,
+        "pf": 0.6050762702730247,
+        "sharpe": -0.1890773632376616,
+        "net": -1395.1004305458746
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_2_00038",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.22916666666666666,
+        "pf": 0.5527246585462692,
+        "sharpe": -0.24365412450775942,
+        "net": -2772.4810902465147
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.21951219512195122,
+        "pf": 0.6077770223971045,
+        "sharpe": -0.18062602829491883,
+        "net": -1439.1653167104132
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_5_00039",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.20833333333333334,
+        "pf": 0.5617916687599671,
+        "sharpe": -0.22884258065129864,
+        "net": -2764.1634394482617
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.2073170731707317,
+        "pf": 0.6331648066660772,
+        "sharpe": -0.1579606709086109,
+        "net": -1357.4740816059393
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_8_00040",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.203125,
+        "pf": 0.5642992849880577,
+        "sharpe": -0.2208012683614962,
+        "net": -2759.431704976215
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.2073170731707317,
+        "pf": 0.6882823717661852,
+        "sharpe": -0.1277109647230671,
+        "net": -1163.4864286425334
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR3_std_00041",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.22395833333333334,
+        "pf": 0.5482289126987977,
+        "sharpe": -0.2463044256113034,
+        "net": -2316.920261147917
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.18292682926829268,
+        "pf": 0.5555961475943021,
+        "sharpe": -0.21453983370068516,
+        "net": -1363.3403771767162
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_5tight_00042",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.19791666666666666,
+        "pf": 0.5517518013490128,
+        "sharpe": -0.2358238908269541,
+        "net": -2385.613725519116
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.15853658536585366,
+        "pf": 0.6121033941314167,
+        "sharpe": -0.1642499069929281,
+        "net": -1227.43773282076
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR3_tight_00043",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.2916666666666667,
+        "pf": 0.5707619595917947,
+        "sharpe": -0.22841981901111,
+        "net": -3478.823122219543
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.35365853658536583,
+        "pf": 0.8392042766444421,
+        "sharpe": -0.06586168489356045,
+        "net": -698.8499400672051
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_wide_00044",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 192,
+      "n_test": 82,
+      "train": {
+        "n": 192,
+        "wr": 0.2552083333333333,
+        "pf": 0.5271593899657698,
+        "sharpe": -0.25621783147985366,
+        "net": -4085.2598399482035
+      },
+      "test": {
+        "n": 82,
+        "wr": 0.3048780487804878,
+        "pf": 0.8847376898592193,
+        "sharpe": -0.0426535469186679,
+        "net": -533.3881460627715
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_093_RR2_7wide_00045",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_0930_1000"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.2752808988764045,
+        "pf": 0.5192295713110657,
+        "sharpe": -0.28565566878402354,
+        "net": -2799.8450678132676
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.2903225806451613,
+        "pf": 0.49410156279410816,
+        "sharpe": -0.305789025265527,
+        "net": -1468.3011403219982
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_std_00046",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.2640449438202247,
+        "pf": 0.5276768088918464,
+        "sharpe": -0.2754152756739241,
+        "net": -2777.65866466127
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.25806451612903225,
+        "pf": 0.5188256059254961,
+        "sharpe": -0.28498746214367254,
+        "net": -1433.5713362976726
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_2_00047",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.24719101123595505,
+        "pf": 0.5315040006339741,
+        "sharpe": -0.26735065409845,
+        "net": -2814.62964389454
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.24193548387096775,
+        "pf": 0.514319528424513,
+        "sharpe": -0.2885123640712863,
+        "net": -1514.423764240642
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_5_00048",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.2303370786516854,
+        "pf": 0.561076867333007,
+        "sharpe": -0.239592631696365,
+        "net": -2700.3121838281286
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.22580645161290322,
+        "pf": 0.5087812581575565,
+        "sharpe": -0.28757330407559234,
+        "net": -1548.025088597196
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_8_00049",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.24157303370786518,
+        "pf": 0.5955229060466908,
+        "sharpe": -0.2106326728405052,
+        "net": -2470.881816593782
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.22580645161290322,
+        "pf": 0.5578387337866869,
+        "sharpe": -0.2459116726581553,
+        "net": -1406.0271212142447
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR3_std_00050",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.2303370786516854,
+        "pf": 0.5073001841669375,
+        "sharpe": -0.29148776703726254,
+        "net": -2502.790337304593
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.20967741935483872,
+        "pf": 0.40578325935749887,
+        "sharpe": -0.39218029320119613,
+        "net": -1555.2122962783956
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_5tight_00051",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.21348314606741572,
+        "pf": 0.5549269746321657,
+        "sharpe": -0.2419788140313617,
+        "net": -2293.484071731727
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.16129032258064516,
+        "pf": 0.4055907466408401,
+        "sharpe": -0.3832959110095505,
+        "net": -1651.723709529438
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR3_tight_00052",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.3539325842696629,
+        "pf": 0.6093574810478712,
+        "sharpe": -0.20664085443299446,
+        "net": -2946.3384578670693
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.3709677419354839,
+        "pf": 0.6664231054177159,
+        "sharpe": -0.1692540438678255,
+        "net": -1199.3253701596163
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_wide_00053",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 178,
+      "n_test": 62,
+      "train": {
+        "n": 178,
+        "wr": 0.34831460674157305,
+        "pf": 0.6250700424369935,
+        "sharpe": -0.1889637145345625,
+        "net": -2924.724528760965
+      },
+      "test": {
+        "n": 62,
+        "wr": 0.3387096774193548,
+        "pf": 0.7330630867948831,
+        "sharpe": -0.1268593613943998,
+        "net": -988.5390078023088
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_100_RR2_7wide_00054",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1000_1030"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.5,
+      "target_atr": 4.0,
+      "max_hold_min": 90,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.3191489361702128,
+        "pf": 0.6954661496985204,
+        "sharpe": -0.1528172131879499,
+        "net": -326.0441975124692
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.37846722625157886,
+        "sharpe": -0.387517971961357,
+        "net": -302.46984319998876
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_std_00055",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.3191489361702128,
+        "pf": 0.6953340594553341,
+        "sharpe": -0.15067550572075064,
+        "net": -345.3639422972125
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.35393888108682725,
+        "sharpe": -0.41405331420819974,
+        "net": -314.4065986363813
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_2_00056",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.2,
+      "max_hold_min": 50,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.2978723404255319,
+        "pf": 0.5505437483061246,
+        "sharpe": -0.26485298610667335,
+        "net": -536.9582703703041
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.45248192902803175,
+        "sharpe": -0.32904662711912913,
+        "net": -266.4504786727222
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_5_00057",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.5,
+      "max_hold_min": 60,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.2765957446808511,
+        "pf": 0.5203787000650891,
+        "sharpe": -0.28680524786473743,
+        "net": -581.5843803016402
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.5849301446988461,
+        "sharpe": -0.22798283051292134,
+        "net": -201.99435870907038
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_8_00058",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 2.8,
+      "max_hold_min": 70,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.2765957446808511,
+        "pf": 0.5050641629270471,
+        "sharpe": -0.2978622503449887,
+        "net": -598.9173076930207
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.44582459784837986,
+        "sharpe": -0.32811570358785885,
+        "net": -269.6902787332976
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR3_std_00059",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 1.0,
+      "target_atr": 3.0,
+      "max_hold_min": 75,
+      "user_pass": false,
+      "rigorous_pass": false
+    },
+    {
+      "n_train": 47,
+      "n_test": 13,
+      "train": {
+        "n": 47,
+        "wr": 0.2978723404255319,
+        "pf": 0.7052714121628794,
+        "sharpe": -0.1449072780868143,
+        "net": -288.3423642964778
+      },
+      "test": {
+        "n": 13,
+        "wr": 0.3076923076923077,
+        "pf": 0.4636519152418225,
+        "sharpe": -0.3082351984994699,
+        "net": -213.05954752600812
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": false,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V10TC_LONG_pullback_to_vw_x_trend_t_143_RR2_5tight_00060",
+      "side": "LONG",
+      "contexts": [
+        "trend_up_strong",
+        "t_1430_1500"
+      ],
+      "trigger": "pullback_to_vwap_long",
+      "stop_atr": 0.8,
+      "target_atr": 2.0,
+      "max_hold_min": 45,
+      "user_pass": false,
+      "rigorous_pass": false
+    }
+  ]
+}
