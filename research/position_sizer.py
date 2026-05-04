@@ -22,10 +22,30 @@ logger = logging.getLogger("sizer")
 
 VALIDATION_PATH = DATA_DIR / "validation_results.json"
 
-BASE_CONTRACTS = 30
+# Sizing defaults RECALIBRATED 2026-05-04 for Lucid 50K Pro Funded.
+# Old values (BASE 30, MAX 60) were tuned for TopStep where the trail
+# locks at $50K break-even and the account's buffer-to-trail can grow
+# unboundedly with profits. On Lucid the trail is a perpetual $2K
+# below peak EOD, so the buffer never exceeds ~$2K — meaning a 30-
+# contract MNQ position with a 19pt stop = $1,140 risk = blows the
+# entire DLL and ~half the buffer on ONE losing trade.
+#
+# Empirically (live_sim 12-month replay): the previous 40-contract
+# default with $19 stops produced $1,000+ losses per trade and blew
+# 2 accounts in 12 months from just 6 stop-outs.
+#
+# New defaults:
+#   BASE_CONTRACTS = 5    →  $190 risk / trade (well within DLL room)
+#   MAX_CONTRACTS = 15    →  $570 risk / trade for high-conviction
+#                              (still <50% of $1,200 DLL)
+#
+# Once an account has $10K+ buffer above the trail (i.e., the LucidScale
+# regime is well past initial), funded_5sim's buffer-cap will allow
+# proportionally larger positions automatically. This is the SAFE FLOOR.
+BASE_CONTRACTS = 5
 MIN_CONTRACTS = 1
-MAX_CONTRACTS = 60
-KELLY_CAP = 0.25       # never bet more than 25% of Kelly fraction
+MAX_CONTRACTS = 15
+KELLY_CAP = 0.25       # 1/4 Kelly fraction
 DOLLAR_PER_POINT_MNQ = 2.0   # 1 MNQ = $2 per point
 
 
