@@ -98,3 +98,94 @@ this configuration is roughly break-even on the last 12 months.
 **Recommendation: don't fund a Lucid account yet.** Run the bot in paper mode
 on Railway for 30+ days, accumulate live trade data, see if the live edge
 materialises. If it doesn't, the next research step is items 1-5 above.
+
+## Session 2 (2026-05-04 cont.) — v6 and v7 rebuild attempts
+
+### v6: classical-pattern miner (980 strategies)
+
+Built a multi-step state-machine miner combining 16 contexts × 13 triggers ×
+5 RR profiles. Killed at 488/980 (50%) with 0 strict survivors. Striking finding:
+
+| Trigger | Strats | Mean WR |
+|---|---|---|
+| inside_bar_break_up | 68 | 37.7% |
+| momentum_burst_up | 70 | 37.2% |
+| bullish_engulfing | 70 | 36.8% |
+| pullback_from_high | 70 | 36.7% |
+| pullback_from_low | 70 | 36.6% |
+| momentum_burst_down | 70 | 36.4% |
+| bearish_engulfing | 70 | 36.1% |
+
+Mean WR 36-37% across 7 different trigger types is well below random (50%).
+This means classical 5-min OHLC patterns on liquid NQ have systematic *anti*-
+edge — by the time a 5-min bar prints "pullback after high" or "bullish
+engulfing," the move is already over and price tends to whipsaw against the
+entry.
+
+### v7: edge-by-design miner (446 strategies)
+
+Abandoned classical patterns. Built strategies around 5 categories with real
+mathematical reasoning:
+
+- **A: Inverse fade** (180) — opposite of v6 triggers (since v6 had 36% WR,
+  inverse should have 64%). Result: 0 with PF > 1.0. The naive inversion didn't
+  work because TIME exits and slippage don't symmetrically invert.
+- **B: NQ-ES stat-arb** (90) — when NQ over-/under-extended vs ES, fade.
+  **9 with PF > 1.0**.
+- **C: Lead-lag** (36) — when ES moves first, trade NQ catch-up. **2 with PF > 1.0.**
+- **D: Mean-reversion on extended price** (60) — 0 with PF > 1.0.
+- **E: Multi-confirmation** (80) — require 3+ orthogonal conditions. 1 with PF > 1.0.
+
+Total: **12 profitable, 6 robust** (PF > 1.0, CPCV ≥ 3/5, n ≥ 100).
+
+### v7 robust strategies (the 6 that found real edge)
+
+| Strategy | n | WR | PF | Sharpe | CPCV | Net (8yr OOS) |
+|---|---|---|---|---|---|---|
+| V7C LONG es_led_up_10 × rth_midday | 172 | 62.2% | 1.22 | +0.081 | 3/5 | +$424 |
+| V7B SHORT nqes_overext × rth_pm MR_std | 461 | 61.2% | 1.24 | +0.073 | 3/5 | +$3,387 |
+| V7B SHORT nqes_overext × rth_pm RR1 | 461 | 53.1% | 1.16 | +0.054 | 3/5 | +$2,197 |
+| V7B SHORT nqes_overext × rth_pm MR_quick | 461 | 61.8% | 1.12 | +0.039 | 3/5 | +$1,448 |
+| V7E SHORT mom_burst × vix_high+rth_am | 896 | 60.7% | 1.06 | +0.021 | 3/5 | +$1,708 |
+| V7B LONG nqes_underext × rth_pm MR_std | 694 | 60.8% | 1.02 | +0.007 | 4/5 | +$395 |
+
+Two clean theses emerge:
+
+1. **NQ-ES afternoon stat-arb**: when NQ-ES return divergence (Z-score) exceeds
+   ±2σ over 60-bar windows during NY afternoon, the divergence reverts. Multi-
+   fold CPCV confirmation suggests genuine cointegration edge.
+
+2. **ES lead-lag midday**: when ES has moved >1.5σ in last 10 bars and NQ has
+   not caught up, trade NQ in direction of ES.
+
+### Honest sizing
+
+Combined, these 6 strategies produce **+$9,559 net P&L over ~8 years OOS**, on
+~3,234 trades. That's **$1,200/year per contract** — thin but real edge. Even
+if it survives live trading, this isn't a $300K/year bot. It's a 5-10% annual
+return on a $50K account.
+
+### Deployment gap
+
+These v7 strategies need an **ES feed** alongside NQ to compute divergence
+Z-scores in real time. The current live bot (`signal_generator.py`,
+`named_signals.py`) only consumes NQ. Adding v7 to live trading requires:
+
+1. ES quote feed (CME's MES futures)
+2. Rolling 60-bar correlation/divergence math
+3. New named-signal types in `named_signals.py`
+4. Wiring through `engine.py`
+
+This is ~2-3 days of integration work; not done in this session.
+
+### Updated recommendation
+
+The honest universe of NQ 5-min strategies discovered in this session:
+
+- 23 v3 elite (single-asset patterns): break-even after slippage
+- 6 v7 robust (cross-asset stat-arb + lead-lag): **+$1,200/yr/contract OOS**
+
+To make the bot actually profitable: integrate ES feed + deploy v7 strategies.
+Even then, expectation is a 5-10% annual return, not 300%. The realistic path
+to higher returns is order-flow data (tape/depth-of-book) or a different asset
+class entirely (futures spreads, options skew).

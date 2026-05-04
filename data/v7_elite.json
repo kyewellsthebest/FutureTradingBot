@@ -1,0 +1,665 @@
+{
+  "ran_at": "2026-05-04T10:55:16.747477+00:00",
+  "n_total_tested": 446,
+  "n_profitable_pf_gt_1": 12,
+  "n_robust_pf_gt_1_cpcv_3_n_100": 6,
+  "robust_strategies": [
+    {
+      "n_train": 4,
+      "n_test": 172,
+      "train": {
+        "n": 4,
+        "wr": 0.25,
+        "pf": 0.5072067771087624,
+        "sharpe": -0.2734086244386032,
+        "net": -20.9824694924624
+      },
+      "test": {
+        "n": 172,
+        "wr": 0.622093023255814,
+        "pf": 1.215166211516219,
+        "sharpe": 0.08053801359979408,
+        "net": 424.0654508444669
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_LONG_es_led_up_10_x_rth_midday_fast_0292",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_up_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.5,
+      "max_hold_min": 10
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.24324324324324326,
+        "pf": 0.2597137290387528,
+        "sharpe": -0.5663143515011935,
+        "net": -429.9182079624994
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.6117136659436009,
+        "pf": 1.2373792673131576,
+        "sharpe": 0.07253586655211759,
+        "net": 3387.229480322446
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_MR_std_0222",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.1891891891891892,
+        "pf": 0.1699173332371931,
+        "sharpe": -0.8559509810421699,
+        "net": -556.6966388581392
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.5314533622559653,
+        "pf": 1.1610749755169099,
+        "sharpe": 0.0542667442467225,
+        "net": 2196.6457521650755
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_RR1_0224",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.2702702702702703,
+        "pf": 0.27230521680943126,
+        "sharpe": -0.5316422584679262,
+        "net": -361.00605613754726
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.6182212581344902,
+        "pf": 1.118467606654772,
+        "sharpe": 0.03857183020614809,
+        "net": 1448.0673280652654
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_MR_quick_0221",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 0,
+      "n_test": 896,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 896,
+        "wr": 0.6071428571428571,
+        "pf": 1.0554339380132476,
+        "sharpe": 0.021394923198351106,
+        "net": 1708.0129176948055
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7E_SHORT_momentum_burst_x_vix_hi_rth_mo_MR_std_0423",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high",
+        "rth_morning"
+      ],
+      "trigger": "momentum_burst_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 20,
+      "n_test": 694,
+      "train": {
+        "n": 20,
+        "wr": 0.5,
+        "pf": 0.9619776468942135,
+        "sharpe": -0.016105149723010425,
+        "net": -20.436031775265313
+      },
+      "test": {
+        "n": 694,
+        "wr": 0.6080691642651297,
+        "pf": 1.0180180228324274,
+        "sharpe": 0.006988521351893691,
+        "net": 394.6177560788624
+      },
+      "cpcv_positive": 4,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_LONG_nqes_underextended_x_rth_afternoon_MR_std_0237",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_underextended_20",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    }
+  ],
+  "all_profitable": [
+    {
+      "n_train": 4,
+      "n_test": 172,
+      "train": {
+        "n": 4,
+        "wr": 0.25,
+        "pf": 0.5072067771087624,
+        "sharpe": -0.2734086244386032,
+        "net": -20.9824694924624
+      },
+      "test": {
+        "n": 172,
+        "wr": 0.622093023255814,
+        "pf": 1.215166211516219,
+        "sharpe": 0.08053801359979408,
+        "net": 424.0654508444669
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_LONG_es_led_up_10_x_rth_midday_fast_0292",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_up_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.5,
+      "max_hold_min": 10
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.24324324324324326,
+        "pf": 0.2597137290387528,
+        "sharpe": -0.5663143515011935,
+        "net": -429.9182079624994
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.6117136659436009,
+        "pf": 1.2373792673131576,
+        "sharpe": 0.07253586655211759,
+        "net": 3387.229480322446
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_MR_std_0222",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.24324324324324326,
+        "pf": 0.22152717844164643,
+        "sharpe": -0.6546422530029218,
+        "net": -530.0263861118989
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.5878524945770065,
+        "pf": 1.1973572326769149,
+        "sharpe": 0.06288832018537263,
+        "net": 2835.413738346733
+      },
+      "cpcv_positive": 2,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_MR_balanced_0223",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.1891891891891892,
+        "pf": 0.1699173332371931,
+        "sharpe": -0.8559509810421699,
+        "net": -556.6966388581392
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.5314533622559653,
+        "pf": 1.1610749755169099,
+        "sharpe": 0.0542667442467225,
+        "net": 2196.6457521650755
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_RR1_0224",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.2702702702702703,
+        "pf": 0.27230521680943126,
+        "sharpe": -0.5316422584679262,
+        "net": -361.00605613754726
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.6182212581344902,
+        "pf": 1.118467606654772,
+        "sharpe": 0.03857183020614809,
+        "net": 1448.0673280652654
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_MR_quick_0221",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 37,
+      "n_test": 461,
+      "train": {
+        "n": 37,
+        "wr": 0.16216216216216217,
+        "pf": 0.15213265035410467,
+        "sharpe": -0.9269969906909568,
+        "net": -711.6038184814139
+      },
+      "test": {
+        "n": 461,
+        "wr": 0.47071583514099785,
+        "pf": 1.081083570709127,
+        "sharpe": 0.027789843784222775,
+        "net": 1305.4970331328395
+      },
+      "cpcv_positive": 2,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_afternoon_RR1_5_0225",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 896,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 896,
+        "wr": 0.6071428571428571,
+        "pf": 1.0554339380132476,
+        "sharpe": 0.021394923198351106,
+        "net": 1708.0129176948055
+      },
+      "cpcv_positive": 3,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7E_SHORT_momentum_burst_x_vix_hi_rth_mo_MR_std_0423",
+      "side": "SHORT",
+      "contexts": [
+        "vix_high",
+        "rth_morning"
+      ],
+      "trigger": "momentum_burst_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 65,
+      "n_test": 2170,
+      "train": {
+        "n": 65,
+        "wr": 0.3384615384615385,
+        "pf": 0.49307664401053325,
+        "sharpe": -0.3013619200870204,
+        "net": -789.7298446953573
+      },
+      "test": {
+        "n": 2170,
+        "wr": 0.5631336405529954,
+        "pf": 1.0207691296110812,
+        "sharpe": 0.007553836710782053,
+        "net": 1249.0425275833004
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_midday_MR_std_0217",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 20,
+      "n_test": 694,
+      "train": {
+        "n": 20,
+        "wr": 0.5,
+        "pf": 0.9619776468942135,
+        "sharpe": -0.016105149723010425,
+        "net": -20.436031775265313
+      },
+      "test": {
+        "n": 694,
+        "wr": 0.6080691642651297,
+        "pf": 1.0180180228324274,
+        "sharpe": 0.006988521351893691,
+        "net": 394.6177560788624
+      },
+      "cpcv_positive": 4,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": true,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_LONG_nqes_underextended_x_rth_afternoon_MR_std_0237",
+      "side": "LONG",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "nqes_underextended_20",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 65,
+      "n_test": 2170,
+      "train": {
+        "n": 65,
+        "wr": 0.36923076923076925,
+        "pf": 0.47907401880732053,
+        "sharpe": -0.31503868306437366,
+        "net": -627.0634241263941
+      },
+      "test": {
+        "n": 2170,
+        "wr": 0.5903225806451613,
+        "pf": 1.0171865032111904,
+        "sharpe": 0.0063148508818413555,
+        "net": 815.3487173446829
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_midday_MR_quick_0216",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 65,
+      "n_test": 2170,
+      "train": {
+        "n": 65,
+        "wr": 0.3384615384615385,
+        "pf": 0.5124923811449261,
+        "sharpe": -0.295958136137555,
+        "net": -730.709367101219
+      },
+      "test": {
+        "n": 2170,
+        "wr": 0.5516129032258065,
+        "pf": 1.0035643489483146,
+        "sharpe": 0.0013557483691036736,
+        "net": 215.46876857617008
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7B_SHORT_nqes_overextended__x_rth_midday_MR_balanced_0218",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "nqes_overextended_20",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 4,
+      "n_test": 172,
+      "train": {
+        "n": 4,
+        "wr": 0.25,
+        "pf": 0.5950558916573099,
+        "sharpe": -0.22911563061251172,
+        "net": -20.683997831177837
+      },
+      "test": {
+        "n": 172,
+        "wr": 0.5697674418604651,
+        "pf": 1.0003597926671957,
+        "sharpe": 0.00015208814255511434,
+        "net": 1.0018832342859838
+      },
+      "cpcv_positive": 2,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_LONG_es_led_up_10_x_rth_midday_med_0293",
+      "side": "LONG",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_up_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.7,
+      "max_hold_min": 15
+    }
+  ],
+  "thesis": {
+    "primary": "NQ-ES statistical arbitrage during NY afternoon. When NQ diverges >2 sigma from its 60-bar return correlation with ES, fade the divergence (SHORT if NQ over-extended, LONG if under). Multi-fold CPCV confirmation suggests real cointegration edge.",
+    "secondary": "ES lead-lag during NY midday. When ES moves >1.5 sigma in last 10 bars and NQ hasn't caught up, take NQ in direction of ES."
+  },
+  "deployment_notes": "These strategies require live ES quotes alongside NQ. The current bot (signal_generator.py) only consumes NQ data. To deploy these honestly would need: (1) ES data feed; (2) rolling 60-bar correlation/divergence computation; (3) new named-signal types in named_signals.py."
+}
