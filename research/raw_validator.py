@@ -56,6 +56,8 @@ logging.getLogger("signal_engine").setLevel(logging.WARNING)
 MNQ_DPP  = 2.0     # $/pt/MNQ
 MNQ_COMM = 0.40    # round-trip per MNQ
 MAX_HOLD_MIN = 60
+COOLDOWN_MIN = 30  # min minutes after a closed trade before same strategy can re-enter
+                    # (mirrors signal_filters.cooldown_filter on the live bot)
 
 # Five rigorous tests (raw, before engine filters)
 MIN_SAMPLE = 30
@@ -104,19 +106,20 @@ class RawResult:
     timestamps: list[str] = field(default_factory=list)
 
 
-def _walk_exit_1m(bars_1m: pd.DataFrame, entry_ts: pd.Timestamp,
-                   side: str, entry_filled: float,
-                   stop_px: float, target_px: float) -> tuple[float, str]:
+def _walk_exit_1m_with_ts(bars_1m: pd.DataFrame, entry_ts: pd.Timestamp,
+                            side: str, entry_filled: float,
+                            stop_px: float, target_px: float
+                            ) -> tuple[float, str, pd.Timestamp]:
     """Walk 1-min bars from entry+1 to entry+max_hold; first stop or target hit
-    closes the trade. Returns (exit_px_filled, reason)."""
+    closes the trade. Returns (exit_px_filled, reason, exit_ts)."""
     start = entry_ts + pd.Timedelta(minutes=1)
     end = entry_ts + pd.Timedelta(minutes=MAX_HOLD_MIN)
     try:
         window = bars_1m.loc[start:end]
     except KeyError:
-        return entry_filled, "TIME"
+        return entry_filled, "TIME", entry_ts
     if window.empty:
-        return entry_filled, "TIME"
+        return entry_filled, "TIME", entry_ts
     for ts_1m, bar in window.iterrows():
         h = float(bar["high"]); l = float(bar["low"])
         if side == "LONG":
@@ -126,14 +129,14 @@ def _walk_exit_1m(bars_1m: pd.DataFrame, entry_ts: pd.Timestamp,
             stop_hit = h >= stop_px
             tgt_hit  = l <= target_px
         if stop_hit and tgt_hit:
-            # Conservative — assume stop hit first
-            return stop_px - ADVERSE_SLIPPAGE_POINTS if side == "LONG" else stop_px + ADVERSE_SLIPPAGE_POINTS, "STOP"
+            return ((stop_px - ADVERSE_SLIPPAGE_POINTS) if side == "LONG"
+                    else (stop_px + ADVERSE_SLIPPAGE_POINTS)), "STOP", ts_1m
         if stop_hit:
-            return (stop_px - ADVERSE_SLIPPAGE_POINTS) if side == "LONG" \
-                   else (stop_px + ADVERSE_SLIPPAGE_POINTS), "STOP"
+            return ((stop_px - ADVERSE_SLIPPAGE_POINTS) if side == "LONG"
+                    else (stop_px + ADVERSE_SLIPPAGE_POINTS)), "STOP", ts_1m
         if tgt_hit:
-            return target_px, "TARGET"
-    return float(window.iloc[-1]["close"]), "TIME"
+            return target_px, "TARGET", ts_1m
+    return float(window.iloc[-1]["close"]), "TIME", window.index[-1]
 
 
 def _compute_pnl(side: str, entry_filled: float, exit_filled: float) -> float:
@@ -231,27 +234,41 @@ def main():
                 f"across {len(by_strategy):,} strategies that fire at least once")
 
     # ---- For each candidate, simulate every signal's outcome ----
+    # Realism rules (mirrors live bot):
+    #   1. ONE position at a time per strategy — new signal during open
+    #      trade is skipped (no doubling up on the same edge)
+    #   2. After a close, COOLDOWN_MIN minutes must elapse before the
+    #      same strategy can re-enter (otherwise persistent conditions
+    #      generate fake duplicate "trades" that all hit the same target)
     results: list[RawResult] = []
     t0 = time.time()
     for i, name in enumerate(candidate_names):
-        events = by_strategy.get(name) or []
+        events = sorted(by_strategy.get(name) or [], key=lambda e: e["ts"])
         meta = sigs_meta.get(name) or {}
         stop_pts = float(meta.get("stop_pts") or _parse_stop_target(name)[0])
         tgt_pts  = float(meta.get("target_pts") or _parse_stop_target(name)[1])
         res = RawResult(name=name, n_raw=len(events))
+        # Track when this strategy can fire next (last_exit_ts + cooldown)
+        cleared_at: Optional[pd.Timestamp] = None
         for ev in events:
+            ts = ev["ts"]
+            # Skip if still cooling down from prior trade
+            if cleared_at is not None and ts < cleared_at:
+                continue
             res.side = ev["side"]
             entry_raw = ev["entry_px"]
-            # Apply entry slippage
             entry_filled = entry_raw + SLIPPAGE_POINTS if ev["side"] == "LONG" \
                                                        else entry_raw - SLIPPAGE_POINTS
             stop_px = entry_raw - stop_pts if ev["side"] == "LONG" else entry_raw + stop_pts
             tgt_px  = entry_raw + tgt_pts  if ev["side"] == "LONG" else entry_raw - tgt_pts
-            exit_filled, _reason = _walk_exit_1m(bars_1m, ev["ts"], ev["side"],
-                                                   entry_filled, stop_px, tgt_px)
+            # Walk the exit and ALSO track when the trade closed so cooldown
+            # starts from the actual close, not the entry.
+            exit_filled, reason, exit_ts = _walk_exit_1m_with_ts(
+                bars_1m, ts, ev["side"], entry_filled, stop_px, tgt_px)
             pnl = _compute_pnl(ev["side"], entry_filled, exit_filled)
             res.pnls.append(pnl)
-            res.timestamps.append(ev["ts"].isoformat())
+            res.timestamps.append(ts.isoformat())
+            cleared_at = exit_ts + pd.Timedelta(minutes=COOLDOWN_MIN)
         m = _metrics(res.pnls)
         res.n_executed = m["n"]
         res.n_wins     = int(round(m["win_rate"] * m["n"]))

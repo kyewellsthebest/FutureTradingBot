@@ -17,8 +17,14 @@
         "V3_SHORT_S20T40_81",
         "V3_SHORT_S20T40_82"
       ]
+    },
+    "live_sim_raw_survivors": {
+      "status": "ok",
+      "ran_at": "2026-05-04T02:14:11.380156+00:00",
+      "output_tail": "\n========================================================================\nLIVE-BOT REPLAY HEADLINE\n========================================================================\n  Window:           2025-04-08 \u2192 2026-04-08\n  Bars evaluated:   70,116\n  Signals fired:    0\n  Trades taken:     0\n  Trades blocked:   0\n  Win rate:         0.0%  (0W / 0L)\n  Total P&L:        $+0\n  Take-home (90%):  $+0\n  Final balance:    $50,000\n  Failed accounts:  0\n\n2026-05-04 02:11:15,508 WARNING signal_engine [engine] ML model not found \u2014 falling back to AGREE for all signals\n2026-05-04 02:11:15,508 WARNING signal_engine [engine] no regime model found \u2014 regime filter will no-op until trained\n2026-05-04 02:11:15,508 INFO live_sim loading 5-min, 1-min, and daily NQ bars \u2026\n2026-05-04 02:11:15,739 INFO live_sim sim window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 bars)\n2026-05-04 02:11:15,739 INFO live_sim pre-computing all signal-firing bars across the window \u2026\n2026-05-04 02:11:21,129 INFO live_sim   pre-compute done in 5.4s \u2014 444 raw signals across 340 unique timestamps\n2026-05-04 02:11:51,375 INFO live_sim   16,642/70,116 bars  (23.7%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 1.6m\n2026-05-04 02:12:21,907 INFO live_sim   24,255/70,116 bars  (34.6%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 1.9m\n2026-05-04 02:12:52,402 INFO live_sim   32,648/70,116 bars  (46.6%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 1.7m\n2026-05-04 02:13:22,851 INFO live_sim   42,333/70,116 bars  (60.4%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 1.3m\n2026-05-04 02:13:53,228 INFO live_sim   53,392/70,116 bars  (76.1%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 0.8m\n2026-05-04 02:14:10,966 INFO live_sim done in 2.8 min  \u2022  70,116 bars  \u2022  0 trades  \u2022  0 blocked  \u2022  final bal $50,000\n2026-05-04 02:14:10,967 INFO live_sim wrote live_sim_results.json and live_sim_report.html (4 KB)",
+      "archive_json": "/home/user/HFTBot/data/live_sim_results_raw_survivors.json"
     }
   },
   "started_at": "2026-05-04T02:09:50.002383+00:00",
-  "last_update": "2026-05-04T02:11:04.157464+00:00"
+  "last_update": "2026-05-04T02:14:11.380222+00:00"
 }
