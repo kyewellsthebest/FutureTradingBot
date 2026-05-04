@@ -161,28 +161,36 @@ def build_features(nq_5m: pd.DataFrame, nq_1m: pd.DataFrame, daily: pd.DataFrame
     feats["is_rth"]     = ((ny.hour * 60 + ny.minute >= 570) &
                             (ny.hour * 60 + ny.minute < 960)).astype(int)
 
-    # === MULTI-TIMEFRAME (5) — resample to 1H + daily, forward-fill onto 5m ===
+    # === MULTI-TIMEFRAME (5) — resample to 1H + daily, SHIFT-then-ffill onto 5m
+    # LEAK FIX: resample("1h") timestamps a bar at the START of its hour
+    # (label='left' default), but its high/low/close use the LAST 5-min
+    # bar in that hour. So the 13:00 1h bar's close is actually 13:55's
+    # close — FUTURE info if read at the 13:00 5m bar.
+    # Same for daily: daily bar at date D contains D's full-session H/L/C
+    # which isn't known until end of day.
+    # Fix: SHIFT(1) the resampled features so a 1h-bar value is only
+    # available AFTER the 1h closes. Same for daily.
     nq_1h = nq_5m.resample("1h").agg({
         "open":"first","high":"max","low":"min","close":"last","volume":"sum"
     }).dropna()
     if not nq_1h.empty:
-        h1_atr = atr(nq_1h["high"], nq_1h["low"], nq_1h["close"], 14)
-        h1_ret = nq_1h["close"].diff(5)  # 5-hour return
+        h1_atr = atr(nq_1h["high"], nq_1h["low"], nq_1h["close"], 14).shift(1)
+        h1_ret = nq_1h["close"].diff(5).shift(1)
         h1_ema = nq_1h["close"].ewm(span=20, adjust=False).mean()
-        h1_trend = (nq_1h["close"] - h1_ema) / h1_atr
+        h1_trend = ((nq_1h["close"] - h1_ema) / h1_atr.shift(-1)).shift(1)  # shift after computing
         feats["h1_atr_14"]  = h1_atr.reindex(df.index, method="ffill")
         feats["h1_ret_5"]   = h1_ret.reindex(df.index, method="ffill")
         feats["h1_trend_z"] = h1_trend.reindex(df.index, method="ffill")
 
     if not daily.empty:
-        d_atr = atr(daily["high"], daily["low"], daily["close"], 14)
-        d_ret = daily["close"].pct_change(5)
-        d_trend = (daily["close"] - daily["close"].rolling(20).mean()) / d_atr
-        # daily index is already UTC (per leak fix)
-        d_atr_aligned = d_atr.reindex(df.index, method="ffill")
-        d_trend_aligned = d_trend.reindex(df.index, method="ffill")
-        feats["d_atr_14"]  = d_atr_aligned
-        feats["d_trend_z"] = d_trend_aligned
+        # Daily H/L/C unknown until end of day → shift by 1 day so today's
+        # daily values are not visible to today's intraday bars.
+        d_atr = atr(daily["high"], daily["low"], daily["close"], 14).shift(1)
+        d_ret = daily["close"].pct_change(5).shift(1)
+        d_trend = ((daily["close"] - daily["close"].rolling(20).mean()) /
+                    atr(daily["high"], daily["low"], daily["close"], 14)).shift(1)
+        feats["d_atr_14"]  = d_atr.reindex(df.index, method="ffill")
+        feats["d_trend_z"] = d_trend.reindex(df.index, method="ffill")
 
     # === CROSS-ASSET (15) ===
     if es_5m is not None and not es_5m.empty:
