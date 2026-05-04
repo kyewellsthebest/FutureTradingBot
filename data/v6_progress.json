@@ -1,0 +1,154 @@
+{
+  "completed": [
+    "V6_LONG_pullback_from_high_x_compressed_vol_RR1_5_0002",
+    "V6_LONG_pullback_from_high_x_compressed_vol_RR1_short_0001",
+    "V6_LONG_pullback_from_high_x_compressed_vol_RR2_runner_0003",
+    "V6_LONG_pullback_from_high_x_compressed_vol_RR2_tight_0004"
+  ],
+  "results": [
+    {
+      "n_train": 37843,
+      "n_test": 14612,
+      "train": {
+        "n": 37843,
+        "wr": 0.30954205533387946,
+        "pf": 0.3910380905962856,
+        "sharpe": -0.39766489447308073,
+        "net": -251414.9543429503
+      },
+      "test": {
+        "n": 14612,
+        "wr": 0.38509444292362444,
+        "pf": 0.5590533014328304,
+        "sharpe": -0.24365087702019309,
+        "net": -92907.17881107426
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_compressed_vol_RR1_short_0001",
+      "side": "LONG",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 37844,
+      "n_test": 14613,
+      "train": {
+        "n": 37844,
+        "wr": 0.2696332311594969,
+        "pf": 0.43473548952926344,
+        "sharpe": -0.35004645040813104,
+        "net": -257251.007243607
+      },
+      "test": {
+        "n": 14613,
+        "wr": 0.33552316430575513,
+        "pf": 0.5923466893772772,
+        "sharpe": -0.2173707346481151,
+        "net": -97328.45037566035
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_compressed_vol_RR1_5_0002",
+      "side": "LONG",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 37847,
+      "n_test": 14614,
+      "train": {
+        "n": 37847,
+        "wr": 0.24295188522207836,
+        "pf": 0.4617555804027336,
+        "sharpe": -0.31660886905708696,
+        "net": -260277.85539639706
+      },
+      "test": {
+        "n": 14614,
+        "wr": 0.3001915970986725,
+        "pf": 0.6199846122782314,
+        "sharpe": -0.19411106485889534,
+        "net": -97683.57053387715
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_compressed_vol_RR2_runner_0003",
+      "side": "LONG",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 37844,
+      "n_test": 14613,
+      "train": {
+        "n": 37844,
+        "wr": 0.20896311172180532,
+        "pf": 0.38684235126750466,
+        "sharpe": -0.39904458800107295,
+        "net": -266427.9677495101
+      },
+      "test": {
+        "n": 14613,
+        "wr": 0.27461849038527336,
+        "pf": 0.5538705914335704,
+        "sharpe": -0.24339484098562167,
+        "net": -100425.23130144441
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_compressed_vol_RR2_tight_0004",
+      "side": "LONG",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    }
+  ]
+}
