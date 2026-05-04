@@ -59,6 +59,7 @@ from research.signal_filters import (
     KILL_ZONES,
     NY_TZ,
     SLIPPAGE_POINTS,
+    TradeRef,
     kill_zone_filter,
 )
 from research import lucid_guard
@@ -160,6 +161,10 @@ class LiveSim:
         self.veto_counts: Counter = Counter()
         self.daily_pnl: dict[str, float] = defaultdict(float)
         self.balance_curve: list[tuple[pd.Timestamp, float]] = []
+        # Closed-trade history fed to engine.evaluate(prior_trades=…) so the
+        # cooldown filter actually fires (live bot pulls equivalent data
+        # from SQLite each tick).
+        self.prior_trades_window: list[TradeRef] = []
 
     # --------------------------------------------------------------- run --
 
@@ -240,7 +245,6 @@ class LiveSim:
 
         t0 = time.time()
         last_log = t0
-        prior_trades_window: list = []
 
         for i, ts in enumerate(sim_5m.index):
             self.bars_evaluated += 1
@@ -287,7 +291,7 @@ class LiveSim:
             # --- Call the engine to get a fully-gated TradeCandidate ---
             try:
                 cand = self.engine.evaluate(intraday, daily_slice,
-                                              prior_trades=prior_trades_window[-50:])
+                                              prior_trades=self.prior_trades_window[-50:])
             except Exception as e:
                 logger.warning(f"engine raised at {ts}: {e}")
                 continue
@@ -448,6 +452,15 @@ class LiveSim:
         d = exit_ts.date().isoformat()
         self.daily_pnl[d] += net
         self.balance_curve.append((exit_ts, new_bal))
+        # Feed the cooldown filter: append the closed trade as a TradeRef
+        # so the engine's prior-trades window sees it on the next evaluate().
+        self.prior_trades_window.append(TradeRef(
+            entry_time=op.entry_ts,
+            exit_time=exit_ts,
+            side=op.side,
+            pnl=float(net),
+            signal_name=op.signal_name,
+        ))
         self.open_pos = None
 
         # Auto-restart on blow-up
