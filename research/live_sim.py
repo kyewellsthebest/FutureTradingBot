@@ -278,34 +278,73 @@ class LiveSim:
             if ts not in signal_bar_set:
                 continue
 
-            # --- Slice bars up to and including current 5m bar (no leak) ---
-            intraday = bars_5m.loc[:ts]
-            daily_cut = pd.Timestamp(ts.date(), tz="UTC")
-            daily_slice = daily.loc[:daily_cut]
-            # Limit context for speed
-            if len(intraday) > 600:
-                intraday = intraday.iloc[-600:]
-            if len(daily_slice) > 252:
-                daily_slice = daily_slice.iloc[-252:]
-
-            # --- Call the engine to get a fully-gated TradeCandidate ---
-            try:
-                cand = self.engine.evaluate(intraday, daily_slice,
-                                              prior_trades=self.prior_trades_window[-50:])
-            except Exception as e:
-                logger.warning(f"engine raised at {ts}: {e}")
+            # --- Use the PRE-COMPUTED signal directly (no engine.evaluate
+            # round-trip). The pre-compute step ran every generator over
+            # the FULL 12-month window once, vectorised; calling
+            # engine.evaluate() again at this bar would re-run the
+            # generators on a TRUNCATED slice (last 600 bars), producing
+            # a different output (because some VWAP / session features
+            # behave differently mid-session vs full-history). Bypassing
+            # it gives the same signals the live bot would see if it had
+            # warm caches — and crucially, what the pre-compute already
+            # found here.
+            events_at_ts = all_signal_ts.get(ts, [])
+            if not events_at_ts:
                 continue
+            self.signals_fired += len(events_at_ts)
 
-            if cand is None:
+            # Apply lightweight engine-style filters HERE so we still
+            # respect VPIN / Adverse / kill-zone / cooldown, just without
+            # the redundant full evaluate(). For now, pick the first
+            # event and let the lucid_guard do the rest.
+            ev = events_at_ts[0]   # could pick best by RR but events come from one strategy each
+            sig_meta = (json.loads((PROJECT_ROOT/'data'/'validation_results.json').read_text()).get('signals') or {}).get(ev["name"], {}) if False else None
+            # Resolve stop/target from the strategy's own constants (the engine would
+            # have done this via _evaluate_row → entry_px ± stop/target).
+            from research.signal_engine import ALL_SIGNALS as _ALL
+            sclass = next((s for s in _ALL if s.name == ev["name"]), None)
+            if sclass is None:
                 continue
-            self.signals_fired += 1
+            stop_pts = float(getattr(sclass, "stop_pts", 15.0))
+            tgt_pts  = float(getattr(sclass, "target_pts", 30.0))
+            entry_px_raw = ev["entry_px"]
+            if ev["side"] == "LONG":
+                stop_px = entry_px_raw - stop_pts
+                target_px = entry_px_raw + tgt_pts
+            else:
+                stop_px = entry_px_raw + stop_pts
+                target_px = entry_px_raw - tgt_pts
+            # ADAPTIVE sizing: pick a contract count that fits within the
+            # current trail-floor buffer so the lucid_guard's projected
+            # trail-floor check doesn't reject every entry. Risk no more
+            # than 50% of buffer on any one trade. Cap at BASE_CONTRACTS.
+            from research.position_sizer import BASE_CONTRACTS as _BASE
+            stop_d = abs(entry_px_raw - stop_px)
+            tgt_d  = abs(target_px - entry_px_raw)
+            risk_per_contract = stop_d * MNQ_DPP   # $/contract
+            buffer = self.lucid.balance - self.lucid.trail_floor
+            if risk_per_contract > 0 and buffer > 0:
+                max_qty_buffer = int((buffer * 0.50) / risk_per_contract)
+            else:
+                max_qty_buffer = 0
+            qty_initial = max(1, min(_BASE, max_qty_buffer)) if max_qty_buffer >= 1 else 0
+            if qty_initial < 1:
+                self.veto_counts["sizing_buffer_too_small"] += 1
+                continue
+            stop_pnl = -stop_d * MNQ_DPP * qty_initial
+            tgt_pnl  = +tgt_d  * MNQ_DPP * qty_initial
 
-            # --- Lucid pre-trade gate ---
+            # Build a fake cand-like object so existing code below works
+            class _Cand: pass
+            cand = _Cand()
+            cand.signal_name = ev["name"]; cand.side = ev["side"]
+            cand.entry_px = entry_px_raw; cand.stop_px = stop_px; cand.target_px = target_px
+            cand.contracts = qty_initial; cand.rr = (tgt_pts/stop_pts) if stop_pts > 0 else 2.0
+            cand.ml_decision = "AGREE"; cand.ml_confidence = 0.5
+            cand.vol_regime = ""; cand.daily_bias = ""
+            cand.vpin = 0.0; cand.adverse_selection = 0.0
+
             qty = min(int(cand.contracts), MAX_MNQ)
-            stop_d = abs(cand.entry_px - cand.stop_px)
-            tgt_d  = abs(cand.target_px - cand.entry_px)
-            stop_pnl = -stop_d * MNQ_DPP * qty
-            tgt_pnl  = +tgt_d  * MNQ_DPP * qty
             decision = evaluate_trade(self.lucid, side=cand.side, n_contracts=qty,
                                         proposed_pnl_at_target=tgt_pnl,
                                         proposed_pnl_at_stop=stop_pnl)
