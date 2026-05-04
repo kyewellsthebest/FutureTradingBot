@@ -1,7 +1,9 @@
 {
   "completed": [
+    "V7A_SHORT_pullback_from_high_x_mid_range_MR_balanced_0018",
     "V7A_SHORT_pullback_from_high_x_mid_range_MR_quick_0016",
     "V7A_SHORT_pullback_from_high_x_mid_range_MR_std_0017",
+    "V7A_SHORT_pullback_from_high_x_mid_range_RR1_0019",
     "V7A_SHORT_pullback_from_high_x_rth_afternoon_MR_balanced_0013",
     "V7A_SHORT_pullback_from_high_x_rth_afternoon_MR_quick_0011",
     "V7A_SHORT_pullback_from_high_x_rth_afternoon_MR_std_0012",
@@ -628,6 +630,78 @@
       ],
       "trigger": "pullback_from_high_50",
       "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 60205,
+      "n_test": 22778,
+      "train": {
+        "n": 60205,
+        "wr": 0.43127647205381614,
+        "pf": 0.6051371117251653,
+        "sharpe": -0.1867691695316997,
+        "net": -376353.98471881537
+      },
+      "test": {
+        "n": 22778,
+        "wr": 0.49771709544297127,
+        "pf": 0.7671887084102628,
+        "sharpe": -0.09872072942286901,
+        "net": -116567.40533615105
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_SHORT_pullback_from_high_x_mid_range_MR_balanced_0018",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 60205,
+      "n_test": 22778,
+      "train": {
+        "n": 60205,
+        "wr": 0.34704758740968356,
+        "pf": 0.547061384298428,
+        "sharpe": -0.23792734378335112,
+        "net": -412074.8855882838
+      },
+      "test": {
+        "n": 22778,
+        "wr": 0.42084467468610065,
+        "pf": 0.7105225646617743,
+        "sharpe": -0.13446937423735733,
+        "net": -137856.24361697293
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7A_SHORT_pullback_from_high_x_mid_range_RR1_0019",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
       "target_atr": 1.0,
       "max_hold_min": 30
     }
