@@ -2,20 +2,16 @@
   "phases": {
     "raw_validate": {
       "status": "ok",
-      "ran_at": "2026-05-04T02:11:02.326659+00:00",
-      "output_tail": "6\n\n=== TOP 30 RAW-SIGNAL SURVIVORS (by net pnl/contract) ===\n  V3_SHORT_S20T40_81                SHORT  n= 116  WR=85.3%  PF=24.70  Sh=+1.22  CPCV=5/5  pnl=$+4,830\n  V3_SHORT_S20T40_82                SHORT  n=  71  WR=98.6%  PF=999.00  Sh=+2.37  CPCV=5/5  pnl=$+3,940\n  V3_SHORT_S12T30_122               SHORT  n=  98  WR=91.8%  PF=15.84  Sh=+1.49  CPCV=5/5  pnl=$+3,846\n  V3_SHORT_S12T30_124               SHORT  n=  61  WR=91.8%  PF=26.12  Sh=+1.86  CPCV=5/5  pnl=$+2,663\n  V3_LONG_S15T30_04                 LONG   n=  57  WR=100.0%  PF=999.00  Sh=+2.95  CPCV=5/5  pnl=$+2,570\n  V3_LONG_S12T36_16                 LONG   n=  41  WR=95.1%  PF=30.75  Sh=+1.88  CPCV=5/5  pnl=$+1,928\n\nWrote data/raw_validation_results.json\n\n2026-05-04 02:09:51,166 INFO raw_validator loading bars \u2026\n2026-05-04 02:09:59,782 INFO raw_validator window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 5-min bars)\n2026-05-04 02:09:59,783 INFO raw_validator candidates: 221 strategies\n2026-05-04 02:09:59,783 INFO raw_validator running every signal generator (vectorised) \u2026\n2026-05-04 02:10:08,302 INFO raw_validator   done in 8.5s \u2014 126,992 raw signals across 208 strategies that fire at least once\n2026-05-04 02:10:11,365 INFO raw_validator    25/221  survivors so far: 2  elapsed: 3.1s\n2026-05-04 02:10:22,939 INFO raw_validator    50/221  survivors so far: 2  elapsed: 14.6s\n2026-05-04 02:10:28,544 INFO raw_validator    75/221  survivors so far: 2  elapsed: 20.2s\n2026-05-04 02:10:35,196 INFO raw_validator   100/221  survivors so far: 4  elapsed: 26.9s\n2026-05-04 02:10:42,492 INFO raw_validator   125/221  survivors so far: 4  elapsed: 34.2s\n2026-05-04 02:10:48,358 INFO raw_validator   150/221  survivors so far: 4  elapsed: 40.1s\n2026-05-04 02:10:52,848 INFO raw_validator   175/221  survivors so far: 5  elapsed: 44.5s\n2026-05-04 02:11:00,351 INFO raw_validator   200/221  survivors so far: 6  elapsed: 52.0s\n2026-05-04 02:11:01,871 INFO raw_validator   221/221  survivors so far: 6  elapsed: 53.6s"
+      "ran_at": "2026-05-04T02:20:07.679001+00:00",
+      "output_tail": "SUMMARY\n========================================================================\n  total candidates:    221\n  passed sample (n>=30):       120\n  passed WR (>=55%):           33\n  passed PF (>=1.4):              54\n  passed Sharpe (>=0.8):       9\n  passed CPCV:                          73\n  passed ALL 5 tests:                   2\n\n=== TOP 30 RAW-SIGNAL SURVIVORS (by net pnl/contract) ===\n  V3_SHORT_S12T30_122               SHORT  n=  51  WR=86.3%  PF=9.01  Sh=+1.15  CPCV=5/5  pnl=$+1,817\n  V3_LONG_S15T30_04                 LONG   n=  31  WR=100.0%  PF=999.00  Sh=+4.15  CPCV=5/5  pnl=$+1,567\n\nWrote data/raw_validation_results.json\n\n2026-05-04 02:19:36,974 INFO raw_validator loading bars \u2026\n2026-05-04 02:19:45,396 INFO raw_validator window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 5-min bars)\n2026-05-04 02:19:45,397 INFO raw_validator candidates: 221 strategies\n2026-05-04 02:19:45,397 INFO raw_validator running every signal generator (vectorised) \u2026\n2026-05-04 02:19:54,222 INFO raw_validator   done in 8.8s \u2014 126,992 raw signals across 208 strategies that fire at least once\n2026-05-04 02:19:55,035 INFO raw_validator    25/221  survivors so far: 1  elapsed: 0.8s\n2026-05-04 02:19:57,139 INFO raw_validator    50/221  survivors so far: 1  elapsed: 2.9s\n2026-05-04 02:19:58,737 INFO raw_validator    75/221  survivors so far: 1  elapsed: 4.5s\n2026-05-04 02:20:00,456 INFO raw_validator   100/221  survivors so far: 2  elapsed: 6.2s\n2026-05-04 02:20:02,281 INFO raw_validator   125/221  survivors so far: 2  elapsed: 8.1s\n2026-05-04 02:20:03,751 INFO raw_validator   150/221  survivors so far: 2  elapsed: 9.5s\n2026-05-04 02:20:04,871 INFO raw_validator   175/221  survivors so far: 2  elapsed: 10.6s\n2026-05-04 02:20:06,597 INFO raw_validator   200/221  survivors so far: 2  elapsed: 12.4s\n2026-05-04 02:20:07,285 INFO raw_validator   221/221  survivors so far: 2  elapsed: 13.1s"
     },
     "apply_raw_survivors": {
       "status": "ok",
-      "ran_at": "2026-05-04T02:11:04.157449+00:00",
-      "n": 6,
+      "ran_at": "2026-05-04T02:20:07.690568+00:00",
+      "n": 2,
       "survivors": [
-        "V3_LONG_S12T36_16",
         "V3_LONG_S15T30_04",
-        "V3_SHORT_S12T30_122",
-        "V3_SHORT_S12T30_124",
-        "V3_SHORT_S20T40_81",
-        "V3_SHORT_S20T40_82"
+        "V3_SHORT_S12T30_122"
       ]
     },
     "live_sim_raw_survivors": {
@@ -28,8 +24,14 @@
       "status": "ok",
       "ran_at": "2026-05-04T02:19:34.307875+00:00",
       "output_tail": "[1/4] Loading 1-min + daily ...\n  1-min bars: 2,828,593  (2963 days)\n[2/4] Building v4 features (~50, NO PDH/PDL distance) ...\n  feature-valid bars: 729,989  (108.8s)\n\n[3/4] Mining + CPCV ...\n\n  --- stop=10.0pt  target=20.0pt  max_hold=30m  (BE-WR=40.6%) ---\n    LONG: usable=729,989  candidates=0  (30.0s)\n    SHORT: usable=729,989  candidates=0  (24.9s)\n\n  --- stop=12.0pt  target=24.0pt  max_hold=35m  (BE-WR=39.5%) ---\n    LONG: usable=729,989  candidates=0  (22.5s)\n    SHORT: usable=729,989  candidates=0  (22.7s)\n\n  --- stop=15.0pt  target=30.0pt  max_hold=40m  (BE-WR=38.3%) ---\n    LONG: usable=729,989  candidates=0  (22.8s)\n    SHORT: usable=729,989  candidates=0  (22.2s)\n\n  --- stop=8.0pt  target=16.0pt  max_hold=25m  (BE-WR=42.3%) ---\n    LONG: usable=729,989  candidates=0  (24.0s)\n    SHORT: usable=729,989  candidates=0  (24.0s)\n\n[4/4] 0 CPCV survivors total\n  LONG: 0    SHORT: 0\n  Wrote -> data/mined_v4_patterns.json\n\n  Total runtime: 319.0s\n==============================================================================\n"
+    },
+    "live_sim_final": {
+      "status": "ok",
+      "ran_at": "2026-05-04T02:21:40.427579+00:00",
+      "output_tail": "\n========================================================================\nLIVE-BOT REPLAY HEADLINE\n========================================================================\n  Window:           2025-04-08 \u2192 2026-04-08\n  Bars evaluated:   70,116\n  Signals fired:    0\n  Trades taken:     0\n  Trades blocked:   0\n  Win rate:         0.0%  (0W / 0L)\n  Total P&L:        $+0\n  Take-home (90%):  $+0\n  Final balance:    $50,000\n  Failed accounts:  0\n\n2026-05-04 02:20:17,709 WARNING signal_engine [engine] ML model not found \u2014 falling back to AGREE for all signals\n2026-05-04 02:20:17,710 WARNING signal_engine [engine] no regime model found \u2014 regime filter will no-op until trained\n2026-05-04 02:20:17,710 INFO live_sim loading 5-min, 1-min, and daily NQ bars \u2026\n2026-05-04 02:20:17,937 INFO live_sim sim window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 bars)\n2026-05-04 02:20:17,937 INFO live_sim pre-computing all signal-firing bars across the window \u2026\n2026-05-04 02:20:23,383 INFO live_sim   pre-compute done in 5.4s \u2014 155 raw signals across 155 unique timestamps\n2026-05-04 02:20:53,390 INFO live_sim   31,039/70,116 bars  (44.3%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 0.6m\n2026-05-04 02:21:23,695 INFO live_sim   51,379/70,116 bars  (73.3%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 0.4m\n2026-05-04 02:21:39,967 INFO live_sim done in 1.3 min  \u2022  70,116 bars  \u2022  0 trades  \u2022  0 blocked  \u2022  final bal $50,000\n2026-05-04 02:21:39,968 INFO live_sim wrote live_sim_results.json and live_sim_report.html (4 KB)",
+      "archive_json": "/home/user/HFTBot/data/live_sim_results_final.json"
     }
   },
   "started_at": "2026-05-04T02:09:50.002383+00:00",
-  "last_update": "2026-05-04T02:19:34.307903+00:00"
+  "last_update": "2026-05-04T02:21:40.427607+00:00"
 }
