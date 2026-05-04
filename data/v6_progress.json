@@ -10,7 +10,11 @@
     "V6_LONG_pullback_from_high_x_compressed_vol_RR1_wide_0005",
     "V6_LONG_pullback_from_high_x_compressed_vol_RR2_runner_0003",
     "V6_LONG_pullback_from_high_x_compressed_vol_RR2_tight_0004",
+    "V6_LONG_pullback_from_high_x_dried_up_vol_RR1_5_0067",
     "V6_LONG_pullback_from_high_x_dried_up_vol_RR1_short_0066",
+    "V6_LONG_pullback_from_high_x_dried_up_vol_RR1_wide_0070",
+    "V6_LONG_pullback_from_high_x_dried_up_vol_RR2_runner_0068",
+    "V6_LONG_pullback_from_high_x_dried_up_vol_RR2_tight_0069",
     "V6_LONG_pullback_from_high_x_high_volume_RR1_5_0057",
     "V6_LONG_pullback_from_high_x_high_volume_RR1_short_0056",
     "V6_LONG_pullback_from_high_x_high_volume_RR1_wide_0060",
@@ -65,7 +69,32 @@
     "V6_LONG_pullback_from_high_x_vix_low_RR1_short_0051",
     "V6_LONG_pullback_from_high_x_vix_low_RR1_wide_0055",
     "V6_LONG_pullback_from_high_x_vix_low_RR2_runner_0053",
-    "V6_LONG_pullback_from_high_x_vix_low_RR2_tight_0054"
+    "V6_LONG_pullback_from_high_x_vix_low_RR2_tight_0054",
+    "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_5_0072",
+    "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_short_0071",
+    "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_wide_0075",
+    "V6_SHORT_pullback_from_low__x_compressed_vol_RR2_runner_0073",
+    "V6_SHORT_pullback_from_low__x_compressed_vol_RR2_tight_0074",
+    "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_5_0077",
+    "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_short_0076",
+    "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_wide_0080",
+    "V6_SHORT_pullback_from_low__x_downtrend_stro_RR2_runner_0078",
+    "V6_SHORT_pullback_from_low__x_downtrend_stro_RR2_tight_0079",
+    "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_5_0082",
+    "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_short_0081",
+    "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_wide_0085",
+    "V6_SHORT_pullback_from_low__x_downtrend_weak_RR2_runner_0083",
+    "V6_SHORT_pullback_from_low__x_downtrend_weak_RR2_tight_0084",
+    "V6_SHORT_pullback_from_low__x_mid_range_RR1_5_0092",
+    "V6_SHORT_pullback_from_low__x_mid_range_RR1_short_0091",
+    "V6_SHORT_pullback_from_low__x_mid_range_RR1_wide_0095",
+    "V6_SHORT_pullback_from_low__x_mid_range_RR2_runner_0093",
+    "V6_SHORT_pullback_from_low__x_mid_range_RR2_tight_0094",
+    "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_5_0087",
+    "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_short_0086",
+    "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_wide_0090",
+    "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR2_runner_0088",
+    "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR2_tight_0089"
   ],
   "results": [
     {
@@ -2443,6 +2472,1050 @@
       "stop_atr": 1.0,
       "target_atr": 1.0,
       "max_hold_min": 30
+    },
+    {
+      "n_train": 64061,
+      "n_test": 25240,
+      "train": {
+        "n": 64061,
+        "wr": 0.298481135168043,
+        "pf": 0.557033854344658,
+        "sharpe": -0.22597905150992773,
+        "net": -416861.1356396959
+      },
+      "test": {
+        "n": 25240,
+        "wr": 0.34944532488114105,
+        "pf": 0.6544254847186453,
+        "sharpe": -0.16676279887028309,
+        "net": -183182.94640586246
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_dried_up_vol_RR1_5_0067",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 64064,
+      "n_test": 25242,
+      "train": {
+        "n": 64064,
+        "wr": 0.26621815684315686,
+        "pf": 0.5787453917805063,
+        "sharpe": -0.2047912874670457,
+        "net": -424593.5325257891
+      },
+      "test": {
+        "n": 25242,
+        "wr": 0.31233658188733066,
+        "pf": 0.6712736081523791,
+        "sharpe": -0.1523573516303241,
+        "net": -188116.536952924
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_dried_up_vol_RR2_runner_0068",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 64061,
+      "n_test": 25240,
+      "train": {
+        "n": 64061,
+        "wr": 0.23847582772669798,
+        "pf": 0.5110522270305098,
+        "sharpe": -0.25700392095532076,
+        "net": -435561.792616625
+      },
+      "test": {
+        "n": 25240,
+        "wr": 0.28977812995245644,
+        "pf": 0.6214197035392485,
+        "sharpe": -0.1846011323070847,
+        "net": -187245.8135380818
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_dried_up_vol_RR2_tight_0069",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 64064,
+      "n_test": 25242,
+      "train": {
+        "n": 64064,
+        "wr": 0.39349712787212787,
+        "pf": 0.6413599772121132,
+        "sharpe": -0.16980353542622695,
+        "net": -382044.0972470892
+      },
+      "test": {
+        "n": 25242,
+        "wr": 0.43051263766737974,
+        "pf": 0.7039194259771613,
+        "sharpe": -0.13753208560461144,
+        "net": -184428.5375755126
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_LONG_pullback_from_high_x_dried_up_vol_RR1_wide_0070",
+      "side": "LONG",
+      "contexts": [
+        "dried_up_vol"
+      ],
+      "trigger": "pullback_from_high_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 41706,
+      "n_test": 16198,
+      "train": {
+        "n": 41706,
+        "wr": 0.2936268162854266,
+        "pf": 0.36558878749029167,
+        "sharpe": -0.4321757373899073,
+        "net": -285089.51740082464
+      },
+      "test": {
+        "n": 16198,
+        "wr": 0.3685640202494135,
+        "pf": 0.5279103560158973,
+        "sharpe": -0.2693020543834967,
+        "net": -109336.49337961912
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_short_0071",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 41707,
+      "n_test": 16198,
+      "train": {
+        "n": 41707,
+        "wr": 0.2567914258997291,
+        "pf": 0.40914880333005066,
+        "sharpe": -0.38039066946228023,
+        "net": -293694.7268947287
+      },
+      "test": {
+        "n": 16198,
+        "wr": 0.31781701444622795,
+        "pf": 0.5672209413157793,
+        "sharpe": -0.23657723394114527,
+        "net": -114291.48573157002
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_5_0072",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 41711,
+      "n_test": 16199,
+      "train": {
+        "n": 41711,
+        "wr": 0.230322936395675,
+        "pf": 0.43686515041624874,
+        "sharpe": -0.3443742233441679,
+        "net": -298143.1034720327
+      },
+      "test": {
+        "n": 16199,
+        "wr": 0.27723933576146675,
+        "pf": 0.5680830826214234,
+        "sharpe": -0.23066672670183258,
+        "net": -124381.35981877195
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_compressed_vol_RR2_runner_0073",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 41707,
+      "n_test": 16198,
+      "train": {
+        "n": 41707,
+        "wr": 0.19653775145659003,
+        "pf": 0.35976517035810895,
+        "sharpe": -0.43610747799239086,
+        "net": -305167.0741773279
+      },
+      "test": {
+        "n": 16198,
+        "wr": 0.2593530065440178,
+        "pf": 0.5275275848252348,
+        "sharpe": -0.265263421678374,
+        "net": -117592.67920502067
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_compressed_vol_RR2_tight_0074",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 41711,
+      "n_test": 16199,
+      "train": {
+        "n": 41711,
+        "wr": 0.3546786219462492,
+        "pf": 0.5019190191212743,
+        "sharpe": -0.28671645745549573,
+        "net": -275159.5268022415
+      },
+      "test": {
+        "n": 16199,
+        "wr": 0.39187604173097107,
+        "pf": 0.6115191717475432,
+        "sharpe": -0.20346881719065735,
+        "net": -119737.55389994875
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_compressed_vol_RR1_wide_0075",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 42621,
+      "n_test": 16771,
+      "train": {
+        "n": 42621,
+        "wr": 0.35808638933858894,
+        "pf": 0.5583372511359452,
+        "sharpe": -0.23139581141960652,
+        "net": -302134.5992289683
+      },
+      "test": {
+        "n": 16771,
+        "wr": 0.43056466519587383,
+        "pf": 0.7170329441990273,
+        "sharpe": -0.13330374106187487,
+        "net": -104203.49430233828
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_short_0076",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 42621,
+      "n_test": 16771,
+      "train": {
+        "n": 42621,
+        "wr": 0.2996175594190657,
+        "pf": 0.5708413140883896,
+        "sharpe": -0.22000056975320662,
+        "net": -336610.43456893286
+      },
+      "test": {
+        "n": 16771,
+        "wr": 0.36741995110607595,
+        "pf": 0.7476665611754233,
+        "sharpe": -0.11469183607561408,
+        "net": -107437.50588320268
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_5_0077",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 42623,
+      "n_test": 16771,
+      "train": {
+        "n": 42623,
+        "wr": 0.26159585200478613,
+        "pf": 0.5772312315765075,
+        "sharpe": -0.21000601969009136,
+        "net": -357054.8563666392
+      },
+      "test": {
+        "n": 16771,
+        "wr": 0.32442907399678017,
+        "pf": 0.7599689274556155,
+        "sharpe": -0.10546001395082535,
+        "net": -111310.6162804889
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_stro_RR2_runner_0078",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 42621,
+      "n_test": 16771,
+      "train": {
+        "n": 42621,
+        "wr": 0.23711316017925435,
+        "pf": 0.5247779419274425,
+        "sharpe": -0.2502627308747588,
+        "net": -349355.7947994053
+      },
+      "test": {
+        "n": 16771,
+        "wr": 0.30505038459245126,
+        "pf": 0.7140615449972845,
+        "sharpe": -0.1302631478519854,
+        "net": -113419.74115809836
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_stro_RR2_tight_0079",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 42623,
+      "n_test": 16771,
+      "train": {
+        "n": 42623,
+        "wr": 0.3905403186073247,
+        "pf": 0.6410029419059335,
+        "sharpe": -0.1726574155124198,
+        "net": -324371.6605531436
+      },
+      "test": {
+        "n": 16771,
+        "wr": 0.4477371653449407,
+        "pf": 0.7916025675870194,
+        "sharpe": -0.09204075310096396,
+        "net": -104310.13195010247
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_stro_RR1_wide_0080",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_strong"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 45307,
+      "n_test": 17266,
+      "train": {
+        "n": 45307,
+        "wr": 0.3515130112344671,
+        "pf": 0.547768819307481,
+        "sharpe": -0.23784375196947086,
+        "net": -322863.9891683189
+      },
+      "test": {
+        "n": 17266,
+        "wr": 0.42783505154639173,
+        "pf": 0.7134174792126411,
+        "sharpe": -0.13511188624944545,
+        "net": -107777.43546273164
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_short_0081",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 45307,
+      "n_test": 17266,
+      "train": {
+        "n": 45307,
+        "wr": 0.29447988169598516,
+        "pf": 0.5620733480405107,
+        "sharpe": -0.22488525461847225,
+        "net": -357636.493171275
+      },
+      "test": {
+        "n": 17266,
+        "wr": 0.36453144909069846,
+        "pf": 0.7437332572010719,
+        "sharpe": -0.1165284966328825,
+        "net": -111414.75445757086
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_5_0082",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 45309,
+      "n_test": 17266,
+      "train": {
+        "n": 45309,
+        "wr": 0.2574322982188969,
+        "pf": 0.5696068046992002,
+        "sharpe": -0.2139071249562414,
+        "net": -378042.8487003801
+      },
+      "test": {
+        "n": 17266,
+        "wr": 0.3220201552183482,
+        "pf": 0.7561833634742783,
+        "sharpe": -0.10716140629145772,
+        "net": -115446.94973440017
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_weak_RR2_runner_0083",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 45307,
+      "n_test": 17266,
+      "train": {
+        "n": 45307,
+        "wr": 0.23241441719822545,
+        "pf": 0.5163550680760526,
+        "sharpe": -0.25522166589202167,
+        "net": -370285.44139140996
+      },
+      "test": {
+        "n": 17266,
+        "wr": 0.3022703579288776,
+        "pf": 0.7096580500445605,
+        "sharpe": -0.1323936509380096,
+        "net": -117666.7670982607
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_weak_RR2_tight_0084",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 45309,
+      "n_test": 17266,
+      "train": {
+        "n": 45309,
+        "wr": 0.3869429914586506,
+        "pf": 0.63495964815248,
+        "sharpe": -0.17530126852827216,
+        "net": -342552.18596787524
+      },
+      "test": {
+        "n": 17266,
+        "wr": 0.4449206533070775,
+        "pf": 0.7863793707803364,
+        "sharpe": -0.09447714264291415,
+        "net": -109298.33249514841
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_downtrend_weak_RR1_wide_0085",
+      "side": "SHORT",
+      "contexts": [
+        "downtrend_weak"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 55372,
+      "n_test": 21445,
+      "train": {
+        "n": 55372,
+        "wr": 0.3438199812179441,
+        "pf": 0.5388225597158057,
+        "sharpe": -0.24467912510640297,
+        "net": -357266.79500188463
+      },
+      "test": {
+        "n": 21445,
+        "wr": 0.40387036605269294,
+        "pf": 0.6566351346665088,
+        "sharpe": -0.1639415088766346,
+        "net": -142356.80775132898
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_short_0086",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 55373,
+      "n_test": 21445,
+      "train": {
+        "n": 55373,
+        "wr": 0.2912069058927636,
+        "pf": 0.5782471351446694,
+        "sharpe": -0.2113465113255773,
+        "net": -368814.3697394399
+      },
+      "test": {
+        "n": 21445,
+        "wr": 0.34366985311261367,
+        "pf": 0.6863155618314007,
+        "sharpe": -0.1439892074459396,
+        "net": -150015.1937367689
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_5_0087",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 55376,
+      "n_test": 21445,
+      "train": {
+        "n": 55376,
+        "wr": 0.25619401906963307,
+        "pf": 0.5905896561665447,
+        "sharpe": -0.1964662143008506,
+        "net": -384831.75142704684
+      },
+      "test": {
+        "n": 21445,
+        "wr": 0.3006295173700163,
+        "pf": 0.6964934452880718,
+        "sharpe": -0.1362255702713105,
+        "net": -158064.91156605643
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR2_runner_0088",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 55373,
+      "n_test": 21445,
+      "train": {
+        "n": 55373,
+        "wr": 0.2287757571379553,
+        "pf": 0.5287669638707799,
+        "sharpe": -0.2423092010002298,
+        "net": -389336.71335577354
+      },
+      "test": {
+        "n": 21445,
+        "wr": 0.28276987642807183,
+        "pf": 0.6538135733683063,
+        "sharpe": -0.15966389526825553,
+        "net": -154557.44538854054
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR2_tight_0089",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 55376,
+      "n_test": 21445,
+      "train": {
+        "n": 55376,
+        "wr": 0.3843722912453048,
+        "pf": 0.6457362139393055,
+        "sharpe": -0.1678155849762777,
+        "net": -354858.48109781713
+      },
+      "test": {
+        "n": 21445,
+        "wr": 0.42639309862438796,
+        "pf": 0.7435493624285023,
+        "sharpe": -0.11328911799085153,
+        "net": -142326.9972368874
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_near_50bar_hig_RR1_wide_0090",
+      "side": "SHORT",
+      "contexts": [
+        "near_50bar_high"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 61246,
+      "n_test": 23221,
+      "train": {
+        "n": 61246,
+        "wr": 0.3458348300297162,
+        "pf": 0.5425415841639426,
+        "sharpe": -0.23953093320793375,
+        "net": -421858.8263441997
+      },
+      "test": {
+        "n": 23221,
+        "wr": 0.4157013048533655,
+        "pf": 0.7087039205486244,
+        "sharpe": -0.1358265429704895,
+        "net": -139635.89300053037
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_mid_range_RR1_short_0091",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 61246,
+      "n_test": 23221,
+      "train": {
+        "n": 61246,
+        "wr": 0.2903536557489469,
+        "pf": 0.5663069074844966,
+        "sharpe": -0.21882778570159883,
+        "net": -454417.06611881446
+      },
+      "test": {
+        "n": 23221,
+        "wr": 0.3520520218767495,
+        "pf": 0.7371491270667186,
+        "sharpe": -0.11722578064163762,
+        "net": -145789.6720174076
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_mid_range_RR1_5_0092",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 61248,
+      "n_test": 23222,
+      "train": {
+        "n": 61248,
+        "wr": 0.25569814524555906,
+        "pf": 0.582878181611738,
+        "sharpe": -0.2015740843134961,
+        "net": -468126.1951735537
+      },
+      "test": {
+        "n": 23222,
+        "wr": 0.3108259409180949,
+        "pf": 0.749253681700518,
+        "sharpe": -0.10829954327289337,
+        "net": -151248.16531201464
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_mid_range_RR2_runner_0093",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.0,
+      "target_atr": 2.0,
+      "max_hold_min": 60
+    },
+    {
+      "n_train": 61246,
+      "n_test": 23221,
+      "train": {
+        "n": 61246,
+        "wr": 0.22786794239623812,
+        "pf": 0.5202871958323066,
+        "sharpe": -0.24772707246166334,
+        "net": -471854.07444724144
+      },
+      "test": {
+        "n": 23221,
+        "wr": 0.28900564144524354,
+        "pf": 0.6988684702268255,
+        "sharpe": -0.13487340272864046,
+        "net": -156021.23214136047
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_mid_range_RR2_tight_0094",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 0.8,
+      "target_atr": 1.6,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 61248,
+      "n_test": 23222,
+      "train": {
+        "n": 61248,
+        "wr": 0.38451867816091956,
+        "pf": 0.6294703957015666,
+        "sharpe": -0.17672737861360086,
+        "net": -448844.0300739546
+      },
+      "test": {
+        "n": 23222,
+        "wr": 0.43023856687623807,
+        "pf": 0.7750684675998417,
+        "sharpe": -0.09865822124438911,
+        "net": -147478.35817112093
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V6_SHORT_pullback_from_low__x_mid_range_RR1_wide_0095",
+      "side": "SHORT",
+      "contexts": [
+        "mid_range"
+      ],
+      "trigger": "pullback_from_low_50",
+      "stop_atr": 1.5,
+      "target_atr": 1.5,
+      "max_hold_min": 60
     }
   ]
 }
