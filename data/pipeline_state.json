@@ -4,8 +4,21 @@
       "status": "ok",
       "ran_at": "2026-05-04T02:11:02.326659+00:00",
       "output_tail": "6\n\n=== TOP 30 RAW-SIGNAL SURVIVORS (by net pnl/contract) ===\n  V3_SHORT_S20T40_81                SHORT  n= 116  WR=85.3%  PF=24.70  Sh=+1.22  CPCV=5/5  pnl=$+4,830\n  V3_SHORT_S20T40_82                SHORT  n=  71  WR=98.6%  PF=999.00  Sh=+2.37  CPCV=5/5  pnl=$+3,940\n  V3_SHORT_S12T30_122               SHORT  n=  98  WR=91.8%  PF=15.84  Sh=+1.49  CPCV=5/5  pnl=$+3,846\n  V3_SHORT_S12T30_124               SHORT  n=  61  WR=91.8%  PF=26.12  Sh=+1.86  CPCV=5/5  pnl=$+2,663\n  V3_LONG_S15T30_04                 LONG   n=  57  WR=100.0%  PF=999.00  Sh=+2.95  CPCV=5/5  pnl=$+2,570\n  V3_LONG_S12T36_16                 LONG   n=  41  WR=95.1%  PF=30.75  Sh=+1.88  CPCV=5/5  pnl=$+1,928\n\nWrote data/raw_validation_results.json\n\n2026-05-04 02:09:51,166 INFO raw_validator loading bars \u2026\n2026-05-04 02:09:59,782 INFO raw_validator window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 5-min bars)\n2026-05-04 02:09:59,783 INFO raw_validator candidates: 221 strategies\n2026-05-04 02:09:59,783 INFO raw_validator running every signal generator (vectorised) \u2026\n2026-05-04 02:10:08,302 INFO raw_validator   done in 8.5s \u2014 126,992 raw signals across 208 strategies that fire at least once\n2026-05-04 02:10:11,365 INFO raw_validator    25/221  survivors so far: 2  elapsed: 3.1s\n2026-05-04 02:10:22,939 INFO raw_validator    50/221  survivors so far: 2  elapsed: 14.6s\n2026-05-04 02:10:28,544 INFO raw_validator    75/221  survivors so far: 2  elapsed: 20.2s\n2026-05-04 02:10:35,196 INFO raw_validator   100/221  survivors so far: 4  elapsed: 26.9s\n2026-05-04 02:10:42,492 INFO raw_validator   125/221  survivors so far: 4  elapsed: 34.2s\n2026-05-04 02:10:48,358 INFO raw_validator   150/221  survivors so far: 4  elapsed: 40.1s\n2026-05-04 02:10:52,848 INFO raw_validator   175/221  survivors so far: 5  elapsed: 44.5s\n2026-05-04 02:11:00,351 INFO raw_validator   200/221  survivors so far: 6  elapsed: 52.0s\n2026-05-04 02:11:01,871 INFO raw_validator   221/221  survivors so far: 6  elapsed: 53.6s"
+    },
+    "apply_raw_survivors": {
+      "status": "ok",
+      "ran_at": "2026-05-04T02:11:04.157449+00:00",
+      "n": 6,
+      "survivors": [
+        "V3_LONG_S12T36_16",
+        "V3_LONG_S15T30_04",
+        "V3_SHORT_S12T30_122",
+        "V3_SHORT_S12T30_124",
+        "V3_SHORT_S20T40_81",
+        "V3_SHORT_S20T40_82"
+      ]
     }
   },
   "started_at": "2026-05-04T02:09:50.002383+00:00",
-  "last_update": "2026-05-04T02:11:02.326682+00:00"
+  "last_update": "2026-05-04T02:11:04.157464+00:00"
 }

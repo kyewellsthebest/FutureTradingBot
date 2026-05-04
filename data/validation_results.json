@@ -251,8 +251,8 @@
       "dropped_reason": "tier_B_combined_sim_unprofitable"
     },
     "V3_SHORT_S15T30_05": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6034231609613984,
       "profit_factor": 2.393224440411373,
@@ -265,8 +265,8 @@
       "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S20T50_55": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "win_rate": 0.6077384923282189,
       "profit_factor": 2.8283065732280672,
@@ -280,7 +280,7 @@
     },
     "V3_SHORT_S10T20_37": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.628099173553719,
       "profit_factor": 1.907370064398621,
@@ -293,8 +293,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_57": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.683068017366136,
       "profit_factor": 3.3604323616115295,
@@ -308,7 +308,7 @@
     },
     "V3_SHORT_S18T36_68": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6038543897216274,
       "profit_factor": 2.461152780593283,
@@ -322,7 +322,7 @@
     },
     "V3_SHORT_S18T36_74": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6366307541625857,
       "profit_factor": 2.72869715271786,
@@ -336,7 +336,7 @@
     },
     "V3_SHORT_S20T40_87": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6542239685658153,
       "profit_factor": 3.0606729526031975,
@@ -349,8 +349,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_141": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6240503012837306,
       "profit_factor": 3.25416089040282,
@@ -364,7 +364,7 @@
     },
     "V3_SHORT_S20T40_241": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.7336956521739131,
       "profit_factor": 4.339654588554013,
@@ -378,7 +378,7 @@
     },
     "V3_SHORT_S10T20_245": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6164772727272727,
       "profit_factor": 2.2144581949894357,
@@ -392,7 +392,7 @@
     },
     "V3_SHORT_S20T40_246": {
       "recommended": false,
-      "tier": "A",
+      "tier": "C",
       "side": "SHORT",
       "win_rate": 0.6736641221374046,
       "profit_factor": 3.711637931034483,
@@ -405,8 +405,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T30_69": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "win_rate": 0.6535796766743649,
       "profit_factor": 2.5266100419309754,
@@ -461,7 +461,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T20_03": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4996651038178165,
@@ -489,7 +489,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_04": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4865697930427125,
@@ -504,7 +504,7 @@
     },
     "V3_LONG_S15T30_04": {
       "recommended": true,
-      "tier": "B",
+      "tier": "A",
       "side": "LONG",
       "win_rate": 0.9668552950687146,
       "profit_factor": 46.730352303523034,
@@ -560,7 +560,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_06": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4286295655712687,
@@ -645,7 +645,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_12": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.747909569526169,
@@ -673,8 +673,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S12T36_16": {
-      "recommended": false,
-      "tier": "B",
+      "recommended": true,
+      "tier": "A",
       "side": "LONG",
       "win_rate": 0.9367502726281353,
       "profit_factor": 34.42758620689655,
@@ -702,7 +702,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_21": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7365115615186982,
@@ -872,7 +872,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_43": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4998722860791826,
@@ -900,7 +900,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S10T25_56": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4415112618067329,
@@ -956,7 +956,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S20T50_61": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.7255772646536413,
@@ -984,7 +984,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_LONG_S15T37_64": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "LONG",
       "win_rate": 0.4971864951768489,
@@ -1152,7 +1152,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_39": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.8802281368821293,
@@ -1222,7 +1222,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T24_44": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5742821473158551,
@@ -1348,7 +1348,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_53": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5571725571725572,
@@ -1432,7 +1432,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T30_60": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6138461538461538,
@@ -1587,7 +1587,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S18T36_72": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9502487562189055,
@@ -1601,7 +1601,7 @@
       "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S18T36_73": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9500734214390602,
@@ -1657,7 +1657,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_78": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5192401363857769,
@@ -1699,8 +1699,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_81": {
-      "recommended": false,
-      "tier": "B",
+      "recommended": true,
+      "tier": "A",
       "side": "SHORT",
       "win_rate": 0.9739130434782609,
       "profit_factor": 62.51122375090514,
@@ -1713,8 +1713,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_82": {
-      "recommended": false,
-      "tier": "B",
+      "recommended": true,
+      "tier": "A",
       "side": "SHORT",
       "win_rate": 0.9930434782608696,
       "profit_factor": 393.8532110091743,
@@ -1727,7 +1727,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_83": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9642857142857143,
@@ -1783,7 +1783,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T40_88": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9751824817518249,
@@ -1839,7 +1839,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_101": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9357429718875502,
@@ -1881,7 +1881,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_107": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.53604568165596,
@@ -1909,7 +1909,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T20_110": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6370808678500987,
@@ -1951,7 +1951,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S10T25_119": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6504424778761062,
@@ -1965,8 +1965,8 @@
       "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S12T30_122": {
-      "recommended": false,
-      "tier": "B",
+      "recommended": true,
+      "tier": "A",
       "side": "SHORT",
       "win_rate": 0.9559965487489215,
       "profit_factor": 41.82985877605918,
@@ -1979,8 +1979,8 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_124": {
-      "recommended": false,
-      "tier": "B",
+      "recommended": true,
+      "tier": "A",
       "side": "SHORT",
       "win_rate": 0.9715832205683356,
       "profit_factor": 64.83980967486121,
@@ -1994,7 +1994,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_125": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.7605363984674329,
@@ -2022,7 +2022,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S12T30_127": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9449152542372882,
@@ -2064,7 +2064,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T37_132": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5657060518731989,
@@ -2205,7 +2205,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_143": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5163087637840975,
@@ -2234,7 +2234,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_145": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6979338842975207,
@@ -2276,7 +2276,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S20T50_148": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.5757442116868798,
@@ -2402,7 +2402,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S8T24_169": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.6566637246248896,
@@ -2416,7 +2416,7 @@
       "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_SHORT_S10T30_171": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4820261437908497,
@@ -2655,7 +2655,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T45_199": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.4248565965583174,
@@ -2880,7 +2880,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_231": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.886339937434828,
@@ -2950,7 +2950,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "V3_SHORT_S15T60_238": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "win_rate": 0.9499568593615185,
@@ -3188,7 +3188,7 @@
       "dropped_reason": "failed_walk_forward_train_2018_2023"
     },
     "PDH_TOUCH": {
-      "recommended": true,
+      "recommended": false,
       "tier": "B",
       "side": "SHORT",
       "family": "5min",
@@ -3279,5 +3279,17 @@
     ]
   },
   "updated_at": "2026-04-27 lean mode + all strategies activated",
-  "last_updated": "2026-04-29T05:41:25.707829+00:00"
+  "last_updated": "2026-04-29T05:41:25.707829+00:00",
+  "pipeline_provisional": {
+    "survivors": [
+      "V3_LONG_S12T36_16",
+      "V3_LONG_S15T30_04",
+      "V3_SHORT_S12T30_122",
+      "V3_SHORT_S12T30_124",
+      "V3_SHORT_S20T40_81",
+      "V3_SHORT_S20T40_82"
+    ],
+    "n": 6,
+    "set_at": "2026-05-04T02:11:04.154223+00:00"
+  }
 }
