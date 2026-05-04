@@ -288,6 +288,12 @@
     "V7C_LONG_es_led_up_5_x_rth_morning_fast_0271",
     "V7C_LONG_es_led_up_5_x_rth_morning_med_0272",
     "V7C_LONG_es_led_up_5_x_rth_morning_wide_0273",
+    "V7C_SHORT_es_led_down_10_x_rth_afternoon_fast_0304",
+    "V7C_SHORT_es_led_down_10_x_rth_afternoon_med_0305",
+    "V7C_SHORT_es_led_down_10_x_rth_afternoon_wide_0306",
+    "V7C_SHORT_es_led_down_10_x_rth_midday_fast_0301",
+    "V7C_SHORT_es_led_down_10_x_rth_midday_med_0302",
+    "V7C_SHORT_es_led_down_10_x_rth_midday_wide_0303",
     "V7C_SHORT_es_led_down_10_x_rth_morning_fast_0298",
     "V7C_SHORT_es_led_down_10_x_rth_morning_med_0299",
     "V7C_SHORT_es_led_down_10_x_rth_morning_wide_0300",
@@ -299,7 +305,38 @@
     "V7C_SHORT_es_led_down_5_x_rth_midday_wide_0285",
     "V7C_SHORT_es_led_down_5_x_rth_morning_fast_0280",
     "V7C_SHORT_es_led_down_5_x_rth_morning_med_0281",
-    "V7C_SHORT_es_led_down_5_x_rth_morning_wide_0282"
+    "V7C_SHORT_es_led_down_5_x_rth_morning_wide_0282",
+    "V7D_LONG_price_extended_dow_x_rth_morning_MR_quick_0337",
+    "V7D_SHORT_price_extended_up_x_compressed_vol_MR_balanced_0329",
+    "V7D_SHORT_price_extended_up_x_compressed_vol_MR_quick_0327",
+    "V7D_SHORT_price_extended_up_x_compressed_vol_MR_std_0328",
+    "V7D_SHORT_price_extended_up_x_compressed_vol_RR1_0330",
+    "V7D_SHORT_price_extended_up_x_compressed_vol_RR1_5_0331",
+    "V7D_SHORT_price_extended_up_x_expanded_vol_MR_balanced_0334",
+    "V7D_SHORT_price_extended_up_x_expanded_vol_MR_quick_0332",
+    "V7D_SHORT_price_extended_up_x_expanded_vol_MR_std_0333",
+    "V7D_SHORT_price_extended_up_x_expanded_vol_RR1_0335",
+    "V7D_SHORT_price_extended_up_x_expanded_vol_RR1_5_0336",
+    "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_balanced_0319",
+    "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_quick_0317",
+    "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_std_0318",
+    "V7D_SHORT_price_extended_up_x_rth_afternoon_RR1_0320",
+    "V7D_SHORT_price_extended_up_x_rth_afternoon_RR1_5_0321",
+    "V7D_SHORT_price_extended_up_x_rth_midday_MR_balanced_0314",
+    "V7D_SHORT_price_extended_up_x_rth_midday_MR_quick_0312",
+    "V7D_SHORT_price_extended_up_x_rth_midday_MR_std_0313",
+    "V7D_SHORT_price_extended_up_x_rth_midday_RR1_0315",
+    "V7D_SHORT_price_extended_up_x_rth_midday_RR1_5_0316",
+    "V7D_SHORT_price_extended_up_x_rth_morning_MR_balanced_0309",
+    "V7D_SHORT_price_extended_up_x_rth_morning_MR_quick_0307",
+    "V7D_SHORT_price_extended_up_x_rth_morning_MR_std_0308",
+    "V7D_SHORT_price_extended_up_x_rth_morning_RR1_0310",
+    "V7D_SHORT_price_extended_up_x_rth_morning_RR1_5_0311",
+    "V7D_SHORT_price_extended_up_x_vix_low_MR_balanced_0324",
+    "V7D_SHORT_price_extended_up_x_vix_low_MR_quick_0322",
+    "V7D_SHORT_price_extended_up_x_vix_low_MR_std_0323",
+    "V7D_SHORT_price_extended_up_x_vix_low_RR1_0325",
+    "V7D_SHORT_price_extended_up_x_vix_low_RR1_5_0326"
   ],
   "results": [
     {
@@ -11098,6 +11135,1338 @@
         "rth_morning"
       ],
       "trigger": "es_led_down_10",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 5,
+      "n_test": 158,
+      "train": {
+        "n": 5,
+        "wr": 0.6,
+        "pf": 3.222881766793955,
+        "sharpe": 0.5726285347872339,
+        "net": 44.013058982520306
+      },
+      "test": {
+        "n": 158,
+        "wr": 0.4873417721518987,
+        "pf": 0.5278548545978446,
+        "sharpe": -0.26602679927420614,
+        "net": -1507.3060298858936
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_midday_fast_0301",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.5,
+      "max_hold_min": 10
+    },
+    {
+      "n_train": 5,
+      "n_test": 158,
+      "train": {
+        "n": 5,
+        "wr": 0.4,
+        "pf": 0.8577657314890775,
+        "sharpe": -0.06465136196881972,
+        "net": -9.592512963332403
+      },
+      "test": {
+        "n": 158,
+        "wr": 0.4620253164556962,
+        "pf": 0.6312022905489657,
+        "sharpe": -0.20404427365552777,
+        "net": -1333.0899233849004
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_midday_med_0302",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.7,
+      "max_hold_min": 15
+    },
+    {
+      "n_train": 5,
+      "n_test": 158,
+      "train": {
+        "n": 5,
+        "wr": 0.6,
+        "pf": 10.15065578909384,
+        "sharpe": 0.7808594053764351,
+        "net": 57.64913147129119
+      },
+      "test": {
+        "n": 158,
+        "wr": 0.5063291139240507,
+        "pf": 0.6864762018944986,
+        "sharpe": -0.15571259711371635,
+        "net": -1189.2278145627233
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_midday_wide_0303",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 2,
+      "n_test": 74,
+      "train": {
+        "n": 2,
+        "wr": 0.5,
+        "pf": 0.024096385542168676,
+        "sharpe": -0.9529411764705883,
+        "net": -24.299999999999997
+      },
+      "test": {
+        "n": 74,
+        "wr": 0.4864864864864865,
+        "pf": 0.519212283115382,
+        "sharpe": -0.2586748513553664,
+        "net": -935.7890208270487
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_afternoon_fast_0304",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.5,
+      "max_hold_min": 10
+    },
+    {
+      "n_train": 2,
+      "n_test": 74,
+      "train": {
+        "n": 2,
+        "wr": 0.0,
+        "pf": 0.0,
+        "sharpe": -19.72,
+        "net": -49.3
+      },
+      "test": {
+        "n": 74,
+        "wr": 0.4864864864864865,
+        "pf": 0.6473684489925874,
+        "sharpe": -0.18018856168912947,
+        "net": -747.4067664055999
+      },
+      "cpcv_positive": 2,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_afternoon_med_0305",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.0,
+      "target_atr": 0.7,
+      "max_hold_min": 15
+    },
+    {
+      "n_train": 2,
+      "n_test": 74,
+      "train": {
+        "n": 2,
+        "wr": 0.0,
+        "pf": 0.0,
+        "sharpe": -6.741176470588235,
+        "net": -57.3
+      },
+      "test": {
+        "n": 74,
+        "wr": 0.5405405405405406,
+        "pf": 0.6042658022124967,
+        "sharpe": -0.2000950947251854,
+        "net": -999.012113495957
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7C_SHORT_es_led_down_10_x_rth_afternoon_wide_0306",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "es_led_down_10",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 13136,
+      "n_test": 5087,
+      "train": {
+        "n": 13136,
+        "wr": 0.519183922046285,
+        "pf": 0.648985229885179,
+        "sharpe": -0.17044898676687217,
+        "net": -83679.49320038586
+      },
+      "test": {
+        "n": 5087,
+        "wr": 0.5700805976017299,
+        "pf": 0.8324663227264211,
+        "sharpe": -0.07481352188533791,
+        "net": -21800.405642607016
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_morning_MR_quick_0307",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 13136,
+      "n_test": 5087,
+      "train": {
+        "n": 13136,
+        "wr": 0.5097442143727162,
+        "pf": 0.7161307239321719,
+        "sharpe": -0.13182140740229464,
+        "net": -83032.23205471938
+      },
+      "test": {
+        "n": 5087,
+        "wr": 0.5527816001572636,
+        "pf": 0.869532788589046,
+        "sharpe": -0.05720808307777697,
+        "net": -21610.329165215117
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_morning_MR_std_0308",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 13136,
+      "n_test": 5087,
+      "train": {
+        "n": 13136,
+        "wr": 0.47419305724725946,
+        "pf": 0.6866362506212329,
+        "sharpe": -0.15382012466669456,
+        "net": -90607.52991926535
+      },
+      "test": {
+        "n": 5087,
+        "wr": 0.5183801847847455,
+        "pf": 0.84232949244731,
+        "sharpe": -0.07258447366182272,
+        "net": -25771.914862060577
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_morning_MR_balanced_0309",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 13136,
+      "n_test": 5087,
+      "train": {
+        "n": 13136,
+        "wr": 0.3889311814859927,
+        "pf": 0.6238945003071174,
+        "sharpe": -0.20148027914712244,
+        "net": -102382.07907790825
+      },
+      "test": {
+        "n": 5087,
+        "wr": 0.44584234322783567,
+        "pf": 0.7996323118879665,
+        "sharpe": -0.09779777309264194,
+        "net": -30656.38280842737
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_morning_RR1_0310",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 13137,
+      "n_test": 5087,
+      "train": {
+        "n": 13137,
+        "wr": 0.3170434650224557,
+        "pf": 0.641761805329184,
+        "sharpe": -0.18612230630328805,
+        "net": -112211.45416305962
+      },
+      "test": {
+        "n": 5087,
+        "wr": 0.3670139571456654,
+        "pf": 0.781266102772708,
+        "sharpe": -0.10588589120127224,
+        "net": -39617.023790384555
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_morning_RR1_5_0311",
+      "side": "SHORT",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 17962,
+      "n_test": 7147,
+      "train": {
+        "n": 17962,
+        "wr": 0.4636454737779757,
+        "pf": 0.6124979273415189,
+        "sharpe": -0.187321033542191,
+        "net": -111889.81718438328
+      },
+      "test": {
+        "n": 7147,
+        "wr": 0.5149013572128166,
+        "pf": 0.7956063209616825,
+        "sharpe": -0.08725222278242695,
+        "net": -31895.98089278178
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_midday_MR_quick_0312",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 17962,
+      "n_test": 7147,
+      "train": {
+        "n": 17962,
+        "wr": 0.449003451731433,
+        "pf": 0.6491230449415354,
+        "sharpe": -0.16287059737844128,
+        "net": -124261.25314784121
+      },
+      "test": {
+        "n": 7147,
+        "wr": 0.48803693857562613,
+        "pf": 0.825033599169178,
+        "sharpe": -0.07287285229374858,
+        "net": -33655.74200523608
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_midday_MR_std_0313",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 17962,
+      "n_test": 7147,
+      "train": {
+        "n": 17962,
+        "wr": 0.4364213339271796,
+        "pf": 0.6348877646095143,
+        "sharpe": -0.17871860097986822,
+        "net": -129868.10622824793
+      },
+      "test": {
+        "n": 7147,
+        "wr": 0.4779627815866797,
+        "pf": 0.8143792085944456,
+        "sharpe": -0.08041532920583448,
+        "net": -35756.09363765883
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_midday_MR_balanced_0314",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 17962,
+      "n_test": 7147,
+      "train": {
+        "n": 17962,
+        "wr": 0.3827524774523995,
+        "pf": 0.6029967698578488,
+        "sharpe": -0.21137679180728003,
+        "net": -136299.03702958277
+      },
+      "test": {
+        "n": 7147,
+        "wr": 0.4315097243598713,
+        "pf": 0.7712496728931921,
+        "sharpe": -0.10748037608876228,
+        "net": -43423.37662723461
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_midday_RR1_0315",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 17964,
+      "n_test": 7147,
+      "train": {
+        "n": 17964,
+        "wr": 0.31919394344244045,
+        "pf": 0.6097354451973225,
+        "sharpe": -0.20304490696814806,
+        "net": -155119.41889717165
+      },
+      "test": {
+        "n": 7147,
+        "wr": 0.3716244578144676,
+        "pf": 0.7641815023823166,
+        "sharpe": -0.11067747485216266,
+        "net": -52743.504011726356
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_midday_RR1_5_0316",
+      "side": "SHORT",
+      "contexts": [
+        "rth_midday"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 12777,
+      "n_test": 4326,
+      "train": {
+        "n": 12777,
+        "wr": 0.4374266259685372,
+        "pf": 0.5385798721064989,
+        "sharpe": -0.21991337414416864,
+        "net": -88209.54275247117
+      },
+      "test": {
+        "n": 4326,
+        "wr": 0.5270457697642164,
+        "pf": 0.7991495984691905,
+        "sharpe": -0.07722983735933973,
+        "net": -16242.64661358139
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_quick_0317",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 12777,
+      "n_test": 4326,
+      "train": {
+        "n": 12777,
+        "wr": 0.4285826093762229,
+        "pf": 0.5724145962674586,
+        "sharpe": -0.1933836362632559,
+        "net": -99221.91258681193
+      },
+      "test": {
+        "n": 4326,
+        "wr": 0.5057790106333796,
+        "pf": 0.8400641344261756,
+        "sharpe": -0.05965704678515274,
+        "net": -15568.503362277195
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_std_0318",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 12777,
+      "n_test": 4326,
+      "train": {
+        "n": 12777,
+        "wr": 0.40956406042106913,
+        "pf": 0.5577466721180653,
+        "sharpe": -0.21378976578057662,
+        "net": -101360.28733735501
+      },
+      "test": {
+        "n": 4326,
+        "wr": 0.4919093851132686,
+        "pf": 0.8202714027822797,
+        "sharpe": -0.07008376745497408,
+        "net": -17511.843080608727
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_afternoon_MR_balanced_0319",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 12777,
+      "n_test": 4326,
+      "train": {
+        "n": 12777,
+        "wr": 0.3541519918603741,
+        "pf": 0.5290172290090974,
+        "sharpe": -0.24956609173699834,
+        "net": -100955.64199941557
+      },
+      "test": {
+        "n": 4326,
+        "wr": 0.4415164123901988,
+        "pf": 0.7687520726784509,
+        "sharpe": -0.0986943465104587,
+        "net": -22158.16639423414
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_afternoon_RR1_0320",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 12778,
+      "n_test": 4326,
+      "train": {
+        "n": 12778,
+        "wr": 0.29957739865393646,
+        "pf": 0.5319975348384448,
+        "sharpe": -0.2440113150635303,
+        "net": -113153.18446413237
+      },
+      "test": {
+        "n": 4326,
+        "wr": 0.39759593157651413,
+        "pf": 0.8100752198948902,
+        "sharpe": -0.07857856087852205,
+        "net": -20744.815921541987
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_rth_afternoon_RR1_5_0321",
+      "side": "SHORT",
+      "contexts": [
+        "rth_afternoon"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 0,
+      "n_test": 16943,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 16943,
+        "wr": 0.5400460367113262,
+        "pf": 0.7884981327210997,
+        "sharpe": -0.08795497701502618,
+        "net": -69486.47160085957
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_vix_low_MR_quick_0322",
+      "side": "SHORT",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 0,
+      "n_test": 16944,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 16944,
+        "wr": 0.5272662889518414,
+        "pf": 0.8397756205000791,
+        "sharpe": -0.06414486504750053,
+        "net": -64875.6594329332
+      },
+      "cpcv_positive": 1,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_vix_low_MR_std_0323",
+      "side": "SHORT",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 0,
+      "n_test": 16944,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 16944,
+        "wr": 0.5026558073654391,
+        "pf": 0.8135132638181851,
+        "sharpe": -0.07874382105677262,
+        "net": -75482.46060060785
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_vix_low_MR_balanced_0324",
+      "side": "SHORT",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 0,
+      "n_test": 16944,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 16944,
+        "wr": 0.43690982058545796,
+        "pf": 0.7615152139190566,
+        "sharpe": -0.10911874731307279,
+        "net": -92789.02210753082
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_vix_low_RR1_0325",
+      "side": "SHORT",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 0,
+      "n_test": 16944,
+      "train": {
+        "n": 0,
+        "wr": 0,
+        "pf": 0,
+        "sharpe": 0,
+        "net": 0
+      },
+      "test": {
+        "n": 16944,
+        "wr": 0.374114730878187,
+        "pf": 0.7754625461908686,
+        "sharpe": -0.10073089732499671,
+        "net": -101817.53538549211
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_vix_low_RR1_5_0326",
+      "side": "SHORT",
+      "contexts": [
+        "vix_low"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 34658,
+      "n_test": 14953,
+      "train": {
+        "n": 34658,
+        "wr": 0.38311500952161115,
+        "pf": 0.3842544347399738,
+        "sharpe": -0.36249023922359724,
+        "net": -198923.06060461316
+      },
+      "test": {
+        "n": 14953,
+        "wr": 0.4536213468869123,
+        "pf": 0.5207231121335127,
+        "sharpe": -0.25059312839362247,
+        "net": -88517.42778443967
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_compressed_vol_MR_quick_0327",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 34659,
+      "n_test": 14954,
+      "train": {
+        "n": 34659,
+        "wr": 0.40621483597334024,
+        "pf": 0.47770781099697823,
+        "sharpe": -0.2743714069496254,
+        "net": -189837.52299334778
+      },
+      "test": {
+        "n": 14954,
+        "wr": 0.45492844723819714,
+        "pf": 0.5745397838007541,
+        "sharpe": -0.21044972391203295,
+        "net": -94706.84678014857
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_compressed_vol_MR_std_0328",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 34659,
+      "n_test": 14954,
+      "train": {
+        "n": 34659,
+        "wr": 0.3781124671802418,
+        "pf": 0.44738499547761235,
+        "sharpe": -0.31668011948515096,
+        "net": -205143.93750729898
+      },
+      "test": {
+        "n": 14954,
+        "wr": 0.4309214925772369,
+        "pf": 0.5571719164473729,
+        "sharpe": -0.2342463017385782,
+        "net": -98223.98747189702
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_compressed_vol_MR_balanced_0329",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 34659,
+      "n_test": 14954,
+      "train": {
+        "n": 34659,
+        "wr": 0.30361522259730517,
+        "pf": 0.3883644541815745,
+        "sharpe": -0.4018052513294825,
+        "net": -225966.26931011176
+      },
+      "test": {
+        "n": 14954,
+        "wr": 0.36572154607462887,
+        "pf": 0.509562496698554,
+        "sharpe": -0.2853309658715905,
+        "net": -105349.4845265385
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_compressed_vol_RR1_0330",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 34661,
+      "n_test": 14955,
+      "train": {
+        "n": 34661,
+        "wr": 0.267534116153602,
+        "pf": 0.4323942111894534,
+        "sharpe": -0.35241742503891565,
+        "net": -232064.78722654653
+      },
+      "test": {
+        "n": 14955,
+        "wr": 0.31374122367101304,
+        "pf": 0.5298490670272303,
+        "sharpe": -0.2662726357164877,
+        "net": -115513.88655116917
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_compressed_vol_RR1_5_0331",
+      "side": "SHORT",
+      "contexts": [
+        "compressed_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 31004,
+      "n_test": 11716,
+      "train": {
+        "n": 31004,
+        "wr": 0.4896787511288866,
+        "pf": 0.6179981459637284,
+        "sharpe": -0.18069160957968936,
+        "net": -188980.062861736
+      },
+      "test": {
+        "n": 11716,
+        "wr": 0.5323489245476272,
+        "pf": 0.7540363069499326,
+        "sharpe": -0.10487926468000712,
+        "net": -66099.27947368896
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_expanded_vol_MR_quick_0332",
+      "side": "SHORT",
+      "contexts": [
+        "expanded_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 0.7,
+      "max_hold_min": 20
+    },
+    {
+      "n_train": 31004,
+      "n_test": 11716,
+      "train": {
+        "n": 31004,
+        "wr": 0.48084118178299573,
+        "pf": 0.6776804582535876,
+        "sharpe": -0.1441163723224345,
+        "net": -193121.91472505298
+      },
+      "test": {
+        "n": 11716,
+        "wr": 0.5100716968248549,
+        "pf": 0.7815520005349188,
+        "sharpe": -0.09124103538373948,
+        "net": -73203.57399455202
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_expanded_vol_MR_std_0333",
+      "side": "SHORT",
+      "contexts": [
+        "expanded_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 2.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 31004,
+      "n_test": 11716,
+      "train": {
+        "n": 31004,
+        "wr": 0.4561024383950458,
+        "pf": 0.6520836121718755,
+        "sharpe": -0.16584666431278652,
+        "net": -208877.29820533202
+      },
+      "test": {
+        "n": 11716,
+        "wr": 0.4883919426425401,
+        "pf": 0.7679090931140655,
+        "sharpe": -0.10135619955376195,
+        "net": -76950.22213875806
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_expanded_vol_MR_balanced_0334",
+      "side": "SHORT",
+      "contexts": [
+        "expanded_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.5,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 31004,
+      "n_test": 11716,
+      "train": {
+        "n": 31004,
+        "wr": 0.3841117275190298,
+        "pf": 0.6055400915714019,
+        "sharpe": -0.20586076385003943,
+        "net": -225768.34590860424
+      },
+      "test": {
+        "n": 11716,
+        "wr": 0.42548651416865824,
+        "pf": 0.7313314850891919,
+        "sharpe": -0.12589547828991282,
+        "net": -84609.66911964524
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_expanded_vol_RR1_0335",
+      "side": "SHORT",
+      "contexts": [
+        "expanded_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.0,
+      "max_hold_min": 30
+    },
+    {
+      "n_train": 31004,
+      "n_test": 11716,
+      "train": {
+        "n": 31004,
+        "wr": 0.32424848406657203,
+        "pf": 0.6365744810063636,
+        "sharpe": -0.18200083426832106,
+        "net": -237715.24786735274
+      },
+      "test": {
+        "n": 11716,
+        "wr": 0.35575281666097647,
+        "pf": 0.7242296583246222,
+        "sharpe": -0.12870223985354254,
+        "net": -101893.69946621201
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": false,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_SHORT_price_extended_up_x_expanded_vol_RR1_5_0336",
+      "side": "SHORT",
+      "contexts": [
+        "expanded_vol"
+      ],
+      "trigger": "price_extended_up",
+      "stop_atr": 1.0,
+      "target_atr": 1.5,
+      "max_hold_min": 45
+    },
+    {
+      "n_train": 11116,
+      "n_test": 4332,
+      "train": {
+        "n": 11116,
+        "wr": 0.5719683339330695,
+        "pf": 0.7327576691992668,
+        "sharpe": -0.12570548572359477,
+        "net": -62419.68779589971
+      },
+      "test": {
+        "n": 4332,
+        "wr": 0.5999538319482918,
+        "pf": 0.7946813370312735,
+        "sharpe": -0.09655884555070096,
+        "net": -29123.954577739005
+      },
+      "cpcv_positive": 0,
+      "permutation_p": 1.0,
+      "pass_sample": true,
+      "pass_wr": true,
+      "pass_pf": false,
+      "pass_sharpe": false,
+      "pass_cpcv": false,
+      "pass_permutation": false,
+      "passes_all": false,
+      "name": "V7D_LONG_price_extended_dow_x_rth_morning_MR_quick_0337",
+      "side": "LONG",
+      "contexts": [
+        "rth_morning"
+      ],
+      "trigger": "price_extended_down",
       "stop_atr": 1.5,
       "target_atr": 0.7,
       "max_hold_min": 20
