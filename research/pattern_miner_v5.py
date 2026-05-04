@@ -396,12 +396,20 @@ def main():
     print(f"  features: {feats.shape}  ({time.time()-t0:.0f}s)")
     print(f"  feature cols: {len(feats.columns)}")
 
-    # All non-NaN bars
-    feats_clean = feats.dropna()
-    print(f"  bars with all features: {len(feats_clean):,}")
+    # XGBoost handles NaN natively (treats as a separate split direction).
+    # We DON'T dropna — that would erase all pre-2024 bars where the
+    # cross-asset features (ES/RTY/VIX) aren't present, leaving us with
+    # < 5K training rows. Instead require only the bare-minimum NQ-only
+    # features to be present for a row to be usable.
+    nq_core_cols = ["atr_14", "dist_pdh_atr", "dist_pdl_atr", "vol_z_50",
+                     "rsi_14", "ema_20_slope"]
+    feats_clean = feats[feats[nq_core_cols].notna().all(axis=1)]
+    print(f"  bars with NQ-core features: {len(feats_clean):,}")
 
-    # Train cutoff: 2024-01-01 (5+ yrs train, 2+ yrs OOS test)
-    train_end = pd.Timestamp("2024-01-01", tz="UTC")
+    # Train cutoff: 2024-07-01 (cross-asset features are present from 2024+,
+    # so 2024-Jul splits roughly half of the cross-asset-rich data into
+    # train and half into OOS test).
+    train_end = pd.Timestamp("2024-07-01", tz="UTC")
     print(f"  train end: {train_end}  →  test starts after")
 
     print("\n[3/5] Mining + training XGBoost models per (side, stop, target, trail) ...")
