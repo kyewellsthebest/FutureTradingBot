@@ -1,163 +1,22 @@
 {
-  "generated_at": "2026-04-27T21:51:29.579178+00:00",
+  "generated_at": "2026-05-04T02:19:33.332033+00:00",
   "params": {
     "combos": "10/30,12/35,15/40,8/25",
     "max_depth": 12,
-    "min_leaf": 200,
-    "min_train_wr": 0.52,
-    "min_cpcv_mean_wr": 0.52,
-    "min_cpcv_fold_wr": 0.45,
+    "min_leaf": 300,
+    "min_train_wr": 0.58,
+    "min_cpcv_mean_wr": 0.55,
+    "min_cpcv_fold_wr": 0.5,
     "min_trades_per_week": 3.0,
     "n_folds": 5,
     "purge": 30,
     "top": 8,
-    "emit": true
+    "emit": false
   },
   "data_context": {
-    "1min_bars": 628313,
-    "days": 762,
-    "weeks": 108.85714285714286
+    "1min_bars": 2828593,
+    "days": 2963,
+    "weeks": 423.2857142857143
   },
-  "patterns": [
-    {
-      "name": "V4_SHORT_S12T24_01",
-      "side": "SHORT",
-      "stop_pts": 12.0,
-      "target_pts": 24.0,
-      "max_hold": 35,
-      "n_total": "406",
-      "train_wr": 0.5508474576271186,
-      "cpcv_mean_wr": 0.5876184730283041,
-      "cpcv_min_wr": 0.46616541353383456,
-      "cpcv_max_wr": 0.7901234567901234,
-      "cpcv_n_folds": 10,
-      "constraints": [
-        [
-          "atr_14",
-          "<=",
-          9.322625160217285
-        ],
-        [
-          "atr_14",
-          ">",
-          3.4005573987960815
-        ],
-        [
-          "bars_into_session",
-          ">",
-          141.5
-        ],
-        [
-          "atr_14",
-          ">",
-          6.0590980052948
-        ],
-        [
-          "dist_vwap_atr",
-          "<=",
-          21.640140533447266
-        ],
-        [
-          "bars_into_session",
-          ">",
-          322.5
-        ],
-        [
-          "atr_14",
-          "<=",
-          7.798141956329346
-        ],
-        [
-          "dist_vwap_atr",
-          ">",
-          6.975290298461914
-        ],
-        [
-          "dow",
-          "<=",
-          3.5
-        ],
-        [
-          "bars_into_session",
-          ">",
-          348.5
-        ],
-        [
-          "atr_50",
-          ">",
-          6.758034706115723
-        ]
-      ]
-    },
-    {
-      "name": "V4_SHORT_S12T24_02",
-      "side": "SHORT",
-      "stop_pts": 12.0,
-      "target_pts": 24.0,
-      "max_hold": 35,
-      "n_total": "392",
-      "train_wr": 0.5267857142857143,
-      "cpcv_mean_wr": 0.5205543241180214,
-      "cpcv_min_wr": 0.47107438016528924,
-      "cpcv_max_wr": 0.5632183908045977,
-      "cpcv_n_folds": 10,
-      "constraints": [
-        [
-          "atr_14",
-          ">",
-          9.322625160217285
-        ],
-        [
-          "dist_vwap_atr",
-          "<=",
-          9.720065593719482
-        ],
-        [
-          "ema_distance_5_20",
-          ">",
-          0.057578735053539276
-        ],
-        [
-          "dist_vwap_atr",
-          "<=",
-          6.271219968795776
-        ],
-        [
-          "vol_drought_10",
-          ">",
-          0.5168278217315674
-        ],
-        [
-          "vol_burst_3",
-          "<=",
-          1.9380950331687927
-        ],
-        [
-          "ny_minute",
-          ">",
-          7.5
-        ],
-        [
-          "bars_into_session",
-          "<=",
-          198.5
-        ],
-        [
-          "atr_50",
-          "<=",
-          10.447432518005371
-        ],
-        [
-          "ema_distance_20_50",
-          "<=",
-          0.9775358140468597
-        ],
-        [
-          "lower_wick_pct",
-          ">",
-          0.17262665182352066
-        ]
-      ]
-    }
-  ]
+  "patterns": []
 }
