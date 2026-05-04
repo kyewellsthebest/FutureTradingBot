@@ -667,10 +667,11 @@ def main():
 
 
 if __name__ == "__main__":
-    while True:
-        try:
-            main()
-            break
-        except Exception as e:
-            logger.exception(f"main() crashed: {e}; restarting in 30s")
-            time.sleep(30)
+    # NO inner retry loop — let the BASH WATCHDOG restart the Python
+    # process so file edits are picked up. (An inner loop just keeps
+    # the cached buggy code in memory.)
+    try:
+        main()
+    except Exception as e:
+        logger.exception(f"main() crashed: {e}")
+        raise
