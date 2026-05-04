@@ -30,8 +30,13 @@
       "ran_at": "2026-05-04T02:21:40.427579+00:00",
       "output_tail": "\n========================================================================\nLIVE-BOT REPLAY HEADLINE\n========================================================================\n  Window:           2025-04-08 \u2192 2026-04-08\n  Bars evaluated:   70,116\n  Signals fired:    0\n  Trades taken:     0\n  Trades blocked:   0\n  Win rate:         0.0%  (0W / 0L)\n  Total P&L:        $+0\n  Take-home (90%):  $+0\n  Final balance:    $50,000\n  Failed accounts:  0\n\n2026-05-04 02:20:17,709 WARNING signal_engine [engine] ML model not found \u2014 falling back to AGREE for all signals\n2026-05-04 02:20:17,710 WARNING signal_engine [engine] no regime model found \u2014 regime filter will no-op until trained\n2026-05-04 02:20:17,710 INFO live_sim loading 5-min, 1-min, and daily NQ bars \u2026\n2026-05-04 02:20:17,937 INFO live_sim sim window: 2025-04-08 11:10:00+00:00 \u2192 2026-04-08 11:10:00+00:00  (70,116 bars)\n2026-05-04 02:20:17,937 INFO live_sim pre-computing all signal-firing bars across the window \u2026\n2026-05-04 02:20:23,383 INFO live_sim   pre-compute done in 5.4s \u2014 155 raw signals across 155 unique timestamps\n2026-05-04 02:20:53,390 INFO live_sim   31,039/70,116 bars  (44.3%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 0.6m\n2026-05-04 02:21:23,695 INFO live_sim   51,379/70,116 bars  (73.3%)  trades=0 blocked=0  bal=$50,000  acct=#1  ETA 0.4m\n2026-05-04 02:21:39,967 INFO live_sim done in 1.3 min  \u2022  70,116 bars  \u2022  0 trades  \u2022  0 blocked  \u2022  final bal $50,000\n2026-05-04 02:21:39,968 INFO live_sim wrote live_sim_results.json and live_sim_report.html (4 KB)",
       "archive_json": "/home/user/HFTBot/data/live_sim_results_final.json"
+    },
+    "final_report": {
+      "status": "ok",
+      "ran_at": "2026-05-04T02:21:41.811522+00:00",
+      "path": "/home/user/HFTBot/data/FINAL_REPORT.md"
     }
   },
   "started_at": "2026-05-04T02:09:50.002383+00:00",
-  "last_update": "2026-05-04T02:21:40.427607+00:00"
+  "last_update": "2026-05-04T02:21:41.811536+00:00"
 }
