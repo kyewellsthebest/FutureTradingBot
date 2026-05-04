@@ -87,6 +87,10 @@ OUT_JSON = PROJECT_ROOT / "data" / "live_sim_results.json"
 logger = logging.getLogger("live_sim")
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s %(message)s")
+# Quiet the engine's per-signal rejection log spam — over a 12-month run
+# it produces 100s of MB of "vpin=0.42 HIGH crash-warn" lines that we
+# don't need (the sim already aggregates veto counts in its own summary).
+logging.getLogger("signal_engine").setLevel(logging.WARNING)
 
 # MNQ constants (Lucid only allows micros, not minis)
 MNQ_DPP = 2.0   # $ per point per MNQ

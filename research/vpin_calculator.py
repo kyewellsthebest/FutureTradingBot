@@ -27,7 +27,11 @@ import pandas as pd
 VPINRegime = Literal["LOW", "NORMAL", "ELEVATED", "HIGH", "EXTREME"]
 
 N_BUCKETS = 50
-SPIKE_DELTA = 0.05
+# Spike threshold raised 2026-05-03 with the same NQ recalibration.
+# delta is (last 10 bucket VPIN avg) - (prior 10), so 0.05 was firing
+# constantly during normal NQ regime shifts. Empirical std of delta on
+# 12 months of NQ ≈ 0.04, so 2σ ≈ 0.08, 3σ ≈ 0.12 — a real spike.
+SPIKE_DELTA = 0.10
 
 
 @dataclass
