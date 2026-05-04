@@ -3203,8 +3203,8 @@
       "selection_method": "walk_forward_OOS_2024_2026"
     },
     "V3_LONG_S8T8_01": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3214,8 +3214,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_02": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3225,8 +3225,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_03": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3236,8 +3236,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_04": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3247,8 +3247,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_05": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3258,8 +3258,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_06": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3269,8 +3269,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S8T8_01": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3280,8 +3280,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_07": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3291,8 +3291,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_08": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3302,8 +3302,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_09": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3313,8 +3313,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_10": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3324,8 +3324,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_11": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3335,8 +3335,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_12": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3346,8 +3346,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_13": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3357,8 +3357,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_14": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3368,8 +3368,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_15": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3379,8 +3379,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S12T12_16": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3390,8 +3390,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_02": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3401,8 +3401,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_03": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3412,8 +3412,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_04": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3423,8 +3423,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_05": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3434,8 +3434,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_06": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3445,8 +3445,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_07": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3456,8 +3456,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_08": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3467,8 +3467,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_09": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3478,8 +3478,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_10": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3489,8 +3489,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S12T12_11": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3500,8 +3500,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_17": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3511,8 +3511,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_18": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3522,8 +3522,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_19": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3533,8 +3533,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_20": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3544,8 +3544,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_21": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3555,8 +3555,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_22": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3566,8 +3566,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_23": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3577,8 +3577,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_24": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3588,8 +3588,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_25": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3599,8 +3599,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S16T16_26": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3610,8 +3610,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_12": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3621,8 +3621,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_13": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3632,8 +3632,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_14": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3643,8 +3643,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_15": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3654,8 +3654,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_16": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3665,8 +3665,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_17": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3676,8 +3676,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S16T16_18": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -3687,8 +3687,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_27": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3698,8 +3698,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_28": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3709,8 +3709,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_29": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3720,8 +3720,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_30": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3731,8 +3731,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_31": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3742,8 +3742,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_32": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3753,8 +3753,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_33": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3764,8 +3764,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_34": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3775,8 +3775,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_35": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3786,8 +3786,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_36": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3797,8 +3797,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_37": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3808,8 +3808,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_38": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3819,8 +3819,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S20T20_39": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3830,8 +3830,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S20T20_19": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3841,8 +3841,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S20T20_20": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3852,8 +3852,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S20T20_21": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3863,8 +3863,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S20T20_22": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3874,8 +3874,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_SHORT_S20T20_23": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -3883,6 +3883,2016 @@
       "profit_factor": 1.7958200007193106,
       "trades": 747,
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
+    },
+    "V3_LONG_S8T8_001": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5895377857216293,
+      "trades": 3853,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_002": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.575195777405637,
+      "trades": 3575,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_003": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5482617713099543,
+      "trades": 2708,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_004": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.6167800291593489,
+      "trades": 725,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_005": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.6020629230850014,
+      "trades": 736,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_006": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5418289367137529,
+      "trades": 682,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_001": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5884116547772322,
+      "trades": 2267,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_007": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5800058537291995,
+      "trades": 12679,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_008": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5525541327750334,
+      "trades": 6089,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_009": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5605451255239792,
+      "trades": 4867,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_010": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6243839243802809,
+      "trades": 1955,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_011": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5528547681292416,
+      "trades": 2002,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_012": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.569301359015311,
+      "trades": 1123,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_013": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6121463647283616,
+      "trades": 691,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_014": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5407286065711701,
+      "trades": 909,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_015": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5910176208746667,
+      "trades": 668,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_016": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5911830168341163,
+      "trades": 651,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_002": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5659382550549056,
+      "trades": 5070,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_003": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5644105193809936,
+      "trades": 1768,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_004": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6050632085984541,
+      "trades": 1233,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_005": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6509643387497539,
+      "trades": 943,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_006": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6066381884444638,
+      "trades": 1140,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_007": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5895481243371982,
+      "trades": 1056,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_008": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5738358035137487,
+      "trades": 1134,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_009": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.603531360809359,
+      "trades": 806,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_010": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6045594367336402,
+      "trades": 797,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_011": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5859940271352067,
+      "trades": 816,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_017": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5938731157228656,
+      "trades": 6247,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_018": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.572345130296154,
+      "trades": 5323,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_019": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5790032287047435,
+      "trades": 2463,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_020": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6224355515943581,
+      "trades": 1430,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_021": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.651332728759677,
+      "trades": 954,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_022": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6791049397650596,
+      "trades": 771,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_023": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5394215614291665,
+      "trades": 1305,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_024": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5601363633582442,
+      "trades": 1093,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_025": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6170575187701832,
+      "trades": 753,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_026": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5710016451314462,
+      "trades": 734,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_012": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5607609617390722,
+      "trades": 3544,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_013": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5522265949757175,
+      "trades": 1846,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_014": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6412859122194199,
+      "trades": 1114,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_015": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6879678475726744,
+      "trades": 767,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_016": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6530025791594536,
+      "trades": 779,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_017": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6658447522704816,
+      "trades": 703,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_018": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5804343603197301,
+      "trades": 755,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_027": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5650558061405759,
+      "trades": 7671,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_028": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5558215345835968,
+      "trades": 1733,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_029": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5728369023031269,
+      "trades": 1423,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_030": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.683775890305593,
+      "trades": 776,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_031": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.583726559115002,
+      "trades": 1120,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_032": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5556274446228766,
+      "trades": 1281,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_033": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5693972518175209,
+      "trades": 1139,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_034": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5785494685803814,
+      "trades": 1033,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_035": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6134518429876877,
+      "trades": 812,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_036": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6151446845428599,
+      "trades": 788,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_037": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6213981930323302,
+      "trades": 712,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_038": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5764443102748003,
+      "trades": 733,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_039": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5840963370996362,
+      "trades": 650,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_019": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.642487422405511,
+      "trades": 1758,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_020": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6107836218659184,
+      "trades": 1279,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_021": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6401982973777484,
+      "trades": 1066,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_022": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7215903202323773,
+      "trades": 646,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_023": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.642323182557275,
+      "trades": 747,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_040": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5266867376227958,
+      "trades": 37144,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_041": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5095783452377594,
+      "trades": 27155,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_042": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5317909659604151,
+      "trades": 7697,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_043": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5104137101004909,
+      "trades": 5582,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_044": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5200385906917437,
+      "trades": 2485,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_045": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5129145086704866,
+      "trades": 2571,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_046": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5260895283139381,
+      "trades": 1901,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_047": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5299172223069597,
+      "trades": 1657,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_048": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5930866397654475,
+      "trades": 549,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_049": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5411222944220058,
+      "trades": 521,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T8_050": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.532640716755587,
+      "trades": 487,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_024": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5295336175821516,
+      "trades": 9163,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_025": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5283393395446564,
+      "trades": 3188,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_026": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5275859605823718,
+      "trades": 1798,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_027": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5171097234355272,
+      "trades": 974,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S8T8_028": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 8.0,
+      "target_pts": 8.0,
+      "win_rate": 0.5506692176170584,
+      "trades": 447,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_051": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5173688712669088,
+      "trades": 45915,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_052": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5173568651497169,
+      "trades": 3167,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_053": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6622101449371864,
+      "trades": 551,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_054": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5327891334910928,
+      "trades": 999,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T12_055": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5542337418434481,
+      "trades": 819,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_029": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5196961902309276,
+      "trades": 23717,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_030": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5144587721180549,
+      "trades": 23175,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_031": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5267004278433192,
+      "trades": 3865,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_032": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5489465292997997,
+      "trades": 1003,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_033": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6129179757498195,
+      "trades": 533,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_034": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5342640951915432,
+      "trades": 807,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_035": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5844451742826486,
+      "trades": 598,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_036": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5162954016119672,
+      "trades": 878,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_037": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.5843347661978585,
+      "trades": 523,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T12_038": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6050753815596909,
+      "trades": 455,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_056": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5194304941997812,
+      "trades": 25423,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_057": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5239502027349434,
+      "trades": 23481,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_058": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5421448837792214,
+      "trades": 12050,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_059": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5281434659370225,
+      "trades": 10262,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_060": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5152796376063599,
+      "trades": 4047,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_061": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5309348203481848,
+      "trades": 2161,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_062": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.7099751897501765,
+      "trades": 535,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_063": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5486563635179699,
+      "trades": 1086,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_064": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5731064103478551,
+      "trades": 882,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_065": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6571560688873722,
+      "trades": 546,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_066": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5878327421794831,
+      "trades": 667,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_067": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5963697577467597,
+      "trades": 624,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_068": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5962499838905835,
+      "trades": 551,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_069": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5573682427822078,
+      "trades": 659,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_070": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5991405687364468,
+      "trades": 512,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_071": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5916303636542632,
+      "trades": 502,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_039": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5190377535539697,
+      "trades": 29050,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_040": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5174305694387172,
+      "trades": 26718,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_041": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5330930797921264,
+      "trades": 12673,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_042": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5344496988318725,
+      "trades": 7664,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_043": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5401145615475366,
+      "trades": 5581,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_044": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.555501664772828,
+      "trades": 2026,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_045": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5394787960887129,
+      "trades": 1468,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_046": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5761827505401309,
+      "trades": 1118,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_047": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.7108347364205995,
+      "trades": 486,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_048": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5154549959364226,
+      "trades": 1376,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_049": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6501754926136984,
+      "trades": 577,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_050": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.5864600797568263,
+      "trades": 765,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_051": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6292488942476895,
+      "trades": 582,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_052": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6449061641327978,
+      "trades": 448,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T16_053": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6125878037488579,
+      "trades": 471,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_072": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5046992208583895,
+      "trades": 65883,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_073": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5187665701503168,
+      "trades": 52636,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_074": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5165255815156576,
+      "trades": 21228,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_075": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5222558090138987,
+      "trades": 11000,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_076": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5222490664378825,
+      "trades": 4739,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_077": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7700065776787015,
+      "trades": 596,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_078": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7640087617902726,
+      "trades": 575,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_079": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5339948752223601,
+      "trades": 1316,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_080": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.673987634533733,
+      "trades": 575,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_081": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7116343090814208,
+      "trades": 463,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_082": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6870375350767318,
+      "trades": 474,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_083": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6556201480553772,
+      "trades": 548,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_084": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6583603443181762,
+      "trades": 517,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_085": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6903236200566281,
+      "trades": 439,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_086": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6605654927328561,
+      "trades": 503,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_087": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5662299667122026,
+      "trades": 552,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T20_088": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.594722517126411,
+      "trades": 452,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_054": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5128969204138245,
+      "trades": 40786,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_055": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5243455228165149,
+      "trades": 12872,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_056": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5230067262750357,
+      "trades": 9864,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_057": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5416227002832025,
+      "trades": 7897,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_058": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5360275876844699,
+      "trades": 7952,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_059": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5268870467738226,
+      "trades": 7212,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_060": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.701336908158914,
+      "trades": 1176,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_061": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5181433232858339,
+      "trades": 2994,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_062": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5646882696455986,
+      "trades": 2115,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_063": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7300573801135793,
+      "trades": 572,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_064": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5547792649143677,
+      "trades": 1383,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_065": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6852878527481654,
+      "trades": 494,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_066": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6381124376249094,
+      "trades": 623,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_067": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.601679380718576,
+      "trades": 713,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_068": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6501130110555119,
+      "trades": 533,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_069": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6754706547652695,
+      "trades": 452,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_070": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5085459867111429,
+      "trades": 1133,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_071": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5731382384947686,
+      "trades": 711,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T20_072": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5688614885009395,
+      "trades": 643,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_089": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5239991797828808,
+      "trades": 35010,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_090": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5118761075307245,
+      "trades": 33673,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_091": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5990728169783213,
+      "trades": 3828,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_092": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5293154618077076,
+      "trades": 5721,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_093": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5579295428476322,
+      "trades": 2638,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_094": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6627155241052803,
+      "trades": 1129,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_095": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6193634560243464,
+      "trades": 1150,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_096": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5866312872000179,
+      "trades": 1301,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_097": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6766723490431127,
+      "trades": 659,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_098": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5278571000437029,
+      "trades": 1455,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_099": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6302298749626092,
+      "trades": 572,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T25_100": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5946915831057916,
+      "trades": 484,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_073": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5243312067821683,
+      "trades": 72677,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_074": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5161658300806412,
+      "trades": 26527,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_075": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5120421580891226,
+      "trades": 19376,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_076": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5585400716933708,
+      "trades": 4290,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_077": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6058868484065706,
+      "trades": 2944,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_078": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6735090986160361,
+      "trades": 1709,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_079": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5612196500101105,
+      "trades": 3105,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_080": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6002589501069956,
+      "trades": 2389,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_081": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.572936940909425,
+      "trades": 2782,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_082": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.8295271032927539,
+      "trades": 607,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_083": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5650125939127136,
+      "trades": 2175,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_084": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.7302275997502742,
+      "trades": 866,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_085": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5346346656232581,
+      "trades": 1796,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_086": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5535572233186491,
+      "trades": 1386,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_087": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5605122717899622,
+      "trades": 1308,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_088": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5603517984779488,
+      "trades": 1270,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_089": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6835796035526494,
+      "trades": 617,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_090": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5404943475730762,
+      "trades": 1254,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_091": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6084284688108883,
+      "trades": 717,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_092": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6314936620870897,
+      "trades": 609,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_093": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.615581577425103,
+      "trades": 661,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_094": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6493262249863412,
+      "trades": 468,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_095": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5491657853842357,
+      "trades": 791,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_096": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6312193549205567,
+      "trades": 466,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_097": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6133891248708223,
+      "trades": 492,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T25_098": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.5285649156241099,
+      "trades": 534,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T50_101": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 50.0,
+      "win_rate": 0.5534018556718712,
+      "trades": 701,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T50_099": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 50.0,
+      "win_rate": 0.6387914369150146,
+      "trades": 455,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S40T80_102": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 40.0,
+      "target_pts": 80.0,
+      "win_rate": 0.5892495828423502,
+      "trades": 656,
+      "rigor_level": "leak_fixed_v3_combined"
     }
   },
   "system": {
@@ -3974,5 +5984,14 @@
     "ran_at": "2026-05-04T02:46:05.812183+00:00",
     "source": "mined_v3_rr10.json",
     "n_survivors": 62
+  },
+  "last_remine_combined": {
+    "ran_at": "2026-05-04T03:02:00.323846+00:00",
+    "sources": [
+      "mined_v3_rr10.json",
+      "mined_v3_broad.json",
+      "mined_v3_wide.json"
+    ],
+    "n_total": 201
   }
 }

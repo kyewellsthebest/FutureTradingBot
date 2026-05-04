@@ -395,23 +395,28 @@ class LiveSim:
         """Walk 1-min bars from one bar after the open through current 5m bar.
         First bar where stop or target is touched closes the position.
         If both touched in the same 1m bar (rare), assume the closer-to-entry
-        level (the stop) hit first — conservative."""
+        level (the stop) hit first — conservative.
+
+        Force-close on max-hold expiry even if bars_1m doesn't have a bar
+        at the exact max_hold_end timestamp (yfinance often misses minutes
+        during low-volume periods)."""
         op = self.open_pos
         if op is None:
             return
+        max_hold_end = op.entry_ts + pd.Timedelta(minutes=op.max_hold_minutes)
         # Window of 1m bars to walk
         start_walk = op.entry_ts + pd.Timedelta(minutes=1)
-        end_walk = current_5m_ts + pd.Timedelta(minutes=4, seconds=59)
-        max_hold_end = op.entry_ts + pd.Timedelta(minutes=op.max_hold_minutes)
-        end_walk = min(end_walk, max_hold_end)
+        end_walk = min(current_5m_ts + pd.Timedelta(minutes=4, seconds=59),
+                        max_hold_end)
         if start_walk > end_walk:
+            # Past max_hold already without prior exit — force close at the
+            # last available 1m close before max_hold_end.
+            self._force_max_hold_close(bars_1m, op, max_hold_end)
             return
         try:
             window = bars_1m.loc[start_walk:end_walk]
         except KeyError:
-            return
-        if window.empty:
-            return
+            window = pd.DataFrame()
         for ts_1m, bar in window.iterrows():
             high = float(bar["high"]); low = float(bar["low"])
             if op.side == "LONG":
@@ -422,21 +427,31 @@ class LiveSim:
                 tgt_hit  = low <= op.target_px
             if stop_hit and tgt_hit:
                 self._close_at_market(op, ts_1m, op.stop_px,
-                                        reason="STOP", adverse=True)
-                return
+                                        reason="STOP", adverse=True); return
             if stop_hit:
                 self._close_at_market(op, ts_1m, op.stop_px,
-                                        reason="STOP", adverse=True)
-                return
+                                        reason="STOP", adverse=True); return
             if tgt_hit:
                 self._close_at_market(op, ts_1m, op.target_px,
-                                        reason="TARGET", adverse=False)
-                return
-        # Max-hold time exit if we walked past the cap without a fill
-        if window.index[-1] >= max_hold_end:
-            close_px = float(window.iloc[-1]["close"])
-            self._close_at_market(op, window.index[-1], close_px,
-                                    reason="TIME", adverse=False)
+                                        reason="TARGET", adverse=False); return
+        # Max-hold time exit: trigger as soon as we walk past the cap.
+        if current_5m_ts >= max_hold_end:
+            self._force_max_hold_close(bars_1m, op, max_hold_end)
+
+    def _force_max_hold_close(self, bars_1m, op, max_hold_end) -> None:
+        """Close at the latest available 1-min bar at-or-before max_hold_end."""
+        try:
+            past = bars_1m.loc[:max_hold_end]
+            if past.empty:
+                close_px = op.entry_px
+                ts = max_hold_end
+            else:
+                close_px = float(past.iloc[-1]["close"])
+                ts = past.index[-1]
+        except Exception:
+            close_px = op.entry_px
+            ts = max_hold_end
+        self._close_at_market(op, ts, close_px, reason="TIME", adverse=False)
 
     def _close_at_market(self, op: OpenPos, exit_ts: pd.Timestamp,
                           exit_px_raw: float, reason: str, adverse: bool) -> None:
