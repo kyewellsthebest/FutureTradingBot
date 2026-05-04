@@ -20,6 +20,8 @@ SOURCES = [
     "mined_v3_rr10.json",
     "mined_v3_broad.json",
     "mined_v3_wide.json",
+    "mined_v3_rr15.json",
+    "mined_v3_rr20rel.json",
 ]
 
 

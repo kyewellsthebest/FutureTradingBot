@@ -3885,8 +3885,8 @@
       "rigor_level": "leak_fixed_v3_rr10_cpcv"
     },
     "V3_LONG_S8T8_001": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3895,8 +3895,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_002": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3905,8 +3905,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_003": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3915,8 +3915,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_004": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3925,8 +3925,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_005": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3935,8 +3935,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_006": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3945,8 +3945,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_001": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -3955,8 +3955,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_007": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3965,8 +3965,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_008": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3975,8 +3975,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_009": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3985,8 +3985,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_010": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -3995,8 +3995,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_011": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4005,8 +4005,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_012": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4015,8 +4015,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_013": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4025,8 +4025,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_014": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4035,8 +4035,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_015": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4045,8 +4045,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_016": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4055,8 +4055,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_002": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4065,8 +4065,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_003": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4075,8 +4075,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_004": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4085,8 +4085,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_005": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4095,8 +4095,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_006": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4105,8 +4105,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_007": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4115,8 +4115,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_008": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4125,8 +4125,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_009": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4135,8 +4135,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_010": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4145,8 +4145,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_011": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4155,8 +4155,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_017": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4165,8 +4165,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_018": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4175,8 +4175,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_019": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4185,8 +4185,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_020": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4195,8 +4195,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_021": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4205,8 +4205,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_022": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4215,8 +4215,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_023": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4225,8 +4225,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_024": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4235,8 +4235,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_025": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4245,8 +4245,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_026": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4255,8 +4255,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_012": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4265,8 +4265,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_013": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4275,8 +4275,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_014": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4285,8 +4285,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_015": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4295,8 +4295,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_016": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4305,8 +4305,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_017": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4315,8 +4315,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_018": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4325,8 +4325,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_027": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4335,8 +4335,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_028": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4345,8 +4345,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_029": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4355,8 +4355,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_030": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4365,8 +4365,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_031": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4375,8 +4375,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_032": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4385,8 +4385,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_033": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4395,8 +4395,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_034": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4405,8 +4405,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_035": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4415,8 +4415,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_036": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4425,8 +4425,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_037": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4435,8 +4435,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_038": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4445,8 +4445,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_039": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4455,8 +4455,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_019": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4465,8 +4465,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_020": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4475,8 +4475,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_021": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4485,8 +4485,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_022": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4495,8 +4495,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_023": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -4505,8 +4505,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_040": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4515,8 +4515,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_041": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4525,8 +4525,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_042": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4535,8 +4535,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_043": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4545,8 +4545,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_044": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4555,8 +4555,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_045": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4565,8 +4565,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_046": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4575,8 +4575,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_047": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4585,8 +4585,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_048": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4595,8 +4595,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_049": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4605,8 +4605,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S8T8_050": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4615,8 +4615,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_024": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4625,8 +4625,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_025": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4635,8 +4635,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_026": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4645,8 +4645,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_027": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4655,8 +4655,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S8T8_028": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 8.0,
       "target_pts": 8.0,
@@ -4665,8 +4665,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_051": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4675,8 +4675,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_052": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4685,8 +4685,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_053": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4695,8 +4695,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_054": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4705,8 +4705,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S12T12_055": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4715,8 +4715,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_029": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4725,8 +4725,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_030": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4735,8 +4735,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_031": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4745,8 +4745,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_032": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4755,8 +4755,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_033": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4765,8 +4765,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_034": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4775,8 +4775,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_035": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4785,8 +4785,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_036": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4795,8 +4795,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_037": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4805,8 +4805,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S12T12_038": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 12.0,
       "target_pts": 12.0,
@@ -4815,8 +4815,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_056": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4825,8 +4825,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_057": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4835,8 +4835,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_058": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4845,8 +4845,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_059": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4855,8 +4855,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_060": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4865,8 +4865,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_061": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4875,8 +4875,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_062": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4885,8 +4885,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_063": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4895,8 +4895,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_064": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4905,8 +4905,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_065": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4915,8 +4915,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_066": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4925,8 +4925,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_067": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4935,8 +4935,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_068": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4945,8 +4945,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_069": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4955,8 +4955,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_070": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4965,8 +4965,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S16T16_071": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4975,8 +4975,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_039": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4985,8 +4985,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_040": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -4995,8 +4995,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_041": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5005,8 +5005,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_042": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5015,8 +5015,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_043": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5025,8 +5025,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_044": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5035,8 +5035,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_045": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5045,8 +5045,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_046": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5055,8 +5055,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_047": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5065,8 +5065,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_048": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5075,8 +5075,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_049": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5085,8 +5085,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_050": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5095,8 +5095,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_051": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5105,8 +5105,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_052": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5115,8 +5115,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S16T16_053": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 16.0,
       "target_pts": 16.0,
@@ -5125,8 +5125,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_072": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5135,8 +5135,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_073": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5145,8 +5145,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_074": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5155,8 +5155,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_075": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5165,8 +5165,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_076": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5175,8 +5175,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_077": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5185,8 +5185,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_078": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5195,8 +5195,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_079": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5205,8 +5205,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_080": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5215,8 +5215,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_081": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5225,8 +5225,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_082": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5235,8 +5235,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_083": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5245,8 +5245,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_084": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5255,8 +5255,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_085": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5265,8 +5265,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_086": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5275,8 +5275,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_087": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5285,8 +5285,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S20T20_088": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5295,8 +5295,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_054": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5305,8 +5305,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_055": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5315,8 +5315,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_056": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5325,8 +5325,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_057": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5335,8 +5335,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_058": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5345,8 +5345,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_059": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5355,8 +5355,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_060": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5365,8 +5365,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_061": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5375,8 +5375,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_062": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5385,8 +5385,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_063": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5395,8 +5395,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_064": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5405,8 +5405,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_065": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5415,8 +5415,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_066": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5425,8 +5425,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_067": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5435,8 +5435,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_068": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5445,8 +5445,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_069": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5455,8 +5455,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_070": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5465,8 +5465,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_071": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5475,8 +5475,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S20T20_072": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 20.0,
       "target_pts": 20.0,
@@ -5485,8 +5485,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_089": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5495,8 +5495,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_090": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5505,8 +5505,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_091": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5515,8 +5515,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_092": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5525,8 +5525,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_093": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5535,8 +5535,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_094": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5545,8 +5545,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_095": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5555,8 +5555,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_096": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5565,8 +5565,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_097": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5575,8 +5575,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_098": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5585,8 +5585,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_099": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5595,8 +5595,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T25_100": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5605,8 +5605,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_073": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5615,8 +5615,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_074": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5625,8 +5625,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_075": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5635,8 +5635,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_076": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5645,8 +5645,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_077": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5655,8 +5655,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_078": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5665,8 +5665,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_079": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5675,8 +5675,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_080": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5685,8 +5685,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_081": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5695,8 +5695,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_082": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5705,8 +5705,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_083": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5715,8 +5715,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_084": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5725,8 +5725,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_085": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5735,8 +5735,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_086": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5745,8 +5745,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_087": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5755,8 +5755,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_088": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5765,8 +5765,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_089": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5775,8 +5775,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_090": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5785,8 +5785,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_091": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5795,8 +5795,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_092": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5805,8 +5805,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_093": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5815,8 +5815,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_094": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5825,8 +5825,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_095": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5835,8 +5835,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_096": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5845,8 +5845,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_097": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5855,8 +5855,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T25_098": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 25.0,
@@ -5865,8 +5865,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S25T50_101": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 25.0,
       "target_pts": 50.0,
@@ -5875,8 +5875,8 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_SHORT_S25T50_099": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "SHORT",
       "stop_pts": 25.0,
       "target_pts": 50.0,
@@ -5885,14 +5885,614 @@
       "rigor_level": "leak_fixed_v3_combined"
     },
     "V3_LONG_S40T80_102": {
-      "recommended": true,
-      "tier": "A",
+      "recommended": false,
+      "tier": "C",
       "side": "LONG",
       "stop_pts": 40.0,
       "target_pts": 80.0,
       "win_rate": 0.5892495828423502,
       "trades": 656,
       "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S8T12_103": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 8.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6245723263355013,
+      "trades": 486,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T18_104": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 18.0,
+      "win_rate": 0.5726139522141269,
+      "trades": 566,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S12T18_105": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 18.0,
+      "win_rate": 0.5379193040738549,
+      "trades": 611,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T18_100": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 18.0,
+      "win_rate": 0.6138326593418013,
+      "trades": 643,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T18_101": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 18.0,
+      "win_rate": 0.6103672486498921,
+      "trades": 652,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S12T18_102": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 12.0,
+      "target_pts": 18.0,
+      "win_rate": 0.5338002615107779,
+      "trades": 549,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T24_103": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 24.0,
+      "win_rate": 0.6728952433707196,
+      "trades": 567,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S16T24_104": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 24.0,
+      "win_rate": 0.4962722057346366,
+      "trades": 794,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T30_106": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.6977764321977353,
+      "trades": 864,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T30_107": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5656863298121577,
+      "trades": 1093,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T30_108": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.6340794448981149,
+      "trades": 710,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T30_105": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.7470523690907551,
+      "trades": 547,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T37_109": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 37.5,
+      "win_rate": 0.7042993412910767,
+      "trades": 526,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S25T37_110": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 37.5,
+      "win_rate": 0.5645427165998955,
+      "trades": 546,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T37_106": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 37.5,
+      "win_rate": 0.6071497829479493,
+      "trades": 720,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S25T37_107": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 37.5,
+      "win_rate": 0.549758876102618,
+      "trades": 651,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S10T20_111": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5338548360328557,
+      "trades": 489,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S10T20_112": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 10.0,
+      "target_pts": 20.0,
+      "win_rate": 0.5271471201532456,
+      "trades": 392,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S15T30_113": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5535660794377009,
+      "trades": 721,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S15T30_114": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5386882927155852,
+      "trades": 653,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S15T30_115": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5303420631770472,
+      "trades": 395,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S15T30_108": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.6527545048469758,
+      "trades": 508,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S15T30_109": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5076834660655586,
+      "trades": 677,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S15T30_110": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.5037829376264341,
+      "trades": 479,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S15T30_111": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.47396488925165825,
+      "trades": 487,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T40_116": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.5565501854675177,
+      "trades": 782,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T40_117": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.612719085098442,
+      "trades": 360,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T40_118": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.5185099382219973,
+      "trades": 583,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T40_119": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.588380545461406,
+      "trades": 360,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S20T40_120": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.5772588386875812,
+      "trades": 355,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T40_112": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.6278072265162628,
+      "trades": 397,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T40_113": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.602141929632595,
+      "trades": 419,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T40_114": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.5166778494603428,
+      "trades": 634,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S20T40_115": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 40.0,
+      "win_rate": 0.5811421932902754,
+      "trades": 370,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S30T60_121": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 30.0,
+      "target_pts": 60.0,
+      "win_rate": 0.49415169954309573,
+      "trades": 982,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S30T60_122": {
+      "recommended": false,
+      "tier": "C",
+      "side": "LONG",
+      "stop_pts": 30.0,
+      "target_pts": 60.0,
+      "win_rate": 0.45986475390508835,
+      "trades": 456,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_SHORT_S30T60_116": {
+      "recommended": false,
+      "tier": "C",
+      "side": "SHORT",
+      "stop_pts": 30.0,
+      "target_pts": 60.0,
+      "win_rate": 0.5354059633770439,
+      "trades": 686,
+      "rigor_level": "leak_fixed_v3_combined"
+    },
+    "V3_LONG_S16T16_001": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.6791049397650596,
+      "trades": 771,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_002": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.683775890305593,
+      "trades": 776,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S12T12_003": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 12.0,
+      "target_pts": 12.0,
+      "win_rate": 0.6622101449371864,
+      "trades": 551,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S16T16_004": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.7099751897501765,
+      "trades": 535,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S16T16_001": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 16.0,
+      "target_pts": 16.0,
+      "win_rate": 0.7108347364205995,
+      "trades": 486,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_005": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7700065776787015,
+      "trades": 596,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_006": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7640087617902726,
+      "trades": 575,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_007": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.673987634533733,
+      "trades": 575,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_008": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7116343090814208,
+      "trades": 463,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_009": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6556201480553772,
+      "trades": 548,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_010": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6903236200566281,
+      "trades": 439,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T20_011": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6605654927328561,
+      "trades": 503,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S20T20_002": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.7300573801135793,
+      "trades": 572,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S20T20_003": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6852878527481654,
+      "trades": 494,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S20T20_004": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 20.0,
+      "win_rate": 0.6754706547652695,
+      "trades": 452,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S25T25_012": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6627155241052803,
+      "trades": 1129,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S25T25_005": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.8295271032927539,
+      "trades": 607,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S25T25_006": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.7302275997502742,
+      "trades": 866,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S25T25_007": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 25.0,
+      "target_pts": 25.0,
+      "win_rate": 0.6835796035526494,
+      "trades": 617,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S20T30_013": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.6977764321977353,
+      "trades": 864,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S20T30_008": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 20.0,
+      "target_pts": 30.0,
+      "win_rate": 0.7470523690907551,
+      "trades": 547,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_LONG_S25T37_014": {
+      "recommended": true,
+      "tier": "A",
+      "side": "LONG",
+      "stop_pts": 25.0,
+      "target_pts": 37.5,
+      "win_rate": 0.7042993412910767,
+      "trades": 526,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
+    },
+    "V3_SHORT_S15T30_009": {
+      "recommended": true,
+      "tier": "A",
+      "side": "SHORT",
+      "stop_pts": 15.0,
+      "target_pts": 30.0,
+      "win_rate": 0.6527545048469758,
+      "trades": 508,
+      "rigor_level": "leak_fixed_v3_elite_65pct"
     }
   },
   "system": {
@@ -5986,12 +6586,21 @@
     "n_survivors": 62
   },
   "last_remine_combined": {
-    "ran_at": "2026-05-04T03:02:00.323846+00:00",
+    "ran_at": "2026-05-04T03:13:55.382043+00:00",
     "sources": [
       "mined_v3_rr10.json",
       "mined_v3_broad.json",
-      "mined_v3_wide.json"
+      "mined_v3_wide.json",
+      "mined_v3_rr15.json",
+      "mined_v3_rr20rel.json"
     ],
-    "n_total": 201
+    "n_total": 238
+  },
+  "final_oos_filter": {
+    "kept": [
+      "V3_SHORT_S25T25_007",
+      "V3_LONG_S25T37_014"
+    ],
+    "reason": "only OOS-profitable from elite set"
   }
 }
