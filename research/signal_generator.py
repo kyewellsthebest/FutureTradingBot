@@ -34,6 +34,27 @@ NY = "America/New_York"
 # ---------------------------------------------------------------------------
 
 def _attach_prev_day_levels(intraday: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
+    """Attach previous DAY's daily H/L/C to each intraday bar.
+
+    BUG FIX 2026-05-04: was using `tz_convert(NY).normalize()` to map daily
+    bar timestamps to NY calendar dates — which shifted them by 4–5 hrs and
+    aligned daily-bar UTC-midnight 2026-03-17 to NY date 2026-03-16. Then
+    shift(1) made the "prev day" lookup for an intraday bar on UTC date
+    2026-03-17 actually return the SAME-day's H/L/C (a future-data leak).
+
+    Symptoms: ALL V3-family signals' edge inflated because their feature
+    `dist_pdh_atr` / `dist_pdl_atr` was secretly comparing the bar's price
+    to the SAME day's full-session H/L (which is unknown until after the
+    session closes). A strategy that "fires when price is far below pdh"
+    was actually firing when price was far below today's intraday peak —
+    trivially profitable in hindsight, completely impossible live.
+
+    Fix: index daily by its UTC trading date directly (no tz convert).
+    Daily bar timestamped 2026-03-17 00:00 UTC represents the trading day
+    spanning 2026-03-17 00:00–23:55 UTC. An intraday bar with any time on
+    UTC date 2026-03-17 looks up the previous calendar UTC date, gets
+    the 2026-03-16 daily bar — that's a strictly past quantity. Honest.
+    """
     if intraday.empty or daily.empty:
         df = intraday.copy()
         df["pdh"] = np.nan
@@ -41,29 +62,28 @@ def _attach_prev_day_levels(intraday: pd.DataFrame, daily: pd.DataFrame) -> pd.D
         df["prev_close"] = np.nan
         return df
     d = daily.copy()
-    d.index = d.index.tz_convert("UTC") if d.index.tz else d.index.tz_localize("UTC")
-    # Prior-day OHLC indexed by NY calendar date the bar belongs to.
-    ny_dates = d.index.tz_convert(NY).normalize()
+    if d.index.tz is None:
+        d.index = d.index.tz_localize("UTC")
+    # Map each daily bar to its own UTC trading-date. shift(1) then gives
+    # the strictly-prior trading day's OHLC.
+    daily_dates = d.index.normalize()
     daily_by_date = pd.DataFrame({
         "high": d["high"].values,
-        "low": d["low"].values,
+        "low":  d["low"].values,
         "close": d["close"].values,
-    }, index=ny_dates)
+    }, index=daily_dates)
     daily_by_date = daily_by_date[~daily_by_date.index.duplicated(keep="last")]
     pdh = daily_by_date["high"].shift(1)
     pdl = daily_by_date["low"].shift(1)
-    pc = daily_by_date["close"].shift(1)
+    pc  = daily_by_date["close"].shift(1)
 
     intra = intraday.copy()
     if intra.index.tz is None:
         intra.index = intra.index.tz_localize("UTC")
-    intra_dates = intra.index.tz_convert(NY).normalize()
-    lookup_pdh = pdh.reindex(intra_dates).to_numpy()
-    lookup_pdl = pdl.reindex(intra_dates).to_numpy()
-    lookup_pc = pc.reindex(intra_dates).to_numpy()
-    intra["pdh"] = lookup_pdh
-    intra["pdl"] = lookup_pdl
-    intra["prev_close"] = lookup_pc
+    intra_dates = intra.index.normalize()
+    intra["pdh"] = pdh.reindex(intra_dates).to_numpy()
+    intra["pdl"] = pdl.reindex(intra_dates).to_numpy()
+    intra["prev_close"] = pc.reindex(intra_dates).to_numpy()
     return intra
 
 
