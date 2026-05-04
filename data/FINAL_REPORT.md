@@ -189,3 +189,59 @@ To make the bot actually profitable: integrate ES feed + deploy v7 strategies.
 Even then, expectation is a 5-10% annual return, not 300%. The realistic path
 to higher returns is order-flow data (tape/depth-of-book) or a different asset
 class entirely (futures spreads, options skew).
+
+## v8: 1590 strategies @ 1:3 RR with explicit user thresholds
+
+User asked for 1000+ strategies with: WR ≥ 55%, RR ≥ 3:1, ≥ 1 trade/week.
+
+Built v8 with 1,590 strategies across 7 categories (TC trend continuation,
+SA stat-arb, LL lead-lag, VB volatility breakout, PIV pivot reactions,
+MC multi-confluence, HM higher-timeframe). All baked at 1:3 RR or wider.
+
+### Result: 0 strategies met the strict 55% WR threshold
+
+The math problem: at 1:3 RR, random-walk WR = 25%. Achieving 55% WR requires
++30 percentage points above random — essentially the holy grail. After 1,590
+strategies, **max WR achieved was 48.6%**.
+
+| WR threshold | Strategies passing |
+|---|---|
+| ≥ 55% (your target) | 0 |
+| ≥ 50% | 0 |
+| ≥ 45% | 13 |
+| ≥ 40% | 62 |
+| ≥ 35% | 249 |
+
+### But: 124 profitable strategies (PF > 1.0)
+
+At 1:3 RR you only need 25% WR to break even, so 35-48% WR strategies still
+make money. Top discoveries re-confirm v7's NQ-ES thesis at higher RR:
+
+| Strategy | n | WR | PF | CPCV | Net (8yr) |
+|---|---|---|---|---|---|
+| **V8SA LONG NQ-ES underextended × pm RR3_wide** | 747 | 47.4% | 1.35 | 3/5 | **+$10,169** |
+| V8SA LONG NQ-ES underext × pm RR3_5 | 747 | 40.8% | 1.32 | 4/5 | +$8,011 |
+| V8SA LONG NQ-ES underext × pm RR3_std | 747 | 42.7% | 1.33 | 4/5 | +$7,847 |
+| V8SA LONG NQ-ES underext × pm RR4 | 747 | 39.0% | 1.27 | 4/5 | +$7,033 |
+| V8MC SHORT pullback_vwap × h1_strong | 189 | 45.5% | 1.68 | 2/5 | +$5,385 |
+
+### Final honest verdict
+
+After 4 mining campaigns (~3,500 strategies tested across v3, v6, v7, v8):
+
+1. **NQ at 5-min has weak natural edge.** Best honest result remains
+   ~$1,200/yr/contract from NQ-ES stat-arb.
+2. **55% WR at 1:3 RR is essentially impossible** for a single asset on
+   standard OHLC timeframes. That math demands order-flow data, microsecond
+   timing, or HFT colocation — not available with public 5-min bars.
+3. **Real edges exist at lower WR thresholds.** The cross-asset NQ-ES
+   stat-arb cluster (V8SA LONG underextended × pm) shows 4/5 CPCV folds
+   positive across multiple RR profiles — that's genuine cointegration edge.
+
+### To get higher returns realistically
+
+a) Drop the 55% WR target. At 1:3 RR, 35-45% WR is profitable.
+b) Get order-flow data (tape, depth-of-book, options flow) — none of which
+   are in this dataset.
+c) Move to a less efficient asset (futures spreads, options skew, low-volume
+   commodities). NQ is among the most arbitraged-out futures in the world.
