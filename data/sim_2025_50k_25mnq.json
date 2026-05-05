@@ -1,0 +1,102 @@
+{
+  "config": {
+    "start": "2025-01-01T00:00:00+00:00",
+    "end": "2026-01-01T00:00:00+00:00",
+    "size": 25,
+    "n_strategies": 119
+  },
+  "signal_universe": {
+    "n_signals": 21597,
+    "n_strategies": 119,
+    "first_signal": "2023-12-12T19:05:00+00:00",
+    "last_signal": "2026-04-07T19:15:00+00:00"
+  },
+  "deterministic": {
+    "halted": true,
+    "halt_ts": "2025-01-06T19:05:00+00:00",
+    "halt_reason": "trail bust at $47,839 < $48,000",
+    "balance": 47838.86878049746,
+    "high_water": 50000.0,
+    "max_drawdown": 2161.1312195025384,
+    "n_signals_in_window": 9163,
+    "n_trades": 2,
+    "n_wins": 0,
+    "win_rate": 0.0,
+    "gross_win": 0,
+    "gross_loss": 2161.1312195025384,
+    "profit_factor": 0.0,
+    "net_profit": -2161.1312195025384,
+    "skipped_position": 1,
+    "skipped_cooldown": 0,
+    "skipped_dll": 0,
+    "trades": [
+      {
+        "ts": "2025-01-02T19:45:00+00:00",
+        "strategy": "V11SA_SHORT_sa_short_20_17_x_t_1430_1500_RR2_wide_01259",
+        "side": "SHORT",
+        "qty": 21,
+        "pts": -69.07661430135704,
+        "pnl": -1200.0,
+        "balance": 48800.0,
+        "trail": 48000.0
+      },
+      {
+        "ts": "2025-01-06T19:05:00+00:00",
+        "strategy": "V11SA_LONG_sa_long_45_30_x_t_1400_1430_RR2_wide_02734",
+        "side": "LONG",
+        "qty": 10,
+        "pts": -47.65656097512692,
+        "pnl": -961.1312195025384,
+        "balance": 47838.86878049746,
+        "trail": 48000.0
+      }
+    ],
+    "equity_curve": [
+      [
+        "2025-01-01T00:00:00+00:00",
+        50000.0
+      ],
+      [
+        "2025-01-02T19:45:00+00:00",
+        48800.0
+      ],
+      [
+        "2025-01-06T19:05:00+00:00",
+        47838.86878049746
+      ]
+    ],
+    "daily_pnl": {
+      "2025-01-02": -1200.0,
+      "2025-01-06": -961.1312195025384
+    },
+    "strategy_contribution": {
+      "V11SA_SHORT_sa_short_20_17_x_t_1430_1500_RR2_wide_01259": {
+        "n": 1,
+        "wins": 0,
+        "pnl": -1200.0
+      },
+      "V11SA_LONG_sa_long_45_30_x_t_1400_1430_RR2_wide_02734": {
+        "n": 1,
+        "wins": 0,
+        "pnl": -961.1312195025384
+      }
+    },
+    "times_to": {
+      "first_profit": null,
+      "1k": null,
+      "5k": null,
+      "10k": null,
+      "first_loss_day": null
+    }
+  },
+  "monte_carlo": {
+    "n_trials": 100,
+    "pass_rate": 0.49,
+    "avg_survivor_profit": 20273.98673849659,
+    "median_survivor_profit": 65.45822890639101,
+    "max_survivor_profit": 58973.433848533285,
+    "avg_bust_days": 11.57979302832244,
+    "median_bust_days": 5.756944444444445,
+    "ev_per_attempt": 9850.10350186333
+  }
+}
