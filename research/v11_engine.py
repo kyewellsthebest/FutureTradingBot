@@ -157,8 +157,19 @@ class V11Engine:
         return summary_stats(self.strategies)
 
     def closest_to_trigger(self, top_n: int = 10) -> list[dict]:
-        """Strategies CLOSEST to firing on the most recent bar (for Brain tab)."""
-        return self.state.distance_to_trigger(top_n=top_n)
+        """Strategies CLOSEST to firing on the most recent bar (for Brain tab).
+
+        Pulls the current NY-time of the latest bar so each row can mark
+        whether its time-window is currently active — distinguishing real
+        FIRED from "Z crossed but waiting for the right time of day."
+        """
+        bar_ts = self.state.last_bar_ts
+        if bar_ts is None:
+            return self.state.distance_to_trigger(top_n=top_n)
+        ny = bar_ts.tz_convert("America/New_York")
+        return self.state.distance_to_trigger(top_n=top_n,
+                                                  ny_hour=int(ny.hour),
+                                                  ny_min=int(ny.minute))
 
     def current_z_scores(self) -> dict[int, float]:
         """Live Z values per window (Brain tab)."""

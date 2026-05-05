@@ -303,15 +303,26 @@
       return;
     }
     tbody.innerHTML = closest.map(c => {
-      const fired = c.fired;
+      // Status logic:
+      //  FIRED  = Z past threshold AND clock is inside the time window
+      //  WAITING = Z past threshold BUT clock is outside the window (won't trade)
+      //  NEAR    = Z within 0.3 of threshold
+      //  idle    = far from triggering
+      const zCrossed = c.z_crossed != null ? c.z_crossed : c.fired;
+      const inTime = c.in_time !== false;
       let statusCls, statusTxt;
-      if (fired) {
+      if (zCrossed && inTime) {
         statusCls = c.side === "LONG" ? "fire-status fired-long" : "fire-status fired-short";
         statusTxt = "FIRED";
+      } else if (zCrossed && !inTime) {
+        statusCls = "fire-status waiting";
+        statusTxt = "WAITING";
       } else if (c.distance != null && c.distance < 0.3) {
-        statusCls = "fire-status near"; statusTxt = "NEAR";
+        statusCls = "fire-status near";
+        statusTxt = "NEAR";
       } else {
-        statusCls = "fire-status idle"; statusTxt = "idle";
+        statusCls = "fire-status idle";
+        statusTxt = "idle";
       }
       const sideCls = "side-" + c.side;
       const dist = c.distance == null ? "—"
@@ -319,14 +330,25 @@
       const z = c.z_current == null ? "—"
         : (c.z_current >= 0 ? "+" : "") + Number(c.z_current).toFixed(2);
       const trigText = c.side === "LONG" ? `<−${c.z_threshold}` : `>+${c.z_threshold}`;
+      // Make the time-window column more obvious — pretty-print the bucket
+      const ctxPretty = ({
+        "t_1300_1330": "1:00–1:30 PM",
+        "t_1330_1400": "1:30–2:00 PM",
+        "t_1400_1430": "2:00–2:30 PM",
+        "t_1430_1500": "2:30–3:00 PM",
+        "t_1500_1530": "3:00–3:30 PM",
+        "t_1530_1600": "3:30–4:00 PM",
+        "pm_full":     "2:00–4:00 PM",
+        "t_1330_1530": "1:30–3:30 PM",
+      }[c.time_ctx]) || c.time_ctx || "—";
       return `<tr>
         <td><span class="${statusCls}">${statusTxt}</span></td>
         <td><code style="font-size:11px">${c.name.slice(0,55)}</code></td>
         <td class="${sideCls}">${c.side}</td>
-        <td>${c.time_ctx || "—"}</td>
+        <td class="${inTime ? 'pos' : 'muted'}">${ctxPretty}${inTime ? ' ✓' : ''}</td>
         <td>Z[${c.z_window}] ${trigText}</td>
         <td>${z}</td>
-        <td class="${fired ? 'pos' : ''}">${dist}</td>
+        <td class="${(zCrossed && inTime) ? 'pos' : ''}">${dist}</td>
       </tr>`;
     }).join("");
   }
@@ -725,19 +747,6 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeStrategyModal();
     });
-    // Brain help collapse toggle (persisted to localStorage)
-    const helpCard = document.querySelector(".brain-help");
-    if (helpCard) {
-      const header = helpCard.querySelector(".card-header");
-      if (localStorage.getItem("brainHelpCollapsed") === "1") {
-        helpCard.classList.add("collapsed");
-      }
-      if (header) header.addEventListener("click", () => {
-        helpCard.classList.toggle("collapsed");
-        localStorage.setItem("brainHelpCollapsed",
-          helpCard.classList.contains("collapsed") ? "1" : "0");
-      });
-    }
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => { start(); wireModal(); wireStrategySort(); });

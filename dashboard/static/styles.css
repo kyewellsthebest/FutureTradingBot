@@ -337,6 +337,7 @@ tr.muted-row { opacity: 0.55; }
 }
 .fire-status.fired-long { background: rgba(46, 204, 113, 0.18); color: var(--good); }
 .fire-status.fired-short { background: rgba(231, 76, 60, 0.18); color: var(--bad); }
+.fire-status.waiting { background: rgba(78, 160, 255, 0.18); color: var(--accent); }
 .fire-status.near { background: rgba(243, 156, 18, 0.18); color: var(--warn); }
 .fire-status.idle { background: var(--bg); color: var(--muted); }
 

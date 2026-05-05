@@ -226,8 +226,19 @@ class V11State:
                 })
         return fired
 
-    def distance_to_trigger(self, top_n: int = 10) -> list[dict]:
-        """Return the N strategies CLOSEST to firing (for the Brain tab)."""
+    def distance_to_trigger(self, top_n: int = 10,
+                              ny_hour: int = -1, ny_min: int = -1) -> list[dict]:
+        """Return the N strategies CLOSEST to firing (for the Brain tab).
+
+        A strategy reports `fired=True` ONLY when BOTH:
+          * its Z-score is past the threshold, AND
+          * the current NY time falls inside its time bucket.
+
+        If Z is past threshold but the time bucket doesn't match, the
+        strategy reports `in_time=False` so the UI can show "WAITING FOR
+        WINDOW" instead of "FIRED" — that explains why the bot might be
+        flat even when many strategies' triggers are technically hit.
+        """
         rows = []
         for s in self.strategies:
             z = self.get_z(s.z_window)
@@ -235,10 +246,12 @@ class V11State:
                 continue
             if s.side == "LONG":
                 trigger = -s.z_threshold
-                distance = z - trigger    # if z < trigger, distance < 0 = fired
+                distance = z - trigger    # < 0 means Z past threshold
             else:
                 trigger = s.z_threshold
-                distance = trigger - z    # if z > trigger, distance < 0 = fired
+                distance = trigger - z
+            in_time = (in_time_context(s.time_context, ny_hour, ny_min)
+                          if ny_hour >= 0 else True)
             rows.append({
                 "name": s.name,
                 "side": s.side,
@@ -246,7 +259,9 @@ class V11State:
                 "z_threshold": s.z_threshold,
                 "z_current": z,
                 "distance": distance,
-                "fired": distance < 0,
+                "z_crossed": distance < 0,
+                "in_time": in_time,
+                "fired": distance < 0 and in_time,
                 "time_ctx": s.time_context,
             })
         rows.sort(key=lambda r: r["distance"])

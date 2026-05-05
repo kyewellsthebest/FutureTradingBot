@@ -305,7 +305,9 @@ class V11Runtime:
             "z_window": r["z_window"], "z_threshold": r["z_threshold"],
             "z_current": None if pd.isna(r["z_current"]) else round(float(r["z_current"]), 3),
             "distance": None if pd.isna(r["distance"]) else round(float(r["distance"]), 3),
-            "fired": bool(r["fired"]),
+            "fired": bool(r.get("fired", False)),
+            "z_crossed": bool(r.get("z_crossed", False)),
+            "in_time": bool(r.get("in_time", True)),
             "time_ctx": r["time_ctx"],
         } for r in closest]
 
