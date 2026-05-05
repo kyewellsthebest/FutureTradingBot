@@ -26,3 +26,4 @@ data/scenarios_trades_cache.json
 # Logs
 logs/
 *.log
+data/v12_progress.json
