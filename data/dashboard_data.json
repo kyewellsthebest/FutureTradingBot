@@ -1,9 +1,10 @@
 {
-  "as_of": "2026-05-01T02:58:11.382646+00:00",
-  "cycle": 6,
+  "as_of": "2026-05-05T12:13:49.248091+00:00",
+  "cycle": 1,
+  "bot_version": "v11",
   "price": null,
   "price_ts": null,
-  "monitor_error": "no price",
+  "monitor_error": "no price (state refreshed)",
   "account": {
     "balance": 50000.0,
     "starting_balance": 50000.0,
@@ -27,79 +28,206 @@
     "net_pnl": 0
   },
   "recent_trades": [],
-  "whitelist": [
-    "PDH_TOUCH",
-    "V3_LONG_S10T25_56",
-    "V3_LONG_S15T30_04",
-    "V3_LONG_S15T30_69",
-    "V3_LONG_S15T37_06",
-    "V3_LONG_S15T37_64",
-    "V3_LONG_S20T50_12",
-    "V3_LONG_S20T50_21",
-    "V3_LONG_S20T50_43",
-    "V3_LONG_S20T50_55",
-    "V3_LONG_S20T50_61",
-    "V3_SHORT_S10T20_03",
-    "V3_SHORT_S10T25_119",
-    "V3_SHORT_S10T30_171",
-    "V3_SHORT_S12T24_04",
-    "V3_SHORT_S12T24_39",
-    "V3_SHORT_S12T24_44",
-    "V3_SHORT_S12T30_125",
-    "V3_SHORT_S12T30_127",
-    "V3_SHORT_S15T30_05",
-    "V3_SHORT_S15T30_53",
-    "V3_SHORT_S15T30_57",
-    "V3_SHORT_S15T30_60",
-    "V3_SHORT_S15T37_132",
-    "V3_SHORT_S15T45_199",
-    "V3_SHORT_S15T60_231",
-    "V3_SHORT_S15T60_238",
-    "V3_SHORT_S18T36_72",
-    "V3_SHORT_S18T36_73",
-    "V3_SHORT_S20T40_78",
-    "V3_SHORT_S20T40_83",
-    "V3_SHORT_S20T40_88",
-    "V3_SHORT_S20T50_141",
-    "V3_SHORT_S20T50_143",
-    "V3_SHORT_S20T50_145",
-    "V3_SHORT_S20T50_148",
-    "V3_SHORT_S8T20_101",
-    "V3_SHORT_S8T20_107",
-    "V3_SHORT_S8T20_110",
-    "V3_SHORT_S8T24_169"
-  ],
-  "filter_mode": "LEAN",
   "starting_balance": 50000.0,
   "dollars_per_point": 60.0,
   "recent_signal_events": [],
-  "microstructure": {
-    "gex": null
-  },
-  "stat_arb": {
-    "enabled": true,
-    "available": false,
-    "signal": "NEUTRAL",
-    "zscore": 0.0,
-    "beta": 41.0,
-    "coint_pvalue": 1.0,
-    "is_cointegrated": false,
-    "last_calibrated": ""
-  },
-  "kill_zone": {
-    "active": false,
-    "name": "",
-    "next": "London Open @ 02:00 EST (tomorrow)"
-  },
-  "trade_readiness": {
-    "pct": 0.0,
-    "passing": [],
-    "blocking": [
-      "Kill Zone",
-      "Signal Firing"
+  "v11": {
+    "summary": {
+      "count": 117,
+      "long_count": 95,
+      "short_count": 22,
+      "median_wr": 0.5187165775401069,
+      "median_pf": 1.4285821672441825,
+      "median_sharpe": 0.1360762802823488,
+      "total_mining_net_1mnq": 348722.0329877332,
+      "z_windows": [
+        15,
+        20,
+        30,
+        45,
+        60,
+        90,
+        120
+      ],
+      "time_contexts": [
+        "pm_full",
+        "t_1300_1330",
+        "t_1330_1530",
+        "t_1400_1430",
+        "t_1430_1500",
+        "t_1500_1530",
+        "t_1530_1600"
+      ]
+    },
+    "z_scores": {
+      "15": -0.535,
+      "20": -0.63,
+      "30": -0.473,
+      "45": -0.748,
+      "60": -0.952,
+      "90": -0.875,
+      "120": -1.037
+    },
+    "ny_bucket": "07:10 ET",
+    "last_bar_ts": "2026-04-08T11:10:00+00:00",
+    "atr": 17.87,
+    "closest_to_trigger": [
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1500_1530_RR2_7wide_04185",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1500_1530_RR2_wide_04184",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1530_1600_RR2_7wide_04190",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1530_1600_RR2_wide_04189",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_20_x_t_1530_1600_RR2_7wide_02430",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.0,
+        "z_current": -0.748,
+        "distance": 1.252,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1500_1530_RR2_wide_01304",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1500_1530_RR2_7wide_01305",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1530_1600_RR2_7wide_01310",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1530_1600_RR2_wide_01309",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1530_1600_RR2_7wide_02510",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1530_1600_RR2_wide_02509",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1500_1530_RR2_wide_02504",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1400_1430_RR2_wide_04254",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1400_1430"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1400_1430_RR2_7wide_04255",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1400_1430"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1530_1600_RR2_7wide_04270",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      }
     ],
-    "in_trade": false,
-    "total_checks": 2
+    "bars_processed": 0,
+    "signals_fired": 0,
+    "signals_blocked": 0,
+    "recent_fires": [],
+    "base_size": 25
   },
   "lucid_account": {
     "account_id": 1,
@@ -130,10 +258,9 @@
     "blow_reason": null
   },
   "funded_accounts": {
-    "n_passed": 0,
     "n_failed": 0,
     "active_account_id": 1,
-    "total_runs": 0,
+    "total_runs": 1,
     "history": []
   }
 }
