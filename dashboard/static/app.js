@@ -439,7 +439,7 @@
       $("strategies-count").textContent = "0 total";
       return;
     }
-    $("strategies-count").textContent = `${list.length} total`;
+    $("strategies-count").textContent = `top 10 of ${list.length}`;
 
     // Sort
     const { col, dir } = _strategiesSort;
@@ -474,7 +474,9 @@
       s._tpm = (s.n_test || 0) / TEST_MONTHS;
       s._idx = i + 1;
     });
-    $("strategies-body").innerHTML = sorted.map(s => {
+    // Show only the top 10 of the current sort
+    const top10 = sorted.slice(0, 10);
+    $("strategies-body").innerHTML = top10.map(s => {
       const sCls = "side-" + s.side;
       const pnl = s.yearly_at_25mnq ?? 0;
       const pnlCls = pnl > 0 ? "pos" : "neg";
