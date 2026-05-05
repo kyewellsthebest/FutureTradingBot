@@ -435,25 +435,11 @@
   function renderStrategiesTable() {
     const list = _strategiesData;
     if (!list.length) {
-      $("strategies-body").innerHTML = `<tr><td colspan="13" class="muted">No v11 strategies found. Run pattern_miner_v11 first.</td></tr>`;
+      $("strategies-body").innerHTML = `<tr><td colspan="8" class="muted">No v11 strategies loaded yet. If this persists after deploy, the Railway volume may be hiding mined_v11_patterns.json — restart the service to trigger the bundled-config bootstrap.</td></tr>`;
       $("strategies-count").textContent = "0 total";
       return;
     }
-    // Summary
     $("strategies-count").textContent = `${list.length} total`;
-    $("ss-count").textContent = list.length;
-    const longs = list.filter(s => s.side === "LONG").length;
-    const shorts = list.filter(s => s.side === "SHORT").length;
-    $("ss-side-split").textContent = `${longs} / ${shorts}`;
-    const median = (arr) => {
-      const a = [...arr].sort((x,y) => x-y);
-      return a.length ? a[Math.floor(a.length/2)] : 0;
-    };
-    $("ss-wr").textContent = fmtPct(median(list.map(s => s.wr)));
-    $("ss-pf").textContent = Number(median(list.map(s => s.pf))).toFixed(2);
-    $("ss-sharpe").textContent = Number(median(list.map(s => s.sharpe))).toFixed(2);
-    const totalYr1 = list.reduce((acc, s) => acc + (s.net_1mnq || 0), 0) / 2.33;
-    $("ss-total-yr1").textContent = fmtMoney(totalYr1);
 
     // Sort
     const { col, dir } = _strategiesSort;
