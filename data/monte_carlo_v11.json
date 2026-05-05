@@ -1,0 +1,200 @@
+{
+  "50K_size3": {
+    "n_trials": 100,
+    "n_passed": 92,
+    "n_busted": 8,
+    "pass_rate": 0.92,
+    "avg_survivor_profit": 217.53276735863855,
+    "median_survivor_profit": -109.5663676383192,
+    "avg_bust_loss_in_account": -2035.4279018758752,
+    "ev_per_attempt": 186.9301459699475,
+    "annualized_survivor": 441.10811158835037
+  },
+  "50K_size5": {
+    "n_trials": 100,
+    "n_passed": 92,
+    "n_busted": 8,
+    "pass_rate": 0.92,
+    "avg_survivor_profit": 365.37903192514773,
+    "median_survivor_profit": -131.11212607848938,
+    "avg_bust_loss_in_account": -1965.0899526169587,
+    "ev_per_attempt": 322.9487093711359,
+    "annualized_survivor": 740.9074814037717
+  },
+  "50K_size8": {
+    "n_trials": 100,
+    "n_passed": 90,
+    "n_busted": 10,
+    "pass_rate": 0.9,
+    "avg_survivor_profit": 701.0870933866781,
+    "median_survivor_profit": -1079.8977363575686,
+    "avg_bust_loss_in_account": -1345.2245419558421,
+    "ev_per_attempt": 614.4783840480103,
+    "annualized_survivor": 1421.6488282563196
+  },
+  "50K_size10": {
+    "n_trials": 100,
+    "n_passed": 88,
+    "n_busted": 12,
+    "pass_rate": 0.88,
+    "avg_survivor_profit": 634.9910695217067,
+    "median_survivor_profit": -454.45406294786153,
+    "avg_bust_loss_in_account": -1427.5918285164528,
+    "ev_per_attempt": 538.992141179102,
+    "annualized_survivor": 1287.6207798634607
+  },
+  "50K_size12": {
+    "n_trials": 100,
+    "n_passed": 83,
+    "n_busted": 17,
+    "pass_rate": 0.83,
+    "avg_survivor_profit": 1010.043017072399,
+    "median_survivor_profit": 37.048517472198,
+    "avg_bust_loss_in_account": -1293.8970816973704,
+    "ev_per_attempt": 810.2857041700912,
+    "annualized_survivor": 2048.1427846190313
+  },
+  "50K_size15": {
+    "n_trials": 100,
+    "n_passed": 61,
+    "n_busted": 39,
+    "pass_rate": 0.61,
+    "avg_survivor_profit": 2939.6997716559354,
+    "median_survivor_profit": 34.79940829394036,
+    "avg_bust_loss_in_account": -1414.3212495522598,
+    "ev_per_attempt": 1728.8668607101206,
+    "annualized_survivor": 5961.057870302313
+  },
+  "50K_size20": {
+    "n_trials": 100,
+    "n_passed": 56,
+    "n_busted": 44,
+    "pass_rate": 0.56,
+    "avg_survivor_profit": 4708.036376789765,
+    "median_survivor_profit": 49.611118552213156,
+    "avg_bust_loss_in_account": -1215.4513163488593,
+    "ev_per_attempt": 2563.900371002269,
+    "annualized_survivor": 9546.85154182369
+  },
+  "50K_size25": {
+    "n_trials": 100,
+    "n_passed": 49,
+    "n_busted": 51,
+    "pass_rate": 0.49,
+    "avg_survivor_profit": 10996.70685892844,
+    "median_survivor_profit": 161.31817488391243,
+    "avg_bust_loss_in_account": -1414.2605874582607,
+    "ev_per_attempt": 5304.2363608749365,
+    "annualized_survivor": 22298.877797271558
+  },
+  "50K_size30": {
+    "n_trials": 100,
+    "n_passed": 49,
+    "n_busted": 51,
+    "pass_rate": 0.49,
+    "avg_survivor_profit": 20115.31363969459,
+    "median_survivor_profit": 24938.201735940704,
+    "avg_bust_loss_in_account": -1558.4356932403741,
+    "ev_per_attempt": 9772.353683450348,
+    "annualized_survivor": 40789.38599160291
+  },
+  "100K_size3": {
+    "n_trials": 100,
+    "n_passed": 100,
+    "n_busted": 0,
+    "pass_rate": 1.0,
+    "avg_survivor_profit": 284.6610097131238,
+    "median_survivor_profit": 146.92083342864498,
+    "avg_bust_loss_in_account": 0,
+    "ev_per_attempt": 284.6610097131238,
+    "annualized_survivor": 577.2292696960566
+  },
+  "100K_size5": {
+    "n_trials": 100,
+    "n_passed": 100,
+    "n_busted": 0,
+    "pass_rate": 1.0,
+    "avg_survivor_profit": 224.03716705617583,
+    "median_survivor_profit": 98.33111377100431,
+    "avg_bust_loss_in_account": 0,
+    "ev_per_attempt": 224.03716705617583,
+    "annualized_survivor": 454.29758875280095
+  },
+  "100K_size8": {
+    "n_trials": 100,
+    "n_passed": 96,
+    "n_busted": 4,
+    "pass_rate": 0.96,
+    "avg_survivor_profit": 535.330622299207,
+    "median_survivor_profit": 230.3093287898737,
+    "avg_bust_loss_in_account": -3699.5293047622654,
+    "ev_per_attempt": 507.3173974072387,
+    "annualized_survivor": 1085.5315396622807
+  },
+  "100K_size10": {
+    "n_trials": 100,
+    "n_passed": 93,
+    "n_busted": 7,
+    "pass_rate": 0.93,
+    "avg_survivor_profit": 312.71402433447156,
+    "median_survivor_profit": -1685.6324437642033,
+    "avg_bust_loss_in_account": -4090.2325077046053,
+    "ev_per_attempt": 279.27404263105853,
+    "annualized_survivor": 634.1145493449006
+  },
+  "100K_size12": {
+    "n_trials": 100,
+    "n_passed": 90,
+    "n_busted": 10,
+    "pass_rate": 0.9,
+    "avg_survivor_profit": 749.1013848007781,
+    "median_survivor_profit": -2177.964529899662,
+    "avg_bust_loss_in_account": -3685.538419650412,
+    "ev_per_attempt": 657.6912463207003,
+    "annualized_survivor": 1519.0111414015778
+  },
+  "100K_size15": {
+    "n_trials": 100,
+    "n_passed": 91,
+    "n_busted": 9,
+    "pass_rate": 0.91,
+    "avg_survivor_profit": 1013.7991501313641,
+    "median_survivor_profit": -2013.8181290716457,
+    "avg_bust_loss_in_account": -2753.2014112443158,
+    "ev_per_attempt": 907.7072266195413,
+    "annualized_survivor": 2055.759387766377
+  },
+  "100K_size20": {
+    "n_trials": 100,
+    "n_passed": 77,
+    "n_busted": 23,
+    "pass_rate": 0.77,
+    "avg_survivor_profit": 1984.071916494929,
+    "median_survivor_profit": 88.11172975617228,
+    "avg_bust_loss_in_account": -2643.5845058355017,
+    "ev_per_attempt": 1489.7853757010953,
+    "annualized_survivor": 4023.2569417813834
+  },
+  "100K_size25": {
+    "n_trials": 100,
+    "n_passed": 72,
+    "n_busted": 28,
+    "pass_rate": 0.72,
+    "avg_survivor_profit": 4570.540640911959,
+    "median_survivor_profit": 91.87377501669107,
+    "avg_bust_loss_in_account": -2487.275990305475,
+    "ev_per_attempt": 3244.5892614566105,
+    "annualized_survivor": 9268.040744071472
+  },
+  "100K_size30": {
+    "n_trials": 100,
+    "n_passed": 62,
+    "n_busted": 38,
+    "pass_rate": 0.62,
+    "avg_survivor_profit": 4817.8212810781215,
+    "median_survivor_profit": 100.88183060930169,
+    "avg_bust_loss_in_account": -2666.1402385264164,
+    "ev_per_attempt": 2924.3491942684354,
+    "annualized_survivor": 9769.470931075079
+  }
+}
