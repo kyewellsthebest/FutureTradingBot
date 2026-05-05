@@ -102,6 +102,21 @@
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-brain">
 
+  <!-- Help panel — explains what the user is looking at -->
+  <div class="card brain-help">
+    <div class="card-header">What am I looking at? <span class="muted small" style="margin-left:1em">click to collapse</span></div>
+    <div id="brain-help-body">
+      <p><strong>The Brain tab shows what the bot is THINKING right now</strong> — every ~10 seconds it refreshes.</p>
+      <ul class="brain-help-list">
+        <li><strong>v11 Engine card</strong> — overall health: how many strategies are loaded, last 5-min bar processed, current NY-time bucket, ATR (NQ's avg range), how many trades have fired today.</li>
+        <li><strong>Live NQ-ES Divergence Z-scores</strong> — the bot's <em>core signal</em>. NQ and ES move together 99% of the time. The Z-score measures how UNUSUAL the gap is right now. <span class="neg">Negative</span> = NQ has fallen more than ES (LONG bias). <span class="pos">Positive</span> = NQ has rallied more than ES (SHORT bias). Each card is a different "lookback window" (15-bar = last 75 min, 120-bar = last 10 hours). A card glows green/red when a strategy is firing on that window.</li>
+        <li><strong>Closest to Trigger</strong> — the top 15 strategies sorted by how close they are to firing. <span class="pos">FIRED</span> = trigger hit right now. <span class="warn-text">NEAR</span> = within 0.3 of firing. <span class="muted">idle</span> = far from triggering. "Distance" shows how far the current Z-score is from the strategy's threshold.</li>
+        <li><strong>Recent Fires</strong> — the last 50 actual entries the bot has placed (rolling history).</li>
+      </ul>
+      <p class="muted small">The bot only takes ONE position at a time. When multiple strategies fire on the same bar, the highest-Sharpe one wins.</p>
+    </div>
+  </div>
+
   <!-- Engine status -->
   <div class="card">
     <div class="card-header">v11 Engine</div>
@@ -186,18 +201,13 @@
     </div>
     <div class="table-wrap"><table class="trades clickable-rows" id="strategies-table">
       <thead><tr>
-        <th data-sort="name">Name</th>
+        <th data-sort="short_id">#</th>
         <th data-sort="side">Side</th>
-        <th data-sort="z_window">Z win</th>
-        <th data-sort="z_threshold">Z thr</th>
-        <th data-sort="time_ctx">Time bucket</th>
-        <th data-sort="rr">RR</th>
-        <th data-sort="max_hold_min">Hold</th>
-        <th data-sort="n_test">Trades</th>
-        <th data-sort="wr">WR</th>
-        <th data-sort="pf">PF</th>
-        <th data-sort="sharpe">Sharpe</th>
-        <th data-sort="cpcv">CPCV</th>
+        <th data-sort="time_ctx">Window</th>
+        <th data-sort="wr">Win Rate</th>
+        <th data-sort="trades_per_month">Trades/mo</th>
+        <th data-sort="rr">Typical RR</th>
+        <th data-sort="pf">Profit Factor</th>
         <th data-sort="yearly_at_25mnq">$/yr @ 25 MNQ</th>
       </tr></thead>
       <tbody id="strategies-body"></tbody>

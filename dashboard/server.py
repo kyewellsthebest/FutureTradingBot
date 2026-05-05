@@ -120,9 +120,10 @@ def api_health_feeds():
 
 def _enrich_price_fallback(state: dict) -> dict:
     """If the bot's snapshot price is missing or stale, replace it with a
-    direct CNBC fetch (or the CNBC ledger). This keeps the dashboard ribbon
-    populated even when the bot's PriceMonitor chain is failing — common on
-    cloud hosts (Railway, etc.) where one or more sources get IP-blocked."""
+    direct CNBC fetch (or yfinance, or the CNBC ledger). This keeps the
+    dashboard ribbon populated even when the bot's PriceMonitor chain is
+    failing — common on cloud hosts (Railway, etc.) where one or more
+    sources get IP-blocked."""
     price = state.get("price")
     ts = state.get("price_ts")
     stale = False
@@ -145,6 +146,20 @@ def _enrich_price_fallback(state: dict) -> dict:
             state["price"] = res[0]
             state["price_ts"] = datetime.now(timezone.utc).isoformat()
             state["price_source"] = "cnbc_direct"
+            return state
+    except Exception:
+        pass
+    # yfinance — the chart proves this works on Railway even when CNBC is blocked
+    try:
+        df = download_nq("5min").tail(1)
+        if df is not None and not df.empty:
+            last = df.iloc[-1]
+            ts_idx = df.index[-1]
+            if hasattr(ts_idx, "tz_localize") and ts_idx.tz is None:
+                ts_idx = pd.Timestamp(ts_idx).tz_localize("UTC")
+            state["price"] = float(last["close"])
+            state["price_ts"] = pd.Timestamp(ts_idx).isoformat()
+            state["price_source"] = "yfinance"
             return state
     except Exception:
         pass
@@ -205,7 +220,22 @@ def api_price():
                 })
         except Exception as e:
             logger.warning(f"/api/price CNBC fallback failed: {e}")
-
+        # yfinance — chart already proves this works in production
+        try:
+            df = download_nq("5min").tail(1)
+            if df is not None and not df.empty:
+                last = df.iloc[-1]
+                ts_idx = df.index[-1]
+                if hasattr(ts_idx, "tz_localize") and ts_idx.tz is None:
+                    ts_idx = pd.Timestamp(ts_idx).tz_localize("UTC")
+                return jsonify({
+                    "price": float(last["close"]),
+                    "ts": pd.Timestamp(ts_idx).isoformat(),
+                    "monitor_error": err,
+                    "source": "yfinance",
+                })
+        except Exception as e:
+            logger.warning(f"/api/price yfinance fallback failed: {e}")
         # Last-resort: pull from CNBC live ledger if the poller is writing
         if LIVE_BARS_PATH.exists():
             try:

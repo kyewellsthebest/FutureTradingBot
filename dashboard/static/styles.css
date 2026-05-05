@@ -363,6 +363,18 @@ th[data-sort]:hover { color: var(--text); }
 th.sort-asc::after { content: " ▲"; color: var(--accent); font-size: 10px; }
 th.sort-desc::after { content: " ▼"; color: var(--accent); font-size: 10px; }
 
+/* Brain tab help panel */
+.brain-help {
+  background: linear-gradient(135deg, rgba(78,160,255,0.08), rgba(78,160,255,0.02));
+  border-color: rgba(78,160,255,0.3);
+}
+.brain-help .card-header { cursor: pointer; user-select: none; }
+.brain-help .card-header:hover { color: var(--accent); }
+.brain-help-list { margin: 8px 0 8px 18px; padding: 0; }
+.brain-help-list li { padding: 4px 0; line-height: 1.5; }
+.brain-help.collapsed #brain-help-body { display: none; }
+.warn-text { color: var(--warn); }
+
 /* Side colour-coding */
 td.side-long, td.side-LONG { color: var(--good); font-weight: 600; }
 td.side-short, td.side-SHORT { color: var(--bad); font-weight: 600; }

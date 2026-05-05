@@ -471,24 +471,37 @@
       if (th.dataset.sort === col) th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
     });
 
+    // Plain-English time-bucket labels
+    const ctxLabel = {
+      "t_1300_1330": "1:00–1:30 PM ET",
+      "t_1330_1400": "1:30–2:00 PM ET",
+      "t_1400_1430": "2:00–2:30 PM ET",
+      "t_1430_1500": "2:30–3:00 PM ET",
+      "t_1500_1530": "3:00–3:30 PM ET",
+      "t_1530_1600": "3:30–4:00 PM ET",
+      "pm_full":     "2:00–4:00 PM ET",
+      "t_1330_1530": "1:30–3:30 PM ET",
+    };
+    // Compute trades/month (28 months of OOS data: Jan 2024 – Apr 2026)
+    const TEST_MONTHS = 28;
+    sorted.forEach((s, i) => {
+      s._tpm = (s.n_test || 0) / TEST_MONTHS;
+      s._idx = i + 1;
+    });
     $("strategies-body").innerHTML = sorted.map(s => {
       const sCls = "side-" + s.side;
       const pnl = s.yearly_at_25mnq ?? 0;
       const pnlCls = pnl > 0 ? "pos" : "neg";
-      const cpcvCls = s.cpcv >= 4 ? "pos" : (s.cpcv >= 2 ? "" : "muted");
+      const wrCls = s.wr >= 0.55 ? "pos" : (s.wr >= 0.50 ? "" : "muted");
+      const pfCls = s.pf >= 1.5 ? "pos" : (s.pf >= 1.0 ? "" : "muted");
       return `<tr data-strat="${s.name}">
-        <td><code style="font-size:11px">${s.name.slice(0, 55)}</code></td>
+        <td>#${s._idx}</td>
         <td class="${sCls}">${s.side}</td>
-        <td>${s.z_window ?? "—"}</td>
-        <td>${s.z_threshold != null ? Number(s.z_threshold).toFixed(1) : "—"}</td>
-        <td><code style="font-size:11px">${s.time_ctx || "—"}</code></td>
+        <td>${ctxLabel[s.time_ctx] || s.time_ctx || "—"}</td>
+        <td class="${wrCls}">${fmtPct(s.wr)}</td>
+        <td>${s._tpm.toFixed(1)}</td>
         <td>1:${s.rr}</td>
-        <td>${s.max_hold_min}m</td>
-        <td>${s.n_test}</td>
-        <td>${fmtPct(s.wr)}</td>
-        <td>${Number(s.pf).toFixed(2)}</td>
-        <td>${Number(s.sharpe).toFixed(2)}</td>
-        <td class="${cpcvCls}">${s.cpcv}/5</td>
+        <td class="${pfCls}">${Number(s.pf).toFixed(2)}</td>
         <td class="${pnlCls}">${fmtMoney(pnl)}</td>
       </tr>`;
     }).join("");
@@ -528,62 +541,88 @@
       return;
     }
     const sCls = "side-" + s.side;
-    // Plain-English explanation
     const ctxLabel = {
-      "t_1300_1330": "13:00–13:30 ET",
-      "t_1330_1400": "13:30–14:00 ET",
-      "t_1400_1430": "14:00–14:30 ET",
-      "t_1430_1500": "14:30–15:00 ET",
-      "t_1500_1530": "15:00–15:30 ET",
-      "t_1530_1600": "15:30–16:00 ET",
-      "pm_full":     "14:00–16:00 ET (full afternoon)",
-      "t_1330_1530": "13:30–15:30 ET",
+      "t_1300_1330": "1:00–1:30 PM ET",
+      "t_1330_1400": "1:30–2:00 PM ET",
+      "t_1400_1430": "2:00–2:30 PM ET",
+      "t_1430_1500": "2:30–3:00 PM ET",
+      "t_1500_1530": "3:00–3:30 PM ET",
+      "t_1530_1600": "3:30–4:00 PM ET",
+      "pm_full":     "2:00–4:00 PM ET (the full afternoon session)",
+      "t_1330_1530": "1:30–3:30 PM ET",
     }[s.time_ctx] || s.time_ctx;
-    const sideLabel = s.side === "LONG"
-      ? "Buy NQ when it has UNDERPERFORMED ES recently (mean-reversion up)."
-      : "Sell NQ when it has OVERPERFORMED ES recently (mean-reversion down)."
-    const trigLabel = s.side === "LONG"
-      ? `Z-score on ${s.z_window}-bar return divergence drops below −${s.z_threshold}`
-      : `Z-score on ${s.z_window}-bar return divergence rises above +${s.z_threshold}`;
+    const minutes = s.z_window * 5;
+    const sideWord = s.side === "LONG" ? "BUY (go long)" : "SELL (go short)";
+    const directionWord = s.side === "LONG" ? "rallies" : "falls";
+    const trades_per_mo = ((s.n_test || 0) / 28).toFixed(1);
+
+    // Plain-English explanation of WHY this works
+    const ideaPara = s.side === "LONG"
+      ? `NQ (Nasdaq-100 futures) and ES (S&P 500 futures) are tightly correlated — they almost always move together. When NQ has dropped MORE than ES over the last ${minutes} minutes, that's a temporary dislocation: NQ has temporarily underperformed its sister index. Historically this gap closes — NQ catches back up. So the bot BUYS NQ expecting it to rally.`
+      : `NQ (Nasdaq-100 futures) and ES (S&P 500 futures) are tightly correlated — they almost always move together. When NQ has rallied MORE than ES over the last ${minutes} minutes, that's a temporary dislocation: NQ has temporarily overperformed its sister index. Historically this gap closes — NQ pulls back. So the bot SHORTS NQ expecting it to fall.`;
+
+    // What does "Z-score" mean in plain English
+    const zPara = `The bot watches a "Z-score" — a number that measures how unusual the current NQ-vs-ES gap is, compared to its normal noise. Z = 0 is normal. Z = ±1 happens often. Z = ±${s.z_threshold} is RARE — only the top few % of historical situations. That rarity is the edge.`;
+
+    // Why this time bucket?
+    const timePara = `This strategy ONLY runs during ${ctxLabel}. Outside this window the same trigger doesn't have an edge — most likely because liquidity, volatility regime, or the index-rebalance flows that drive the dislocation are concentrated in this part of the day.`;
+
     content.innerHTML = `
       <div class="modal-head">
         <div>
-          <div style="font-size:11px;letter-spacing:.06em;color:#8a93a8;text-transform:uppercase">v11 NQ-ES stat-arb</div>
-          <h2 style="margin:4px 0 2px 0">${s.name}</h2>
+          <div style="font-size:11px;letter-spacing:.06em;color:#8a93a8;text-transform:uppercase">
+            v11 NQ-ES stat-arb · strategy #${s._idx ?? "—"}
+          </div>
+          <h2 style="margin:4px 0 2px 0">
+            <span class="${sCls}">${sideWord}</span> NQ when it ${directionWord} too far from ES
+          </h2>
           <div class="muted small" style="font-family:monospace">${s.name}</div>
         </div>
       </div>
 
-      <h4>Idea</h4>
-      <p>${sideLabel}</p>
+      <h4>1. The idea (in plain English)</h4>
+      <p>${ideaPara}</p>
 
-      <h4>Trigger</h4>
-      <ol class="trig-list">
-        <li>Current bar's NY-time falls inside <code>${ctxLabel}</code></li>
-        <li>${trigLabel}</li>
-      </ol>
+      <h4>2. The Z-score trigger</h4>
+      <p>${zPara}</p>
+      <p>This particular strategy fires when:</p>
+      <ul class="trig-list">
+        <li>The <strong>${s.z_window}-bar (${minutes} min)</strong> Z-score crosses
+          <strong>${s.side === "LONG" ? "below −" + s.z_threshold : "above +" + s.z_threshold}</strong></li>
+        <li>The current bar's clock falls inside <strong>${ctxLabel}</strong></li>
+      </ul>
 
-      <h4>Execution</h4>
-      <p>Entry at next 5-min bar's open with 2pt slippage.<br>
-         Stop = ${s.stop_atr} × ATR(14), Target = ${s.target_atr} × ATR(14).<br>
-         Max hold ${s.max_hold_min} minutes (TIME exit if neither stop nor target hits).</p>
+      <h4>3. Why this time window?</h4>
+      <p>${timePara}</p>
 
-      <h4>Backtest stats <span class="muted small">(out-of-sample 2024-Jan → 2026-May)</span></h4>
+      <h4>4. Entry, stop, target</h4>
       <table class="kv">
-        <tr><th>Side</th><td class="${sCls}">${s.side}</td></tr>
-        <tr><th>Z window</th><td>${s.z_window} bars (5-min each → ${(s.z_window * 5)} min)</td></tr>
-        <tr><th>Z threshold</th><td>±${s.z_threshold}</td></tr>
-        <tr><th>Time bucket</th><td>${ctxLabel}</td></tr>
-        <tr><th>Stop / Target</th><td>${s.stop_atr} ATR / ${s.target_atr} ATR (RR 1:${s.rr})</td></tr>
-        <tr><th>Max hold</th><td>${s.max_hold_min} min</td></tr>
-        <tr><th>Trades (sample)</th><td>${s.n_test}</td></tr>
-        <tr><th>Win rate</th><td>${fmtPct(s.wr)}</td></tr>
-        <tr><th>Profit factor</th><td>${Number(s.pf).toFixed(2)}</td></tr>
-        <tr><th>Sharpe</th><td>${Number(s.sharpe).toFixed(2)}</td></tr>
-        <tr><th>CPCV folds positive</th><td>${s.cpcv}/5</td></tr>
-        <tr><th>Mining net @ 1 MNQ</th><td>${fmtMoney(s.net_1mnq)}</td></tr>
-        <tr><th>Mining yearly @ 25 MNQ</th><td class="pos">${fmtMoney(s.yearly_at_25mnq)}</td></tr>
+        <tr><th>Entry</th><td>The OPEN of the next 5-min bar after the trigger fires (with 2 NQ-pt slippage built in to be realistic).</td></tr>
+        <tr><th>Stop loss</th><td><span class="neg">${s.stop_atr} × ATR(14)</span> away from entry.<br>
+          ATR ≈ NQ's average 5-min range — if today's ATR is 28pt and stop = 1.5 ATR, stop = 42 pts away.<br>
+          Translates to ≈ <strong>$${(s.stop_atr * 28 * 2).toFixed(0)} per MNQ</strong> at typical ATR.</td></tr>
+        <tr><th>Profit target</th><td><span class="pos">${s.target_atr} × ATR(14)</span> away from entry.<br>
+          So if stop = 42 pts, target ≈ <strong>${(s.target_atr * 28).toFixed(0)} pts</strong>.<br>
+          Translates to ≈ <strong>$${(s.target_atr * 28 * 2).toFixed(0)} per MNQ</strong> at typical ATR.</td></tr>
+        <tr><th>Risk / Reward</th><td><strong>1 : ${s.rr}</strong></td></tr>
+        <tr><th>Max hold</th><td>${s.max_hold_min} minutes — if neither stop nor target hits in this time, the bot exits at market regardless.</td></tr>
       </table>
+
+      <h4>5. Backtest performance <span class="muted small">(out-of-sample, Jan 2024 → Apr 2026)</span></h4>
+      <table class="kv">
+        <tr><th>Total trades</th><td>${s.n_test}</td></tr>
+        <tr><th>Trades per month</th><td>${trades_per_mo}</td></tr>
+        <tr><th>Win rate</th><td><strong>${fmtPct(s.wr)}</strong></td></tr>
+        <tr><th>Profit factor</th><td><strong>${Number(s.pf).toFixed(2)}</strong> — every $1 lost was offset by $${Number(s.pf).toFixed(2)} won</td></tr>
+        <tr><th>Sharpe ratio</th><td>${Number(s.sharpe).toFixed(2)}</td></tr>
+        <tr><th>CPCV out-of-sample folds positive</th><td>${s.cpcv}/5 ${s.cpcv >= 3 ? "<span class='pos'>passes</span>" : ""}</td></tr>
+        <tr><th>Net P&amp;L @ 1 MNQ over 28 months</th><td>${fmtMoney(s.net_1mnq)}</td></tr>
+        <tr><th>Annualized P&amp;L @ 25 MNQ</th><td class="pos"><strong>${fmtMoney(s.yearly_at_25mnq)}</strong></td></tr>
+      </table>
+
+      <p class="muted small" style="margin-top:14px">
+        Click outside this box or press Escape to close.
+      </p>
     `;
   }
   function closeStrategyModal() { $("strat-modal").style.display = "none"; }
@@ -698,6 +737,19 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeStrategyModal();
     });
+    // Brain help collapse toggle (persisted to localStorage)
+    const helpCard = document.querySelector(".brain-help");
+    if (helpCard) {
+      const header = helpCard.querySelector(".card-header");
+      if (localStorage.getItem("brainHelpCollapsed") === "1") {
+        helpCard.classList.add("collapsed");
+      }
+      if (header) header.addEventListener("click", () => {
+        helpCard.classList.toggle("collapsed");
+        localStorage.setItem("brainHelpCollapsed",
+          helpCard.classList.contains("collapsed") ? "1" : "0");
+      });
+    }
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => { start(); wireModal(); wireStrategySort(); });
