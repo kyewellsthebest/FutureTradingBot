@@ -67,11 +67,20 @@ def _bootstrap_bundled_config() -> None:
 
 
 def _bot_thread() -> None:
-    """Run the 60-second tick loop. Catches and re-runs on uncaught crash."""
+    """Run the 60-second tick loop. Catches and re-runs on uncaught crash.
+
+    The default v11 runtime trades the 117 NQ-ES stat-arb strategies. Set
+    BOT_VERSION=legacy in the environment to fall back to the old V3 runtime.
+    """
+    bot_version = os.environ.get("BOT_VERSION", "v11").lower()
     while True:
         try:
-            from bot.main import Runtime
-            log.info("starting bot loop")
+            if bot_version == "legacy":
+                from bot.main import Runtime
+                log.info("starting LEGACY bot loop (V3 strategies)")
+            else:
+                from bot.v11_main import V11Runtime as Runtime
+                log.info("starting v11 bot loop (NQ-ES stat-arb, 117 strategies)")
             Runtime().run()
             log.warning("bot loop exited cleanly — restarting in 5s")
         except Exception as e:

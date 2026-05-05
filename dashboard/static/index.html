@@ -3,25 +3,24 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>HFT Bot — Lucid $50K Pro Funded</title>
+<title>HFT Bot v11 — NQ-ES Stat-Arb — Lucid 50K</title>
 <link rel="stylesheet" href="/static/styles.css" />
-<!-- TradingView Lightweight Charts (open-source library, bundled locally) -->
 <script src="/static/lightweightcharts.js"></script>
 </head>
 <body>
 
 <!-- ============================================================== -->
-<!-- COMPACT RIBBON: status, account, today P&L, current position    -->
+<!-- COMPACT RIBBON                                                  -->
 <!-- ============================================================== -->
 <header class="ribbon">
   <div class="ribbon-left">
     <span class="dot" id="health-dot"></span>
-    <span class="brand">HFT Bot</span>
+    <span class="brand">HFT Bot <span class="version-badge">v11</span></span>
     <span class="muted small" id="cycle-label">cycle —</span>
     <span class="pill" id="acct-pill">account #—</span>
   </div>
   <div class="ribbon-mid">
-    <span class="ribbon-stat"><span class="muted small">PRICE</span><span id="r-price">—</span></span>
+    <span class="ribbon-stat"><span class="muted small">NQ</span><span id="r-price">—</span></span>
     <span class="ribbon-stat"><span class="muted small">BALANCE</span><span id="r-balance">—</span></span>
     <span class="ribbon-stat"><span class="muted small">TODAY</span><span id="r-today">—</span></span>
     <span class="ribbon-stat"><span class="muted small">CUM</span><span id="r-cum">—</span></span>
@@ -29,7 +28,7 @@
   </div>
   <div class="ribbon-right">
     <span class="muted small" id="age-label">updated —</span>
-    <span class="muted small" id="kz-label">—</span>
+    <span class="muted small" id="ny-bucket-label">— ET</span>
   </div>
 </header>
 
@@ -57,12 +56,12 @@
       <span class="pill" id="live-state-pill">FLAT</span>
     </div>
     <div id="live-position-body">
-      <p class="muted">No open position. The bot is watching <span id="live-watch-count">—</span> strategies.</p>
+      <p class="muted">No open position. Bot is watching <span id="live-watch-count">—</span> v11 strategies on NQ-ES divergence.</p>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-header">Lucid $50K Pro Funded</div>
+    <div class="card-header">Lucid 50K Pro Funded</div>
     <div class="lucid-grid">
       <div><span class="muted small">Balance</span><div class="big-number" id="lucid-balance">—</div></div>
       <div><span class="muted small">Trail floor</span><div class="big-number" id="lucid-trail">—</div>
@@ -72,9 +71,9 @@
            <span class="muted small" id="lucid-dll-remaining">DLL room —</span></div>
       <div><span class="muted small">Cumulative P&amp;L</span><div class="big-number" id="lucid-cum-pnl">—</div>
            <span class="muted small" id="lucid-trading-days">— trading days</span></div>
-      <div><span class="muted small">40% consistency</span>
-           <div class="big-number" id="lucid-consistency">—</div>
-           <span class="muted small">today share</span></div>
+      <div><span class="muted small">Adaptive size</span>
+           <div class="big-number" id="lucid-size">—</div>
+           <span class="muted small" id="lucid-size-meta">base 25 MNQ</span></div>
       <div><span class="muted small">Take-home (90%)</span><div class="big-number" id="lucid-takehome">—</div></div>
       <div><span class="muted small">Payout</span><div class="big-number" id="lucid-payout">—</div>
            <span class="muted small" id="lucid-payout-reason">—</span></div>
@@ -83,7 +82,7 @@
 </section>
 
 <!-- ============================================================== -->
-<!-- TAB: CHART — interactive 5-min NQ + R:R boxes for last 100      -->
+<!-- TAB: CHART                                                       -->
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-chart">
   <div class="card">
@@ -91,7 +90,7 @@
       NQ=F  •  5-min
       <span class="pill" id="freshness-pill">checking…</span>
       <span class="muted small" style="margin-left:1em">
-        TradingView Lightweight Charts • last 100 trades shown as arrow markers
+        Trade markers = v11 entries. Hover for strategy name.
       </span>
     </div>
     <div id="lwchart" style="height:560px;width:100%;background:#131722;border-radius:6px;overflow:hidden;"></div>
@@ -99,85 +98,107 @@
 </section>
 
 <!-- ============================================================== -->
-<!-- TAB: BRAIN — what the bot is doing right now                    -->
+<!-- TAB: BRAIN — REDESIGNED for v11                                 -->
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-brain">
+
+  <!-- Engine status -->
   <div class="card">
-    <div class="card-header">Live Filter Values <span class="muted small" style="margin-left:1em">how close each filter is to blocking a trade</span></div>
-    <div class="filter-grid">
-      <div><span class="muted small">VPIN</span><div class="big-number" id="filt-vpin-val">—</div>
-           <span class="muted small" id="filt-vpin-meta">—</span></div>
-      <div><span class="muted small">Adverse Selection</span><div class="big-number" id="filt-adverse-val">—</div>
-           <span class="muted small" id="filt-adverse-meta">—</span></div>
-      <div><span class="muted small">Regime</span><div class="big-number" id="filt-regime-val">—</div>
-           <span class="muted small" id="filt-regime-meta">—</span></div>
-      <div><span class="muted small">GEX</span><div class="big-number" id="filt-gex-val">—</div>
-           <span class="muted small" id="filt-gex-meta">—</span></div>
-      <div><span class="muted small">Macro</span><div class="big-number" id="filt-macro-val">—</div>
-           <span class="muted small" id="filt-macro-meta">—</span></div>
-      <div><span class="muted small">Kill Zone</span><div class="big-number" id="filt-kz-val">—</div>
-           <span class="muted small" id="filt-kz-meta">—</span></div>
+    <div class="card-header">v11 Engine</div>
+    <div class="brain-status-grid">
+      <div><span class="muted small">Strategies loaded</span><div class="big-number" id="brain-strategy-count">—</div>
+           <span class="muted small" id="brain-strategy-breakdown">—</span></div>
+      <div><span class="muted small">Last bar</span><div class="big-number" id="brain-last-bar">—</div>
+           <span class="muted small" id="brain-ny-bucket">—</span></div>
+      <div><span class="muted small">ATR (14)</span><div class="big-number" id="brain-atr">—</div>
+           <span class="muted small">NQ pts</span></div>
+      <div><span class="muted small">Bars processed</span><div class="big-number" id="brain-bars">—</div></div>
+      <div><span class="muted small">Fired today</span><div class="big-number" id="brain-fired">—</div>
+           <span class="muted small" id="brain-blocked">— blocked</span></div>
+      <div><span class="muted small">State</span><div class="big-number" id="brain-state-text">—</div></div>
     </div>
   </div>
 
+  <!-- Live Z-scores -->
   <div class="card">
-    <div class="card-header">Trade Readiness</div>
-    <div id="readiness-card-inner">
-      <div class="big-number" id="readiness-pct">—</div>
-      <div class="readiness-bar"><div id="readiness-fill"></div></div>
-      <div class="readiness-detail">
-        <div><span class="muted">Passing:</span> <span id="passing">—</span></div>
-        <div><span class="muted">Blocking:</span> <span id="blocking">—</span></div>
-      </div>
+    <div class="card-header">
+      Live NQ-ES Divergence Z-scores
+      <span class="muted small" style="margin-left:1em">
+        Negative ⇒ NQ lagging ES (LONG bias). Positive ⇒ NQ leading ES (SHORT bias). Strategies fire on |Z| ≥ threshold.
+      </span>
+    </div>
+    <div class="zscore-grid" id="zscore-grid">
+      <!-- populated by app.js: one mini-card per Z window (15, 20, 30, 45, 60, 90, 120) -->
     </div>
   </div>
 
+  <!-- Closest to trigger -->
   <div class="card">
-    <div class="card-header">Right Now</div>
-    <table class="kv">
-      <tr><th>State</th><td id="brain-doing">—</td></tr>
-      <tr><th>Last tick</th><td id="brain-last-tick">—</td></tr>
-      <tr><th>Kill zone <span class="muted small">(active = trade window allowed)</span></th><td id="brain-kz">—</td></tr>
-      <tr><th>Strategies on whitelist</th><td id="brain-watched">—</td></tr>
-      <tr><th>Recent activity <span class="muted small">(last ~100 events)</span></th><td id="brain-counts">—</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <div class="card-header">Recent Activity (last 30 events)</div>
+    <div class="card-header">
+      Closest to Trigger <span class="muted small" style="margin-left:1em">(top 15 strategies sorted by distance — fired strategies appear first)</span>
+    </div>
     <div class="table-wrap"><table class="trades">
-      <thead><tr><th>Time</th><th>Type</th><th>Signal</th><th>Side</th><th>Detail</th></tr></thead>
-      <tbody id="brain-events"></tbody>
+      <thead><tr>
+        <th>Status</th><th>Strategy</th><th>Side</th>
+        <th>Time Window</th>
+        <th>Z window / Threshold</th><th>Z current</th><th>Distance</th>
+      </tr></thead>
+      <tbody id="closest-body"></tbody>
     </table></div>
   </div>
 
+  <!-- Recent fires -->
   <div class="card">
-    <div class="card-header">Strategies on Whitelist</div>
+    <div class="card-header">
+      Recent Fires <span class="muted small" style="margin-left:1em">(rolling last 50 actual entries)</span>
+    </div>
     <div class="table-wrap"><table class="trades">
-      <thead><tr><th>Name</th><th>Side</th><th>Stop / Target</th><th>WR (backtest)</th></tr></thead>
-      <tbody id="brain-whitelist"></tbody>
+      <thead><tr>
+        <th>Time</th><th>Strategy</th><th>Side</th><th>Qty</th>
+        <th>Z value</th><th>Entry</th><th>Stop</th><th>Target</th>
+      </tr></thead>
+      <tbody id="recent-fires-body"></tbody>
     </table></div>
   </div>
+
 </section>
 
 <!-- ============================================================== -->
-<!-- TAB: STRATEGIES — every whitelisted strategy + backtest stats   -->
+<!-- TAB: STRATEGIES — 119 v11 strategies                             -->
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-strategies">
   <div class="card">
     <div class="card-header">
-      Strategies
+      v11 NQ-ES Stat-Arb Strategies
       <span id="strategies-count" class="pill">— total</span>
       <span class="muted small" style="margin-left:1em">
-        click any row to see what triggers it
+        click any row to see what triggers it. Sortable by any column header.
       </span>
     </div>
-    <div class="table-wrap"><table class="trades clickable-rows">
+    <!-- Summary stats above the table -->
+    <div class="strat-summary">
+      <div><span class="muted small">Total</span><div class="big-number" id="ss-count">—</div></div>
+      <div><span class="muted small">LONG / SHORT</span><div class="big-number" id="ss-side-split">—</div></div>
+      <div><span class="muted small">Median WR</span><div class="big-number" id="ss-wr">—</div></div>
+      <div><span class="muted small">Median PF</span><div class="big-number" id="ss-pf">—</div></div>
+      <div><span class="muted small">Median Sharpe</span><div class="big-number" id="ss-sharpe">—</div></div>
+      <div><span class="muted small">Total mining $/yr @ 1 MNQ</span><div class="big-number" id="ss-total-yr1">—</div></div>
+    </div>
+    <div class="table-wrap"><table class="trades clickable-rows" id="strategies-table">
       <thead><tr>
-        <th>Name</th><th>Family</th><th>Side</th>
-        <th>Stop / Target (pts)</th><th>R:R</th>
-        <th>Trades</th><th>Win Rate</th><th>Profit Factor</th>
-        <th>Net P&amp;L</th><th>Tier</th>
+        <th data-sort="name">Name</th>
+        <th data-sort="side">Side</th>
+        <th data-sort="z_window">Z win</th>
+        <th data-sort="z_threshold">Z thr</th>
+        <th data-sort="time_ctx">Time bucket</th>
+        <th data-sort="rr">RR</th>
+        <th data-sort="max_hold_min">Hold</th>
+        <th data-sort="n_test">Trades</th>
+        <th data-sort="wr">WR</th>
+        <th data-sort="pf">PF</th>
+        <th data-sort="sharpe">Sharpe</th>
+        <th data-sort="cpcv">CPCV</th>
+        <th data-sort="yearly_at_25mnq">$/yr @ 25 MNQ</th>
       </tr></thead>
       <tbody id="strategies-body"></tbody>
     </table></div>
@@ -194,7 +215,7 @@
 </div>
 
 <!-- ============================================================== -->
-<!-- TAB: FUNDED — pass/fail history                                  -->
+<!-- TAB: FUNDED                                                      -->
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-funded">
   <div class="card">
@@ -202,6 +223,7 @@
       Funded Accounts
       <span id="funded-active-pill" class="pill" style="background:#28a745;color:white">active #—</span>
       <span id="funded-failed-pill" class="pill" style="background:#dc3545;color:white">— failed</span>
+      <span id="funded-passed-pill" class="pill" style="background:#1976d2;color:white">— passed</span>
     </div>
     <div class="table-wrap"><table class="trades">
       <thead><tr>
@@ -215,16 +237,37 @@
 </section>
 
 <!-- ============================================================== -->
-<!-- TAB: TRADES — last 100                                           -->
+<!-- TAB: TRADES — REDESIGNED for v11                                -->
 <!-- ============================================================== -->
 <section class="tabpane" id="pane-trades">
   <div class="card">
-    <div class="card-header">Last 100 Trades</div>
+    <div class="card-header">
+      Trades
+      <span id="trades-count" class="pill">— total</span>
+      <span id="trades-stats-pill" class="pill" style="background:#1976d2;color:white">— wins / — losses</span>
+    </div>
+    <!-- Trade summary above the table -->
+    <div class="strat-summary">
+      <div><span class="muted small">Total trades</span><div class="big-number" id="ts-total">—</div></div>
+      <div><span class="muted small">Win rate</span><div class="big-number" id="ts-wr">—</div></div>
+      <div><span class="muted small">Profit factor</span><div class="big-number" id="ts-pf">—</div></div>
+      <div><span class="muted small">Total P&amp;L</span><div class="big-number" id="ts-pnl">—</div></div>
+      <div><span class="muted small">Avg win</span><div class="big-number" id="ts-avg-win">—</div></div>
+      <div><span class="muted small">Avg loss</span><div class="big-number" id="ts-avg-loss">—</div></div>
+    </div>
     <div class="table-wrap"><table class="trades">
       <thead><tr>
-        <th>Time</th><th>Signal</th><th>Side</th><th>Qty</th>
-        <th>Entry</th><th>Stop</th><th>Target</th>
-        <th>Exit</th><th>Reason</th><th>P&amp;L</th>
+        <th>Time (NY)</th>
+        <th>Strategy</th>
+        <th>Side</th>
+        <th>Qty</th>
+        <th>Z value</th>
+        <th>Entry</th>
+        <th>Stop</th>
+        <th>Target</th>
+        <th>Exit</th>
+        <th>Reason</th>
+        <th>P&amp;L</th>
       </tr></thead>
       <tbody id="last100-body"></tbody>
     </table></div>

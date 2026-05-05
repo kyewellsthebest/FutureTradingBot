@@ -160,6 +160,41 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.Data
         return _synthetic(timeframe)
 
 
+def download_es(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.DataFrame:
+    """Same as download_nq but for ES=F (S&P 500 e-mini futures)."""
+    if os.environ.get("NQ_USE_LOCAL") == "1":
+        try:
+            from research.local_data_loader import load_intraday_5min as _load_5min_local
+            if timeframe == "5min":
+                return _normalize(_load_5min_local("es"))
+        except Exception as e:
+            logger.warning(f"local ES loader failed ({e!r}), falling through to yfinance")
+
+    if timeframe not in TIMEFRAME_CONFIG:
+        raise ValueError(f"Unknown timeframe {timeframe!r}")
+
+    interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
+    path = DATA_DIR / "cache" / f"es_{timeframe}.csv"
+    if not force_refresh and _is_cache_fresh(path, ttl):
+        return _read_cache(path)
+
+    logger.info(f"ES {timeframe}: downloading interval={interval} period={period}")
+    try:
+        import yfinance as yf
+        df = yf.download("ES=F", interval=interval, period=period,
+                          auto_adjust=False, progress=False, threads=False)
+        df = _normalize(df)
+        if df.empty:
+            raise RuntimeError("yfinance returned empty frame")
+        _write_cache(df, path)
+        return df
+    except Exception as exc:
+        logger.warning(f"ES {timeframe}: download failed ({exc!r}), falling back to cache")
+        if path.exists():
+            return _read_cache(path)
+        return _synthetic(timeframe)
+
+
 def load_all() -> dict[str, pd.DataFrame]:
     """Return dict of all 3 timeframes."""
     return {tf: download_nq(tf) for tf in TIMEFRAME_CONFIG}

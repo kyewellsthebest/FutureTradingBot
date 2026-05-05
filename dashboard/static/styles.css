@@ -258,6 +258,115 @@ tr.muted-row { opacity: 0.55; }
 }
 .filter-grid .big-number { font-size: 18px; }
 
+/* ============================================================ */
+/* v11-specific styling                                          */
+/* ============================================================ */
+.version-badge {
+  font-size: 10px; padding: 2px 6px; background: var(--accent);
+  color: #0d2818; border-radius: 4px; margin-left: 6px;
+  vertical-align: middle; font-weight: 700;
+}
+
+/* Brain tab — engine status grid */
+.brain-status-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.brain-status-grid > div {
+  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
+  border: 1px solid var(--border);
+}
+.brain-status-grid .big-number { font-size: 18px; }
+@media (max-width: 800px) {
+  .brain-status-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .brain-status-grid > div { padding: 8px 10px; }
+  .brain-status-grid .big-number { font-size: 15px; }
+}
+
+/* Z-score grid (one card per Z-window) */
+.zscore-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+}
+.zscore-card {
+  background: var(--panel2); border-radius: 8px; padding: 8px 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.zscore-card .zw {
+  font-size: 11px; color: var(--muted); margin-bottom: 4px;
+}
+.zscore-card .zv {
+  font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.zscore-card .zv.pos { color: var(--bad); }     /* +Z = SHORT-bias = red */
+.zscore-card .zv.neg { color: var(--good); }    /* -Z = LONG-bias = green */
+.zscore-card .zbar {
+  margin-top: 6px; height: 6px; background: var(--bg);
+  border-radius: 3px; overflow: hidden; position: relative;
+}
+.zscore-card .zbar-mid {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+  background: var(--muted); opacity: 0.5;
+}
+.zscore-card .zbar-fill {
+  position: absolute; top: 0; bottom: 0;
+  background: var(--accent);
+  transition: all 400ms ease;
+}
+.zscore-card.fired {
+  border-color: var(--good);
+  box-shadow: 0 0 12px rgba(46, 204, 113, 0.4);
+}
+.zscore-card.fired-short {
+  border-color: var(--bad);
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
+}
+@media (max-width: 800px) {
+  .zscore-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 480px) {
+  .zscore-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Status pills inside Brain tab tables */
+.fire-status {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.fire-status.fired-long { background: rgba(46, 204, 113, 0.18); color: var(--good); }
+.fire-status.fired-short { background: rgba(231, 76, 60, 0.18); color: var(--bad); }
+.fire-status.near { background: rgba(243, 156, 18, 0.18); color: var(--warn); }
+.fire-status.idle { background: var(--bg); color: var(--muted); }
+
+/* Strategies tab summary header */
+.strat-summary {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
+  margin-bottom: 12px;
+}
+.strat-summary > div {
+  background: var(--panel2); border-radius: 8px; padding: 8px 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.strat-summary .big-number { font-size: 17px; }
+@media (max-width: 800px) {
+  .strat-summary { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .strat-summary > div { padding: 6px 8px; }
+  .strat-summary .big-number { font-size: 14px; }
+}
+
+/* Sortable column headers */
+th[data-sort] { cursor: pointer; user-select: none; }
+th[data-sort]:hover { color: var(--text); }
+th.sort-asc::after { content: " ▲"; color: var(--accent); font-size: 10px; }
+th.sort-desc::after { content: " ▼"; color: var(--accent); font-size: 10px; }
+
+/* Side colour-coding */
+td.side-long, td.side-LONG { color: var(--good); font-weight: 600; }
+td.side-short, td.side-SHORT { color: var(--bad); font-weight: 600; }
+
 /* ---- Mobile (≤ 800px) ---- */
 @media (max-width: 800px) {
   /* Ribbon: stack rows vertically — left line, then stats wrap below. */

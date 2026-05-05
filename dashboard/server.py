@@ -397,6 +397,90 @@ def api_funded_accounts():
     })
 
 
+# ---------------------------------------------------------------------------
+# v11 endpoints (NQ-ES stat-arb)
+# ---------------------------------------------------------------------------
+@app.route("/api/v11/brain")
+def api_v11_brain():
+    """Live engine state: Z-scores, ATR, NY-time bucket, closest-to-trigger,
+    recent fires, counters."""
+    state = persistence.load_dashboard()
+    v11 = state.get("v11") or {}
+    return jsonify({
+        "as_of": state.get("as_of"),
+        "cycle": state.get("cycle"),
+        "bot_version": state.get("bot_version", "unknown"),
+        "summary": v11.get("summary") or {},
+        "z_scores": v11.get("z_scores") or {},
+        "atr": v11.get("atr"),
+        "ny_bucket": v11.get("ny_bucket"),
+        "last_bar_ts": v11.get("last_bar_ts"),
+        "closest_to_trigger": v11.get("closest_to_trigger") or [],
+        "recent_fires": v11.get("recent_fires") or [],
+        "bars_processed": v11.get("bars_processed", 0),
+        "signals_fired": v11.get("signals_fired", 0),
+        "signals_blocked": v11.get("signals_blocked", 0),
+        "base_size": v11.get("base_size", 25),
+        "in_trade": bool((state.get("account") or {}).get("open_position")),
+        "lucid": state.get("lucid_account") or {},
+    })
+
+
+@app.route("/api/v11/strategies")
+def api_v11_strategies():
+    """All 117 v11 user-pass strategies with mining stats. Loads JSON live."""
+    p = DATA_DIR / "mined_v11_patterns.json"
+    if not p.exists():
+        return jsonify([])
+    try:
+        d = json.loads(p.read_text())
+    except Exception:
+        return jsonify([])
+    rows = []
+    TEST_YEARS = 2.33
+    for s in d.get("user_passers", []):
+        t = s.get("test", {})
+        if t.get("pf", 0) < 1.0:
+            continue
+        # Parse trigger like "sa_long_45_25" → window=45, threshold=2.5
+        trig = s.get("trigger", "")
+        parts = trig.split("_")
+        try:
+            z_window = int(parts[2])
+            z_threshold = int(parts[3]) / 10.0
+        except (ValueError, IndexError):
+            z_window = None; z_threshold = None
+        net = t.get("net", 0)
+        rows.append({
+            "name": s["name"],
+            "side": s["side"],
+            "z_window": z_window,
+            "z_threshold": z_threshold,
+            "time_ctx": (s.get("contexts") or [None])[0],
+            "stop_atr": s["stop_atr"],
+            "target_atr": s["target_atr"],
+            "rr": round(s["target_atr"] / s["stop_atr"], 2),
+            "max_hold_min": s["max_hold_min"],
+            "n_test": t.get("n", 0),
+            "wr": t.get("wr", 0),
+            "pf": t.get("pf", 0),
+            "sharpe": t.get("sharpe", 0),
+            "net_1mnq": net,
+            "yearly_at_25mnq": net / TEST_YEARS * 25,
+            "cpcv": s.get("cpcv_positive", 0),
+        })
+    rows.sort(key=lambda r: -r["sharpe"])
+    return jsonify(rows)
+
+
+@app.route("/api/v11/recent_fires")
+def api_v11_recent_fires():
+    """Just the recent_fires list for live tail (Brain tab updates)."""
+    state = persistence.load_dashboard()
+    v11 = state.get("v11") or {}
+    return jsonify(v11.get("recent_fires") or [])
+
+
 @app.route("/api/live_chart")
 def api_live_chart():
     """Plotly figure JSON: last ~24h of NQ 5-min candles, pure price chart.
