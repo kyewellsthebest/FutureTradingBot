@@ -65,56 +65,231 @@ def api_health():
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
 
 
+@app.route("/api/health/feeds")
+def api_health_feeds():
+    """Live diagnostic of every price/candle feed. Useful when the chart or
+    top-left price ribbon is stuck — tells you which source is failing."""
+    out = {}
+    # CNBC direct
+    try:
+        res = _fetch_cnbc()
+        out["cnbc"] = {"ok": res is not None,
+                          "price": (res[0] if res else None)}
+    except Exception as e:
+        out["cnbc"] = {"ok": False, "error": str(e)}
+    # yfinance 5-min
+    try:
+        df = download_nq("5min", force_refresh=True).tail(1)
+        if df is None or df.empty:
+            out["yfinance_5min"] = {"ok": False, "error": "empty"}
+        else:
+            latest = df.index[-1]
+            if latest.tz is None: latest = pd.Timestamp(latest).tz_localize("UTC")
+            age = (pd.Timestamp.now(tz="UTC") - latest).total_seconds()
+            out["yfinance_5min"] = {"ok": True,
+                "last_bar": latest.isoformat(), "age_seconds": int(age),
+                "close": float(df.iloc[-1]["close"])}
+    except Exception as e:
+        out["yfinance_5min"] = {"ok": False, "error": str(e)}
+    # CNBC live-bar poller (writes live_bars.json every 30s)
+    if LIVE_BARS_PATH.exists():
+        try:
+            bars = json.loads(LIVE_BARS_PATH.read_text())
+            mtime = LIVE_BARS_PATH.stat().st_mtime
+            mage = time.time() - mtime
+            last_bar = bars[-1] if bars else None
+            out["cnbc_poller"] = {"ok": last_bar is not None,
+                                     "n_bars": len(bars),
+                                     "file_age_seconds": int(mage),
+                                     "last_bar": last_bar}
+        except Exception as e:
+            out["cnbc_poller"] = {"ok": False, "error": str(e)}
+    else:
+        out["cnbc_poller"] = {"ok": False, "error": "live_bars.json not found"}
+    # Bot's PriceMonitor snapshot (via dashboard_data.json)
+    state = persistence.load_dashboard()
+    out["bot_monitor"] = {
+        "price": state.get("price"),
+        "ts": state.get("price_ts"),
+        "error": state.get("monitor_error"),
+        "cycle": state.get("cycle"),
+        "as_of": state.get("as_of"),
+    }
+    return jsonify(out)
+
+
+def _enrich_price_fallback(state: dict) -> dict:
+    """If the bot's snapshot price is missing or stale, replace it with a
+    direct CNBC fetch (or the CNBC ledger). This keeps the dashboard ribbon
+    populated even when the bot's PriceMonitor chain is failing — common on
+    cloud hosts (Railway, etc.) where one or more sources get IP-blocked."""
+    price = state.get("price")
+    ts = state.get("price_ts")
+    stale = False
+    if ts:
+        try:
+            ts_dt = pd.Timestamp(ts)
+            if ts_dt.tz is None:
+                ts_dt = ts_dt.tz_localize("UTC")
+            age = (pd.Timestamp.now(tz="UTC") - ts_dt).total_seconds()
+            if age > 60:
+                stale = True
+        except Exception:
+            stale = True
+    if price is not None and not stale:
+        return state
+    # Try CNBC direct
+    try:
+        res = _fetch_cnbc()
+        if res is not None:
+            state["price"] = res[0]
+            state["price_ts"] = datetime.now(timezone.utc).isoformat()
+            state["price_source"] = "cnbc_direct"
+            return state
+    except Exception:
+        pass
+    # Fall back to last bar in CNBC ledger
+    if LIVE_BARS_PATH.exists():
+        try:
+            bars = json.loads(LIVE_BARS_PATH.read_text())
+            if bars:
+                state["price"] = bars[-1].get("close")
+                state["price_ts"] = bars[-1].get("ts")
+                state["price_source"] = "cnbc_ledger"
+        except Exception:
+            pass
+    return state
+
+
 @app.route("/api/data")
 def api_data():
-    return jsonify(persistence.load_dashboard())
+    state = persistence.load_dashboard()
+    state = _enrich_price_fallback(state)
+    return jsonify(state)
 
 
 @app.route("/api/price")
 def api_price():
+    """Live price. Falls back to a direct CNBC fetch if the bot's snapshot
+    is empty or older than 60s — keeps the dashboard's top-left price
+    populated even if the bot's PriceMonitor chain is failing."""
     state = persistence.load_dashboard()
+    price = state.get("price")
+    ts = state.get("price_ts")
+    err = state.get("monitor_error")
+
+    # Decide if we trust the bot's snapshot
+    stale = False
+    if ts:
+        try:
+            ts_dt = pd.Timestamp(ts)
+            if ts_dt.tz is None:
+                ts_dt = ts_dt.tz_localize("UTC")
+            age = (pd.Timestamp.now(tz="UTC") - ts_dt).total_seconds()
+            if age > 60:
+                stale = True
+        except Exception:
+            stale = True
+
+    if price is None or stale:
+        # Try CNBC directly from the Flask process — independent of the bot
+        try:
+            res = _fetch_cnbc()
+            if res is not None:
+                live_px, _, _ = res
+                live_ts = datetime.now(timezone.utc).isoformat()
+                return jsonify({
+                    "price": live_px, "ts": live_ts,
+                    "monitor_error": err,
+                    "source": "cnbc_direct",
+                })
+        except Exception as e:
+            logger.warning(f"/api/price CNBC fallback failed: {e}")
+
+        # Last-resort: pull from CNBC live ledger if the poller is writing
+        if LIVE_BARS_PATH.exists():
+            try:
+                bars = json.loads(LIVE_BARS_PATH.read_text())
+                if bars:
+                    last_bar = bars[-1]
+                    return jsonify({
+                        "price": last_bar.get("close"),
+                        "ts": last_bar.get("ts"),
+                        "monitor_error": err,
+                        "source": "cnbc_ledger",
+                    })
+            except Exception:
+                pass
+
     return jsonify({
-        "price": state.get("price"),
-        "ts": state.get("price_ts"),
-        "monitor_error": state.get("monitor_error"),
+        "price": price, "ts": ts, "monitor_error": err,
+        "source": "bot",
     })
 
 
 @app.route("/api/candles")
 def api_candles():
-    """NQ=F 5-min bars for the lightweight-charts chart. Force-refreshes
-    yfinance (no cache) and merges the CNBC live-bar ledger on top so the
-    most recent 1-2 bars are as fresh as possible."""
+    """NQ=F 5-min bars for the lightweight-charts chart.
+
+    Strategy: try fresh yfinance first. If yfinance returns data that's
+    more than 30 min stale (common — yfinance often stops updating NQ=F
+    intraday), aggressively merge the CNBC live-bar ledger to bridge the
+    gap. If yfinance fails entirely, fall back to the CNBC ledger alone.
+    """
     df = None
+    yf_age_min = None
     try:
+        # Force fresh — yfinance internal cache can hold stale frames
         df = download_nq("5min", force_refresh=True).tail(500)
+        if df is not None and not df.empty:
+            latest = df.index[-1]
+            if latest.tz is None:
+                latest = pd.Timestamp(latest).tz_localize("UTC")
+            yf_age_min = (pd.Timestamp.now(tz="UTC") - latest).total_seconds() / 60
     except Exception as e:
         logger.warning(f"candles fetch failed: {e}")
         try:
             df = download_nq("5min").tail(500)
         except Exception:
-            return jsonify([])
-    if df is None or df.empty:
-        return jsonify([])
-    # Merge live bars (CNBC poller — fresher than yfinance for the
-    # most recent 1-2 5-min windows)
+            df = None
+
+    # Build live-bar frame from the CNBC ledger
+    live_df = None
     if LIVE_BARS_PATH.exists():
         try:
             live = json.loads(LIVE_BARS_PATH.read_text())
-            for b in live[-100:]:
-                ts = pd.Timestamp(b["ts"])
-                if ts.tz is None: ts = ts.tz_localize("UTC")
-                if df.index.tz is None and ts.tz is not None:
-                    ts = ts.tz_localize(None)
-                df.loc[ts, "open"]   = float(b["open"])
-                df.loc[ts, "high"]   = float(b["high"])
-                df.loc[ts, "low"]    = float(b["low"])
-                df.loc[ts, "close"]  = float(b["close"])
-                df.loc[ts, "volume"] = float(b.get("volume", 0))
-            df = df.sort_index()
-            df = df[~df.index.duplicated(keep="last")]
+            if live:
+                rows = []
+                for b in live[-300:]:
+                    try:
+                        ts = pd.Timestamp(b["ts"])
+                        if ts.tz is None: ts = ts.tz_localize("UTC")
+                        rows.append((ts, float(b["open"]), float(b["high"]),
+                                       float(b["low"]), float(b["close"]),
+                                       float(b.get("volume", 0))))
+                    except Exception:
+                        continue
+                if rows:
+                    live_df = pd.DataFrame(rows,
+                        columns=["ts","open","high","low","close","volume"]
+                    ).set_index("ts").sort_index()
         except Exception as e:
-            logger.warning(f"candles merge live_bars failed: {e}")
+            logger.warning(f"live_bars parse failed: {e}")
+
+    # If yfinance is missing entirely, use CNBC ledger as the WHOLE chart
+    if (df is None or df.empty) and live_df is not None and not live_df.empty:
+        df = live_df.copy()
+    # If yfinance is stale (>30min) but CNBC ledger has fresher bars, merge.
+    # CNBC ledger overwrites yfinance for any overlapping timestamps.
+    elif df is not None and not df.empty and live_df is not None and not live_df.empty:
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        # Append live bars; drop duplicates keeping the live (fresher) row
+        df = pd.concat([df, live_df]).sort_index()
+        df = df[~df.index.duplicated(keep="last")]
+
+    if df is None or df.empty:
+        return jsonify([])
     out = []
     for ts, row in df.iterrows():
         try:

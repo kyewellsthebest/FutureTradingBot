@@ -154,6 +154,19 @@
   }
 
   // =====================================================================
+  // /api/price — fast tick (3s) for ribbon price (independent of bot health)
+  // =====================================================================
+  async function refreshPrice() {
+    try {
+      const r = await fetch("/api/price");
+      const p = await r.json();
+      if (p.price != null) {
+        $("r-price").textContent = fmtNum(p.price, 2);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // =====================================================================
   // /api/live_position — fast tick (3s) when in a trade
   // =====================================================================
   async function refreshLivePosition() {
@@ -660,6 +673,7 @@
   // =====================================================================
   function start() {
     refreshData();
+    refreshPrice();
     refreshLivePosition();
     refreshV11Brain();
     refreshLast100();
@@ -667,6 +681,7 @@
     refreshCandles();
     refreshTradeMarkers();
     setInterval(refreshData,         15_000);
+    setInterval(refreshPrice,         3_000);
     setInterval(refreshLivePosition,  3_000);
     setInterval(refreshV11Brain,     10_000);
     setInterval(refreshLast100,      30_000);
