@@ -307,6 +307,13 @@ class LucidAccount(PaperAccount):
 
     def lucid_snapshot(self) -> dict:
         """Public snapshot used by the dashboard."""
+        # Make sure the NY-day rollover happens even when the bot is flat
+        # for hours/days. _maybe_roll_eod only fires from can_enter/enter/
+        # exit hooks otherwise, so today_pnl could stay stuck on yesterday.
+        try:
+            self._maybe_roll_eod(datetime.now(timezone.utc))
+        except Exception as e:
+            logger.warning(f"lucid_snapshot day-roll check failed: {e}")
         rs = self._build_runtime_lucid_state()
         payout = can_request_payout(rs)
         running_total = rs.cum_pnl + rs.today_pnl
