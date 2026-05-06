@@ -71,6 +71,53 @@ class AccountState:
 class PaperAccount:
     def __init__(self) -> None:
         self.state = self._load_state()
+        # Recover orphaned open trades: if SQLite has a trade with no
+        # exit_time but our in-memory state thinks we're flat, the bot
+        # crashed mid-trade. Re-hydrate so the next exit-check tick can
+        # close the position cleanly. Without this, the SQLite row would
+        # stay orphaned forever and the bot could open a duplicate.
+        self._recover_orphaned_open_position()
+
+    def _recover_orphaned_open_position(self) -> None:
+        if self.state.open_position is not None:
+            return
+        try:
+            rows = persistence.load_trades(limit=20, only_closed=False)
+        except Exception:
+            return
+        # Find the most recent trade with no exit_time
+        for t in rows:
+            if t.get("exit_time"):
+                continue
+            try:
+                op = OpenPosition(
+                    db_id=t.get("id"),
+                    signal_name=t.get("signal_name", ""),
+                    side=t.get("side", ""),
+                    entry_time=t.get("entry_time", ""),
+                    entry_px=float(t.get("entry_px") or 0),
+                    stop_px=float(t.get("stop_px") or 0),
+                    target_px=float(t.get("target_px") or 0),
+                    qty=int(t.get("qty") or 0),
+                    ml_decision=t.get("ml_decision", ""),
+                    ml_confidence=float(t.get("ml_confidence") or 0),
+                    vol_regime=t.get("vol_regime", ""),
+                    daily_bias=t.get("daily_bias", ""),
+                    rr=float(t.get("rr") or 0),
+                )
+                self.state.open_position = op
+                # Persist the recovery so we don't keep re-rehydrating
+                self.save()
+                logger.warning(
+                    f"RECOVERED orphaned open position: {op.side} "
+                    f"{op.signal_name} qty={op.qty} entry={op.entry_px:.2f} "
+                    f"stop={op.stop_px:.2f} target={op.target_px:.2f} "
+                    f"(db_id={op.db_id}). Next exit-check tick will manage it."
+                )
+                return
+            except Exception as e:
+                logger.error(f"failed to recover orphan trade {t.get('id')}: {e}")
+                continue
 
     # ---- state I/O ----------------------------------------------------
 
@@ -156,7 +203,16 @@ class PaperAccount:
         )
         self.state.open_position = op
         self._roll_daily(now)
-        self.save()
+        # Save JSON state IMMEDIATELY after assigning open_position so a
+        # crash between here and the next tick doesn't orphan the trade.
+        # The startup _recover_orphaned_open_position() handles the case
+        # where this save fails too.
+        try:
+            self.save()
+        except Exception as e:
+            logger.error(f"CRITICAL: paper_account.json save failed after enter — "
+                            f"SQLite trade {trade_id} would orphan on restart. {e}")
+            raise
         logger.info(f"ENTER {side} {signal_name} @ {slipped:.2f} stop={stop_px:.2f} target={target_px:.2f} qty={qty}")
         return op
 
