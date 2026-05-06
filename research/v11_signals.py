@@ -107,7 +107,8 @@ def _parse_strategy(s: dict) -> Optional[V11Strategy]:
 # ----------------------------------------------------------------------------
 def load_v11_strategies(json_paths: list[Path] | Path | None = None,
                           min_pf: float = 1.0,
-                          require_cpcv: int = 0) -> list[V11Strategy]:
+                          require_cpcv: int = 0,
+                          deployed_only: bool = True) -> list[V11Strategy]:
     """Load all user-pass strategies from v11 + v12 mining (or a custom list).
 
     By default, looks in:
@@ -118,6 +119,10 @@ def load_v11_strategies(json_paths: list[Path] | Path | None = None,
         json_paths: single Path, list of Paths, or None to use defaults
         min_pf: minimum profit factor (default 1.0 = real edge)
         require_cpcv: minimum CPCV folds positive (0 = ignore)
+        deployed_only: if True (default), filter to names listed in
+            data/deployed_strategies.json. This is the post-stress-test
+            keepers list — bulletproof + moderate + fragile SHORTs (kept
+            for L/S balance). Set False to load every user-pass strategy.
 
     Returns:
         List of V11Strategy, sorted by Sharpe descending.
@@ -127,6 +132,17 @@ def load_v11_strategies(json_paths: list[Path] | Path | None = None,
                         DATA / "mined_v12_patterns.json"]
     elif isinstance(json_paths, Path):
         json_paths = [json_paths]
+
+    # Optional deployment filter
+    deployed_names = None
+    if deployed_only:
+        dep_path = DATA / "deployed_strategies.json"
+        if dep_path.exists():
+            try:
+                d = json.loads(dep_path.read_text())
+                deployed_names = set(d.get("names", []))
+            except Exception:
+                deployed_names = None
 
     out = []
     seen_names = set()
@@ -143,6 +159,8 @@ def load_v11_strategies(json_paths: list[Path] | Path | None = None,
             if s.get("test", {}).get("pf", 0) < min_pf:
                 continue
             if s.get("cpcv_positive", 0) < require_cpcv:
+                continue
+            if deployed_names is not None and s["name"] not in deployed_names:
                 continue
             if s["name"] in seen_names:
                 continue

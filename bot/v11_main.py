@@ -41,7 +41,9 @@ from research.v11_engine import V11Engine
 
 logger = logging.getLogger("bot_v11")
 
-CYCLE_SECONDS = 60
+CYCLE_FLAT_SECONDS = 60    # tick rate when no position open
+CYCLE_TRADE_SECONDS = 5    # tick rate when managing an open position (12x faster)
+CYCLE_SECONDS = CYCLE_FLAT_SECONDS   # backward-compat alias
 DASHBOARD_PATH = DATA_DIR / "dashboard_data.json"
 LIVE_BARS_PATH = DATA_DIR / "live_bars.json"
 LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_v11.log"
@@ -126,6 +128,11 @@ class V11Runtime:
         self.signals_blocked = 0
         # Recent fires for the Brain tab (rolling)
         self.recent_fires: deque = deque(maxlen=50)
+        # 1-min bar cache for tight stop/target precision when in-position.
+        # Refreshed at most every 30s — keeps the fast 5s tick light.
+        self._last_1m_fetch: float = 0.0
+        self._cached_1m_high: Optional[float] = None
+        self._cached_1m_low:  Optional[float] = None
 
     def stop(self, *_):
         logger.info("stop received")
@@ -150,7 +157,11 @@ class V11Runtime:
                 self.last_error = repr(e)
                 logger.exception(f"tick failed: {e}")
             self._publish_dashboard()
-            self._sleep(CYCLE_SECONDS)
+            # Variable tick rate: 5s when in position, 60s when flat.
+            # Tighter stop/target tracking — a spike that pierces the stop
+            # within 5s is caught instead of slipping through a 60s window.
+            in_trade = self.account.state.open_position is not None
+            self._sleep(CYCLE_TRADE_SECONDS if in_trade else CYCLE_FLAT_SECONDS)
             if self.cycle % 60 == 0:
                 sync_clock()
         self.monitor.stop()
@@ -167,29 +178,64 @@ class V11Runtime:
         self.cycle += 1
         now = real_utc_now()
         snap = self.monitor.snapshot_and_reset()
+        in_trade = self.account.state.open_position is not None
 
-        # Always refresh bars + engine state so the Brain tab updates even
-        # without a live price tick (Z-scores depend on bars, not the
-        # 5-second tick poller).
-        nq = download_nq("5min")
-        es = download_es("5min")
-        if nq is None or nq.empty or es is None or es.empty:
-            self.last_error = "no bars"
-            return
-        nq = _merge_live_bars(nq)
-        if nq.index.tz is None:
-            nq.index = nq.index.tz_localize("UTC")
-        if es.index.tz is None:
-            es.index = es.index.tz_localize("UTC")
-        self.engine.update_state(nq, es)
+        # When flat: refresh 5-min bars + engine state (drives Brain tab).
+        # When in trade: skip the heavy data refresh — we tick every 5s
+        # for stop/target precision, and the 5-min Z-scores don't change
+        # within a 5s window.
+        if not in_trade:
+            nq = download_nq("5min")
+            es = download_es("5min")
+            if nq is None or nq.empty or es is None or es.empty:
+                self.last_error = "no bars"
+                return
+            nq = _merge_live_bars(nq)
+            if nq.index.tz is None:
+                nq.index = nq.index.tz_localize("UTC")
+            if es.index.tz is None:
+                es.index = es.index.tz_localize("UTC")
+            self.engine.update_state(nq, es)
 
-        # Step 1: handle exits first (need a live price)
-        if self.account.state.open_position is not None and snap is not None:
-            evt = self.account.check_exit(snap.high, snap.low, snap.price, now=now)
+        # Step 1: handle exits first (need a live price).
+        # Use the WIDEST recent high/low to be conservative — combine
+        # the price-monitor's accumulated high/low (last few seconds of
+        # CNBC polls) with the latest 1-min bar's high/low (yfinance,
+        # completed bar). Whichever is more pessimistic for the open
+        # side gets used. yfinance is fetched at most once per 30s
+        # (cached) so the 5s tick stays light.
+        if in_trade and snap is not None:
+            tick_high = snap.high
+            tick_low  = snap.low
+            try:
+                tnow = time.time()
+                if tnow - self._last_1m_fetch > 30:
+                    import yfinance as yf
+                    latest_1m = yf.download("NQ=F", period="1d", interval="1m",
+                                              auto_adjust=False, progress=False, threads=False)
+                    if latest_1m is not None and not latest_1m.empty:
+                        if hasattr(latest_1m.columns, 'levels'):
+                            latest_1m.columns = [c[0] if isinstance(c, tuple) else c for c in latest_1m.columns]
+                        latest_1m = latest_1m.rename(columns={c: str(c).lower() for c in latest_1m.columns})
+                        recent = latest_1m.tail(3)
+                        if len(recent):
+                            self._cached_1m_high = float(recent["high"].max())
+                            self._cached_1m_low  = float(recent["low"].min())
+                            self._last_1m_fetch = tnow
+                if self._cached_1m_high is not None:
+                    tick_high = max(tick_high, self._cached_1m_high)
+                    tick_low  = min(tick_low,  self._cached_1m_low)
+            except Exception as e:
+                logger.debug(f"1m bar consultation failed: {e}")
+
+            evt = self.account.check_exit(tick_high, tick_low, snap.price, now=now)
             if evt:
                 pnl = evt.get("pnl", 0.0)
                 if pnl < 0:
                     self._last_loss_bar_ts = pd.Timestamp(now)
+                # Reset 1m cache so the next entry starts fresh
+                self._cached_1m_high = None
+                self._cached_1m_low  = None
                 persistence.push_signal_event({"type": "EXIT", "ts": now.isoformat(), **evt})
             return
 
