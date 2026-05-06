@@ -1,0 +1,12 @@
+{
+  "n_strategies": 34,
+  "n_signals": 4795,
+  "pass_rate": 0.62,
+  "n_passed": 62,
+  "avg_survivor_profit": 4562.796932846922,
+  "median_survivor_profit": 51.93482226465858,
+  "max_survivor_profit": 35455.54029720268,
+  "avg_bust_days": 23.910270467836252,
+  "median_bust_days": 17.00347222222222,
+  "ev_per_attempt": 2766.2340983650915
+}
