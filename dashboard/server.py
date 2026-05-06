@@ -428,7 +428,10 @@ def api_live_position():
     stop  = float(op.get("stop_px")  or 0)
     tgt   = float(op.get("target_px") or 0)
     qty   = int(op.get("qty") or 0)
-    dpp   = float(state.get("dollars_per_point") or 2.0)  # MNQ = $2/pt
+    # MNQ = $2/pt per contract. The legacy state.dollars_per_point is
+    # 60 (a scaled "30 MNQ default size" constant from the old V3 stack)
+    # — using it here would 30x the displayed P&L. Hardcode MNQ tick value.
+    dpp = 2.0
     if side == "LONG":
         pts_pnl = px - entry
         pts_to_stop   = px - stop

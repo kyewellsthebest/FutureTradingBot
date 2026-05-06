@@ -394,7 +394,9 @@ class V11Runtime:
             },
             "recent_trades": recent[-10:],
             "starting_balance": s.starting_balance,
-            "dollars_per_point": DOLLARS_PER_POINT,
+            # MNQ = $2/pt per contract. (Legacy DOLLARS_PER_POINT=60 was
+            # a 30x-scaled value from the old V3 sizing — never display it.)
+            "dollars_per_point": 2.0,
             "recent_signal_events": persistence.load_signal_events(limit=20),
             "v11": {
                 "summary": engine_summary,
