@@ -105,31 +105,52 @@ def _parse_strategy(s: dict) -> Optional[V11Strategy]:
 # ----------------------------------------------------------------------------
 # Strategy registry loader
 # ----------------------------------------------------------------------------
-def load_v11_strategies(json_path: Path = DATA / "mined_v11_patterns.json",
+def load_v11_strategies(json_paths: list[Path] | Path | None = None,
                           min_pf: float = 1.0,
                           require_cpcv: int = 0) -> list[V11Strategy]:
-    """Load all user-pass v11 strategies (default: PF > 1.0, no CPCV req).
+    """Load all user-pass strategies from v11 + v12 mining (or a custom list).
+
+    By default, looks in:
+      - data/mined_v11_patterns.json   (NY afternoon stat-arb)
+      - data/mined_v12_patterns.json   (overnight / AEST-daytime stat-arb)
 
     Args:
-        json_path: path to mined_v11_patterns.json
+        json_paths: single Path, list of Paths, or None to use defaults
         min_pf: minimum profit factor (default 1.0 = real edge)
         require_cpcv: minimum CPCV folds positive (0 = ignore)
 
     Returns:
         List of V11Strategy, sorted by Sharpe descending.
     """
-    data = json.loads(json_path.read_text())
-    user_passers = data.get("user_passers", [])
+    if json_paths is None:
+        json_paths = [DATA / "mined_v11_patterns.json",
+                        DATA / "mined_v12_patterns.json"]
+    elif isinstance(json_paths, Path):
+        json_paths = [json_paths]
+
     out = []
-    for s in user_passers:
-        if s.get("test", {}).get("pf", 0) < min_pf:
+    seen_names = set()
+    for path in json_paths:
+        if not path.exists():
+            logger.warning(f"strategy file not found, skipping: {path}")
             continue
-        if s.get("cpcv_positive", 0) < require_cpcv:
+        try:
+            data = json.loads(path.read_text())
+        except Exception as e:
+            logger.warning(f"failed to parse {path}: {e}")
             continue
-        v = _parse_strategy(s)
-        if v is None:
-            continue
-        out.append(v)
+        for s in data.get("user_passers", []):
+            if s.get("test", {}).get("pf", 0) < min_pf:
+                continue
+            if s.get("cpcv_positive", 0) < require_cpcv:
+                continue
+            if s["name"] in seen_names:
+                continue
+            v = _parse_strategy(s)
+            if v is None:
+                continue
+            seen_names.add(s["name"])
+            out.append(v)
     out.sort(key=lambda x: -x.test_sharpe)
     return out
 
@@ -138,7 +159,12 @@ def load_v11_strategies(json_path: Path = DATA / "mined_v11_patterns.json",
 # Time context evaluation (NY local time)
 # ----------------------------------------------------------------------------
 def in_time_context(ctx: str, ny_hour: int, ny_min: int) -> bool:
-    """Check if (ny_hour, ny_min) falls inside the named time context."""
+    """Check if (ny_hour, ny_min) falls inside the named time context.
+
+    Covers v11 NY-afternoon contexts and v12 NY-overnight contexts (which
+    map to Australian-daytime hours).
+    """
+    # ---- v11 NY-afternoon contexts -------------------------------------
     if ctx == "t_1300_1330":  return ny_hour == 13 and ny_min < 30
     if ctx == "t_1330_1400":  return ny_hour == 13 and ny_min >= 30
     if ctx == "t_1400_1430":  return ny_hour == 14 and ny_min < 30
@@ -149,6 +175,18 @@ def in_time_context(ctx: str, ny_hour: int, ny_min: int) -> bool:
     if ctx == "t_1330_1530":  return ((ny_hour == 13 and ny_min >= 30)
                                           or ny_hour == 14
                                           or (ny_hour == 15 and ny_min < 30))
+    # ---- v12 NY-overnight contexts (AEST daytime) ----------------------
+    if ctx == "t_1900_2000":  return ny_hour == 19   #  9-10 AM AEST
+    if ctx == "t_2000_2100":  return ny_hour == 20   # 10-11 AM AEST
+    if ctx == "t_2100_2200":  return ny_hour == 21   # 11 AM-12 PM AEST
+    if ctx == "t_2200_2300":  return ny_hour == 22   # 12-1 PM AEST
+    if ctx == "t_2300_2400":  return ny_hour == 23   #  1-2 PM AEST
+    if ctx == "t_0000_0100":  return ny_hour == 0    #  2-3 PM AEST
+    if ctx == "t_0100_0200":  return ny_hour == 1    #  3-4 PM AEST
+    if ctx == "t_0200_0300":  return ny_hour == 2    #  4-5 PM AEST
+    if ctx == "evening_us":   return 19 <= ny_hour <= 22       #  9 AM-1 PM AEST
+    if ctx == "overnight":    return ny_hour >= 23 or ny_hour <= 2   # 1 AM-5 PM AEST
+    if ctx == "t_0300_0900":  return 3 <= ny_hour <= 8         # 5-11 AM AEST (no edge)
     return False
 
 

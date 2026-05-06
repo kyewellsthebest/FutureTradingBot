@@ -479,8 +479,9 @@
       if (th.dataset.sort === col) th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
     });
 
-    // Plain-English time-bucket labels
+    // Plain-English time-bucket labels (NY ET; AEST hint shown in modal)
     const ctxLabel = {
+      // v11 NY-afternoon
       "t_1300_1330": "1:00–1:30 PM ET",
       "t_1330_1400": "1:30–2:00 PM ET",
       "t_1400_1430": "2:00–2:30 PM ET",
@@ -489,6 +490,18 @@
       "t_1530_1600": "3:30–4:00 PM ET",
       "pm_full":     "2:00–4:00 PM ET",
       "t_1330_1530": "1:30–3:30 PM ET",
+      // v12 NY-overnight (AEST daytime)
+      "t_1900_2000": "7-8 PM ET (9-10 AM AEST)",
+      "t_2000_2100": "8-9 PM ET (10-11 AM AEST)",
+      "t_2100_2200": "9-10 PM ET (11 AM-12 PM AEST)",
+      "t_2200_2300": "10-11 PM ET (12-1 PM AEST)",
+      "t_2300_2400": "11 PM-12 AM ET (1-2 PM AEST)",
+      "t_0000_0100": "12-1 AM ET (2-3 PM AEST)",
+      "t_0100_0200": "1-2 AM ET (3-4 PM AEST)",
+      "t_0200_0300": "2-3 AM ET (4-5 PM AEST)",
+      "evening_us":  "7-11 PM ET (9 AM-1 PM AEST)",
+      "overnight":   "11 PM-3 AM ET (1 AM-5 PM AEST)",
+      "t_0300_0900": "3-9 AM ET (5-11 AM AEST)",
     };
     // Compute trades/month (28 months of OOS data: Jan 2024 – Apr 2026)
     const TEST_MONTHS = 28;

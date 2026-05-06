@@ -633,47 +633,53 @@ def api_v11_brain():
 
 @app.route("/api/v11/strategies")
 def api_v11_strategies():
-    """All 117 v11 user-pass strategies with mining stats. Loads JSON live."""
-    p = DATA_DIR / "mined_v11_patterns.json"
-    if not p.exists():
-        return jsonify([])
-    try:
-        d = json.loads(p.read_text())
-    except Exception:
-        return jsonify([])
+    """All v11 + v12 profitable user-pass strategies with mining stats."""
     rows = []
     TEST_YEARS = 2.33
-    for s in d.get("user_passers", []):
-        t = s.get("test", {})
-        if t.get("pf", 0) < 1.0:
+    seen = set()
+    for fname, source in [("mined_v11_patterns.json", "v11"),
+                            ("mined_v12_patterns.json", "v12")]:
+        p = DATA_DIR / fname
+        if not p.exists():
             continue
-        # Parse trigger like "sa_long_45_25" → window=45, threshold=2.5
-        trig = s.get("trigger", "")
-        parts = trig.split("_")
         try:
-            z_window = int(parts[2])
-            z_threshold = int(parts[3]) / 10.0
-        except (ValueError, IndexError):
-            z_window = None; z_threshold = None
-        net = t.get("net", 0)
-        rows.append({
-            "name": s["name"],
-            "side": s["side"],
-            "z_window": z_window,
-            "z_threshold": z_threshold,
-            "time_ctx": (s.get("contexts") or [None])[0],
-            "stop_atr": s["stop_atr"],
-            "target_atr": s["target_atr"],
-            "rr": round(s["target_atr"] / s["stop_atr"], 2),
-            "max_hold_min": s["max_hold_min"],
-            "n_test": t.get("n", 0),
-            "wr": t.get("wr", 0),
-            "pf": t.get("pf", 0),
-            "sharpe": t.get("sharpe", 0),
-            "net_1mnq": net,
-            "yearly_at_25mnq": net / TEST_YEARS * 25,
-            "cpcv": s.get("cpcv_positive", 0),
-        })
+            d = json.loads(p.read_text())
+        except Exception:
+            continue
+        for s in d.get("user_passers", []):
+            t = s.get("test", {})
+            if t.get("pf", 0) < 1.0:
+                continue
+            if s["name"] in seen:
+                continue
+            seen.add(s["name"])
+            trig = s.get("trigger", "")
+            parts = trig.split("_")
+            try:
+                z_window = int(parts[2])
+                z_threshold = int(parts[3]) / 10.0
+            except (ValueError, IndexError):
+                z_window = None; z_threshold = None
+            net = t.get("net", 0)
+            rows.append({
+                "name": s["name"],
+                "source": source,
+                "side": s["side"],
+                "z_window": z_window,
+                "z_threshold": z_threshold,
+                "time_ctx": (s.get("contexts") or [None])[0],
+                "stop_atr": s["stop_atr"],
+                "target_atr": s["target_atr"],
+                "rr": round(s["target_atr"] / s["stop_atr"], 2),
+                "max_hold_min": s["max_hold_min"],
+                "n_test": t.get("n", 0),
+                "wr": t.get("wr", 0),
+                "pf": t.get("pf", 0),
+                "sharpe": t.get("sharpe", 0),
+                "net_1mnq": net,
+                "yearly_at_25mnq": net / TEST_YEARS * 25,
+                "cpcv": s.get("cpcv_positive", 0),
+            })
     rows.sort(key=lambda r: -r["sharpe"])
     return jsonify(rows)
 
