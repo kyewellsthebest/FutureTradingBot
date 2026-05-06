@@ -320,6 +320,40 @@ def api_candles():
 
     if df is None or df.empty:
         return jsonify([])
+
+    # FINAL freshness layer: if the latest bar in df is more than ~5min old
+    # (i.e. yfinance is stale and the CNBC poller didn't catch up), fetch
+    # the current price directly from CNBC and synthesize/extend the most
+    # recent 5-min bin so the chart doesn't display "stale 58 min" while
+    # the price ticker happily updates from CNBC.
+    try:
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        latest_bar_ts = df.index[-1]
+        age_s = (pd.Timestamp.now(tz="UTC") - latest_bar_ts).total_seconds()
+        if age_s > 300:
+            res = _fetch_cnbc()
+            if res is not None:
+                live_px, _, _ = res
+                now_utc = pd.Timestamp.now(tz="UTC")
+                # Round down to the nearest 5-min bar boundary
+                bin_min = (now_utc.minute // 5) * 5
+                bin_ts = now_utc.replace(minute=bin_min, second=0, microsecond=0)
+                if bin_ts in df.index:
+                    # Extend the existing bar
+                    df.loc[bin_ts, "high"]  = max(float(df.loc[bin_ts, "high"]), live_px)
+                    df.loc[bin_ts, "low"]   = min(float(df.loc[bin_ts, "low"]),  live_px)
+                    df.loc[bin_ts, "close"] = live_px
+                else:
+                    # Create a synthetic bar at this 5-min boundary
+                    new_row = pd.DataFrame(
+                        [[live_px, live_px, live_px, live_px, 0.0]],
+                        columns=["open","high","low","close","volume"],
+                        index=[bin_ts])
+                    df = pd.concat([df, new_row]).sort_index()
+                    df = df[~df.index.duplicated(keep="last")]
+    except Exception as e:
+        logger.warning(f"candles CNBC live-bar synthesize failed: {e}")
     out = []
     for ts, row in df.iterrows():
         try:
