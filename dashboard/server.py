@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from bot import persistence
@@ -633,7 +633,17 @@ def api_v11_brain():
 
 @app.route("/api/v11/strategies")
 def api_v11_strategies():
-    """All v11 + v12 profitable user-pass strategies with mining stats."""
+    """Strategies the bot is actually trading (the post-stress-test
+    deployment set, default). Append ?all=1 for the full v11+v12 universe."""
+    show_all = bool(request.args.get("all"))
+    deployed_names = None
+    if not show_all:
+        dep_path = DATA_DIR / "deployed_strategies.json"
+        if dep_path.exists():
+            try:
+                deployed_names = set(json.loads(dep_path.read_text()).get("names", []))
+            except Exception:
+                deployed_names = None
     rows = []
     TEST_YEARS = 2.33
     seen = set()
@@ -651,6 +661,8 @@ def api_v11_strategies():
             if t.get("pf", 0) < 1.0:
                 continue
             if s["name"] in seen:
+                continue
+            if deployed_names is not None and s["name"] not in deployed_names:
                 continue
             seen.add(s["name"])
             trig = s.get("trigger", "")

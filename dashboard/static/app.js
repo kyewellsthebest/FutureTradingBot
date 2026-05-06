@@ -461,7 +461,7 @@
       $("strategies-count").textContent = "0 total";
       return;
     }
-    $("strategies-count").textContent = `top 10 of ${list.length}`;
+    $("strategies-count").textContent = `top 10 of ${list.length} deployed`;
 
     // Sort
     const { col, dir } = _strategiesSort;
