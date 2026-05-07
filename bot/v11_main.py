@@ -52,6 +52,13 @@ LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_v11.log"
 BASE_SIZE = int(__import__("os").environ.get("V11_BASE_SIZE", "25"))
 COOLDOWN_BARS = 5         # 5-min bars to wait after a loss
 
+# Per-trade max loss cap. Lucid 50K has $2K trailing drawdown; capping
+# every trade's worst-case stop at $1,000 gives at least 2 attempts before
+# the trail busts from a fresh $50K start. The bot dynamically reduces
+# position size when ATR (and therefore stop distance in points) is wide,
+# so risk-per-trade stays normalized regardless of volatility regime.
+MAX_LOSS_PER_TRADE = float(__import__("os").environ.get("V11_MAX_LOSS", "1000"))
+
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -107,6 +114,21 @@ def adaptive_qty(base_size: int, balance: float, trail: float,
     elif buf_norm < 4000: factor = 0.85
     else:                  factor = 1.0
     return max(1, int(base_size * factor)) if factor > 0 else 0
+
+
+def cap_qty_by_max_loss(qty: int, stop_pts: float,
+                          max_loss_dollars: float = MAX_LOSS_PER_TRADE) -> int:
+    """Reduce qty so worst-case stop loss is <= max_loss_dollars.
+
+    Per-MNQ loss = (stop_pts + 1pt commission/slippage cushion) * $2/pt.
+    Wider stop = smaller position, narrower stop = larger position.
+    Risk-per-trade is normalized to a fixed $ amount regardless of ATR.
+    """
+    if stop_pts <= 0 or max_loss_dollars <= 0:
+        return qty
+    per_contract_loss = (stop_pts + 1.0) * 2.0   # 1pt cushion for slip+commission
+    max_qty = int(max_loss_dollars / per_contract_loss)
+    return min(qty, max(1, max_qty))
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +306,19 @@ class V11Runtime:
             return
         qty = min(qty, LUCID_MAX_MNQ)
 
-        # Lucid pre-trade compliance check
+        # Cap qty so worst-case stop loss <= MAX_LOSS_PER_TRADE.
+        # This survives the EOD-trail rule: $1K stop x 2 trades = $2K
+        # drawdown, exactly the trail allowance from a fresh start.
         stop_pts = abs(cand.entry_px - cand.stop_px)
+        qty_before_cap = qty
+        qty = cap_qty_by_max_loss(qty, stop_pts)
+        if qty < qty_before_cap:
+            logger.info(f"[risk-cap] {cand.signal_name}: stop {stop_pts:.1f}pt → "
+                          f"qty reduced {qty_before_cap}→{qty} MNQ to keep loss "
+                          f"≤ ${MAX_LOSS_PER_TRADE:.0f} (worst-case "
+                          f"${(stop_pts + 1) * 2.0 * qty:.0f})")
+
+        # Lucid pre-trade compliance check
         tgt_pts = abs(cand.target_px - cand.entry_px)
         stop_pnl = -stop_pts * DOLLARS_PER_POINT * (qty / 30.0)
         tgt_pnl = tgt_pts * DOLLARS_PER_POINT * (qty / 30.0)
