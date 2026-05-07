@@ -639,6 +639,45 @@ def api_funded_accounts():
     })
 
 
+@app.route("/api/admin/roll_day", methods=["GET", "POST"])
+def api_admin_roll_day():
+    """Force the lucid_state.json today_pnl into cum_pnl_closed_days and
+    reset today_date to current NY date. Idempotent — safe to hit any time.
+    Workaround when the in-process day-roll didn't fire."""
+    import json as _json
+    from datetime import datetime, timezone
+    import pandas as _pd
+    from research.signal_filters import NY_TZ
+    state_path = DATA_DIR / "lucid_state.json"
+    if not state_path.exists():
+        return jsonify({"ok": False, "error": "lucid_state.json missing"}), 404
+    try:
+        s = _json.loads(state_path.read_text())
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"parse: {e}"}), 500
+    ny_today = _pd.Timestamp(datetime.now(timezone.utc)).tz_convert(NY_TZ).date().isoformat()
+    before = {
+        "today_date": s.get("today_date"),
+        "today_pnl": s.get("today_pnl", 0.0),
+        "cum_pnl_closed_days": s.get("cum_pnl_closed_days", 0.0),
+        "n_trading_days": s.get("n_trading_days", 0),
+    }
+    if before["today_date"] == ny_today:
+        return jsonify({"ok": True, "msg": "already on today's NY date — no roll needed",
+                          "before": before, "ny_today": ny_today})
+    s["cum_pnl_closed_days"] = float(before["cum_pnl_closed_days"]) + float(before["today_pnl"])
+    s["today_pnl"] = 0.0
+    s["today_date"] = ny_today
+    s["n_trading_days"] = int(before["n_trading_days"]) + 1
+    state_path.write_text(_json.dumps(s, indent=2, default=str))
+    return jsonify({"ok": True, "msg": "rolled",
+                      "before": before,
+                      "after": {"today_date": s["today_date"],
+                                  "today_pnl": s["today_pnl"],
+                                  "cum_pnl_closed_days": s["cum_pnl_closed_days"],
+                                  "n_trading_days": s["n_trading_days"]}})
+
+
 # ---------------------------------------------------------------------------
 # v11 endpoints (NQ-ES stat-arb)
 # ---------------------------------------------------------------------------

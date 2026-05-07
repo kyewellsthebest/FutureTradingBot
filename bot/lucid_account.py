@@ -122,6 +122,14 @@ class LucidAccount(PaperAccount):
         super().__init__()
         self.lucid: LucidAccountState = _load_state()
         self.ledger = FundedLedger()
+        # Force a day-roll check at startup. Belt-and-braces for the
+        # "TODAY P&L stuck on yesterday" bug — even if the snapshot path
+        # somehow misses it, we ALWAYS reconcile here so the bot's first
+        # tick after a restart has a clean today_pnl.
+        try:
+            self._maybe_roll_eod(datetime.now(timezone.utc))
+        except Exception as e:
+            logger.warning(f"startup day-roll failed: {e}")
         # Make sure the underlying paper-account balance + trail are coherent
         # with the Lucid state (in case we reset since last persist).
         if self.state.balance != self.state.starting_balance and self.lucid.account_id == 1 \
