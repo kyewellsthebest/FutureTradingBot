@@ -195,6 +195,38 @@ def download_es(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.Data
         return _synthetic(timeframe)
 
 
+def download_symbol(symbol: str, timeframe: Timeframe, *,
+                      force_refresh: bool = False, period: str | None = None) -> pd.DataFrame:
+    """Generic OHLCV fetcher for any yfinance symbol. Used by v13 cross-asset
+    features (DXY, TNX, GC=F, CL=F, BTC-USD, HG=F, ZN=F, etc.).
+
+    Cache key includes the symbol so different instruments don't collide.
+    """
+    if timeframe not in TIMEFRAME_CONFIG:
+        raise ValueError(f"Unknown timeframe {timeframe!r}")
+    interval, default_period, _, ttl = TIMEFRAME_CONFIG[timeframe]
+    period = period or default_period
+    safe_sym = symbol.replace("=", "_").replace("^", "").replace("-", "_")
+    path = DATA_DIR / "cache" / f"{safe_sym}_{timeframe}.csv"
+    if not force_refresh and _is_cache_fresh(path, ttl):
+        return _read_cache(path)
+    logger.info(f"{symbol} {timeframe}: downloading interval={interval} period={period}")
+    try:
+        import yfinance as yf
+        df = yf.download(symbol, interval=interval, period=period,
+                          auto_adjust=False, progress=False, threads=False)
+        df = _normalize(df)
+        if df.empty:
+            raise RuntimeError("yfinance returned empty frame")
+        _write_cache(df, path)
+        return df
+    except Exception as exc:
+        logger.warning(f"{symbol} {timeframe}: download failed ({exc!r}), falling back")
+        if path.exists():
+            return _read_cache(path)
+        return _synthetic(timeframe)
+
+
 def load_all() -> dict[str, pd.DataFrame]:
     """Return dict of all 3 timeframes."""
     return {tf: download_nq(tf) for tf in TIMEFRAME_CONFIG}
