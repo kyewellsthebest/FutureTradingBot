@@ -34,7 +34,7 @@ from bot import persistence
 from bot.lucid_account import LucidAccount
 from bot.price_monitor import PriceMonitor
 from research.clock_sync import sync_clock, real_utc_now
-from research.data_loader import DATA_DIR, download_nq, download_es
+from research.data_loader import DATA_DIR, download_nq, download_es, download_symbol
 from research.lucid_guard import MAX_MNQ as LUCID_MAX_MNQ
 from research.signal_filters import DOLLARS_PER_POINT, NY_TZ
 from research.v11_engine import V11Engine
@@ -217,7 +217,22 @@ class V11Runtime:
                 nq.index = nq.index.tz_localize("UTC")
             if es.index.tz is None:
                 es.index = es.index.tz_localize("UTC")
-            self.engine.update_state(nq, es)
+            # v13 needs VIX and RTY too; failures don't block (the engine
+            # gracefully skips families with no data).
+            rty = vix = None
+            try:
+                rty = download_symbol("RTY=F", "5min")
+                if rty is not None and rty.index.tz is None:
+                    rty.index = rty.index.tz_localize("UTC")
+            except Exception as e:
+                logger.debug(f"RTY fetch failed: {e}")
+            try:
+                vix = download_symbol("^VIX", "5min")
+                if vix is not None and vix.index.tz is None:
+                    vix.index = vix.index.tz_localize("UTC")
+            except Exception as e:
+                logger.debug(f"VIX fetch failed: {e}")
+            self.engine.update_state(nq, es, rty_5m=rty, vix_5m=vix)
 
         # Step 1: handle exits first (need a live price).
         # Use the WIDEST recent high/low to be conservative — combine
@@ -284,7 +299,7 @@ class V11Runtime:
             if pd.Timestamp(now) < cooldown_until:
                 return
 
-        cand = self.engine.evaluate(nq, es)
+        cand = self.engine.evaluate(nq, es, rty_5m=rty, vix_5m=vix)
         if cand is None:
             self.last_error = None
             return

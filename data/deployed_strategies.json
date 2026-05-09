@@ -1,8 +1,8 @@
 {
-  "n_total": 73,
-  "n_long": 51,
-  "n_short": 22,
-  "ratio": 2.32,
+  "n_total": 97,
+  "n_long": 59,
+  "n_short": 38,
+  "ratio": 1.55,
   "names": [
     "V11SA_LONG_sa_long_120_25_x_t_1400_1430_RR2_wide_04254",
     "V11SA_LONG_sa_long_120_25_x_t_1500_1530_RR2_7wide_04265",
@@ -76,12 +76,36 @@
     "V12SA_LONG_sa_long_45_27_x_evening_us_RR2_wide_03674",
     "V12SA_LONG_sa_long_60_27_x_evening_us_RR2_wide_04444",
     "V12SA_LONG_sa_long_90_30_x_evening_us_RR2_7wide_05325",
-    "V12SA_LONG_sa_long_90_30_x_evening_us_RR2_wide_05324"
+    "V12SA_LONG_sa_long_90_30_x_evening_us_RR2_wide_05324",
+    "V13A_LONG_vix_long_60_20_x_pm_vix_high_RR2_7wide_00805",
+    "V13A_LONG_vix_long_60_20_x_pm_vix_high_RR2_wide_00804",
+    "V13A_LONG_vix_long_60_25_x_pm_vix_high_RR2_7wide_00915",
+    "V13A_SHORT_vix_short_20_2_x_pm_vix_low_RR2_7wide_00210",
+    "V13A_SHORT_vix_short_20_2_x_pm_vix_low_RR2_std_00206",
+    "V13A_SHORT_vix_short_20_2_x_pm_vix_low_RR2_wide_00209",
+    "V13A_SHORT_vix_short_30_2_x_pm_full_RR2_7wide_00610",
+    "V13A_SHORT_vix_short_30_2_x_pm_full_RR2_wide_00609",
+    "V13A_SHORT_vix_short_60_2_x_pm_vix_mid_RR2_7wide_00975",
+    "V13A_SHORT_vix_short_60_2_x_pm_vix_mid_RR2_std_00971",
+    "V13A_SHORT_vix_short_60_2_x_pm_vix_mid_RR2_wide_00974",
+    "V13C_LONG_sa_long_120_25_x_pm_vix_mid_RR2_7wide_03170",
+    "V13C_LONG_sa_long_120_25_x_pm_vix_mid_RR2_wide_03169",
+    "V13C_LONG_sa_long_60_25_x_pm_vix_high_RR2_wide_03014",
+    "V13C_LONG_sa_long_60_25_x_pm_vix_low_RR2_7wide_03025",
+    "V13C_LONG_sa_long_60_25_x_pm_vix_low_RR2_wide_03024",
+    "V13C_SHORT_sa_short_120_2_x_pm_vix_mid_RR2_7wide_03195",
+    "V13C_SHORT_sa_short_120_2_x_pm_vix_mid_RR2_std_03191",
+    "V13C_SHORT_sa_short_120_2_x_pm_vix_mid_RR2_wide_03194",
+    "V13C_SHORT_sa_short_20_20_x_pm_vix_low_RR2_7wide_02700",
+    "V13C_SHORT_sa_short_20_20_x_pm_vix_low_RR2_std_02696",
+    "V13C_SHORT_sa_short_20_20_x_pm_vix_mid_RR2_7wide_02695",
+    "V13C_SHORT_sa_short_20_20_x_pm_vix_mid_RR2_wide_02694",
+    "V13C_SHORT_sa_short_45_20_x_pm_vix_mid_RR2_7wide_02845"
   ],
   "rationale": {
-    "bulletproof": 22,
-    "moderate": 46,
-    "fragile_shorts_added": 5,
+    "bulletproof": 29,
+    "moderate": 51,
+    "fragile_shorts_added": 17,
     "fragile_longs_excluded": "kept out of deployment \u2014 backtest fantasies"
   }
 }

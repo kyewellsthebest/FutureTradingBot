@@ -63,9 +63,14 @@ class V11Engine:
     # ----------------------------------------------------------------------- #
     def update_state(self,
                        intraday_5m: pd.DataFrame,
-                       es_5m: pd.DataFrame) -> tuple[Optional[pd.Timestamp], float]:
-        """Refresh Z-scores + ATR. Always run, even if no fire. Returns (bar_ts, atr)."""
-        if len(intraday_5m) < max(self.state.windows) + 200:
+                       es_5m: pd.DataFrame,
+                       rty_5m: Optional[pd.DataFrame] = None,
+                       vix_5m: Optional[pd.DataFrame] = None,
+                      ) -> tuple[Optional[pd.Timestamp], float]:
+        """Refresh Z-scores + ATR. Always run, even if no fire."""
+        max_w = max((max(ws) for ws in self.state.windows_by_family.values() if ws),
+                       default=120)
+        if len(intraday_5m) < max_w + 200:
             return None, float("nan")
         atr_series = None
         atr_value = float("nan")
@@ -75,16 +80,21 @@ class V11Engine:
             atr_value = float(atr_series.iloc[-1])
         except Exception as e:
             logger.warning(f"[v11_engine] ATR calc failed: {e}")
-        self.state.update_from_history(intraday_5m, es_5m, atr_series=atr_series)
+        self.state.update_from_history(intraday_5m, es_5m,
+                                            atr_series=atr_series,
+                                            rty_5m=rty_5m, vix_5m=vix_5m)
         return intraday_5m.index[-1], atr_value
 
     def evaluate(self,
                    intraday_5m: pd.DataFrame,    # NQ 5-min bars
                    es_5m: pd.DataFrame,          # ES 5-min bars
                    prior_trades: list = None,    # not used (Lucid handles)
+                   rty_5m: Optional[pd.DataFrame] = None,
+                   vix_5m: Optional[pd.DataFrame] = None,
                   ) -> Optional[TradeCandidate]:
         """Process the most-recent 5-min bar; return a TradeCandidate or None."""
-        bar_ts, atr_value = self.update_state(intraday_5m, es_5m)
+        bar_ts, atr_value = self.update_state(intraday_5m, es_5m,
+                                                  rty_5m=rty_5m, vix_5m=vix_5m)
         if bar_ts is None:
             return None
         if self._last_signal_bar_ts is not None and bar_ts <= self._last_signal_bar_ts:
@@ -142,8 +152,8 @@ class V11Engine:
             adverse_selection=0.0,
             stat_arb_zscore=float(z_value),
             filter_trace=[
-                f"v11:{s.time_context}",
-                f"z[{s.z_window}]={z_value:+.2f}",
+                f"family={s.family}  ctx={s.time_context}",
+                f"z[{s.family},{s.z_window}]={z_value:+.2f}",
                 f"trigger={'<' if s.side=='LONG' else '>'}±{s.z_threshold}",
                 f"ATR={atr_value:.2f} stop={stop_pts:.1f} target={target_pts:.1f}",
                 f"hist_WR={s.test_wr*100:.0f}% PF={s.test_pf:.2f} Sharpe={s.test_sharpe:.2f}",
@@ -172,8 +182,21 @@ class V11Engine:
                                                   ny_min=int(ny.minute))
 
     def current_z_scores(self) -> dict[int, float]:
-        """Live Z values per window (Brain tab)."""
-        return dict(self.state.z_current)
+        """Live Z values per window — returns the ES family by default
+        (back-compat with the old Brain-tab card layout). For multi-family
+        Z-scores see current_z_scores_by_family()."""
+        return dict(self.state.z_current.get("es", {}))
+
+    def current_z_scores_by_family(self) -> dict[str, dict[int, float]]:
+        """Multi-family Z-scores: {'es': {15: -0.5, ...}, 'vix': {...}}"""
+        return {fam: dict(zs) for fam, zs in self.state.z_current.items()}
+
+    def vix_regime_state(self) -> dict[str, float]:
+        """Current VIX percentile + Z-score for the dashboard."""
+        return {
+            "vix_pct": self.state.vix_pct_current,
+            "vix_z": self.state.vix_z_current,
+        }
 
     def strategies_table(self) -> list[dict]:
         """Strategies tab data."""
