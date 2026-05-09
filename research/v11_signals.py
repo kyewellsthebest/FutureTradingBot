@@ -129,7 +129,8 @@ def load_v11_strategies(json_paths: list[Path] | Path | None = None,
     """
     if json_paths is None:
         json_paths = [DATA / "mined_v11_patterns.json",
-                        DATA / "mined_v12_patterns.json"]
+                        DATA / "mined_v12_patterns.json",
+                        DATA / "mined_v13_patterns.json"]
     elif isinstance(json_paths, Path):
         json_paths = [json_paths]
 

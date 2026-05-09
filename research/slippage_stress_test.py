@@ -34,6 +34,7 @@ from research.pattern_miner_v8 import build_v8_extras
 from research.pattern_miner_v9 import build_v9_extras
 from research.pattern_miner_v11 import build_v11_extras, make_v11_detector_dicts
 from research.pattern_miner_v12 import make_v12_detector_dicts
+from research.pattern_miner_v13 import build_v13_extras, make_v13_detector_dicts
 from research.local_data_loader import (
     load_daily, load_intraday_1min, load_intraday_5min, load_vix_5min,
 )
@@ -59,7 +60,8 @@ USER_MIN_PF = 1.0
 def load_all_user_passers():
     out = []
     for fname, src in [("mined_v11_patterns.json", "v11"),
-                          ("mined_v12_patterns.json", "v12")]:
+                          ("mined_v12_patterns.json", "v12"),
+                          ("mined_v13_patterns.json", "v13")]:
         p = DATA / fname
         if not p.exists():
             continue
@@ -93,10 +95,14 @@ def main():
     F = build_v8_extras(F, nq_5m, daily)
     F = build_v9_extras(F, nq_5m, daily, rty_5m)
     F = build_v11_extras(F, nq_5m, es_5m)
+    F = build_v13_extras(F, nq_5m, rty_5m, vix_5m)
 
-    contexts_d_v11, triggers_d = make_v11_detector_dicts(F)
+    contexts_d_v11, triggers_d_v11 = make_v11_detector_dicts(F)
     contexts_d_v12, _ = make_v12_detector_dicts(F)
-    contexts_d = {**contexts_d_v11, **contexts_d_v12}
+    contexts_d_v13, triggers_d_v13 = make_v13_detector_dicts(F)
+    # Merge all contexts and triggers — names are already namespaced per family
+    contexts_d = {**contexts_d_v11, **contexts_d_v12, **contexts_d_v13}
+    triggers_d = {**triggers_d_v11, **triggers_d_v13}
 
     strategies = load_all_user_passers()
     logger.info(f"Loaded {len(strategies)} profitable user-pass strategies "
