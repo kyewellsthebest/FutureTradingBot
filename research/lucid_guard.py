@@ -51,6 +51,18 @@ PROFIT_TARGET      =    500.0   # First payout eligibility
 MIN_DAYS_TO_PAYOUT = 3
 PROFIT_SPLIT       = 0.90       # trader keeps 90%
 
+# Trail-floor safety margin. The trail-breach check (rule 6) blocks any
+# trade whose worst-case stop would land balance AT OR BELOW the trail
+# floor. This margin adds extra room — even if the stop technically
+# clears the trail, a trade that would leave less than this margin above
+# trail is rejected. Protects against:
+#   * the "two losses in a row blow the account" scenario (after one loss,
+#     the next trade's stop check is stricter)
+#   * unmodeled extra slippage (gap stops, fast markets)
+# Configurable via env var. Default $300.
+import os as _os
+TRAIL_SAFETY_MARGIN = float(_os.environ.get("LUCID_TRAIL_SAFETY_MARGIN", "300"))
+
 # Microscalping (terms of use): >50% of profits from holds <=5s = banned.
 # Bot uses 25-min minimum holds; we still hard-assert this at trade-close time.
 MICROSCALP_HOLD_THRESHOLD_S = 5
@@ -212,12 +224,19 @@ def evaluate_trade(
                               f"stop+today would breach DLL; reduce size to <= {max_n}",
                               "dll_projected", suggested_n=max_n)
 
-    # 6. Trailing drawdown breach
+    # 6. Trailing drawdown breach. Block if the trade's worst-case stop
+    #    would put balance within TRAIL_SAFETY_MARGIN of the trail floor.
+    #    The +margin keeps a cushion for the NEXT losing trade — without it,
+    #    a single stop could leave the account 1¢ above trail and the very
+    #    next trade would be guaranteed to blow.
     worst_bal = state.balance + proposed_pnl_at_stop
-    if worst_bal <= state.trail_floor:
+    min_required = state.trail_floor + TRAIL_SAFETY_MARGIN
+    if worst_bal <= min_required:
         return GuardDecision(False,
-                              f"stop would breach trail floor ${state.trail_floor:.0f}",
-                              "trail_floor")
+                              f"stop would leave balance ${worst_bal:.0f} ≤ "
+                              f"${min_required:.0f} (trail ${state.trail_floor:.0f} "
+                              f"+ ${TRAIL_SAFETY_MARGIN:.0f} safety margin)",
+                              "trail_floor_margin")
 
     # 7. 40% consistency rule — only blocks new profitable entries when today is
     #    already >= 40% of running total. Losing trades are unaffected.

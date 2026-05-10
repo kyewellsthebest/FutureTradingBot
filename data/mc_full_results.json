@@ -1,13 +1,13 @@
 {
   "n_strategies": 97,
   "n_signals": 15557,
-  "pass_rate": 0.36,
-  "avg_survivor_profit": 7859.280448307741,
-  "median_survivor_profit": -519.3940573285654,
-  "max_survivor_profit": 41898.942612754705,
-  "avg_bust_days": 5.545518663194445,
-  "median_bust_days": 4.756944444444445,
-  "avg_trades_per_180d_run": 14.12,
-  "avg_trades_survivors": 31.444444444444443,
-  "ev_per_attempt": 2723.7409613907867
+  "pass_rate": 1.0,
+  "avg_survivor_profit": 10784.224640873188,
+  "median_survivor_profit": 336.06104414420406,
+  "max_survivor_profit": 49807.64288428394,
+  "avg_bust_days": 0.0,
+  "median_bust_days": 0.0,
+  "avg_trades_per_180d_run": 38.42,
+  "avg_trades_survivors": 38.42,
+  "ev_per_attempt": 10784.224640873188
 }

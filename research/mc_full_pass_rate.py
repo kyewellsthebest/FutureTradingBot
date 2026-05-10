@@ -48,7 +48,8 @@ TRAIL_DROP = 2000.0
 TRAIL_LOCK_AT = 51000.0
 TRAIL_LOCKED_FLOOR = 50000.0
 BASE_SIZE = 25
-MAX_LOSS_PER_TRADE = 1000.0
+MAX_LOSS_PER_TRADE = 2000.0   # matches bot/v11_main.py default (V11_MAX_LOSS)
+TRAIL_SAFETY_MARGIN = 300.0   # matches research/lucid_guard.py default
 COOLDOWN_BARS = 5
 FEE_PER_ATTEMPT = 165.0
 
@@ -140,10 +141,15 @@ def run_one(sigs: pd.DataFrame, start_ts, end_ts, base_size: int = BASE_SIZE):
         factor = adaptive_qty_factor(buffer)
         qty = max(1, int(base_size * factor)) if factor > 0 else 0
         if qty == 0: continue
-        # Apply $1K max-loss cap
+        # Apply max-loss cap
         stop_pts = float(sig.get("stop_pts", 0))
         if stop_pts > 0:
             qty = cap_qty_by_max_loss(qty, stop_pts)
+        # Trail-safety-margin check: refuse trades that would leave balance
+        # within TRAIL_SAFETY_MARGIN of the trail on a worst-case stop
+        worst_loss = stop_pts * MNQ_DPP * qty + COMM_PER * 2 * qty
+        if balance - worst_loss <= trail + TRAIL_SAFETY_MARGIN:
+            continue
         max_hold = int(sig.get("max_hold_min", 75))
         pts = float(sig.get("pts", 0))
         pnl = pts * MNQ_DPP * qty - COMM_PER * 2 * qty
