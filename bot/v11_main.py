@@ -53,11 +53,11 @@ BASE_SIZE = int(__import__("os").environ.get("V11_BASE_SIZE", "25"))
 COOLDOWN_BARS = 5         # 5-min bars to wait after a loss
 
 # Per-trade max loss cap. Lucid 50K has $2K trailing drawdown; capping
-# every trade's worst-case stop at $1,000 gives at least 2 attempts before
-# the trail busts from a fresh $50K start. The bot dynamically reduces
-# position size when ATR (and therefore stop distance in points) is wide,
-# so risk-per-trade stays normalized regardless of volatility regime.
-MAX_LOSS_PER_TRADE = float(__import__("os").environ.get("V11_MAX_LOSS", "1000"))
+# every trade at $2,000 worst-case stop guarantees no SINGLE trade can
+# blow the entire account, while leaving enough size to be profitable.
+# (The $1,000 cap previously tested was too restrictive — gutted EV.)
+# Configurable via V11_MAX_LOSS env var.
+MAX_LOSS_PER_TRADE = float(__import__("os").environ.get("V11_MAX_LOSS", "2000"))
 
 
 # ---------------------------------------------------------------------------
