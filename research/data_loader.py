@@ -417,31 +417,34 @@ def polygon_diagnostic() -> dict:
             "front_last_trade": front.get("last_trade_date") if front else None,
         }
 
-    # 2b. Try the aggregates endpoint on the discovered front-month ticker,
-    #     across the candidate URL structures Polygon might use for futures.
+    # 2b. The futures aggs endpoint is /futures/v1/aggs/{ticker} — confirmed
+    #     to exist (HTTP 400 'Invalid resolution', not 404). Probe a batch
+    #     of resolution-parameter formats to find the one Polygon accepts.
     nq_front = out["futures"].get("NQ_frontmonth", {}).get("front_ticker")
     if nq_front:
-        fr = (_date.today().replace(day=1)).isoformat()
-        to = _date.today().isoformat()
-        agg_candidates = {
-            "v2_aggs": (f"https://api.polygon.io/v2/aggs/ticker/{nq_front}"
-                          f"/range/5/minute/{fr}/{to}?limit=100&apiKey={key}"),
-            "futures_v1_aggs": (f"https://api.polygon.io/futures/v1/aggs/{nq_front}"
-                                  f"?resolution=5m&apiKey={key}"),
-            "futures_v1_aggs_range": (f"https://api.polygon.io/futures/v1/aggs/{nq_front}"
-                                        f"/range/5/minute/{fr}/{to}?limit=100&apiKey={key}"),
-        }
-        for label, url in agg_candidates.items():
+        resolutions = ["1S", "1M", "5M", "1H", "1D",
+                         "second", "minute", "hour", "day",
+                         "1minute", "5minute", "1_minute", "5_minute",
+                         "1m", "60", "300"]
+        out["futures"]["aggs_resolution_probe"] = {"tested_ticker": nq_front,
+                                                       "results": {}}
+        for res in resolutions:
+            url = (f"https://api.polygon.io/futures/v1/aggs/{nq_front}"
+                    f"?resolution={res}&limit=10&apiKey={key}")
             d, err = _get_json(url)
             if err:
-                out["futures"][f"aggs_{label}"] = {"ok": False, "error": err}
-                continue
-            results = (d or {}).get("results") or []
-            entry = {"ok": len(results) > 0, "n_bars": len(results),
-                       "tested_ticker": nq_front}
-            if results and isinstance(results[0], dict):
-                entry["sample_bar"] = results[0]
-            out["futures"][f"aggs_{label}"] = entry
+                # Distinguish "bad resolution" (400) from other failures
+                short = err[:60]
+                out["futures"]["aggs_resolution_probe"]["results"][res] = short
+            else:
+                results = (d or {}).get("results") or []
+                if results:
+                    out["futures"]["aggs_resolution_probe"]["results"][res] = {
+                        "ok": True, "n_bars": len(results),
+                        "sample_bar": results[0],
+                    }
+                else:
+                    out["futures"]["aggs_resolution_probe"]["results"][res] = "empty (200 OK, no bars)"
     return out
 
 
