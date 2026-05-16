@@ -375,27 +375,46 @@ def polygon_diagnostic() -> dict:
     from datetime import date as _date
     today_str = _date.today().isoformat()
 
-    # 2a. Pull NQ + ES contracts, find the front-month (active, last_trade
-    #     date in the future, soonest expiry).
+    # 2a. Pull NQ + ES contracts NEWEST-FIRST, find the front-month
+    #     (active, last_trade_date in the future, soonest expiry).
     for prod in ["NQ", "ES"]:
-        url = (f"https://api.polygon.io/futures/v1/contracts"
-                f"?product_code={prod}&limit=200&apiKey={key}")
-        d, err = _get_json(url)
-        if err or not d:
-            out["futures"][f"{prod}_frontmonth"] = {"ok": False, "error": err}
-            continue
-        results = d.get("results") or []
-        live = [r for r in results
-                  if isinstance(r, dict) and r.get("last_trade_date", "") >= today_str]
-        live.sort(key=lambda r: r.get("last_trade_date", ""))
-        front = live[0] if live else None
+        # Try several query forms — Polygon's futures contract endpoint
+        # param names aren't certain, so probe newest-first + a date filter.
+        url_variants = [
+            (f"https://api.polygon.io/futures/v1/contracts"
+              f"?product_code={prod}&order=desc&sort=last_trade_date"
+              f"&limit=100&apiKey={key}"),
+            (f"https://api.polygon.io/futures/v1/contracts"
+              f"?product_code={prod}&last_trade_date.gte={today_str}"
+              f"&limit=100&apiKey={key}"),
+            (f"https://api.polygon.io/futures/v1/contracts"
+              f"?product_code={prod}&limit=1000&apiKey={key}"),
+        ]
+        front = None
+        n_contracts = 0
+        n_live = 0
+        used = None
+        for vi, url in enumerate(url_variants):
+            d, err = _get_json(url)
+            if err or not d:
+                continue
+            results = d.get("results") or []
+            n_contracts = len(results)
+            live = [r for r in results
+                      if isinstance(r, dict) and r.get("last_trade_date", "") >= today_str]
+            n_live = len(live)
+            if live:
+                live.sort(key=lambda r: r.get("last_trade_date", ""))
+                front = live[0]
+                used = f"variant_{vi}"
+                break
         out["futures"][f"{prod}_frontmonth"] = {
             "ok": front is not None,
-            "n_contracts": len(results),
-            "n_live": len(live),
+            "n_contracts": n_contracts,
+            "n_live": n_live,
+            "query_used": used,
             "front_ticker": front.get("ticker") if front else None,
             "front_last_trade": front.get("last_trade_date") if front else None,
-            "next_few": [r.get("ticker") for r in live[:4]],
         }
 
     # 2b. Try the aggregates endpoint on the discovered front-month ticker,
