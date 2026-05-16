@@ -388,8 +388,14 @@ def polygon_diagnostic() -> dict:
                         sample.append(sym)
                 elif isinstance(r, str):
                     sample.append(r)
-        out["futures"][label] = {"ok": True, "n_results": len(results),
-                                    "sample_tickers": sample}
+        entry = {"ok": True, "n_results": len(results),
+                   "sample_tickers": sample}
+        # Dump the FULL first result so we can see Polygon's exact schema
+        # (field names + ticker format) — needed to wire the live feed.
+        if isinstance(results, list) and results and isinstance(results[0], dict):
+            entry["raw_first_result"] = results[0]
+            entry["available_fields"] = sorted(results[0].keys())
+        out["futures"][label] = entry
     return out
 
 
