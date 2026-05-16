@@ -387,8 +387,16 @@ def api_candles():
 
 @app.route("/api/trade_markers")
 def api_trade_markers():
-    """Up/down arrow markers for the last 100 trades, ready to drop into
-    lightweight-charts via series.setMarkers()."""
+    """Up/down arrow markers for recent trades, ready to drop into
+    lightweight-charts via series.setMarkers().
+
+    Markers EXPIRE after MARKER_TTL_SECONDS (default 1 hour) so the chart
+    only shows fresh activity — old entry/exit arrows clear themselves
+    rather than cluttering the left edge forever. Each marker is shown
+    only while its own timestamp (entry OR exit) is within the window."""
+    MARKER_TTL_SECONDS = 3600  # 1 hour
+    now_s = int(pd.Timestamp.now(tz="UTC").timestamp())
+    cutoff = now_s - MARKER_TTL_SECONDS
     trades = persistence.load_trades(limit=100)
     out = []
     for t in trades:
@@ -399,26 +407,29 @@ def api_trade_markers():
         side = t.get("side")
         pnl = t.get("pnl")
         won = pnl is not None and pnl > 0
-        out.append({
-            "time": entry_t,
-            "position": "belowBar" if side == "LONG" else "aboveBar",
-            "color": "#26a69a" if side == "LONG" else "#ef5350",
-            "shape": "arrowUp" if side == "LONG" else "arrowDown",
-            "text": f"{side[0]}{int(t.get('qty') or 0)}",  # L12 / S8
-        })
-        # Add an exit marker if the trade is closed
+        # Entry arrow — only while within the 1h window
+        if entry_t >= cutoff:
+            out.append({
+                "time": entry_t,
+                "position": "belowBar" if side == "LONG" else "aboveBar",
+                "color": "#26a69a" if side == "LONG" else "#ef5350",
+                "shape": "arrowUp" if side == "LONG" else "arrowDown",
+                "text": f"{side[0]}{int(t.get('qty') or 0)}",  # L12 / S8
+            })
+        # Exit dot — only while within the 1h window
         if t.get("exit_time"):
             try:
                 exit_t = int(pd.Timestamp(t["exit_time"]).timestamp())
             except Exception:
                 continue
-            out.append({
-                "time": exit_t,
-                "position": "aboveBar" if side == "LONG" else "belowBar",
-                "color": "#26a69a" if won else "#ef5350",
-                "shape": "circle",
-                "text": (f"+${pnl:.0f}" if won else f"-${abs(pnl):.0f}") if pnl is not None else "",
-            })
+            if exit_t >= cutoff:
+                out.append({
+                    "time": exit_t,
+                    "position": "aboveBar" if side == "LONG" else "belowBar",
+                    "color": "#26a69a" if won else "#ef5350",
+                    "shape": "circle",
+                    "text": (f"+${pnl:.0f}" if won else f"-${abs(pnl):.0f}") if pnl is not None else "",
+                })
     # lightweight-charts requires markers sorted by time
     out.sort(key=lambda m: m["time"])
     return jsonify(out)
