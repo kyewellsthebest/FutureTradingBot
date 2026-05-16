@@ -356,46 +356,73 @@ def polygon_diagnostic() -> dict:
         except Exception as e:
             out["stocks_indices"][t] = {"ok": False, "reason": str(e)}
 
-    # --- 2. Futures API — discover NQ/ES contract tickers ----------------
-    # Polygon futures: reference endpoints for products + contracts.
-    futures_probes = {
-        "ref_tickers_futures": f"https://api.polygon.io/v3/reference/tickers?market=futures&limit=20&apiKey={key}",
-        "futures_products":    f"https://api.polygon.io/futures/v1/products?limit=20&apiKey={key}",
-        "futures_contracts_NQ": f"https://api.polygon.io/futures/v1/contracts?product_code=NQ&limit=20&apiKey={key}",
-        "futures_contracts_ES": f"https://api.polygon.io/futures/v1/contracts?product_code=ES&limit=20&apiKey={key}",
-    }
-    for label, url in futures_probes.items():
-        d = _get(url)
-        if d is None:
-            out["futures"][label] = {"ok": False}
+    # --- 2. Futures API — find the live front-month NQ/ES contract -------
+    def _get_json(url: str):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                return _json.loads(resp.read().decode("utf-8")), None
+        except urllib.error.HTTPError as e:
+            try:
+                body = _json.loads(e.read().decode("utf-8"))
+            except Exception:
+                body = {}
+            return None, f"HTTP {e.code}: {body.get('message') or body.get('error') or ''}"
+        except Exception as e:
+            return None, str(e)
+
+    today = datetime.now(_tz.utc).date().isoformat() if False else None
+    from datetime import date as _date
+    today_str = _date.today().isoformat()
+
+    # 2a. Pull NQ + ES contracts, find the front-month (active, last_trade
+    #     date in the future, soonest expiry).
+    for prod in ["NQ", "ES"]:
+        url = (f"https://api.polygon.io/futures/v1/contracts"
+                f"?product_code={prod}&limit=200&apiKey={key}")
+        d, err = _get_json(url)
+        if err or not d:
+            out["futures"][f"{prod}_frontmonth"] = {"ok": False, "error": err}
             continue
-        if "_http_error" in d:
-            out["futures"][label] = {"ok": False, "http": d["_http_error"],
-                                        "msg": d.get("message") or d.get("error")}
-            continue
-        if "_error" in d:
-            out["futures"][label] = {"ok": False, "error": d["_error"]}
-            continue
-        # Extract any ticker/symbol fields from the results
-        results = d.get("results") or d.get("tickers") or []
-        sample = []
-        if isinstance(results, list):
-            for r in results[:15]:
-                if isinstance(r, dict):
-                    sym = (r.get("ticker") or r.get("symbol")
-                             or r.get("contract_code") or r.get("product_code"))
-                    if sym:
-                        sample.append(sym)
-                elif isinstance(r, str):
-                    sample.append(r)
-        entry = {"ok": True, "n_results": len(results),
-                   "sample_tickers": sample}
-        # Dump the FULL first result so we can see Polygon's exact schema
-        # (field names + ticker format) — needed to wire the live feed.
-        if isinstance(results, list) and results and isinstance(results[0], dict):
-            entry["raw_first_result"] = results[0]
-            entry["available_fields"] = sorted(results[0].keys())
-        out["futures"][label] = entry
+        results = d.get("results") or []
+        live = [r for r in results
+                  if isinstance(r, dict) and r.get("last_trade_date", "") >= today_str]
+        live.sort(key=lambda r: r.get("last_trade_date", ""))
+        front = live[0] if live else None
+        out["futures"][f"{prod}_frontmonth"] = {
+            "ok": front is not None,
+            "n_contracts": len(results),
+            "n_live": len(live),
+            "front_ticker": front.get("ticker") if front else None,
+            "front_last_trade": front.get("last_trade_date") if front else None,
+            "next_few": [r.get("ticker") for r in live[:4]],
+        }
+
+    # 2b. Try the aggregates endpoint on the discovered front-month ticker,
+    #     across the candidate URL structures Polygon might use for futures.
+    nq_front = out["futures"].get("NQ_frontmonth", {}).get("front_ticker")
+    if nq_front:
+        fr = (_date.today().replace(day=1)).isoformat()
+        to = _date.today().isoformat()
+        agg_candidates = {
+            "v2_aggs": (f"https://api.polygon.io/v2/aggs/ticker/{nq_front}"
+                          f"/range/5/minute/{fr}/{to}?limit=100&apiKey={key}"),
+            "futures_v1_aggs": (f"https://api.polygon.io/futures/v1/aggs/{nq_front}"
+                                  f"?resolution=5m&apiKey={key}"),
+            "futures_v1_aggs_range": (f"https://api.polygon.io/futures/v1/aggs/{nq_front}"
+                                        f"/range/5/minute/{fr}/{to}?limit=100&apiKey={key}"),
+        }
+        for label, url in agg_candidates.items():
+            d, err = _get_json(url)
+            if err:
+                out["futures"][f"aggs_{label}"] = {"ok": False, "error": err}
+                continue
+            results = (d or {}).get("results") or []
+            entry = {"ok": len(results) > 0, "n_bars": len(results),
+                       "tested_ticker": nq_front}
+            if results and isinstance(results[0], dict):
+                entry["sample_bar"] = results[0]
+            out["futures"][f"aggs_{label}"] = entry
     return out
 
 
