@@ -37,9 +37,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
 log = logging.getLogger("fetch_polygon")
 
 KEY = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
-PRODUCTS = ["NQ", "ES", "RTY", "YM", "ZN", "ZB", "GC", "CL", "HG", "SI", "6E", "6J"]
+# 8 core products — equity index, treasuries, gold, crude. Dropped SI/HG/
+# 6E/6J to cut API calls; these 8 cover the cross-asset families we mine.
+PRODUCTS = ["NQ", "ES", "RTY", "YM", "ZN", "ZB", "GC", "CL"]
 HISTORY_DAYS = 920   # ~2.5 years
 MONTH_CODE = {3: "H", 6: "M", 9: "U", 12: "Z"}
+QUARTERLY_CODES = set("HMUZ")   # only download quarterly front-month contracts
+
+
+def _is_quarterly(ticker: str, product: str) -> bool:
+    """True if ticker is a quarterly contract, e.g. NQH6 / ESM7.
+    The month code is the char right after the product code."""
+    rest = ticker[len(product):]
+    return len(rest) >= 2 and rest[0] in QUARTERLY_CODES and rest[1:].isdigit()
 
 
 def _get(url: str, tries: int = 4):
@@ -78,7 +88,8 @@ def list_contracts(product: str) -> list[dict]:
     if not d:
         return []
     rows = [r for r in (d.get("results") or [])
-              if isinstance(r, dict) and r.get("ticker") and r.get("last_trade_date")]
+              if isinstance(r, dict) and r.get("ticker") and r.get("last_trade_date")
+              and _is_quarterly(r["ticker"], product)]
     rows.sort(key=lambda r: r["last_trade_date"])
     return rows
 
