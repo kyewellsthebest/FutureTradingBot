@@ -315,35 +315,81 @@ def download_polygon_aggs(ticker: str, timeframe: Timeframe, *,
 
 
 def polygon_diagnostic() -> dict:
-    """Probe which Polygon tickers the configured key can actually access.
-    Hit this once after adding the key to see what your plan supports."""
+    """Probe the Polygon key — discover what the plan exposes.
+
+    Explores BOTH the stocks/index aggregates AND the futures API
+    (different endpoint + ticker namespace). Reports which products work
+    and lists discovered futures tickers for NQ/ES."""
     import json as _json
     import urllib.request
-    from datetime import datetime, timezone as _tz
+    import urllib.error
 
     key = _polygon_key()
     if not key:
         return {"ok": False, "error": "POLYGON_API env var not set"}
-    out: dict = {"ok": True, "key_present": True, "tickers": {}}
-    # Probe a spread of ticker types: index, ETF, futures-style
-    probes = ["I:NDX", "I:SPX", "I:VIX", "QQQ", "SPY",
-                "NQ", "ES", "NQ1!", "C:NQUSD"]
-    for t in probes:
+    out: dict = {"ok": True, "key_present": True,
+                   "stocks_indices": {}, "futures": {}}
+
+    def _get(url: str) -> dict | None:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                return _json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            try:
+                body = _json.loads(e.read().decode("utf-8"))
+            except Exception:
+                body = {}
+            return {"_http_error": e.code, **body}
+        except Exception as e:
+            return {"_error": str(e)}
+
+    # --- 1. Stocks / index aggregates (free Basic tiers) -----------------
+    for t in ["I:NDX", "QQQ", "SPY"]:
         try:
             df = download_polygon_aggs(t, "5min", lookback_days=5, force_refresh=True)
             if df is not None and not df.empty:
-                latest = df.index[-1]
-                age_min = (pd.Timestamp.now(tz="UTC") - latest).total_seconds() / 60
-                out["tickers"][t] = {
-                    "ok": True, "bars": len(df),
-                    "last_bar": latest.isoformat(),
-                    "age_minutes": round(age_min, 1),
-                    "last_close": float(df["close"].iloc[-1]),
-                }
+                out["stocks_indices"][t] = {"ok": True, "bars": len(df),
+                                              "last_close": float(df["close"].iloc[-1])}
             else:
-                out["tickers"][t] = {"ok": False, "reason": "empty/none"}
+                out["stocks_indices"][t] = {"ok": False}
         except Exception as e:
-            out["tickers"][t] = {"ok": False, "reason": str(e)}
+            out["stocks_indices"][t] = {"ok": False, "reason": str(e)}
+
+    # --- 2. Futures API — discover NQ/ES contract tickers ----------------
+    # Polygon futures: reference endpoints for products + contracts.
+    futures_probes = {
+        "ref_tickers_futures": f"https://api.polygon.io/v3/reference/tickers?market=futures&limit=20&apiKey={key}",
+        "futures_products":    f"https://api.polygon.io/futures/v1/products?limit=20&apiKey={key}",
+        "futures_contracts_NQ": f"https://api.polygon.io/futures/v1/contracts?product_code=NQ&limit=20&apiKey={key}",
+        "futures_contracts_ES": f"https://api.polygon.io/futures/v1/contracts?product_code=ES&limit=20&apiKey={key}",
+    }
+    for label, url in futures_probes.items():
+        d = _get(url)
+        if d is None:
+            out["futures"][label] = {"ok": False}
+            continue
+        if "_http_error" in d:
+            out["futures"][label] = {"ok": False, "http": d["_http_error"],
+                                        "msg": d.get("message") or d.get("error")}
+            continue
+        if "_error" in d:
+            out["futures"][label] = {"ok": False, "error": d["_error"]}
+            continue
+        # Extract any ticker/symbol fields from the results
+        results = d.get("results") or d.get("tickers") or []
+        sample = []
+        if isinstance(results, list):
+            for r in results[:15]:
+                if isinstance(r, dict):
+                    sym = (r.get("ticker") or r.get("symbol")
+                             or r.get("contract_code") or r.get("product_code"))
+                    if sym:
+                        sample.append(sym)
+                elif isinstance(r, str):
+                    sample.append(r)
+        out["futures"][label] = {"ok": True, "n_results": len(results),
+                                    "sample_tickers": sample}
     return out
 
 
