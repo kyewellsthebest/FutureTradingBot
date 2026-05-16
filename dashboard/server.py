@@ -65,6 +65,20 @@ def api_health():
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
 
 
+@app.route("/api/health/polygon")
+def api_health_polygon():
+    """Probe what the configured Polygon.io key can actually access.
+    Hit this once after adding POLYGON_API to see your plan's entitlements:
+    which tickers return data, how stale it is (delayed plans show 15+ min),
+    and the last close. Tells us whether to use index, ETF, or futures
+    tickers for the live bot."""
+    try:
+        from research.data_loader import polygon_diagnostic
+        return jsonify(polygon_diagnostic())
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/health/feeds")
 def api_health_feeds():
     """Live diagnostic of every price/candle feed. Useful when the chart or

@@ -232,6 +232,121 @@ def load_all() -> dict[str, pd.DataFrame]:
     return {tf: download_nq(tf) for tf in TIMEFRAME_CONFIG}
 
 
+# ---------------------------------------------------------------------------
+# Polygon.io integration
+# ---------------------------------------------------------------------------
+def _polygon_key() -> str | None:
+    """API key from POLYGON_API (or POLYGON_API_KEY) env var."""
+    return os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
+
+
+def download_polygon_aggs(ticker: str, timeframe: Timeframe, *,
+                            lookback_days: int | None = None,
+                            force_refresh: bool = False) -> pd.DataFrame | None:
+    """Fetch OHLCV aggregate bars from Polygon.io.
+
+    Returns a normalized OHLCV DataFrame (UTC index), or None if no API
+    key is set or the request fails. Ticker formats Polygon uses:
+      stocks  : "QQQ", "SPY"
+      indices : "I:NDX", "I:SPX", "I:VIX"
+      futures : varies by Polygon's futures product entitlement
+
+    Cached to data/cache/polygon_<ticker>_<tf>.csv with the standard TTL.
+    """
+    import json as _json
+    import urllib.request
+    import urllib.parse
+    from datetime import datetime, timedelta, timezone as _tz
+
+    key = _polygon_key()
+    if not key:
+        return None
+    if timeframe not in TIMEFRAME_CONFIG:
+        raise ValueError(f"Unknown timeframe {timeframe!r}")
+    tf_map = {"5min": (5, "minute", 45), "1hr": (1, "hour", 365),
+                "daily": (1, "day", 1825)}
+    mult, span, default_days = tf_map.get(timeframe, (5, "minute", 45))
+    days = lookback_days or default_days
+
+    safe = ticker.replace(":", "_").replace("/", "_")
+    path = DATA_DIR / "cache" / f"polygon_{safe}_{timeframe}.csv"
+    ttl = TIMEFRAME_CONFIG[timeframe][3]
+    if not force_refresh and _is_cache_fresh(path, ttl):
+        return _read_cache(path)
+
+    to_d = datetime.now(_tz.utc).strftime("%Y-%m-%d")
+    from_d = (datetime.now(_tz.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    url = (f"https://api.polygon.io/v2/aggs/ticker/{urllib.parse.quote(ticker)}"
+            f"/range/{mult}/{span}/{from_d}/{to_d}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={key}")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.warning(f"polygon {ticker} {timeframe} fetch failed: {e!r}")
+        if path.exists():
+            return _read_cache(path)
+        return None
+
+    results = data.get("results") or []
+    if not results:
+        logger.warning(f"polygon {ticker} {timeframe}: empty (status={data.get('status')}, "
+                        f"msg={data.get('message') or data.get('error')})")
+        return None
+    rows = []
+    for r in results:
+        try:
+            ts = pd.Timestamp(int(r["t"]), unit="ms", tz="UTC")
+            rows.append((ts, float(r["o"]), float(r["h"]), float(r["l"]),
+                          float(r["c"]), float(r.get("v", 0))))
+        except Exception:
+            continue
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close", "volume"]
+                        ).set_index("ts").sort_index()
+    df = df[~df.index.duplicated(keep="last")]
+    try:
+        _write_cache(df, path)
+    except Exception:
+        pass
+    return df
+
+
+def polygon_diagnostic() -> dict:
+    """Probe which Polygon tickers the configured key can actually access.
+    Hit this once after adding the key to see what your plan supports."""
+    import json as _json
+    import urllib.request
+    from datetime import datetime, timezone as _tz
+
+    key = _polygon_key()
+    if not key:
+        return {"ok": False, "error": "POLYGON_API env var not set"}
+    out: dict = {"ok": True, "key_present": True, "tickers": {}}
+    # Probe a spread of ticker types: index, ETF, futures-style
+    probes = ["I:NDX", "I:SPX", "I:VIX", "QQQ", "SPY",
+                "NQ", "ES", "NQ1!", "C:NQUSD"]
+    for t in probes:
+        try:
+            df = download_polygon_aggs(t, "5min", lookback_days=5, force_refresh=True)
+            if df is not None and not df.empty:
+                latest = df.index[-1]
+                age_min = (pd.Timestamp.now(tz="UTC") - latest).total_seconds() / 60
+                out["tickers"][t] = {
+                    "ok": True, "bars": len(df),
+                    "last_bar": latest.isoformat(),
+                    "age_minutes": round(age_min, 1),
+                    "last_close": float(df["close"].iloc[-1]),
+                }
+            else:
+                out["tickers"][t] = {"ok": False, "reason": "empty/none"}
+        except Exception as e:
+            out["tickers"][t] = {"ok": False, "reason": str(e)}
+    return out
+
+
 def latest_price() -> tuple[float, pd.Timestamp] | tuple[None, None]:
     """Most recent close + timestamp from the 5-min frame (dashboard ticker)."""
     try:
