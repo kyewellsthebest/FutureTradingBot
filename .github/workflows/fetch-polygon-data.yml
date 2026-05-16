@@ -1,0 +1,50 @@
+name: Fetch Polygon Futures History
+
+# Manually triggered. Downloads ~2.5yr of CME futures 5-min bars from
+# Polygon and commits the CSVs to data/polygon/ so the research sandbox
+# (which cannot reach api.polygon.io) can mine v14 strategies.
+
+on:
+  workflow_dispatch:
+    inputs:
+      polygon_key:
+        description: "Polygon API key (read-only market data key)"
+        required: true
+        type: string
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: claude/transfer-trading-bot-GiNxs
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install pandas
+
+      - name: Mask the API key in logs
+        run: echo "::add-mask::${{ inputs.polygon_key }}"
+
+      - name: Download Polygon futures history
+        env:
+          POLYGON_API: ${{ inputs.polygon_key }}
+        run: python -m research.fetch_polygon_history
+
+      - name: Commit the CSVs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/polygon/
+          if git diff --staged --quiet; then
+            echo "No new data to commit"
+          else
+            git commit -m "Polygon futures history fetched via GitHub Actions"
+            git push origin claude/transfer-trading-bot-GiNxs
+          fi
