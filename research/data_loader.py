@@ -240,6 +240,97 @@ def _polygon_key() -> str | None:
     return os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
 
 
+def _third_friday(year: int, month: int):
+    """3rd Friday of a month — CME equity-index futures expiry."""
+    from datetime import date as _d
+    d = _d(year, month, 1)
+    # weekday(): Mon=0 .. Sun=6 ; Friday=4
+    first_friday = 1 + ((4 - d.weekday()) % 7)
+    return _d(year, month, first_friday + 14)
+
+
+def polygon_front_month(product: str, asof=None) -> str:
+    """Construct the live front-month futures ticker, e.g. 'NQM6' (June 2026).
+
+    CME equity-index futures are quarterly: H=Mar, M=Jun, U=Sep, Z=Dec.
+    Picks the soonest quarterly contract whose 3rd-Friday expiry is still
+    in the future. Year is encoded as the last digit (2026 -> 6)."""
+    from datetime import date as _d
+    asof = asof or _d.today()
+    code = {3: "H", 6: "M", 9: "U", 12: "Z"}
+    year = asof.year
+    for _ in range(9):
+        for m in (3, 6, 9, 12):
+            exp = _third_friday(year, m)
+            if exp >= asof:
+                return f"{product}{code[m]}{year % 10}"
+        year += 1
+    return f"{product}M{asof.year % 10}"
+
+
+def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
+                               ticker: str | None = None,
+                               force_refresh: bool = False) -> pd.DataFrame | None:
+    """Fetch OHLCV bars for a CME futures product from Polygon.
+
+    product : "NQ", "ES", "RTY", etc. — the front-month contract is
+              auto-constructed unless `ticker` is given explicitly.
+    Uses /futures/v1/aggs/{ticker}?resolution=5_minute (confirmed working).
+    window_start in the response is nanoseconds since epoch.
+    """
+    import json as _json
+    import urllib.request
+
+    key = _polygon_key()
+    if not key:
+        return None
+    tk = ticker or polygon_front_month(product)
+    res_map = {"5min": "5_minute", "1hr": "1_hour", "daily": "1_day"}
+    resolution = res_map.get(timeframe, "5_minute")
+
+    path = DATA_DIR / "cache" / f"polyfut_{tk}_{timeframe}.csv"
+    ttl = TIMEFRAME_CONFIG.get(timeframe, ("", "", "", 600))[3]
+    if not force_refresh and _is_cache_fresh(path, ttl):
+        return _read_cache(path)
+
+    url = (f"https://api.polygon.io/futures/v1/aggs/{tk}"
+            f"?resolution={resolution}&limit=50000&apiKey={key}")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.warning(f"polygon futures {tk} {timeframe} fetch failed: {e!r}")
+        if path.exists():
+            return _read_cache(path)
+        return None
+
+    results = data.get("results") or []
+    if not results:
+        logger.warning(f"polygon futures {tk}: empty (status={data.get('status')})")
+        return None
+    rows = []
+    for r in results:
+        try:
+            # window_start is nanoseconds since epoch
+            ts = pd.Timestamp(int(r["window_start"]), unit="ns", tz="UTC")
+            rows.append((ts, float(r["open"]), float(r["high"]),
+                          float(r["low"]), float(r["close"]),
+                          float(r.get("volume", 0))))
+        except Exception:
+            continue
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close", "volume"]
+                        ).set_index("ts").sort_index()
+    df = df[~df.index.duplicated(keep="last")]
+    try:
+        _write_cache(df, path)
+    except Exception:
+        pass
+    return df
+
+
 def download_polygon_aggs(ticker: str, timeframe: Timeframe, *,
                             lookback_days: int | None = None,
                             force_refresh: bool = False) -> pd.DataFrame | None:
