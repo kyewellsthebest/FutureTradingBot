@@ -1,16 +1,25 @@
 name: Fetch Polygon Futures History
 
-# Manually triggered. Downloads ~2.5yr of CME futures 5-min bars from
-# Polygon and commits the CSVs to data/polygon/ so the research sandbox
-# (which cannot reach api.polygon.io) can mine v14 strategies.
+# Downloads ~2.5yr of CME futures 5-min bars from Polygon and commits the
+# CSVs to data/polygon/ so the research sandbox (which cannot reach
+# api.polygon.io) can mine v14 strategies.
+#
+# Fires automatically whenever data/polygon/.fetch_trigger changes — that's
+# how the assistant kicks it off. Also manually runnable via the Actions
+# tab ("Run workflow").
+#
+# REQUIRES a repo secret named POLYGON_API (Settings → Secrets and
+# variables → Actions → New repository secret).
 
 on:
+  push:
+    branches: [claude/transfer-trading-bot-GiNxs]
+    paths:
+      - "data/polygon/.fetch_trigger"
   workflow_dispatch:
-    inputs:
-      polygon_key:
-        description: "Polygon API key (read-only market data key)"
-        required: true
-        type: string
+
+permissions:
+  contents: write
 
 jobs:
   fetch:
@@ -29,12 +38,9 @@ jobs:
       - name: Install deps
         run: pip install pandas
 
-      - name: Mask the API key in logs
-        run: echo "::add-mask::${{ inputs.polygon_key }}"
-
       - name: Download Polygon futures history
         env:
-          POLYGON_API: ${{ inputs.polygon_key }}
+          POLYGON_API: ${{ secrets.POLYGON_API }}
         run: python -m research.fetch_polygon_history
 
       - name: Commit the CSVs
