@@ -1,0 +1,578 @@
+{
+  "pdh_reversal_sliced": {
+    "overall": {
+      "touches": 29044,
+      "reversal_rate": 0.67
+    },
+    "by_ny_hour": {
+      "0": {
+        "touches": 357,
+        "reversal_rate": 0.824
+      },
+      "1": {
+        "touches": 332,
+        "reversal_rate": 0.913
+      },
+      "10": {
+        "touches": 756,
+        "reversal_rate": 0.975
+      },
+      "11": {
+        "touches": 644,
+        "reversal_rate": 0.958
+      },
+      "12": {
+        "touches": 620,
+        "reversal_rate": 0.934
+      },
+      "13": {
+        "touches": 635,
+        "reversal_rate": 0.972
+      },
+      "14": {
+        "touches": 790,
+        "reversal_rate": 0.98
+      },
+      "15": {
+        "touches": 1179,
+        "reversal_rate": 0.947
+      },
+      "16": {
+        "touches": 1258,
+        "reversal_rate": 0.848
+      },
+      "17": {
+        "touches": 126,
+        "reversal_rate": 0.746
+      },
+      "18": {
+        "touches": 2694,
+        "reversal_rate": 0.804
+      },
+      "19": {
+        "touches": 3118,
+        "reversal_rate": 0.656
+      },
+      "2": {
+        "touches": 460,
+        "reversal_rate": 0.957
+      },
+      "20": {
+        "touches": 3489,
+        "reversal_rate": 0.519
+      },
+      "21": {
+        "touches": 3132,
+        "reversal_rate": 0.429
+      },
+      "22": {
+        "touches": 3015,
+        "reversal_rate": 0.351
+      },
+      "23": {
+        "touches": 2850,
+        "reversal_rate": 0.336
+      },
+      "3": {
+        "touches": 577,
+        "reversal_rate": 0.976
+      },
+      "4": {
+        "touches": 489,
+        "reversal_rate": 0.93
+      },
+      "5": {
+        "touches": 456,
+        "reversal_rate": 0.965
+      },
+      "6": {
+        "touches": 401,
+        "reversal_rate": 0.923
+      },
+      "7": {
+        "touches": 405,
+        "reversal_rate": 0.928
+      },
+      "8": {
+        "touches": 502,
+        "reversal_rate": 0.958
+      },
+      "9": {
+        "touches": 759,
+        "reversal_rate": 0.992
+      }
+    },
+    "by_touch_number": {
+      "1": {
+        "touches": 2212,
+        "reversal_rate": 0.943
+      },
+      "2": {
+        "touches": 1865,
+        "reversal_rate": 0.94
+      },
+      "3": {
+        "touches": 24967,
+        "reversal_rate": 0.626
+      }
+    },
+    "by_vol_regime": {
+      "high": {
+        "touches": 5218,
+        "reversal_rate": 0.915
+      },
+      "low": {
+        "touches": 14342,
+        "reversal_rate": 0.535
+      },
+      "mid": {
+        "touches": 9484,
+        "reversal_rate": 0.739
+      }
+    }
+  },
+  "pdl_reversal_sliced": {
+    "overall": {
+      "touches": 18109,
+      "reversal_rate": 0.733
+    },
+    "by_ny_hour": {
+      "0": {
+        "touches": 469,
+        "reversal_rate": 0.761
+      },
+      "1": {
+        "touches": 521,
+        "reversal_rate": 0.783
+      },
+      "10": {
+        "touches": 640,
+        "reversal_rate": 0.972
+      },
+      "11": {
+        "touches": 444,
+        "reversal_rate": 0.989
+      },
+      "12": {
+        "touches": 354,
+        "reversal_rate": 0.963
+      },
+      "13": {
+        "touches": 297,
+        "reversal_rate": 0.983
+      },
+      "14": {
+        "touches": 399,
+        "reversal_rate": 0.987
+      },
+      "15": {
+        "touches": 523,
+        "reversal_rate": 0.975
+      },
+      "16": {
+        "touches": 468,
+        "reversal_rate": 0.962
+      },
+      "17": {
+        "touches": 52,
+        "reversal_rate": 0.827
+      },
+      "18": {
+        "touches": 1722,
+        "reversal_rate": 0.854
+      },
+      "19": {
+        "touches": 1717,
+        "reversal_rate": 0.68
+      },
+      "2": {
+        "touches": 512,
+        "reversal_rate": 0.84
+      },
+      "20": {
+        "touches": 1975,
+        "reversal_rate": 0.608
+      },
+      "21": {
+        "touches": 1801,
+        "reversal_rate": 0.536
+      },
+      "22": {
+        "touches": 1758,
+        "reversal_rate": 0.474
+      },
+      "23": {
+        "touches": 1572,
+        "reversal_rate": 0.408
+      },
+      "3": {
+        "touches": 559,
+        "reversal_rate": 0.891
+      },
+      "4": {
+        "touches": 405,
+        "reversal_rate": 0.884
+      },
+      "5": {
+        "touches": 371,
+        "reversal_rate": 0.927
+      },
+      "6": {
+        "touches": 318,
+        "reversal_rate": 0.969
+      },
+      "7": {
+        "touches": 263,
+        "reversal_rate": 0.947
+      },
+      "8": {
+        "touches": 373,
+        "reversal_rate": 0.968
+      },
+      "9": {
+        "touches": 596,
+        "reversal_rate": 0.988
+      }
+    },
+    "by_touch_number": {
+      "1": {
+        "touches": 2112,
+        "reversal_rate": 0.956
+      },
+      "2": {
+        "touches": 1638,
+        "reversal_rate": 0.953
+      },
+      "3": {
+        "touches": 14359,
+        "reversal_rate": 0.675
+      }
+    },
+    "by_vol_regime": {
+      "high": {
+        "touches": 5317,
+        "reversal_rate": 0.891
+      },
+      "low": {
+        "touches": 6343,
+        "reversal_rate": 0.63
+      },
+      "mid": {
+        "touches": 6449,
+        "reversal_rate": 0.704
+      }
+    }
+  },
+  "onh_reversal_sliced": {
+    "overall": {
+      "touches": 61087,
+      "reversal_rate": 0.679
+    },
+    "by_ny_hour": {
+      "0": {
+        "touches": 3188,
+        "reversal_rate": 0.805
+      },
+      "1": {
+        "touches": 2511,
+        "reversal_rate": 0.902
+      },
+      "10": {
+        "touches": 4778,
+        "reversal_rate": 0.635
+      },
+      "11": {
+        "touches": 3784,
+        "reversal_rate": 0.621
+      },
+      "12": {
+        "touches": 3362,
+        "reversal_rate": 0.594
+      },
+      "13": {
+        "touches": 2920,
+        "reversal_rate": 0.581
+      },
+      "14": {
+        "touches": 3023,
+        "reversal_rate": 0.581
+      },
+      "15": {
+        "touches": 2808,
+        "reversal_rate": 0.567
+      },
+      "16": {
+        "touches": 1908,
+        "reversal_rate": 0.41
+      },
+      "17": {
+        "touches": 149,
+        "reversal_rate": 0.376
+      },
+      "18": {
+        "touches": 1862,
+        "reversal_rate": 0.382
+      },
+      "19": {
+        "touches": 1744,
+        "reversal_rate": 0.416
+      },
+      "2": {
+        "touches": 2269,
+        "reversal_rate": 0.941
+      },
+      "20": {
+        "touches": 1682,
+        "reversal_rate": 0.436
+      },
+      "21": {
+        "touches": 1688,
+        "reversal_rate": 0.407
+      },
+      "22": {
+        "touches": 1472,
+        "reversal_rate": 0.346
+      },
+      "23": {
+        "touches": 1378,
+        "reversal_rate": 0.255
+      },
+      "3": {
+        "touches": 2366,
+        "reversal_rate": 0.941
+      },
+      "4": {
+        "touches": 1991,
+        "reversal_rate": 0.886
+      },
+      "5": {
+        "touches": 2001,
+        "reversal_rate": 0.885
+      },
+      "6": {
+        "touches": 2061,
+        "reversal_rate": 0.899
+      },
+      "7": {
+        "touches": 2294,
+        "reversal_rate": 0.926
+      },
+      "8": {
+        "touches": 3787,
+        "reversal_rate": 0.898
+      },
+      "9": {
+        "touches": 6061,
+        "reversal_rate": 0.729
+      }
+    },
+    "by_touch_number": {
+      "1": {
+        "touches": 2141,
+        "reversal_rate": 0.931
+      },
+      "2": {
+        "touches": 2085,
+        "reversal_rate": 0.915
+      },
+      "3": {
+        "touches": 56861,
+        "reversal_rate": 0.661
+      }
+    },
+    "by_vol_regime": {
+      "high": {
+        "touches": 22997,
+        "reversal_rate": 0.65
+      },
+      "low": {
+        "touches": 21561,
+        "reversal_rate": 0.694
+      },
+      "mid": {
+        "touches": 16529,
+        "reversal_rate": 0.702
+      }
+    }
+  },
+  "onl_reversal_sliced": {
+    "overall": {
+      "touches": 53442,
+      "reversal_rate": 0.725
+    },
+    "by_ny_hour": {
+      "0": {
+        "touches": 3887,
+        "reversal_rate": 0.799
+      },
+      "1": {
+        "touches": 3023,
+        "reversal_rate": 0.852
+      },
+      "10": {
+        "touches": 4259,
+        "reversal_rate": 0.721
+      },
+      "11": {
+        "touches": 3325,
+        "reversal_rate": 0.682
+      },
+      "12": {
+        "touches": 2860,
+        "reversal_rate": 0.68
+      },
+      "13": {
+        "touches": 2586,
+        "reversal_rate": 0.642
+      },
+      "14": {
+        "touches": 2581,
+        "reversal_rate": 0.66
+      },
+      "15": {
+        "touches": 2502,
+        "reversal_rate": 0.594
+      },
+      "16": {
+        "touches": 1643,
+        "reversal_rate": 0.54
+      },
+      "17": {
+        "touches": 124,
+        "reversal_rate": 0.524
+      },
+      "18": {
+        "touches": 1500,
+        "reversal_rate": 0.421
+      },
+      "19": {
+        "touches": 1360,
+        "reversal_rate": 0.49
+      },
+      "2": {
+        "touches": 2603,
+        "reversal_rate": 0.878
+      },
+      "20": {
+        "touches": 1323,
+        "reversal_rate": 0.537
+      },
+      "21": {
+        "touches": 1314,
+        "reversal_rate": 0.505
+      },
+      "22": {
+        "touches": 1336,
+        "reversal_rate": 0.423
+      },
+      "23": {
+        "touches": 1264,
+        "reversal_rate": 0.387
+      },
+      "3": {
+        "touches": 2411,
+        "reversal_rate": 0.921
+      },
+      "4": {
+        "touches": 1842,
+        "reversal_rate": 0.917
+      },
+      "5": {
+        "touches": 1530,
+        "reversal_rate": 0.935
+      },
+      "6": {
+        "touches": 1480,
+        "reversal_rate": 0.939
+      },
+      "7": {
+        "touches": 1317,
+        "reversal_rate": 0.928
+      },
+      "8": {
+        "touches": 2560,
+        "reversal_rate": 0.925
+      },
+      "9": {
+        "touches": 4812,
+        "reversal_rate": 0.759
+      }
+    },
+    "by_touch_number": {
+      "1": {
+        "touches": 2141,
+        "reversal_rate": 0.938
+      },
+      "2": {
+        "touches": 2062,
+        "reversal_rate": 0.926
+      },
+      "3": {
+        "touches": 49239,
+        "reversal_rate": 0.707
+      }
+    },
+    "by_vol_regime": {
+      "high": {
+        "touches": 23195,
+        "reversal_rate": 0.704
+      },
+      "low": {
+        "touches": 17863,
+        "reversal_rate": 0.745
+      },
+      "mid": {
+        "touches": 12384,
+        "reversal_rate": 0.734
+      }
+    }
+  },
+  "session_sweep": {
+    "onh_sweep_reversal_rate": 0.447,
+    "onl_sweep_reversal_rate": 0.509,
+    "raw": {
+      "onh_swept": 1433,
+      "onh_swept_then_reversed": 640,
+      "onl_swept": 1325,
+      "onl_swept_then_reversed": 675
+    }
+  },
+  "mfe_mae_pdl_long": {
+    "n": 18109,
+    "mfe_median_pts": 15.2,
+    "mfe_p75_pts": 35.2,
+    "mae_median_pts": 6.8,
+    "mae_p75_pts": 14.5,
+    "mae_p90_pts": 31.0
+  },
+  "mfe_mae_pdh_short": {
+    "n": 29044,
+    "mfe_median_pts": 11.5,
+    "mfe_p75_pts": 27.8,
+    "mae_median_pts": 6.2,
+    "mae_p75_pts": 12.5,
+    "mae_p90_pts": 24.2
+  },
+  "conditional_mean_reversion": {
+    "z<-2.5": {
+      "n": 10409,
+      "fwd_30min_mean_pct": 0.2619
+    },
+    "-2.5..-1.5": {
+      "n": 65310,
+      "fwd_30min_mean_pct": 0.0006
+    },
+    "-1.5..1.5": {
+      "n": 413853,
+      "fwd_30min_mean_pct": 0.0014
+    },
+    "1.5..2.5": {
+      "n": 73500,
+      "fwd_30min_mean_pct": 0.0028
+    },
+    "z>2.5": {
+      "n": 8987,
+      "fwd_30min_mean_pct": 0.0046
+    }
+  }
+}
