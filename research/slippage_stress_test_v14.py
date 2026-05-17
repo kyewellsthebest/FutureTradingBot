@@ -58,7 +58,14 @@ def main():
     passers = json.loads(p.read_text()).get("user_passers", [])
     # only keep genuinely profitable ones
     passers = [s for s in passers if s.get("test", {}).get("pf", 0) >= USER_MIN_PF]
-    logger.info(f"Loaded {len(passers)} profitable v14 user-pass strategies")
+    # if a curated candidate list exists, stress-test only those
+    cand_path = DATA / "v14_candidates.json"
+    if cand_path.exists():
+        names = set(json.loads(cand_path.read_text()))
+        passers = [s for s in passers if s["name"] in names]
+        logger.info(f"Filtered to {len(passers)} curated v14 candidates")
+    else:
+        logger.info(f"Loaded {len(passers)} profitable v14 user-pass strategies")
 
     logger.info("Loading data + building frame (one-time)...")
     m5 = load_intraday_5min("nq")

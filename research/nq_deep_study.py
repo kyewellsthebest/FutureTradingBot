@@ -33,6 +33,7 @@ import numpy as np
 import pandas as pd
 
 from research.local_data_loader import load_intraday_5min, load_daily
+from research.signal_generator import _attach_prev_day_levels
 from research.indicators import atr
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -59,15 +60,15 @@ def main():
     m5["atr"] = atr(m5["high"], m5["low"], m5["close"], n=14)
     m5["atr_pctile"] = m5["atr"].rolling(2000, min_periods=200).rank(pct=True)
 
-    # prior-day H/L
-    daily = daily.copy()
-    daily["pdh"] = daily["high"].shift(1)
-    daily["pdl"] = daily["low"].shift(1)
-    dny = daily.index.tz_convert("America/New_York").normalize()
-    pdh_map = dict(zip(dny, daily["pdh"]))
-    pdl_map = dict(zip(dny, daily["pdl"]))
-    m5["pdh"] = m5["ny_date"].map(pdh_map)
-    m5["pdl"] = m5["ny_date"].map(pdl_map)
+    # Prior-day H/L via the canonical leak-free helper — the SAME one the
+    # deployed v6/v11/12/13 features use (signal_generator.py, see its
+    # "BUG FIX 2026-05-04" docstring). The earlier code here hand-rolled the
+    # map and tz-converted the daily index to NY, which shifted its key back
+    # a day and cancelled shift(1) — silently mapping each bar to its OWN
+    # day's high (same-day lookahead that inflated the first-touch stats).
+    lvl = _attach_prev_day_levels(m5, daily)
+    m5["pdh"] = lvl["pdh"].to_numpy()
+    m5["pdl"] = lvl["pdl"].to_numpy()
 
     # overnight H/L = high/low from 18:00 prev day to 09:30 ET (pre-RTH)
     logger.info("Computing overnight ranges...")

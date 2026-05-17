@@ -38,6 +38,7 @@ from research.pattern_miner_v11 import USER_MIN_WR, USER_MIN_RR, USER_MIN_TRADES
 from research.local_data_loader import (
     load_daily, load_intraday_1min, load_intraday_5min,
 )
+from research.signal_generator import _attach_prev_day_levels
 from research.indicators import atr
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -75,13 +76,15 @@ def build_v14_frame(m5: pd.DataFrame, daily: pd.DataFrame) -> pd.DataFrame:
     m5["atr"] = atr(m5["high"], m5["low"], m5["close"], n=14)
     m5["atr_pctile"] = m5["atr"].rolling(2000, min_periods=200).rank(pct=True)
 
-    daily = daily.copy()
-    daily["pdh"] = daily["high"].shift(1)
-    daily["pdl"] = daily["low"].shift(1)
-    dny = daily.index.tz_convert("America/New_York").normalize() \
-        if daily.index.tz is not None else daily.index.normalize()
-    m5["pdh"] = m5["ny_date"].map(dict(zip(dny, daily["pdh"])))
-    m5["pdl"] = m5["ny_date"].map(dict(zip(dny, daily["pdl"])))
+    # Prior-day high/low via the canonical leak-free helper — the SAME one
+    # the deployed v6/v11/12/13 features use (signal_generator.py, see its
+    # "BUG FIX 2026-05-04" docstring). Hand-rolling a daily->intraday date
+    # map is exactly how the same-day-lookahead leak gets reintroduced: a
+    # tz_convert(NY).normalize() on the daily index silently cancels the
+    # shift(1) and maps every bar to its OWN day's high.
+    lvl = _attach_prev_day_levels(m5, daily)
+    m5["pdh"] = lvl["pdh"].to_numpy()
+    m5["pdl"] = lvl["pdl"].to_numpy()
 
     # overnight H/L = pre-09:00 ET extremes
     onh, onl = {}, {}
@@ -110,11 +113,12 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
     dates = m5["ny_date"].values
     ny_hours = m5["ny_hour"].values
     idx = m5.index
-    # ONH/ONL are derived from pre-09:00 ET bars — the overnight range is
-    # only FINALIZED at 09:00. A touch before then would reference a level
-    # that hasn't fully formed yet (lookahead). Gate those to >= 09:00 ET.
-    needs_rth = level_col in ("onh", "onl")
-
+    # All v14 levels trade only the FIRST touch during the liquid US
+    # session (09:00-15:59 ET). This (a) makes the next-bar-open fill
+    # realistic, (b) avoids thin overnight/Sunday/holiday data where the
+    # 1-min exit window is too sparse to honestly simulate the stop path,
+    # and (c) for ONH/ONL ensures the overnight range (finalized at 09:00
+    # ET) is fully formed before any touch is counted — no lookahead.
     for i in range(len(m5) - 1):
         lv = levels[i]
         if not np.isfinite(lv):
@@ -123,8 +127,8 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
         # only the FIRST touch of this level today
         if d in touched_today:
             continue
-        if needs_rth and ny_hours[i] < 9:
-            continue   # overnight range not finalized yet — skip, don't mark
+        if ny_hours[i] < 9 or ny_hours[i] >= 16:
+            continue   # outside the liquid US session — skip, don't mark
         touched = highs[i] >= lv - tol and lows[i] <= lv + tol
         if not touched:
             continue
@@ -153,6 +157,12 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
             if stop_dist <= 0:
                 continue
             tgt_px = entry - strat.rr * stop_dist
+        # The structural stop must stay STRUCTURAL: if the next-bar-open
+        # entry filled far from the level (gappy session), stop_dist blows
+        # out and a "16pt structural stop" silently becomes 100+pt. Don't
+        # trade what we can't honestly model — skip.
+        if stop_dist > strat.stop_buf + tol + 30.0:
+            continue
 
         end_ts = entry_5m_ts + pd.Timedelta(minutes=strat.max_hold_min)
         try:
@@ -160,6 +170,11 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
         except Exception:
             continue
         if window.empty:
+            continue
+        # Need enough 1-min bars to honestly walk the stop/target path.
+        # A sparse window (thin session, holiday) would silently TIME-exit
+        # at a stale close without ever testing the stop — fake outcome.
+        if len(window) < 30:
             continue
         outcome = "TIME"
         exit_filled = float(window.iloc[-1]["close"])
