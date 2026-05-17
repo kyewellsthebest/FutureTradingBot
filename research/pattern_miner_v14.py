@@ -108,7 +108,12 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
     opens = m5["open"].values
     atr_pct = m5["atr_pctile"].values
     dates = m5["ny_date"].values
+    ny_hours = m5["ny_hour"].values
     idx = m5.index
+    # ONH/ONL are derived from pre-09:00 ET bars — the overnight range is
+    # only FINALIZED at 09:00. A touch before then would reference a level
+    # that hasn't fully formed yet (lookahead). Gate those to >= 09:00 ET.
+    needs_rth = level_col in ("onh", "onl")
 
     for i in range(len(m5) - 1):
         lv = levels[i]
@@ -118,6 +123,8 @@ def label_v14(m5: pd.DataFrame, nq_1m: pd.DataFrame,
         # only the FIRST touch of this level today
         if d in touched_today:
             continue
+        if needs_rth and ny_hours[i] < 9:
+            continue   # overnight range not finalized yet — skip, don't mark
         touched = highs[i] >= lv - tol and lows[i] <= lv + tol
         if not touched:
             continue
