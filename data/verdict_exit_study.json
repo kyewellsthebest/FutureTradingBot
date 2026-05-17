@@ -1,0 +1,62 @@
+{
+  "baseline": {
+    "n_trades": 15557,
+    "n_trades_changed_vs_baseline": 0,
+    "raw_win_rate": 0.5362,
+    "raw_mean_pts": 11.076,
+    "raw_total_pts": 172311.1,
+    "mc": {
+      "pass_rate": 1.0,
+      "avg_survivor_profit": 6535.38,
+      "median_survivor_profit": 274.1,
+      "avg_win_rate": 0.39,
+      "avg_trades": 22.4,
+      "ev_per_attempt": 6535.38
+    }
+  },
+  "verdict_bar2": {
+    "n_trades": 15557,
+    "n_trades_changed_vs_baseline": 5601,
+    "raw_win_rate": 0.3956,
+    "raw_mean_pts": 6.9,
+    "raw_total_pts": 107351.0,
+    "mc": {
+      "pass_rate": 1.0,
+      "avg_survivor_profit": 6158.08,
+      "median_survivor_profit": 304.64,
+      "avg_win_rate": 0.26,
+      "avg_trades": 33.4,
+      "ev_per_attempt": 6158.08
+    }
+  },
+  "verdict_bar3": {
+    "n_trades": 15557,
+    "n_trades_changed_vs_baseline": 4728,
+    "raw_win_rate": 0.4244,
+    "raw_mean_pts": 7.957,
+    "raw_total_pts": 123781.9,
+    "mc": {
+      "pass_rate": 1.0,
+      "avg_survivor_profit": 5448.76,
+      "median_survivor_profit": 304.64,
+      "avg_win_rate": 0.3,
+      "avg_trades": 25.35,
+      "ev_per_attempt": 5448.76
+    }
+  },
+  "verdict_bar4": {
+    "n_trades": 15557,
+    "n_trades_changed_vs_baseline": 4147,
+    "raw_win_rate": 0.4408,
+    "raw_mean_pts": 8.799,
+    "raw_total_pts": 136878.7,
+    "mc": {
+      "pass_rate": 1.0,
+      "avg_survivor_profit": 5204.0,
+      "median_survivor_profit": 276.34,
+      "avg_win_rate": 0.31,
+      "avg_trades": 22.47,
+      "ev_per_attempt": 5204.0
+    }
+  }
+}
