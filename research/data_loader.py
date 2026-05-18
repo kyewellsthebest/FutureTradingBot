@@ -135,6 +135,12 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.Data
     if timeframe not in TIMEFRAME_CONFIG:
         raise ValueError(f"Unknown timeframe {timeframe!r}; expected one of {list(TIMEFRAME_CONFIG)}")
 
+    # Polygon futures = preferred live source when POLYGON_API is configured.
+    # Falls through to yfinance on any failure (see _try_polygon_futures).
+    pf = _try_polygon_futures("NQ", timeframe, force_refresh)
+    if pf is not None:
+        return pf
+
     interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
     path = cache_path(timeframe)
     if not force_refresh and _is_cache_fresh(path, ttl):
@@ -172,6 +178,10 @@ def download_es(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.Data
 
     if timeframe not in TIMEFRAME_CONFIG:
         raise ValueError(f"Unknown timeframe {timeframe!r}")
+
+    pf = _try_polygon_futures("ES", timeframe, force_refresh)
+    if pf is not None:
+        return pf
 
     interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
     path = DATA_DIR / "cache" / f"es_{timeframe}.csv"
@@ -328,6 +338,35 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
         _write_cache(df, path)
     except Exception:
         pass
+    return df
+
+
+def _try_polygon_futures(product: str, timeframe: Timeframe,
+                          force_refresh: bool) -> pd.DataFrame | None:
+    """Polygon front-month futures as the PREFERRED live source.
+
+    Returns a sane, recent OHLCV frame, or None — None means 'fall through
+    to yfinance'. Every failure mode (no key, error, too few bars, stale
+    frame) returns None, so wiring Polygon in can only help the bot, never
+    break it: a bad Polygon response silently defers to the old path.
+    """
+    if not _polygon_key() or timeframe not in ("5min", "1hr"):
+        return None
+    try:
+        df = download_polygon_futures(product, timeframe,
+                                        force_refresh=force_refresh)
+    except Exception as e:
+        logger.warning(f"polygon {product} {timeframe}: {e!r} — using yfinance")
+        return None
+    if df is None or len(df) < 150:
+        return None
+    now = pd.Timestamp.now(tz="UTC")
+    age_days = (now - df.index[-1]).total_seconds() / 86400
+    if age_days > 4:   # dead contract / plan delay — don't trade stale data
+        logger.warning(f"polygon {product}: last bar {age_days:.1f}d old "
+                          f"— using yfinance")
+        return None
+    logger.info(f"polygon {product} {timeframe}: {len(df)} bars (live source)")
     return df
 
 

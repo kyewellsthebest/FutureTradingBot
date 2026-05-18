@@ -1,16 +1,24 @@
 """
-Fetch Polygon.io futures history for v14 cross-asset mining.
+Fetch Polygon.io futures history — continuous front-month 5-min bars.
 
-Runs on a GitHub Actions runner (which has open internet — the research
-sandbox does not). Downloads ~2.5 years of 5-min bars for a basket of
-CME futures, stitches continuous front-month series, and writes CSVs to
-data/polygon/ which the workflow then commits back to the repo.
+Runs on a GitHub Actions runner (open internet — the research sandbox is
+network-restricted). Writes CSVs to data/polygon/ which the workflow
+commits back to the repo.
 
-Products (all on the Polygon Futures Starter plan):
-  Equity index : NQ, ES, RTY, YM
-  Treasuries   : ZN (10y), ZB (30y)
-  Commodities  : GC (gold), CL (crude), HG (copper), SI (silver)
-  Currency     : 6E (euro), 6J (yen)
+WHY THIS VERSION EXISTS
+-----------------------
+Earlier versions queried Polygon's /futures/v1/contracts endpoint to
+discover contract tickers. That endpoint returns mostly SPREAD / BUTTERFLY
+pseudo-contracts ("YM:BF H6-M6-U6") and its outright-contract coverage is
+unreliable — so the discovery step found nothing and every product FAILED.
+
+This version does NOT touch the contracts endpoint. CME equity-index and
+the other liquid futures roll on a fixed quarterly cycle (H/M/U/Z = Mar/
+Jun/Sep/Dec), expiring the third Friday of the contract month. So the
+front-month ticker for any date is fully determined by the calendar — we
+CONSTRUCT every quarterly ticker for the history window and fetch its
+aggregates directly. The only Polygon endpoint used is the aggregates one
+(/futures/v1/aggs/{ticker}), which is confirmed working.
 
 API key: env var POLYGON_API.
 """
@@ -21,8 +29,8 @@ import logging
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -33,34 +41,49 @@ OUT_DIR = PROJECT_ROOT / "data" / "polygon"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
-                      stream=sys.stdout)
+                    stream=sys.stdout)
 log = logging.getLogger("fetch_polygon")
 
 KEY = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
-# 8 core products — equity index, treasuries, gold, crude. Dropped SI/HG/
-# 6E/6J to cut API calls; these 8 cover the cross-asset families we mine.
 PRODUCTS = ["NQ", "ES", "RTY", "YM", "ZN", "ZB", "GC", "CL"]
-HISTORY_DAYS = 920   # ~2.5 years
-MONTH_CODE = {3: "H", 6: "M", 9: "U", 12: "Z"}
-QUARTERLY_CODES = set("HMUZ")   # only download quarterly front-month contracts
+HISTORY_DAYS = 920                       # ~2.5 years
+MONTH_CODE = {3: "H", 6: "M", 9: "U", 12: "Z"}   # quarterly cycle
 
 
-def _is_quarterly(ticker: str, product: str) -> bool:
-    """True if ticker is a quarterly contract, e.g. NQH6 / ESM7.
-    The month code is the char right after the product code."""
-    rest = ticker[len(product):]
-    return len(rest) >= 2 and rest[0] in QUARTERLY_CODES and rest[1:].isdigit()
+def _third_friday(year: int, month: int) -> date:
+    """Third Friday of a month — CME equity-index futures expiry."""
+    d = date(year, month, 1)
+    first_friday = 1 + ((4 - d.weekday()) % 7)   # weekday(): Fri == 4
+    return date(year, month, first_friday + 14)
 
 
-def _get(url: str, tries: int = 4):
-    """GET JSON with retry/backoff for Polygon rate limits."""
+def quarterly_tickers(product: str) -> list[tuple[str, date]]:
+    """Every quarterly contract (ticker, expiry) whose expiry falls inside
+    the history window — constructed from the calendar, no API call."""
+    today = date.today()
+    start = today - timedelta(days=HISTORY_DAYS + 120)
+    end = today + timedelta(days=120)
+    out: list[tuple[str, date]] = []
+    for year in range(start.year, end.year + 1):
+        for month, code in MONTH_CODE.items():
+            exp = _third_friday(year, month)
+            if start <= exp <= end:
+                out.append((f"{product}{code}{year % 10}", exp))
+    out.sort(key=lambda t: t[1])
+    return out
+
+
+def _get(url: str, tries: int = 4) -> tuple[dict | None, str | None]:
+    """GET JSON with retry/backoff. Returns (data, error) — error is a
+    short human string so failures are visible in the Actions log."""
+    safe = url.split("apiKey=")[0] + "apiKey=***"
     for attempt in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
             with urllib.request.urlopen(req, timeout=40) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                return json.loads(resp.read().decode("utf-8")), None
         except urllib.error.HTTPError as e:
-            if e.code == 429:   # rate limited
+            if e.code == 429:
                 wait = 2 ** attempt * 5
                 log.info(f"  rate limited, waiting {wait}s")
                 time.sleep(wait)
@@ -69,89 +92,74 @@ def _get(url: str, tries: int = 4):
                 body = json.loads(e.read().decode("utf-8"))
             except Exception:
                 body = {}
-            log.warning(f"  HTTP {e.code}: {body.get('message') or body.get('error')}")
-            return None
+            return None, (f"HTTP {e.code}: "
+                          f"{body.get('message') or body.get('error') or safe}")
         except Exception as e:
-            log.warning(f"  fetch error: {e}")
-            time.sleep(3)
-    return None
-
-
-def list_contracts(product: str) -> list[dict]:
-    """All contracts for a product with last_trade_date inside our window."""
-    today = date.today()
-    floor = (today - timedelta(days=HISTORY_DAYS)).isoformat()
-    url = (f"https://api.polygon.io/futures/v1/contracts"
-            f"?product_code={product}&last_trade_date.gte={floor}"
-            f"&limit=1000&apiKey={KEY}")
-    d = _get(url)
-    if not d:
-        return []
-    rows = [r for r in (d.get("results") or [])
-              if isinstance(r, dict) and r.get("ticker") and r.get("last_trade_date")
-              and _is_quarterly(r["ticker"], product)]
-    rows.sort(key=lambda r: r["last_trade_date"])
-    return rows
+            if attempt < tries - 1:
+                time.sleep(3)
+                continue
+            return None, f"{type(e).__name__}: {e}"
+    return None, "exhausted retries"
 
 
 def fetch_contract_bars(ticker: str) -> pd.DataFrame | None:
-    """5-min OHLCV bars for one contract."""
+    """5-min OHLCV bars for one outright contract from the aggs endpoint."""
     url = (f"https://api.polygon.io/futures/v1/aggs/{ticker}"
-            f"?resolution=5_minute&limit=50000&apiKey={KEY}")
-    d = _get(url)
-    if not d:
+           f"?resolution=5_minute&limit=50000&apiKey={KEY}")
+    data, err = _get(url)
+    if err:
+        log.info(f"  {ticker}: {err}")
         return None
-    results = d.get("results") or []
+    results = (data or {}).get("results") or []
+    if not results:
+        log.info(f"  {ticker}: 0 bars (status={(data or {}).get('status')})")
+        return None
     rows = []
     for r in results:
         try:
             ts = pd.Timestamp(int(r["window_start"]), unit="ns", tz="UTC")
             rows.append((ts, float(r["open"]), float(r["high"]),
-                          float(r["low"]), float(r["close"]),
-                          float(r.get("volume", 0))))
+                         float(r["low"]), float(r["close"]),
+                         float(r.get("volume", 0))))
         except Exception:
             continue
     if not rows:
         return None
-    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close", "volume"]
-                        ).set_index("ts").sort_index()
+    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close",
+                                     "volume"]).set_index("ts").sort_index()
     return df[~df.index.duplicated(keep="last")]
 
 
 def build_continuous(product: str) -> pd.DataFrame | None:
-    """Stitch a continuous front-month series. For each contract, keep the
-    bars from when it becomes front-month until its last_trade_date; the
-    next contract takes over from there."""
-    contracts = list_contracts(product)
-    if not contracts:
-        log.warning(f"{product}: no contracts found")
-        return None
-    log.info(f"{product}: {len(contracts)} contracts in window")
+    """Stitch a continuous front-month series. Each quarterly contract
+    contributes the bars between the prior contract's expiry and its own."""
+    tickers = quarterly_tickers(product)
+    log.info(f"{product}: {len(tickers)} quarterly contracts constructed "
+             f"({tickers[0][0]} … {tickers[-1][0]})")
     segments = []
-    prev_roll = None
-    for c in contracts:
-        ticker = c["ticker"]
-        ltd = pd.Timestamp(c["last_trade_date"], tz="UTC")
+    prev_exp = None
+    for ticker, exp in tickers:
         bars = fetch_contract_bars(ticker)
-        time.sleep(0.4)   # be gentle on rate limits
+        time.sleep(0.3)                  # gentle on rate limits
+        exp_ts = pd.Timestamp(exp, tz="UTC")
         if bars is None or bars.empty:
+            prev_exp = exp_ts
             continue
-        # This contract is front-month from prev_roll until its last_trade_date
-        seg = bars[bars.index <= ltd]
-        if prev_roll is not None:
-            seg = seg[seg.index > prev_roll]
+        seg = bars[bars.index <= exp_ts]
+        if prev_exp is not None:
+            seg = seg[seg.index > prev_exp]
         if not seg.empty:
             segments.append(seg)
             log.info(f"  {ticker}: {len(seg)} bars "
-                       f"({seg.index[0].date()} → {seg.index[-1].date()})")
-        prev_roll = ltd
+                     f"({seg.index[0].date()} → {seg.index[-1].date()})")
+        prev_exp = exp_ts
     if not segments:
         return None
     cont = pd.concat(segments).sort_index()
     return cont[~cont.index.duplicated(keep="last")]
 
 
-def main():
+def main() -> None:
     if not KEY:
         log.error("POLYGON_API not set — aborting")
         sys.exit(1)
@@ -168,13 +176,18 @@ def main():
             continue
         out = OUT_DIR / f"{product}_5min.csv"
         df.to_csv(out)
-        summary[product] = f"{len(df)} bars {df.index[0].date()}→{df.index[-1].date()}"
+        summary[product] = (f"{len(df)} bars "
+                            f"{df.index[0].date()}→{df.index[-1].date()}")
         log.info(f"{product}: wrote {len(df):,} bars → {out.name}")
     log.info("=" * 50)
     log.info("SUMMARY")
     for p, s in summary.items():
         log.info(f"  {p}: {s}")
     (OUT_DIR / "_fetch_summary.json").write_text(json.dumps(summary, indent=2))
+    if all(v == "FAILED" for v in summary.values()):
+        log.error("Every product failed — see per-ticker errors above. The "
+                  "aggs endpoint or ticker format may differ on this plan.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
