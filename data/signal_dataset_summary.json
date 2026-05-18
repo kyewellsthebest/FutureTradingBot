@@ -1,0 +1,42 @@
+{
+  "n_firings": 13424,
+  "n_strategies": 97,
+  "date_range": [
+    "2023-12-12 19:00:00+00:00",
+    "2026-04-07 19:55:00+00:00"
+  ],
+  "overall_target_hit_rate": 0.1891,
+  "overall_profitable_rate": 0.5166,
+  "overall_avg_r": 0.2562,
+  "exit_reason_mix": {
+    "timeout": 5472,
+    "stop": 5413,
+    "target": 2539
+  },
+  "n_features": 34,
+  "feature_columns": [
+    "ny_hour",
+    "ny_minute",
+    "day_of_week",
+    "atr14",
+    "atr_pct",
+    "rv20",
+    "rv60",
+    "nq_ret_5",
+    "nq_ret_20",
+    "nq_ret_60",
+    "nq_vs_sma50",
+    "nq_vs_sma200",
+    "trend_20_50_atr",
+    "range20_atr",
+    "vol_ratio",
+    "es_ret_20",
+    "rty_ret_20",
+    "vix_level",
+    "vix_pct",
+    "vix_z",
+    "vix_ret_20",
+    "n_windows_os",
+    "n_windows_ob"
+  ]
+}
