@@ -177,6 +177,25 @@
     } catch (e) { /* ignore */ }
   }
 
+  // Renders a strategy's price-flow "thesis" — what the trade IS and what
+  // to expect. Pure information; surfaced so the bot's reasoning is visible.
+  function thesisHtml(profile) {
+    if (!profile) return "";
+    const exp = (profile.expectations || []).map(e => `<li>${e}</li>`).join("");
+    const unknownNote = profile.known === false
+      ? `<span class="muted small">generic profile — not yet studied</span>` : "";
+    return `
+      <div class="thesis-box">
+        <div class="thesis-head">
+          <span class="thesis-tag">${profile.kind || "—"}</span>
+          <span class="muted small">what the bot understands · ${unknownNote || "from 8yr study"}</span>
+        </div>
+        <p class="thesis-text">${profile.thesis || ""}</p>
+        <ul class="thesis-list">${exp}</ul>
+        <p class="thesis-goal"><strong>Goal:</strong> ${profile.goal || ""}</p>
+      </div>`;
+  }
+
   function paintLivePosition(p) {
     const body = $("live-position-body");
     const pill = $("live-state-pill");
@@ -216,7 +235,8 @@
           <span>${Math.round(progress)}% to target</span>
           <span class="pos">TARGET</span>
         </div>
-      </div>`;
+      </div>
+      ${thesisHtml(p.profile)}`;
   }
 
   // =====================================================================
@@ -366,9 +386,10 @@
       const t = (f.ts || "").slice(11, 19);
       const z = f.z_value == null ? "—"
         : (f.z_value >= 0 ? "+" : "") + Number(f.z_value).toFixed(2);
+      const tip = (f.profile && f.profile.thesis) ? f.profile.thesis : "";
       return `<tr>
         <td>${t}</td>
-        <td><code style="font-size:11px">${(f.strategy || "").slice(0, 55)}</code></td>
+        <td><code style="font-size:11px" title="${tip}">${(f.strategy || "").slice(0, 55)}</code></td>
         <td class="${sideCls}">${f.side || "—"}</td>
         <td>${f.qty || "—"}</td>
         <td>${z}</td>
@@ -642,6 +663,10 @@
         <tr><th>Net P&amp;L @ 1 MNQ over 28 months</th><td>${fmtMoney(s.net_1mnq)}</td></tr>
         <tr><th>Annualized P&amp;L @ 25 MNQ</th><td class="pos"><strong>${fmtMoney(s.yearly_at_25mnq)}</strong></td></tr>
       </table>
+
+      <h4>6. What the bot expects — price-flow profile</h4>
+      <p class="muted small">Derived from the 8-year price-flow study of this strategy's own trades. This is understanding, not a rule — it changes nothing about how the trade is taken or held.</p>
+      ${thesisHtml(s.profile)}
 
       <p class="muted small" style="margin-top:14px">
         Click outside this box or press Escape to close.

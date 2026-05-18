@@ -37,6 +37,7 @@ from research.clock_sync import sync_clock, real_utc_now
 from research.data_loader import DATA_DIR, download_nq, download_es, download_symbol
 from research.lucid_guard import MAX_MNQ as LUCID_MAX_MNQ
 from research.signal_filters import DOLLARS_PER_POINT, NY_TZ
+from research.strategy_profiles import thesis_for
 from research.v11_engine import V11Engine
 
 logger = logging.getLogger("bot_v11")
@@ -362,6 +363,13 @@ class V11Runtime:
             rr=float(cand.rr), now=now,
         )
         self.signals_fired += 1
+        # Attach the strategy's price-flow profile so the bot (and the
+        # dashboard) KNOW what this trade is and what to expect — how long
+        # the edge takes to develop, that an early drawdown is normal, when
+        # the move completes. Purely informational: it does not gate or
+        # alter the trade in any way.
+        thesis = thesis_for(cand.signal_name, cand.side)
+        logger.info(f"[thesis] {cand.signal_name}: {thesis['thesis']}")
         fire_record = {
             "ts": now.isoformat(),
             "strategy": cand.signal_name,
@@ -372,6 +380,7 @@ class V11Runtime:
             "target": cand.target_px,
             "z_value": cand.stat_arb_zscore,
             "trace": cand.filter_trace,
+            "profile": thesis,
         }
         self.recent_fires.append(fire_record)
         persistence.push_signal_event({"type": "ENTRY", **fire_record})

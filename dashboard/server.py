@@ -34,6 +34,7 @@ from bot import persistence
 from bot.price_monitor import _fetch_cnbc
 from research.data_loader import DATA_DIR, download_nq
 from research.indicators import eq50
+from research.strategy_profiles import thesis_for
 
 logger = logging.getLogger("dashboard")
 ROOT = Path(__file__).resolve().parent
@@ -521,6 +522,7 @@ def api_live_position():
         "reward_at_target": reward,
         "progress_to_target": progress,
         "entry_time": op.get("entry_time"),
+        "profile": thesis_for(op.get("signal_name"), side),
     })
 
 
@@ -792,6 +794,7 @@ def api_v11_strategies():
                 "net_1mnq": net,
                 "yearly_at_25mnq": net / TEST_YEARS * 25,
                 "cpcv": s.get("cpcv_positive", 0),
+                "profile": thesis_for(s["name"], s["side"]),
             })
     rows.sort(key=lambda r: -r["sharpe"])
     return jsonify(rows)
