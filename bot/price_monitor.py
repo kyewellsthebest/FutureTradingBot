@@ -1,13 +1,19 @@
 """
-PriceMonitor — 5-second background poller with a 6-source fallback chain.
+PriceMonitor — background poller with a 7-source fallback chain.
 
 Sources (in order):
-  0. CNBC NQc1 quote endpoint                       (10-15min delayed, 4s timeout)
-  1. yfinance period=5d interval=1m  (last bar)
-  2. yfinance period=5d interval=5m  (last bar)
-  3. yfinance period=1mo interval=15m (more resilient)
-  4. yfinance fast_info last_price   (point only — no high/low)
-  5. Cached data/nq_5min.csv last row (offline last-resort)
+  0. Polygon front-month NQ futures  (live; freshness logged — top source)
+  1. CNBC NQc1 quote endpoint                       (10-15min delayed, 4s timeout)
+  2. yfinance period=5d interval=1m  (last bar)
+  3. yfinance period=5d interval=5m  (last bar)
+  4. yfinance period=1mo interval=15m (more resilient)
+  5. yfinance fast_info last_price   (point only — no high/low)
+  6. Cached data/nq_5min.csv last row (offline last-resort)
+
+Polygon is tried first because it carries a real high/low (CNBC gives a
+single delayed point) and, on a real-time plan, a current price. Every
+fallback returns None on failure, so a missing/failing Polygon key simply
+defers to CNBC exactly as before.
 
 snapshot_and_reset() takes the lock, returns
     {price, high, low, ts, poll_count}
@@ -34,7 +40,7 @@ from research.data_loader import DATA_DIR, cache_path
 
 logger = logging.getLogger("price_monitor")
 
-POLL_SECONDS = 5
+POLL_SECONDS = 3
 CNBC_TIMEOUT = 4
 CNBC_URL = (
     "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol"
@@ -49,6 +55,40 @@ class PriceSnapshot:
     low: float
     ts: datetime
     poll_count: int
+
+
+_polygon_last_age_log = 0.0
+
+
+def _fetch_polygon() -> tuple[float, float, float] | None:
+    """Polygon front-month NQ futures — the freshest source available.
+
+    Returns (price, high, low) or None to fall through. Logs the data age
+    every few minutes so the plan's REAL delay is visible in the logs
+    rather than guessed at — a real-time plan reads a few minutes, a
+    delayed plan reads ~15+.
+    """
+    global _polygon_last_age_log
+    try:
+        from research.data_loader import polygon_latest_quote
+        q = polygon_latest_quote("NQ")
+    except Exception as e:
+        logger.debug(f"polygon live fetch failed: {e!r}")
+        return None
+    if q is None:
+        return None
+    price, high, low, age = q
+    now = time.time()
+    if now - _polygon_last_age_log > 300:
+        _polygon_last_age_log = now
+        mins = age / 60.0
+        if mins > 12:
+            logger.warning(f"polygon live quote {mins:.0f} min old — this "
+                           f"plan is DELAYED, not real-time")
+        else:
+            logger.info(f"polygon live quote {mins:.1f} min old "
+                        f"(real-time-ish)")
+    return price, high, low
 
 
 def _fetch_cnbc() -> tuple[float, float, float] | None:
@@ -113,6 +153,7 @@ def _fetch_csv() -> tuple[float, float, float] | None:
 
 
 _CHAIN = [
+    ("polygon",    _fetch_polygon),
     ("cnbc",       _fetch_cnbc),
     ("yf_1m",      lambda: _fetch_yf("5d", "1m")),
     ("yf_5m",      lambda: _fetch_yf("5d", "5m")),

@@ -341,6 +341,46 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
     return df
 
 
+_LIVE_QUOTE_CACHE: dict = {"product": None, "fetched": 0.0, "val": None}
+
+
+def polygon_latest_quote(product: str = "NQ", max_age_s: float = 20.0):
+    """Latest live futures quote from Polygon — for the price monitor.
+
+    Returns (price, high, low, bar_age_seconds) or None. `price` is the
+    most recent 5-min bar's close (the current price as the bar forms),
+    `high`/`low` are that bar's real range. `bar_age_seconds` is how old
+    that bar is — it makes the plan's true data delay VISIBLE rather than
+    assumed (a real-time plan -> a few minutes; a delayed plan -> ~15+).
+
+    Throttled: it re-hits Polygon at most every `max_age_s` seconds, so the
+    price monitor can poll it as fast as it likes without hammering the API.
+    Returns None on any failure so the caller falls through to CNBC/yfinance.
+    """
+    import time as _time
+
+    if not _polygon_key():
+        return None
+    c = _LIVE_QUOTE_CACHE
+    fresh = (c["product"] == product and c["val"] is not None
+             and _time.time() - c["fetched"] < max_age_s)
+    if not fresh:
+        try:
+            df = download_polygon_futures(product, "5min", force_refresh=True)
+        except Exception as e:
+            logger.debug(f"polygon_latest_quote {product}: {e!r}")
+            return None
+        if df is None or df.empty:
+            return None
+        last = df.iloc[-1]
+        c.update(product=product, fetched=_time.time(),
+                 val=(float(last["close"]), float(last["high"]),
+                      float(last["low"]), df.index[-1]))
+    price, high, low, bar_ts = c["val"]
+    age = (pd.Timestamp.now(tz="UTC") - bar_ts).total_seconds()
+    return price, high, low, age
+
+
 def _try_polygon_futures(product: str, timeframe: Timeframe,
                           force_refresh: bool) -> pd.DataFrame | None:
     """Polygon front-month futures as the PREFERRED live source.

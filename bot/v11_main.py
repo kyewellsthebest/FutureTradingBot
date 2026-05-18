@@ -43,7 +43,7 @@ from research.v11_engine import V11Engine
 logger = logging.getLogger("bot_v11")
 
 CYCLE_FLAT_SECONDS = 60    # tick rate when no position open
-CYCLE_TRADE_SECONDS = 5    # tick rate when managing an open position (12x faster)
+CYCLE_TRADE_SECONDS = 3    # tick rate when managing an open position (20x faster)
 CYCLE_SECONDS = CYCLE_FLAT_SECONDS   # backward-compat alias
 DASHBOARD_PATH = DATA_DIR / "dashboard_data.json"
 LIVE_BARS_PATH = DATA_DIR / "live_bars.json"
