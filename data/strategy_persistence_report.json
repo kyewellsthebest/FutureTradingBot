@@ -1,0 +1,49 @@
+{
+  "split_date": "2025-02-21",
+  "persistence_pearson": -0.0869,
+  "persistence_spearman": -0.0043,
+  "n_eligible_strategies": 97,
+  "family": {
+    "es": {
+      "h1_avg_r": 0.2908,
+      "h1_n": 4545,
+      "h2_avg_r": 0.3664,
+      "h2_n": 4462
+    },
+    "vix": {
+      "h1_avg_r": 0.0459,
+      "h1_n": 2165,
+      "h2_avg_r": 0.1701,
+      "h2_n": 2252
+    }
+  },
+  "n_h1_losers_cut": 12,
+  "h1_decision_hit_rate_on_h2": 0.0,
+  "h2_full": {
+    "n": 6714,
+    "total_r": 2017.7,
+    "avg_r": 0.3005,
+    "maxdd_r": -312.9,
+    "ret_risk": 6.45
+  },
+  "h2_minus_h1_losers": {
+    "n": 5234,
+    "total_r": 1654.6,
+    "avg_r": 0.3161,
+    "maxdd_r": -258.4,
+    "ret_risk": 6.4
+  },
+  "h2_minus_vix": {
+    "n": 4462,
+    "total_r": 1634.7,
+    "avg_r": 0.3664,
+    "maxdd_r": -199.1,
+    "ret_risk": 8.21
+  },
+  "strategy_quality_persistent": false,
+  "vix_gap_stable": true,
+  "verdict": [
+    "strategy quality does NOT persist \u2014 per-strategy pruning is noise",
+    "VIX-family underperformance is stable across both halves"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "n_firings": 13424,
+  "folds": [
+    {
+      "fold": 0,
+      "n_train": 6036,
+      "n_test": 1846,
+      "auc": 0.5721,
+      "test_start": "2025-01-14"
+    },
+    {
+      "fold": 1,
+      "n_train": 7873,
+      "n_test": 1846,
+      "auc": 0.4146,
+      "test_start": "2025-03-28"
+    },
+    {
+      "fold": 2,
+      "n_train": 9732,
+      "n_test": 1846,
+      "auc": 0.4543,
+      "test_start": "2025-06-12"
+    },
+    {
+      "fold": 3,
+      "n_train": 11577,
+      "n_test": 1846,
+      "auc": 0.5828,
+      "test_start": "2025-11-06"
+    }
+  ],
+  "evaluation": {
+    "n_oos": 7384,
+    "pooled_auc": 0.4908,
+    "quintiles": [
+      {
+        "quintile": 1,
+        "pred_p_mean": 0.4766,
+        "realized_profit_rate": 0.5373,
+        "realized_avg_r": 0.265,
+        "n": 1476
+      },
+      {
+        "quintile": 2,
+        "pred_p_mean": 0.4933,
+        "realized_profit_rate": 0.5125,
+        "realized_avg_r": 0.2889,
+        "n": 1477
+      },
+      {
+        "quintile": 3,
+        "pred_p_mean": 0.5008,
+        "realized_profit_rate": 0.5823,
+        "realized_avg_r": 0.3671,
+        "n": 1477
+      },
+      {
+        "quintile": 4,
+        "pred_p_mean": 0.5058,
+        "realized_profit_rate": 0.5856,
+        "realized_avg_r": 0.3766,
+        "n": 1477
+      },
+      {
+        "quintile": 5,
+        "pred_p_mean": 0.518,
+        "realized_profit_rate": 0.4746,
+        "realized_avg_r": 0.1078,
+        "n": 1477
+      }
+    ],
+    "filter_test": {
+      "baseline_all": {
+        "n": 7384,
+        "total_r": 2075.4,
+        "avg_r": 0.2811,
+        "maxdd_r": -312.9
+      },
+      "drop_bottom_20pct": {
+        "n": 5919,
+        "total_r": 1695.7,
+        "avg_r": 0.2865,
+        "maxdd_r": -312.9
+      },
+      "drop_bottom_40pct": {
+        "n": 4493,
+        "total_r": 1238.3,
+        "avg_r": 0.2756,
+        "maxdd_r": -269.5
+      }
+    },
+    "sizing_test": {
+      "flat_total_r": 2075.4,
+      "flat_maxdd_r": -312.9,
+      "sized_total_r": 951.4,
+      "sized_maxdd_r": -926.9,
+      "sized_uplift_pct": -54.2
+    }
+  },
+  "shuffled_null_auc": 0.492,
+  "quintile_monotone": false,
+  "top_bottom_r_spread": -0.1572,
+  "skilled": false,
+  "verdict": "NO RELIABLE SKILL \u2014 meta-model does not beat the raw book OOS"
+}
