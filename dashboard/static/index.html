@@ -166,21 +166,33 @@
       <div class="grid grid-2">
         <div class="card">
           <div class="card-header">Equity Curve</div>
-          <canvas id="chart-equity" class="canvas-chart"></canvas>
+          <div class="chart-wrap">
+            <canvas id="chart-equity" class="canvas-chart"></canvas>
+            <div class="chart-tooltip" id="tt-equity"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-header">Monthly P&L</div>
-          <canvas id="chart-monthly" class="canvas-chart"></canvas>
+          <div class="chart-wrap">
+            <canvas id="chart-monthly" class="canvas-chart"></canvas>
+            <div class="chart-tooltip" id="tt-monthly"></div>
+          </div>
         </div>
       </div>
       <div class="grid grid-2">
         <div class="card">
           <div class="card-header">Hold-time Distribution</div>
-          <canvas id="chart-holds" class="canvas-chart"></canvas>
+          <div class="chart-wrap">
+            <canvas id="chart-holds" class="canvas-chart"></canvas>
+            <div class="chart-tooltip" id="tt-holds"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-header">Win / Loss Distribution</div>
-          <canvas id="chart-wlhist" class="canvas-chart"></canvas>
+          <div class="chart-wrap">
+            <canvas id="chart-wlhist" class="canvas-chart"></canvas>
+            <div class="chart-tooltip" id="tt-wlhist"></div>
+          </div>
         </div>
       </div>
     </section>

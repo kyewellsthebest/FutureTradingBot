@@ -47,13 +47,14 @@ html, body {
 .topbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
   padding: 14px 24px;
   background: rgba(12, 19, 32, 0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .brand-mark {
   font-size: 22px; color: var(--cyan);
   text-shadow: 0 0 18px rgba(86, 212, 255, 0.6);
@@ -69,8 +70,12 @@ html, body {
 }
 .badge-mode.live { background: var(--green); color: #022114; }
 
-.topbar-stats { display: flex; gap: 28px; align-items: center; }
-.kpi { text-align: right; min-width: 80px; }
+.topbar-stats {
+  display: flex; gap: 28px; align-items: center;
+  flex-wrap: wrap;
+  overflow-x: auto;
+}
+.kpi { text-align: right; min-width: 80px; flex-shrink: 0; }
 .kpi-label {
   font-size: 10px; text-transform: uppercase; color: var(--text-mute);
   letter-spacing: 0.8px;
@@ -85,12 +90,16 @@ html, body {
   display: flex; gap: 4px; padding: 0 24px;
   border-bottom: 1px solid var(--border);
   background: rgba(6, 9, 15, 0.6);
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
+.tabs::-webkit-scrollbar { height: 4px; }
 .tab {
   background: none; border: none; color: var(--text-soft);
   padding: 14px 20px; cursor: pointer;
   font-weight: 500; font-size: 14px; letter-spacing: 0.3px;
   position: relative; transition: color 0.15s ease;
+  flex-shrink: 0; white-space: nowrap;
 }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--cyan); }
@@ -218,6 +227,61 @@ html, body {
 .data-table td.neg { color: var(--red); font-weight: 600; }
 .data-table td.side-long { color: var(--green); }
 .data-table td.side-short { color: var(--red); }
+
+/* CANVAS CHART WRAPPER + TOOLTIP -------------------------------- */
+.chart-wrap {
+  position: relative;
+}
+.chart-wrap .canvas-chart { cursor: crosshair; }
+.chart-tooltip {
+  position: absolute;
+  background: rgba(12, 19, 32, 0.96);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+  z-index: 5;
+  display: none;
+}
+.chart-tooltip.show { display: block; }
+.chart-tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.chart-tooltip .tt-label { color: var(--text-mute); }
+.chart-tooltip .tt-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-tooltip .tt-value.pos { color: var(--green); }
+.chart-tooltip .tt-value.neg { color: var(--red); }
+
+/* LIVE P&L BOX -------------------------------------------------- */
+.live-pnl-box {
+  margin: -2px 0 12px 0;
+  padding: 14px 16px;
+  background: linear-gradient(135deg,
+    rgba(34, 211, 154, 0.08), rgba(86, 212, 255, 0.05));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.live-pnl-box.neg {
+  background: linear-gradient(135deg,
+    rgba(255, 84, 112, 0.10), rgba(255, 84, 112, 0.03));
+}
+.live-pnl-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-mute); margin-bottom: 4px;
+}
+.live-pnl-value {
+  font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.live-pnl-value.pos { color: var(--green); }
+.live-pnl-value.neg { color: var(--red); }
+.live-pnl-sub {
+  font-size: 11px; color: var(--text-soft); margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* SCROLLBAR ----------------------------------------------------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
