@@ -1,451 +1,226 @@
-/* HFT Bot dashboard — tabbed layout */
+/* HFT Bot dashboard — Fib 50% redesign */
+
 :root {
-  --bg: #0b0e14;
-  --panel: #131722;
-  --panel2: #1a1f2e;
-  --border: #232a3b;
-  --text: #d8def0;
-  --muted: #8a93a8;
-  --accent: #4ea0ff;
-  --good: #2ecc71;
-  --bad: #e74c3c;
-  --warn: #f39c12;
+  --bg-0: #06090f;
+  --bg-1: #0c1320;
+  --panel: #131c2e;
+  --panel-2: #1a2540;
+  --panel-soft: #1f2c4a;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --text: #e6ecf5;
+  --text-soft: #a4b1c7;
+  --text-mute: #5d6b85;
+
+  --green: #22d39a;
+  --green-soft: rgba(34, 211, 154, 0.18);
+  --red: #ff5470;
+  --red-soft: rgba(255, 84, 112, 0.18);
+  --amber: #ffb648;
+  --cyan: #56d4ff;
+  --violet: #9580ff;
+
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
+
 * { box-sizing: border-box; }
+
 html, body {
-  margin: 0; padding: 0; background: var(--bg); color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 14px; line-height: 1.4;
-  /* Prevent the whole page from scrolling horizontally — every wide
-     element (tables, the ribbon stats row) must scroll INSIDE its own
-     container, never push the body wider than the viewport. */
-  overflow-x: hidden;
-  width: 100%;
-  max-width: 100vw;
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Inter", "Segoe UI",
+               Roboto, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at top, rgba(86, 212, 255, 0.06), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(149, 128, 255, 0.05), transparent 60%);
+  background-attachment: fixed;
 }
 
-/* ---- ribbon (compact top strip) ---- */
-.ribbon {
-  display: grid; grid-template-columns: auto 1fr auto;
-  align-items: center; gap: 16px;
-  padding: 8px 18px; background: var(--panel);
-  border-bottom: 1px solid var(--border);
+/* TOPBAR -------------------------------------------------------- */
+.topbar {
   position: sticky; top: 0; z-index: 10;
-  width: 100%; max-width: 100vw; min-width: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  background: rgba(12, 19, 32, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
-.ribbon-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
-.ribbon-mid {
-  display: flex; gap: 28px; justify-content: center; flex-wrap: wrap;
-  font-variant-numeric: tabular-nums;
-  min-width: 0;
-}
-.ribbon-mid .ribbon-stat {
-  display: flex; flex-direction: column; line-height: 1.15;
-}
-.ribbon-mid .ribbon-stat > span:last-child {
-  font-size: 16px; font-weight: 600;
-}
-.ribbon-mid .ribbon-stat .small { font-size: 10px; letter-spacing: 0.05em; }
-.ribbon-right { display: flex; gap: 14px; }
-.brand { font-weight: 700; font-size: 15px; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
-.dot.ok { background: var(--good); box-shadow: 0 0 8px var(--good); }
-.dot.bad { background: var(--bad); }
-.muted { color: var(--muted); }
-.small { font-size: 12px; }
-.pos { color: var(--good); }
-.neg { color: var(--bad); }
 
-/* ---- tabs ---- */
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark {
+  font-size: 22px; color: var(--cyan);
+  text-shadow: 0 0 18px rgba(86, 212, 255, 0.6);
+}
+.brand-text { font-weight: 600; letter-spacing: 0.4px; }
+.badge {
+  font-size: 10px; padding: 3px 8px; border-radius: 6px;
+  text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;
+}
+.badge-version { background: var(--panel-soft); color: var(--text-soft); }
+.badge-mode {
+  background: var(--amber); color: #1a1100;
+}
+.badge-mode.live { background: var(--green); color: #022114; }
+
+.topbar-stats { display: flex; gap: 28px; align-items: center; }
+.kpi { text-align: right; min-width: 80px; }
+.kpi-label {
+  font-size: 10px; text-transform: uppercase; color: var(--text-mute);
+  letter-spacing: 0.8px;
+}
+.kpi-value { font-weight: 600; font-size: 16px; font-variant-numeric: tabular-nums; }
+.kpi.kpi-meta .kpi-value { font-size: 12px; color: var(--text-soft); font-weight: 400; }
+.kpi-value.pos { color: var(--green); }
+.kpi-value.neg { color: var(--red); }
+
+/* TABS ---------------------------------------------------------- */
 .tabs {
-  display: flex; gap: 2px; padding: 0 18px; background: var(--panel);
-  border-bottom: 1px solid var(--border); overflow-x: auto;
+  display: flex; gap: 4px; padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6, 9, 15, 0.6);
 }
 .tab {
-  appearance: none; background: transparent; border: none;
-  color: var(--muted); padding: 10px 18px; font-size: 14px;
-  cursor: pointer; font-weight: 500;
-  border-bottom: 2px solid transparent;
+  background: none; border: none; color: var(--text-soft);
+  padding: 14px 20px; cursor: pointer;
+  font-weight: 500; font-size: 14px; letter-spacing: 0.3px;
+  position: relative; transition: color 0.15s ease;
 }
 .tab:hover { color: var(--text); }
-.tab.active {
-  color: var(--text); border-bottom-color: var(--accent);
+.tab.active { color: var(--cyan); }
+.tab.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
 }
+
+/* CONTENT ------------------------------------------------------- */
+.content { padding: 24px; max-width: 1600px; margin: 0 auto; }
 .tabpane { display: none; }
-.tabpane.active { display: block; }
-
-main {
-  padding: 16px; max-width: 1400px; margin: 0 auto;
-  width: 100%;
-  /* Belt-and-braces: even if a child decides to be too wide, main never
-     pushes past the viewport. */
-  overflow-x: hidden;
+.tabpane.active { display: block; animation: fadein 0.18s ease; }
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 
-/* ---- card ---- */
+/* GRID ---------------------------------------------------------- */
+.grid { display: grid; gap: 18px; margin-bottom: 18px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 1000px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* CARD ---------------------------------------------------------- */
 .card {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px; margin-bottom: 14px;
-  /* Keep the card's bounding box exactly the column width; if it has a
-     wide child (table, chart), the SCROLL must happen inside the card,
-     not by stretching the card. */
+  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   overflow: hidden;
-  min-width: 0;            /* allow grid/flex children to shrink properly */
+  box-shadow: var(--shadow);
 }
+.card-tall { min-height: 600px; display: flex; flex-direction: column; }
 .card-header {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--muted); margin-bottom: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-mute); font-weight: 600;
+  background: rgba(255, 255, 255, 0.015);
 }
-.big-number { font-size: 22px; font-weight: 700; }
-.big-number.pos { color: var(--good); }
-.big-number.neg { color: var(--bad); }
+.card-body { padding: 18px; min-height: 80px; }
+.center { text-align: center; }
+.muted { color: var(--text-mute); }
+.muted.center { display: block; text-align: center; margin-top: 8px; }
 
-/* ---- pills ---- */
-.pill {
-  display: inline-block; padding: 0.15em 0.7em; border-radius: 999px;
-  font-size: 0.74em; font-weight: 600; background: var(--panel2);
-  color: var(--text); vertical-align: middle; margin-left: 0.5em;
-  border: 1px solid var(--border);
+/* BIG STAT ------------------------------------------------------ */
+.big-stat {
+  font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums;
+  text-align: center; margin-bottom: 4px; letter-spacing: -0.5px;
 }
-.pill.pos { background: rgba(46, 204, 113, 0.18); color: var(--good); border-color: transparent; }
-.pill.neg, .pill.bad { background: rgba(231, 76, 60, 0.18); color: var(--bad); border-color: transparent; }
-.pill.pill-pos { background: var(--good); color: #0d2818; border: none; }
-.ribbon-stat.pos-open #r-pos { color: var(--good); font-weight: 700; }
-
-/* ---- Lucid grid ---- */
-.lucid-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-}
-.lucid-grid > div {
-  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
-  border: 1px solid var(--border);
-}
-.lucid-grid .big-number { font-size: 19px; }
-@media (max-width: 800px) {
-  .lucid-grid { grid-template-columns: 1fr 1fr; }
+.big-stat.pos { color: var(--green); }
+.big-stat.neg { color: var(--red); }
+.big-stat-label {
+  text-align: center; color: var(--text-soft); font-size: 12px;
 }
 
-/* ---- Live position grid ---- */
-.live-pos-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-  margin-bottom: 14px;
+/* KV LIST ------------------------------------------------------- */
+.kv-list { display: flex; flex-direction: column; gap: 10px; }
+.kv-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
 }
-.live-pos-grid > div {
-  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
-  border: 1px solid var(--border);
+.kv-row:last-child { border-bottom: none; }
+.kv-row span { color: var(--text-soft); font-size: 13px; }
+.kv-row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* GAUGE --------------------------------------------------------- */
+.gauge { display: flex; justify-content: center; padding: 8px 0; }
+.gauge-svg { width: 220px; height: 132px; }
+.gauge-track {
+  stroke: rgba(255, 255, 255, 0.06); stroke-width: 8; stroke-linecap: round;
 }
-.live-pos-grid .big-number { font-size: 19px; }
-@media (max-width: 800px) {
-  .live-pos-grid { grid-template-columns: 1fr 1fr; }
+.gauge-fill {
+  stroke: var(--green); stroke-width: 8; stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+}
+.gauge-fill.warn { stroke: var(--amber); }
+.gauge-fill.danger { stroke: var(--red); }
+.gauge-text {
+  fill: var(--text); font-size: 14px; font-weight: 700;
+  text-anchor: middle; font-variant-numeric: tabular-nums;
 }
 
-/* progress bar between stop and target */
-.trade-progress { margin-top: 8px; }
-.trade-progress-track {
-  position: relative; height: 14px; background: linear-gradient(
-    90deg, rgba(231,76,60,0.4), rgba(243,156,18,0.4), rgba(46,204,113,0.4));
-  border-radius: 8px; overflow: visible;
+/* PROGRESS BAR -------------------------------------------------- */
+.progress {
+  height: 8px; background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px; overflow: hidden; margin-top: 10px;
 }
-.trade-progress-fill {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: rgba(255,255,255,0.05); border-radius: 8px;
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--green), var(--cyan));
+  border-radius: 4px; transition: width 0.4s ease;
+  width: 0%;
 }
-.trade-progress-marker {
-  position: absolute; top: -3px; bottom: -3px;
-  width: 4px; background: white; border-radius: 2px;
-  transform: translateX(-50%);
-  box-shadow: 0 0 8px white;
+.progress-fill.warn { background: var(--amber); }
+.progress-fill.danger { background: var(--red); }
+
+/* CHART CONTAINER ----------------------------------------------- */
+.chart-container {
+  flex: 1; min-height: 540px; width: 100%;
+  background: var(--bg-1); border-radius: 0 0 var(--radius) var(--radius);
 }
-.trade-progress-labels {
-  display: flex; justify-content: space-between; margin-top: 4px;
-  font-size: 11px;
+.canvas-chart {
+  width: 100%; height: 280px; display: block; padding: 12px;
 }
 
-/* ---- readiness ---- */
-.readiness-bar {
-  margin-top: 8px; background: var(--panel2); border-radius: 6px;
-  height: 8px; overflow: hidden;
+/* DATA TABLE ---------------------------------------------------- */
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums;
 }
-#readiness-fill {
-  height: 100%; width: 0%;
-  background: linear-gradient(90deg, var(--bad), var(--warn), var(--good));
-  transition: width 600ms ease;
+.data-table th, .data-table td {
+  padding: 10px 14px; text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 13px;
 }
-.readiness-detail { margin-top: 10px; font-size: 13px; }
-.readiness-detail > div { margin-top: 2px; }
-.pass-pill { color: var(--good); margin-right: 6px; }
-.block-pill { color: var(--warn); margin-right: 6px; }
+.data-table th {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-mute);
+  font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.data-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+.data-table td.pos { color: var(--green); font-weight: 600; }
+.data-table td.neg { color: var(--red); font-weight: 600; }
+.data-table td.side-long { color: var(--green); }
+.data-table td.side-short { color: var(--red); }
 
-/* Strategies tab — strategy family pills + muted rows for non-live */
-.pill.family-5-min     { background: #2ecc71; color: #0d2818; }
-.pill.family-v3        { background: #1f6feb; color: #fff; }
-.pill.family-WR        { background: #d29922; color: #1c1f26; }
-.pill.family-HF        { background: #8957e5; color: #fff; }
-tr.muted-row { opacity: 0.55; }
-
-/* Clickable rows on the Strategies tab */
-.trades.clickable-rows tbody tr { cursor: pointer; }
-.trades.clickable-rows tbody tr:hover { background: var(--panel2); }
-
-/* Strategy detail modal */
-.modal {
-  position: fixed; inset: 0; z-index: 100;
-  display: flex; align-items: center; justify-content: center;
-}
-.modal-backdrop {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(2px);
-}
-.modal-body {
-  position: relative; background: var(--panel); border: 1px solid var(--border);
-  border-radius: 12px; padding: 24px 28px; max-width: 720px; width: calc(100% - 40px);
-  max-height: 85vh; overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-}
-.modal-close {
-  position: absolute; top: 8px; right: 12px; background: transparent;
-  border: none; color: var(--muted); font-size: 28px; cursor: pointer;
-  width: 32px; height: 32px; line-height: 28px;
-}
-.modal-close:hover { color: var(--text); }
-.modal-head { margin-bottom: 14px; }
-.modal-body h4 {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--muted); margin: 16px 0 6px 0;
-}
-.modal-body h2 { font-size: 19px; }
-.trig-list { padding-left: 18px; margin: 4px 0; }
-.trig-list li { padding: 2px 0; font-size: 13px; }
-
-/* ---- tables ---- */
-.kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 0; width: 38%; word-wrap: break-word; }
-.kv td { text-align: left; padding: 4px 0; font-variant-numeric: tabular-nums; word-wrap: break-word; }
-
-.trades { width: 100%; border-collapse: collapse; font-size: 13px; }
-.trades th, .trades td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
-.trades th { color: var(--muted); font-weight: 500; }
-.trades td.pos { color: var(--good); }
-.trades td.neg { color: var(--bad); }
-
-/* Tables that overflow horizontally — keep the SCROLL inside the card,
-   not on the whole page (mobile UX). */
-.table-wrap {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  width: 100%;
-  max-width: 100%;
-  /* Show a soft right-edge fade so the user knows it scrolls */
-  background:
-    linear-gradient(to right, var(--panel), var(--panel)),
-    linear-gradient(to right, rgba(0,0,0,0), rgba(20,24,36,0.7)),
-    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.5), rgba(0,0,0,0)) 100% 50%;
-  background-repeat: no-repeat;
-  background-size: 30px 100%, 30px 100%, 14px 100%;
-  background-attachment: local, local, scroll;
-  background-position: 0 0, 100% 0, 100% 0;
-}
-.table-wrap > table { min-width: 560px; }   /* forces horiz scroll on phones */
-
-/* Live filter values panel (Brain tab) */
-.filter-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-}
-.filter-grid > div {
-  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
-  border: 1px solid var(--border);
-}
-.filter-grid .big-number { font-size: 18px; }
-
-/* ============================================================ */
-/* v11-specific styling                                          */
-/* ============================================================ */
-.version-badge {
-  font-size: 10px; padding: 2px 6px; background: var(--accent);
-  color: #0d2818; border-radius: 4px; margin-left: 6px;
-  vertical-align: middle; font-weight: 700;
-}
-
-/* Brain tab — engine status grid */
-.brain-status-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-}
-.brain-status-grid > div {
-  background: var(--panel2); border-radius: 8px; padding: 10px 14px;
-  border: 1px solid var(--border);
-}
-.brain-status-grid .big-number { font-size: 18px; }
-@media (max-width: 800px) {
-  .brain-status-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .brain-status-grid > div { padding: 8px 10px; }
-  .brain-status-grid .big-number { font-size: 15px; }
-}
-
-/* Z-score grid (one card per Z-window) */
-.zscore-grid {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
-}
-.zscore-card {
-  background: var(--panel2); border-radius: 8px; padding: 8px 10px;
-  border: 1px solid var(--border);
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-.zscore-card .zw {
-  font-size: 11px; color: var(--muted); margin-bottom: 4px;
-}
-.zscore-card .zv {
-  font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.zscore-card .zv.pos { color: var(--bad); }     /* +Z = SHORT-bias = red */
-.zscore-card .zv.neg { color: var(--good); }    /* -Z = LONG-bias = green */
-.zscore-card .zbar {
-  margin-top: 6px; height: 6px; background: var(--bg);
-  border-radius: 3px; overflow: hidden; position: relative;
-}
-.zscore-card .zbar-mid {
-  position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
-  background: var(--muted); opacity: 0.5;
-}
-.zscore-card .zbar-fill {
-  position: absolute; top: 0; bottom: 0;
-  background: var(--accent);
-  transition: all 400ms ease;
-}
-.zscore-card.fired {
-  border-color: var(--good);
-  box-shadow: 0 0 12px rgba(46, 204, 113, 0.4);
-}
-.zscore-card.fired-short {
-  border-color: var(--bad);
-  box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
-}
-@media (max-width: 800px) {
-  .zscore-grid { grid-template-columns: repeat(4, 1fr); }
-}
-@media (max-width: 480px) {
-  .zscore-grid { grid-template-columns: repeat(3, 1fr); }
-}
-
-/* Status pills inside Brain tab tables */
-.fire-status {
-  display: inline-block; padding: 2px 8px; border-radius: 999px;
-  font-size: 11px; font-weight: 600;
-}
-.fire-status.fired-long { background: rgba(46, 204, 113, 0.18); color: var(--good); }
-.fire-status.fired-short { background: rgba(231, 76, 60, 0.18); color: var(--bad); }
-.fire-status.waiting { background: rgba(78, 160, 255, 0.18); color: var(--accent); }
-.fire-status.near { background: rgba(243, 156, 18, 0.18); color: var(--warn); }
-.fire-status.idle { background: var(--bg); color: var(--muted); }
-
-/* Strategies tab summary header */
-.strat-summary {
-  display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;
-  margin-bottom: 12px;
-}
-.strat-summary > div {
-  background: var(--panel2); border-radius: 8px; padding: 8px 10px;
-  border: 1px solid var(--border);
-  text-align: center;
-}
-.strat-summary .big-number { font-size: 17px; }
-@media (max-width: 800px) {
-  .strat-summary { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .strat-summary > div { padding: 6px 8px; }
-  .strat-summary .big-number { font-size: 14px; }
-}
-
-/* Sortable column headers */
-th[data-sort] { cursor: pointer; user-select: none; }
-th[data-sort]:hover { color: var(--text); }
-th.sort-asc::after { content: " ▲"; color: var(--accent); font-size: 10px; }
-th.sort-desc::after { content: " ▼"; color: var(--accent); font-size: 10px; }
-
-/* Brain tab help panel */
-.brain-help {
-  background: linear-gradient(135deg, rgba(78,160,255,0.08), rgba(78,160,255,0.02));
-  border-color: rgba(78,160,255,0.3);
-}
-.brain-help .card-header { cursor: pointer; user-select: none; }
-.brain-help .card-header:hover { color: var(--accent); }
-.brain-help-list { margin: 8px 0 8px 18px; padding: 0; }
-.brain-help-list li { padding: 4px 0; line-height: 1.5; }
-.brain-help.collapsed #brain-help-body { display: none; }
-.warn-text { color: var(--warn); }
-
-/* Side colour-coding */
-td.side-long, td.side-LONG { color: var(--good); font-weight: 600; }
-td.side-short, td.side-SHORT { color: var(--bad); font-weight: 600; }
-
-/* ---- Mobile (≤ 800px) ---- */
-@media (max-width: 800px) {
-  /* Ribbon: stack rows vertically — left line, then stats wrap below. */
-  .ribbon {
-    grid-template-columns: 1fr;
-    gap: 4px;
-    padding: 8px 10px;
-  }
-  .ribbon-left, .ribbon-mid, .ribbon-right { justify-content: flex-start; }
-  .ribbon-mid {
-    gap: 14px; justify-content: space-between;
-    width: 100%;
-  }
-  .ribbon-mid .ribbon-stat > span:last-child { font-size: 14px; }
-  .ribbon-right { font-size: 11px; gap: 10px; }
-
-  main { padding: 8px; }
-  .card { padding: 10px; margin-bottom: 8px; border-radius: 8px; }
-  .card-header { font-size: 11px; }
-  .big-number { font-size: 18px; }
-
-  /* Tabs: horizontal scroll if they overflow, never wrap into 2 rows */
-  .tabs { padding: 0 4px; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
-  .tab { padding: 9px 12px; font-size: 13px; flex-shrink: 0; }
-
-  /* Tables — smaller text + smaller min-width so phones get a real scrollable view */
-  .trades { font-size: 12px; }
-  .trades th, .trades td { padding: 5px 6px; white-space: nowrap; }
-  .table-wrap > table { min-width: 480px; }
-
-  /* Card grids collapse to 2 columns */
-  .lucid-grid, .live-pos-grid, .filter-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .lucid-grid > div, .live-pos-grid > div, .filter-grid > div { padding: 8px 10px; }
-  .lucid-grid .big-number, .live-pos-grid .big-number, .filter-grid .big-number { font-size: 15px; }
-
-  /* Modal */
-  .modal-body { padding: 16px; max-height: 95vh; width: calc(100% - 24px); }
-  .modal-body h2 { font-size: 16px; }
-}
-
-/* ---- Very small (≤ 480px) ---- */
-@media (max-width: 480px) {
-  .lucid-grid, .live-pos-grid, .filter-grid { grid-template-columns: 1fr; }
-  .ribbon-mid { gap: 8px; }
-  .ribbon-mid .ribbon-stat > span:last-child { font-size: 13px; }
-  .ribbon-mid .ribbon-stat .small { font-size: 9px; }
-  .table-wrap > table { min-width: 420px; }
-  .trades th, .trades td { padding: 4px 5px; font-size: 11px; }
-}
-
-/* ---- strategy price-flow thesis (understanding, not a filter) ---- */
-.thesis-box {
-  margin-top: 14px; padding: 12px 14px;
-  background: var(--panel2); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent); border-radius: 6px;
-}
-.thesis-head {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 8px; flex-wrap: wrap;
-}
-.thesis-tag {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-  text-transform: uppercase; color: var(--accent);
-  padding: 2px 8px; border: 1px solid var(--accent); border-radius: 10px;
-}
-.thesis-text { margin: 6px 0; font-size: 13px; line-height: 1.5; }
-.thesis-list { margin: 8px 0 6px 0; padding-left: 18px; }
-.thesis-list li { font-size: 12px; color: var(--muted); margin: 3px 0; }
-.thesis-goal { margin: 8px 0 0 0; font-size: 12px; color: var(--text); }
+/* SCROLLBAR ----------------------------------------------------- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
