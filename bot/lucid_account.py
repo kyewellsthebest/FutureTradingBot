@@ -53,6 +53,12 @@ logger = logging.getLogger("lucid_account")
 
 LUCID_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "lucid_account.json"
 
+# Bump this any time we need to force a full account reset on the next
+# Railway deploy. The bot remembers the last applied serial in the state
+# file; on startup if it doesn't match this constant, _hard_reset_all()
+# runs once, then the new serial is persisted so it won't trigger again.
+RESET_SERIAL = 1
+
 
 # ---------------------------------------------------------------------------
 # State persisted to disk
@@ -73,6 +79,7 @@ class LucidAccountState:
     micro_short_profit: float = 0.0
     blown: bool = False
     blow_reason: Optional[str] = None
+    applied_reset_serial: int = 0       # last RESET_SERIAL applied
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -122,10 +129,17 @@ class LucidAccount(PaperAccount):
         super().__init__()
         self.lucid: LucidAccountState = _load_state()
         self.ledger = FundedLedger()
-        # One-shot reset trigger. Set BOT_RESET_ACCOUNT=1 in Railway
-        # Variables and redeploy to wipe paper balance, Lucid bookkeeping
-        # and the trade ledger back to a fresh $50k start. Unset the var
-        # after a successful reset or every deploy will wipe again.
+        # Auto-reset trigger #1: serial bump. Bumping RESET_SERIAL in
+        # source code forces exactly one reset on the next deploy.
+        # Self-extinguishing — the new serial is persisted so it won't
+        # fire again until the constant is bumped again.
+        if self.lucid.applied_reset_serial != RESET_SERIAL:
+            logger.warning(f"RESET_SERIAL bumped {self.lucid.applied_reset_serial} → "
+                           f"{RESET_SERIAL} — running one-shot reset")
+            self._hard_reset_all()
+        # Auto-reset trigger #2: manual env var (still supported for ad-hoc).
+        # Set BOT_RESET_ACCOUNT=1 in Railway Variables. UNSET it after, or
+        # every deploy will wipe again.
         import os
         if os.environ.get("BOT_RESET_ACCOUNT") == "1":
             self._hard_reset_all()
@@ -165,13 +179,15 @@ class LucidAccount(PaperAccount):
         """One-shot full reset triggered by BOT_RESET_ACCOUNT=1. Wipes
         paper balance, Lucid bookkeeping AND the trades DB so the
         dashboard shows a clean $50k account with zero trade history."""
-        logger.warning("=== BOT_RESET_ACCOUNT=1 detected — performing HARD RESET ===")
-        # Lucid state → fresh
+        logger.warning("=== HARD RESET requested — wiping account back to $50k ===")
+        # Lucid state → fresh, but record the serial we just applied so
+        # the bump-trigger doesn't loop on every restart.
         self.lucid = LucidAccountState(
             account_id=1,
             started_at=datetime.now(timezone.utc).isoformat(),
             peak_eod_high=START_BAL,
             trail_floor=INITIAL_TRAIL,
+            applied_reset_serial=RESET_SERIAL,
         )
         self._save_lucid()
         # Paper account → fresh
