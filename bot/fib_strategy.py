@@ -52,7 +52,9 @@ DEFAULT_SIZE = 5                  # MNQ contracts (5 MNQ recommended for $50k)
 # ---------------------------------------------------------------------------
 # Safety constants — Lucid compliance hard gates
 # ---------------------------------------------------------------------------
-MIN_HOLD_SECONDS = 6              # 6s buffer above Lucid's 5s microscalp line
+MIN_TARGET_HOLD_SECONDS = 10      # min hold for TARGET exits (Lucid microscalp safety).
+                                  # Stops fire immediately — only profit-taking
+                                  # is what counts toward Lucid's microscalp rule.
 MICROSCALP_HARD_THRESHOLD = 0.40  # circuit-breaker at 40% (well below 50%)
 MICROSCALP_WINDOW_DAYS = 30       # rolling window for live ratio
 TRAIL_SAFETY_PTS = 300            # extra buffer above trail floor
@@ -266,10 +268,16 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
                 now: datetime) -> Optional[tuple[float, str]]:
     """Return (exit_px, reason) if the trade should exit now, else None.
 
-    Enforces the 6-second minimum hold — exits are deferred until the
-    hold time clears MIN_HOLD_SECONDS. If stop/target is technically
-    hit before that, the exit is queued and fires the first eligible
-    moment after the hold clears."""
+    Minimum-hold rule (Lucid microscalp safety):
+      * STOPS fire IMMEDIATELY — no delay. Losses don't count toward
+        microscalp (no profit from a stop), so there's no reason to hold
+        a losing position past the technical stop.
+      * TARGETS require >= MIN_TARGET_HOLD_SECONDS of hold time before
+        the exit fires. A target hit at second 4 is deferred; the bot
+        keeps the position open until the 10s mark, then closes at
+        whatever the price is.
+      * TIMEOUTS fire immediately at the max-hold deadline.
+    """
     hold_s = (now - trade.entry_ts).total_seconds()
     high = float(last_1m_bar["high"])
     low = float(last_1m_bar["low"])
@@ -278,20 +286,24 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
                (trade.side == "SHORT" and high >= trade.stop_px)
     target_hit = (trade.side == "LONG" and high >= trade.target_px) or \
                  (trade.side == "SHORT" and low <= trade.target_px)
+    timeout = now >= trade.max_hold_until
 
-    if not stop_hit and not target_hit and now < trade.max_hold_until:
+    if not stop_hit and not target_hit and not timeout:
         return None
 
-    # hard gate: enforce minimum hold
-    if hold_s < MIN_HOLD_SECONDS:
-        logger.debug("exit deferred: hold %.1fs < min %ds", hold_s, MIN_HOLD_SECONDS)
-        return None
-
+    # Stops always fire — protects the account, no microscalp concern
     if stop_hit:
         return trade.stop_px, "stop"
+
+    # Targets get the min-hold gate (microscalp protection)
     if target_hit:
+        if hold_s < MIN_TARGET_HOLD_SECONDS:
+            logger.debug("target deferred: hold %.1fs < min %ds",
+                         hold_s, MIN_TARGET_HOLD_SECONDS)
+            return None
         return trade.target_px, "target"
-    # timeout
+
+    # Timeout exit — fires regardless of hold time
     return float(last_1m_bar["close"]), "timeout"
 
 
@@ -413,5 +425,5 @@ def snapshot(state: FibStrategyState) -> dict:
         "microscalp_threshold": MICROSCALP_HARD_THRESHOLD,
         "circuit_breaker_tripped": state.circuit_breaker_tripped,
         "circuit_breaker_reason": state.circuit_breaker_reason,
-        "min_hold_seconds": MIN_HOLD_SECONDS,
+        "min_target_hold_seconds": MIN_TARGET_HOLD_SECONDS,
     }

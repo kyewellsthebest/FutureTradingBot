@@ -69,18 +69,24 @@ def _bootstrap_bundled_config() -> None:
 def _bot_thread() -> None:
     """Run the 60-second tick loop. Catches and re-runs on uncaught crash.
 
-    The default v11 runtime trades the 117 NQ-ES stat-arb strategies. Set
-    BOT_VERSION=legacy in the environment to fall back to the old V3 runtime.
+    Default runtime is the Fib 50% retracement strategy (single strategy,
+    10-min entries, 5 MNQ, Lucid-compliant). Set BOT_VERSION=v11 to fall
+    back to the old NQ-ES stat-arb book; BOT_VERSION=legacy for the V3
+    runtime. BOT_SHADOW_MODE=0 in env switches Fib from shadow to live.
     """
-    bot_version = os.environ.get("BOT_VERSION", "v11").lower()
+    bot_version = os.environ.get("BOT_VERSION", "fib").lower()
     while True:
         try:
             if bot_version == "legacy":
                 from bot.main import Runtime
                 log.info("starting LEGACY bot loop (V3 strategies)")
-            else:
+            elif bot_version == "v11":
                 from bot.v11_main import V11Runtime as Runtime
                 log.info("starting v11 bot loop (NQ-ES stat-arb, 117 strategies)")
+            else:
+                from bot.fib_main import FibRuntime as Runtime
+                mode = "SHADOW" if os.environ.get("BOT_SHADOW_MODE", "1") == "1" else "LIVE"
+                log.info(f"starting Fib 50% retracement bot ({mode} mode)")
             Runtime().run()
             log.warning("bot loop exited cleanly — restarting in 5s")
         except Exception as e:
