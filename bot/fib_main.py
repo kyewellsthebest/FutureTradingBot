@@ -237,7 +237,10 @@ class FibRuntime:
     # ---- dashboard data publish ---------------------------------------
     def _publish_dashboard(self) -> None:
         try:
-            fib_snap = fib_snapshot(self.state)
+            # Live price for topbar + live P&L on active trade
+            latest = self.monitor.latest()
+            current_price = float(latest.price) if latest and latest.price else None
+            fib_snap = fib_snapshot(self.state, current_price=current_price)
             lucid_snap = self.account.lucid_snapshot()
             funded_snap = self.account.ledger.snapshot()
             blob = {
@@ -249,6 +252,8 @@ class FibRuntime:
                 "bars_processed": self.bars_processed,
                 "signals_fired": self.signals_fired,
                 "signals_blocked": self.signals_blocked,
+                "price": current_price,
+                "price_ts": latest.ts.isoformat() if latest and latest.ts else None,
                 "fib": fib_snap,
                 "lucid_account": lucid_snap,
                 "funded_accounts": funded_snap,
