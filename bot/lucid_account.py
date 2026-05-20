@@ -122,6 +122,13 @@ class LucidAccount(PaperAccount):
         super().__init__()
         self.lucid: LucidAccountState = _load_state()
         self.ledger = FundedLedger()
+        # One-shot reset trigger. Set BOT_RESET_ACCOUNT=1 in Railway
+        # Variables and redeploy to wipe paper balance, Lucid bookkeeping
+        # and the trade ledger back to a fresh $50k start. Unset the var
+        # after a successful reset or every deploy will wipe again.
+        import os
+        if os.environ.get("BOT_RESET_ACCOUNT") == "1":
+            self._hard_reset_all()
         # Force a day-roll check at startup. Belt-and-braces for the
         # "TODAY P&L stuck on yesterday" bug — even if the snapshot path
         # somehow misses it, we ALWAYS reconcile here so the bot's first
@@ -153,6 +160,41 @@ class LucidAccount(PaperAccount):
             peak_balance=START_BAL, max_drawdown=0.0,
         )
         self.save()
+
+    def _hard_reset_all(self) -> None:
+        """One-shot full reset triggered by BOT_RESET_ACCOUNT=1. Wipes
+        paper balance, Lucid bookkeeping AND the trades DB so the
+        dashboard shows a clean $50k account with zero trade history."""
+        logger.warning("=== BOT_RESET_ACCOUNT=1 detected — performing HARD RESET ===")
+        # Lucid state → fresh
+        self.lucid = LucidAccountState(
+            account_id=1,
+            started_at=datetime.now(timezone.utc).isoformat(),
+            peak_eod_high=START_BAL,
+            trail_floor=INITIAL_TRAIL,
+        )
+        self._save_lucid()
+        # Paper account → fresh
+        self._reset_paper_account()
+        # Trades DB → wiped (best-effort)
+        try:
+            import sqlite3
+            db_path = LUCID_STATE_PATH.parent / "paper_trades.db"
+            if db_path.exists():
+                con = sqlite3.connect(db_path)
+                cur = con.cursor()
+                for (name,) in cur.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"):
+                    cur.execute(f"DELETE FROM {name}")
+                con.commit()
+                con.close()
+                logger.warning("=== trades DB cleared ===")
+        except Exception as e:
+            logger.warning(f"trades DB wipe failed (non-fatal): {e}")
+        logger.warning(f"=== HARD RESET COMPLETE — balance ${START_BAL:,.0f}, "
+                       f"trail ${INITIAL_TRAIL:,.0f} ===")
+        logger.warning("=== REMEMBER to unset BOT_RESET_ACCOUNT in Railway "
+                       "or every deploy will wipe again ===")
 
     def _maybe_roll_eod(self, now: datetime) -> None:
         """If today's NY date changed, roll P&L into cumulative + recompute floor."""
