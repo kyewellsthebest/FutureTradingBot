@@ -179,7 +179,17 @@ def detect_setup(bars_10m: pd.DataFrame, now: datetime) -> Optional[FibSetup]:
     l_src, l_val = l_piv
     if h_src == l_src:
         return None
-    leg = abs(h_val - l_val)
+    # Geometry sanity: the high pivot's VALUE must be above the low
+    # pivot's VALUE for the leg to be a real swing. In a strong trend
+    # the fractal-pivot finder can return a "swing low" whose value is
+    # numerically above an older "swing high" (or vice versa). That
+    # produces inverted stop/target levels and trades like LONG with
+    # stop ABOVE entry, which then look like "stops with positive PnL"
+    # in the trade log. Skip these — the strategy is only valid when
+    # the two most recent pivots form a real high-over-low swing.
+    if h_val <= l_val:
+        return None
+    leg = h_val - l_val
     if leg < MIN_LEG_PTS:
         return None
     # the later pivot wins the leg direction
@@ -265,7 +275,23 @@ def check_circuit_breaker(state: FibStrategyState) -> None:
 # Trade lifecycle
 # ---------------------------------------------------------------------------
 def open_trade(setup: FibSetup, n_mnq: int, entry_px: float,
-               now: datetime) -> ActiveTrade:
+               now: datetime) -> Optional[ActiveTrade]:
+    # Defensive geometry check: a LONG must have stop BELOW entry and
+    # target ABOVE; a SHORT must have stop ABOVE entry and target BELOW.
+    # detect_setup already filters inverted pivots, but if any future
+    # path lets one through we refuse the trade rather than open one
+    # that would generate misleading "stop with profit" exit records.
+    stop_ok = (setup.side == "LONG" and setup.stop_px < entry_px) or \
+              (setup.side == "SHORT" and setup.stop_px > entry_px)
+    tgt_ok = (setup.side == "LONG" and setup.target_px > entry_px) or \
+             (setup.side == "SHORT" and setup.target_px < entry_px)
+    if not (stop_ok and tgt_ok):
+        logger.warning(
+            "open_trade REFUSED — inverted geometry: %s entry=%.2f "
+            "stop=%.2f target=%.2f (pivots h=%.2f l=%.2f)",
+            setup.side, entry_px, setup.stop_px, setup.target_px,
+            setup.pivot_high_val, setup.pivot_low_val)
+        return None
     return ActiveTrade(
         entry_ts=now,
         side=setup.side,
@@ -432,7 +458,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             continue
         # entry at this bar's close — closest realistic fill
         entry_px = float(last_1m_bar["close"])
-        state.active_trade = open_trade(setup, n_mnq, entry_px, now)
+        new_trade = open_trade(setup, n_mnq, entry_px, now)
+        if new_trade is None:
+            # geometry guard tripped — already logged; skip this setup
+            setup.used = True
+            state.recent_used_setups.append(_setup_key(setup))
+            continue
+        state.active_trade = new_trade
         setup.used = True
         state.recent_used_setups.append(_setup_key(setup))
         logger.info("[OPEN] %s %d MNQ @ %.2f  stop=%.2f tgt=%.2f",
