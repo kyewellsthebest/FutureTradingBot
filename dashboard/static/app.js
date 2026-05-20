@@ -60,6 +60,7 @@ async function pollCandles() {
       state.candles = await r.json();
       if (candleSeries && state.candles && Array.isArray(state.candles)) {
         candleSeries.setData(state.candles);
+        updateChartMarkers();
       }
     }
   } catch (e) {}
@@ -70,6 +71,7 @@ async function pollTrades() {
     if (r.ok) state.trades = await r.json();
     renderTradesTable();
     renderPerformanceGraphs();
+    updateChartMarkers();
   } catch (e) {}
 }
 setInterval(poll, POLL_MS);
@@ -234,9 +236,62 @@ function initChart() {
     borderVisible: false,
   });
   if (state.candles) candleSeries.setData(state.candles);
+  updateChartMarkers();
   window.addEventListener("resize", () => {
     chart.resize(el.clientWidth, el.clientHeight);
   });
+}
+
+// Auto-expiring trade markers on the candle chart.
+// LONG  → green up-arrow below the bar at entry, red/green down-arrow
+//         above the bar at exit with the P&L as the marker text.
+// SHORT → red down-arrow above the bar at entry, up-arrow below the
+//         bar at exit with the P&L as the marker text.
+// Markers are dropped once the trade is older than MARKER_TTL_MS so
+// the chart doesn't fill up with stale arrows.
+const MARKER_TTL_MS = 60 * 60 * 1000;  // 1 hour
+function updateChartMarkers() {
+  if (!candleSeries) return;
+  const trades = (state.data && state.data.recent_trades) || [];
+  const cutoff = Date.now() - MARKER_TTL_MS;
+  const markers = [];
+  trades.forEach(t => {
+    const exitT = new Date(t.ts).getTime();
+    if (exitT < cutoff) return;
+    const entryT = new Date(t.entry_ts || t.ts).getTime();
+    const pnl = t.pnl_usd || 0;
+    const win = pnl >= 0;
+    const pnlStr = (pnl >= 0 ? "+$" : "-$") +
+      Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    if (t.side === "LONG") {
+      markers.push({
+        time: Math.floor(entryT / 1000),
+        position: "belowBar", color: "#22d39a", shape: "arrowUp",
+        text: `LONG ${t.entry_px?.toFixed(2) ?? ""}`,
+      });
+      markers.push({
+        time: Math.floor(exitT / 1000),
+        position: "aboveBar", color: win ? "#22d39a" : "#ff5470",
+        shape: "arrowDown",
+        text: `${pnlStr} · ${t.exit_reason}`,
+      });
+    } else {
+      markers.push({
+        time: Math.floor(entryT / 1000),
+        position: "aboveBar", color: "#ff5470", shape: "arrowDown",
+        text: `SHORT ${t.entry_px?.toFixed(2) ?? ""}`,
+      });
+      markers.push({
+        time: Math.floor(exitT / 1000),
+        position: "belowBar", color: win ? "#22d39a" : "#ff5470",
+        shape: "arrowUp",
+        text: `${pnlStr} · ${t.exit_reason}`,
+      });
+    }
+  });
+  // Lightweight Charts requires markers in ascending time order
+  markers.sort((a, b) => a.time - b.time);
+  try { candleSeries.setMarkers(markers); } catch (e) { /* series may not be ready */ }
 }
 
 // ---- Performance graphs --------------------------------------------------
@@ -554,4 +609,5 @@ function renderAll() {
   renderFunded(state.data);
   renderTradesTable();
   renderPerformanceGraphs();
+  updateChartMarkers();
 }
