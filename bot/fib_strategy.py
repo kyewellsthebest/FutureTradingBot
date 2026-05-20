@@ -125,8 +125,22 @@ class FibStrategyState:
     # rolling hold-time history for microscalp ratio (kept as list of
     # (timestamp_utc, hold_seconds, pnl_usd) for the last 30 days)
     completed_trades: Deque[dict] = field(default_factory=lambda: deque(maxlen=10_000))
+    # Recent (pivot_high, pivot_low, side) keys for setups we've already
+    # traded — prevents the same pivot pair from firing repeatedly while
+    # the pivots are still the most recent on the chart.
+    recent_used_setups: Deque[tuple] = field(default_factory=lambda: deque(maxlen=200))
     circuit_breaker_tripped: bool = False
     circuit_breaker_reason: Optional[str] = None
+
+
+def _setup_key(setup_or_high, low: Optional[float] = None,
+               side: Optional[str] = None) -> tuple:
+    """Stable identity for a setup: rounded pivots + side."""
+    if isinstance(setup_or_high, FibSetup):
+        return (round(setup_or_high.pivot_high_val, 2),
+                round(setup_or_high.pivot_low_val, 2),
+                setup_or_high.side)
+    return (round(setup_or_high, 2), round(low, 2), side)
 
 
 # ---------------------------------------------------------------------------
@@ -277,10 +291,16 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
         keeps the position open until the 10s mark, then closes at
         whatever the price is.
       * TIMEOUTS fire immediately at the max-hold deadline.
+
+    Ambiguity handling: when the bar straddles both stop and target
+    (common with synthesized 1-min bars built from a 5-60s monitor
+    window), use the bar's CLOSE relative to entry to disambiguate which
+    way price actually finished — that's what really mattered.
     """
     hold_s = (now - trade.entry_ts).total_seconds()
     high = float(last_1m_bar["high"])
     low = float(last_1m_bar["low"])
+    close = float(last_1m_bar["close"])
 
     stop_hit = (trade.side == "LONG" and low <= trade.stop_px) or \
                (trade.side == "SHORT" and high >= trade.stop_px)
@@ -290,6 +310,18 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
 
     if not stop_hit and not target_hit and not timeout:
         return None
+
+    # Disambiguate "both hit" on the same bar by using close direction.
+    # This is the synthesized-bar fix: monitor high/low accumulate over
+    # the polling window, so both extremes can exceed the levels even
+    # when price action only really touched one of them.
+    if stop_hit and target_hit:
+        if trade.side == "SHORT":
+            stop_hit = close >= trade.entry_px
+            target_hit = close < trade.entry_px
+        else:
+            stop_hit = close <= trade.entry_px
+            target_hit = close > trade.entry_px
 
     # Stops always fire — protects the account, no microscalp concern
     if stop_hit:
@@ -304,7 +336,7 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
         return trade.target_px, "target"
 
     # Timeout exit — fires regardless of hold time
-    return float(last_1m_bar["close"]), "timeout"
+    return close, "timeout"
 
 
 def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
@@ -366,11 +398,19 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # 2. detect new setup on closed 10-min bars
     new_setup = detect_setup(bars_10m, now)
     if new_setup is not None:
-        # de-dupe vs pending list — same level + side
-        is_dupe = any(s.side == new_setup.side
-                       and abs(s.level50 - new_setup.level50) < 0.5
-                       for s in state.pending_setups if not s.used)
-        if not is_dupe:
+        key = _setup_key(new_setup)
+        # Skip if we've recently fired on this exact pivot pair.
+        # Prevents the "same setup re-fires on every tick" loop where
+        # the bot keeps re-detecting the same h_val/l_val until new
+        # pivots form on the 10-min chart.
+        if key in state.recent_used_setups:
+            new_setup = None
+        elif any(s.side == new_setup.side
+                   and abs(s.level50 - new_setup.level50) < 0.5
+                   for s in state.pending_setups if not s.used):
+            # already in pending list as well
+            new_setup = None
+        else:
             state.pending_setups.append(new_setup)
             logger.debug("[SETUP] %s level50=%.2f leg=%.1fpts",
                          new_setup.side, new_setup.level50, new_setup.leg_pts)
@@ -388,11 +428,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         if not decision.allowed:
             logger.info("[BLOCKED] Lucid: %s", decision.reason)
             setup.used = True
+            state.recent_used_setups.append(_setup_key(setup))
             continue
         # entry at this bar's close — closest realistic fill
         entry_px = float(last_1m_bar["close"])
         state.active_trade = open_trade(setup, n_mnq, entry_px, now)
         setup.used = True
+        state.recent_used_setups.append(_setup_key(setup))
         logger.info("[OPEN] %s %d MNQ @ %.2f  stop=%.2f tgt=%.2f",
                     setup.side, n_mnq, entry_px, setup.stop_px, setup.target_px)
         break
@@ -403,21 +445,33 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 # ---------------------------------------------------------------------------
 # Snapshot for dashboard / monitoring
 # ---------------------------------------------------------------------------
-def snapshot(state: FibStrategyState) -> dict:
-    """Lightweight JSON-serialisable snapshot for the dashboard."""
+def snapshot(state: FibStrategyState,
+             current_price: Optional[float] = None) -> dict:
+    """Lightweight JSON-serialisable snapshot for the dashboard. If
+    current_price is supplied, the active-trade block includes live
+    unrealised P&L."""
     now = datetime.now(timezone.utc)
     rolling = list(state.completed_trades)
     ratio = microscalp_ratio_30d(state.completed_trades, now)
+    active = None
+    if state.active_trade is not None:
+        t = state.active_trade
+        active = {
+            "side": t.side,
+            "n_mnq": t.n_mnq,
+            "entry_px": t.entry_px,
+            "stop_px": t.stop_px,
+            "target_px": t.target_px,
+            "hold_s": t.hold_seconds(now),
+        }
+        if current_price is not None:
+            pnl_pts = (t.entry_px - current_price) if t.side == "SHORT" \
+                      else (current_price - t.entry_px)
+            active["current_price"] = float(current_price)
+            active["unrealized_pnl_usd"] = float(pnl_pts * t.n_mnq * 2.0)
+            active["unrealized_pnl_pts"] = float(pnl_pts)
     return {
-        "active_trade": (
-            {"side": state.active_trade.side,
-             "n_mnq": state.active_trade.n_mnq,
-             "entry_px": state.active_trade.entry_px,
-             "stop_px": state.active_trade.stop_px,
-             "target_px": state.active_trade.target_px,
-             "hold_s": state.active_trade.hold_seconds(now)}
-            if state.active_trade else None
-        ),
+        "active_trade": active,
         "pending_setups": len([s for s in state.pending_setups if not s.used]),
         "completed_30d_n": len(rolling),
         "completed_30d_pnl": sum(t["pnl_usd"] for t in rolling),
