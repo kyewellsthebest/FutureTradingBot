@@ -502,9 +502,29 @@ def snapshot(state: FibStrategyState,
             active["current_price"] = float(current_price)
             active["unrealized_pnl_usd"] = float(pnl_pts * t.n_mnq * 2.0)
             active["unrealized_pnl_pts"] = float(pnl_pts)
+    # The actual setups (not just count) so the dashboard can draw the
+    # bot's "what I'm watching" levels. Capped at the most recent N to
+    # avoid line clutter on the chart.
+    live_setups = [s for s in state.pending_setups if not s.used][-5:]
+    pending_setup_details = [
+        {
+            "side": s.side,
+            "level50": s.level50,
+            "pivot_high_val": s.pivot_high_val,
+            "pivot_low_val": s.pivot_low_val,
+            "target_px": s.target_px,
+            "stop_px": s.stop_px,
+            "detected_at": s.detected_at.isoformat()
+                if hasattr(s.detected_at, "isoformat") else str(s.detected_at),
+            "expires_at": s.expires_at.isoformat()
+                if hasattr(s.expires_at, "isoformat") else str(s.expires_at),
+        }
+        for s in live_setups
+    ]
     return {
         "active_trade": active,
-        "pending_setups": len([s for s in state.pending_setups if not s.used]),
+        "pending_setups": len(live_setups),
+        "pending_setup_details": pending_setup_details,
         "completed_30d_n": len(rolling),
         "completed_30d_pnl": sum(t["pnl_usd"] for t in rolling),
         "microscalp_ratio_30d": ratio,

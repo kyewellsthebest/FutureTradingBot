@@ -220,6 +220,11 @@ function renderTradesTable() {
 }
 
 // ---- Chart tab -----------------------------------------------------------
+// Active price-line handles keyed by setup id (side|level50). Lets us
+// remove lines whose setups have expired / fired / been Lucid-blocked
+// without redrawing the whole chart on every poll.
+const _setupLines = {};
+
 function initChart() {
   const el = document.getElementById("chart-container");
   if (!el || typeof LightweightCharts === "undefined") return;
@@ -237,8 +242,72 @@ function initChart() {
   });
   if (state.candles) candleSeries.setData(state.candles);
   updateChartMarkers();
+  updateSetupLines();
   window.addEventListener("resize", () => {
     chart.resize(el.clientWidth, el.clientHeight);
+  });
+}
+
+// Draw a 50% retracement line per pending setup so the chart shows
+// what the bot is watching for an entry. Three lines per setup:
+//   - bold line at level50  (entry trigger)
+//   - faint line at target  (would-be exit on success)
+//   - faint line at stop    (would-be exit on failure)
+// Setups disappear automatically — the strategy prunes pending_setups
+// the moment a trade fires, the setup expires, or Lucid blocks it, so
+// next poll the line just stops being in pending_setup_details.
+function updateSetupLines() {
+  if (!candleSeries) return;
+  const fib = (state.data && state.data.fib) || {};
+  const setups = fib.pending_setup_details || [];
+  const wanted = {};
+  setups.forEach(s => {
+    const key = `${s.side}|${s.level50.toFixed(2)}`;
+    wanted[key] = s;
+  });
+  // Remove lines whose setups are no longer pending
+  Object.keys(_setupLines).forEach(key => {
+    if (!wanted[key]) {
+      const lines = _setupLines[key];
+      try { lines.forEach(l => candleSeries.removePriceLine(l)); }
+      catch (e) {}
+      delete _setupLines[key];
+    }
+  });
+  // Add lines for new setups
+  Object.keys(wanted).forEach(key => {
+    if (_setupLines[key]) return;  // already drawn
+    const s = wanted[key];
+    const isLong = s.side === "LONG";
+    const tagColor = isLong ? "#22d39a" : "#ff5470";
+    const lines = [];
+    try {
+      lines.push(candleSeries.createPriceLine({
+        price: s.level50,
+        color: tagColor,
+        lineWidth: 2,
+        lineStyle: 0,   // solid
+        axisLabelVisible: true,
+        title: `Fib 50% ${s.side}`,
+      }));
+      lines.push(candleSeries.createPriceLine({
+        price: s.target_px,
+        color: "#22d39a",
+        lineWidth: 1,
+        lineStyle: 2,   // dashed
+        axisLabelVisible: true,
+        title: `target`,
+      }));
+      lines.push(candleSeries.createPriceLine({
+        price: s.stop_px,
+        color: "#ff5470",
+        lineWidth: 1,
+        lineStyle: 2,   // dashed
+        axisLabelVisible: true,
+        title: `stop`,
+      }));
+      _setupLines[key] = lines;
+    } catch (e) { /* series may not be ready */ }
   });
 }
 
@@ -610,4 +679,5 @@ function renderAll() {
   renderTradesTable();
   renderPerformanceGraphs();
   updateChartMarkers();
+  updateSetupLines();
 }
