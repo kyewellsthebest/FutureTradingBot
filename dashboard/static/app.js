@@ -1,4 +1,4 @@
-/* HFT Bot dashboard — Fib 50% frontend.
+/* Futures Trading Bot dashboard — Fib 50% frontend.
    Polls /api/data (full snapshot) every 5s. Renders all tabs from one blob. */
 
 const POLL_MS = 5000;
