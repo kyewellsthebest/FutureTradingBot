@@ -108,7 +108,23 @@ function renderLive(d) {
   const activeBox = document.getElementById("live-active");
   if (fib.active_trade) {
     const a = fib.active_trade;
+    const unrealised = a.unrealized_pnl_usd;
+    const unrealisedPts = a.unrealized_pnl_pts;
+    const cur = a.current_price ?? d.price;
+    const hasLive = unrealised !== undefined && unrealised !== null && !isNaN(unrealised);
+    const pnlClass = hasLive ? (unrealised >= 0 ? "pos" : "neg") : "";
+    const boxClass = hasLive && unrealised < 0 ? "live-pnl-box neg" : "live-pnl-box";
+    const liveBlock = hasLive ? `
+      <div class="${boxClass}">
+        <div class="live-pnl-label">Unrealised P&L</div>
+        <div class="live-pnl-value ${pnlClass}">${fmtUsd(unrealised)}</div>
+        <div class="live-pnl-sub">
+          ${unrealisedPts >= 0 ? "+" : ""}${(unrealisedPts ?? 0).toFixed(2)} pts
+          ${cur ? " · last " + cur.toFixed(2) : ""}
+        </div>
+      </div>` : "";
     activeBox.innerHTML = `
+      ${liveBlock}
       <div class="kv-list">
         <div class="kv-row"><span>Side</span><b class="${a.side === 'LONG' ? 'kpi-value pos' : 'kpi-value neg'}">${a.side}</b></div>
         <div class="kv-row"><span>Size</span><b>${a.n_mnq} MNQ</b></div>
@@ -224,6 +240,9 @@ function initChart() {
 }
 
 // ---- Performance graphs --------------------------------------------------
+// Hit-test regions for tooltips: { canvasId: [{x,y,r,html} | {x0,x1,y0,y1,html}, ...] }
+const _hitRegions = {};
+
 function renderPerformanceGraphs() {
   if (!state.trades && !state.data) return;
   const trades = (state.data && state.data.recent_trades) || [];
@@ -231,6 +250,56 @@ function renderPerformanceGraphs() {
   drawMonthlyPnl(trades);
   drawHoldHistogram(trades);
   drawWinLossHistogram(trades);
+}
+
+function _attachTooltip(canvasId, tooltipId) {
+  const c = document.getElementById(canvasId);
+  const tt = document.getElementById(tooltipId);
+  if (!c || !tt || c.dataset.ttBound === "1") return;
+  c.dataset.ttBound = "1";
+  const handleMove = (ev) => {
+    const rect = c.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    const regions = _hitRegions[canvasId] || [];
+    let hit = null;
+    for (const r of regions) {
+      if (r.r !== undefined) {
+        const dx = x - r.x, dy = y - r.y;
+        if (dx*dx + dy*dy <= r.r * r.r) { hit = r; break; }
+      } else if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) {
+        hit = r; break;
+      }
+    }
+    // also catch nearest line-point within 30px on equity curve
+    if (!hit && (_hitRegions[canvasId] || []).length) {
+      let best = null, bd = 30 * 30;
+      for (const r of regions) {
+        if (r.r === undefined) continue;
+        const dx = x - r.x, dy = y - r.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < bd) { bd = d2; best = r; }
+      }
+      if (best) hit = best;
+    }
+    if (hit) {
+      tt.innerHTML = hit.html;
+      tt.classList.add("show");
+      // position to right of cursor unless near edge
+      const ttW = tt.offsetWidth || 160;
+      const ttH = tt.offsetHeight || 60;
+      let tx = x + 12, ty = y - ttH - 8;
+      if (tx + ttW > rect.width) tx = x - ttW - 12;
+      if (ty < 0) ty = y + 12;
+      tt.style.left = tx + "px";
+      tt.style.top = ty + "px";
+    } else {
+      tt.classList.remove("show");
+    }
+  };
+  c.addEventListener("mousemove", handleMove);
+  c.addEventListener("mouseleave", () => tt.classList.remove("show"));
+  c.addEventListener("click", handleMove);
 }
 
 function _setupCanvas(id) {
@@ -249,6 +318,7 @@ function drawEquityCurve(trades) {
   const r = _setupCanvas("chart-equity"); if (!r) return;
   const { ctx, w, h } = r;
   const start = 50000;
+  _hitRegions["chart-equity"] = [];
   if (!trades.length) {
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif";
     ctx.textAlign = "center";
@@ -257,9 +327,9 @@ function drawEquityCurve(trades) {
   }
   const sorted = trades.slice().reverse();
   let bal = start;
-  const points = [start];
-  sorted.forEach(t => { bal += (t.pnl_usd || 0); points.push(bal); });
-  const minV = Math.min(...points), maxV = Math.max(...points);
+  const points = [{ v: start, t: null, trade: null }];
+  sorted.forEach(t => { bal += (t.pnl_usd || 0); points.push({ v: bal, t: t.ts, trade: t }); });
+  const minV = Math.min(...points.map(p => p.v)), maxV = Math.max(...points.map(p => p.v));
   const range = Math.max(maxV - minV, 1);
   const padX = 30, padY = 20;
   // grid line at $50k
@@ -273,28 +343,45 @@ function drawEquityCurve(trades) {
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
   gradient.addColorStop(0, "rgba(34,211,154,0.4)");
   gradient.addColorStop(1, "rgba(34,211,154,0.02)");
+  const xy = points.map((p, i) => ({
+    p,
+    x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
+    y: h - padY - ((p.v - minV) / range) * (h - 2 * padY),
+  }));
   ctx.beginPath();
-  points.forEach((v, i) => {
-    const x = padX + (i / (points.length - 1)) * (w - 2 * padX);
-    const y = h - padY - ((v - minV) / range) * (h - 2 * padY);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
+  xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   // fill under
   ctx.lineTo(w - padX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
   ctx.fillStyle = gradient; ctx.fill();
   // line on top
   ctx.beginPath();
-  points.forEach((v, i) => {
-    const x = padX + (i / (points.length - 1)) * (w - 2 * padX);
-    const y = h - padY - ((v - minV) / range) * (h - 2 * padY);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
+  xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   ctx.strokeStyle = "#22d39a"; ctx.lineWidth = 2; ctx.stroke();
+  // hit regions: 6px radius at every point
+  xy.forEach(({p, x, y}, i) => {
+    const pnl = p.v - 50000;
+    const pnlClass = pnl >= 0 ? "pos" : "neg";
+    const date = p.t ? new Date(p.t).toLocaleString() : "Start";
+    const tradeRow = p.trade
+      ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd||0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd||0)}</span></div>`
+      : "";
+    _hitRegions["chart-equity"].push({
+      x, y, r: 8,
+      html: `
+        <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${date}</span></div>
+        <div class="tt-row"><span class="tt-label">Balance</span><span class="tt-value">${fmtUsdPlain(p.v)}</span></div>
+        <div class="tt-row"><span class="tt-label">P&L vs start</span><span class="tt-value ${pnlClass}">${fmtUsd(pnl)}</span></div>
+        <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${i}</span></div>
+        ${tradeRow}`,
+    });
+  });
+  _attachTooltip("chart-equity", "tt-equity");
 }
 
 function drawMonthlyPnl(trades) {
   const r = _setupCanvas("chart-monthly"); if (!r) return;
   const { ctx, w, h } = r;
+  _hitRegions["chart-monthly"] = [];
   if (!trades.length) {
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
@@ -304,10 +391,15 @@ function drawMonthlyPnl(trades) {
   trades.forEach(t => {
     const d = new Date(t.ts);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
-    months[key] = (months[key] || 0) + (t.pnl_usd || 0);
+    if (!months[key]) months[key] = { pnl: 0, n: 0, wins: 0, losses: 0 };
+    const p = t.pnl_usd || 0;
+    months[key].pnl += p;
+    months[key].n++;
+    if (p > 0) months[key].wins++;
+    else if (p < 0) months[key].losses++;
   });
   const keys = Object.keys(months).sort();
-  const vals = keys.map(k => months[k]);
+  const vals = keys.map(k => months[k].pnl);
   if (!vals.length) return;
   const padX = 30, padY = 20;
   const maxV = Math.max(...vals.map(Math.abs), 1);
@@ -317,12 +409,27 @@ function drawMonthlyPnl(trades) {
   const yZero = h / 2;
   ctx.beginPath(); ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
   // bars
-  vals.forEach((v, i) => {
+  keys.forEach((k, i) => {
+    const v = months[k].pnl;
     const x = padX + i * bw + 2;
     const bh = (Math.abs(v) / maxV) * (h / 2 - padY);
     ctx.fillStyle = v >= 0 ? "#22d39a" : "#ff5470";
-    if (v >= 0) ctx.fillRect(x, yZero - bh, bw - 4, bh);
-    else ctx.fillRect(x, yZero, bw - 4, bh);
+    const by = v >= 0 ? yZero - bh : yZero;
+    ctx.fillRect(x, by, bw - 4, bh);
+    // hit region for this month
+    const wr = (v >= 0 ? months[k].wins : months[k].losses);
+    const winRate = months[k].n ? months[k].wins / months[k].n : 0;
+    _hitRegions["chart-monthly"].push({
+      x0: x, x1: x + bw - 4,
+      y0: Math.min(by, yZero), y1: Math.max(by + bh, yZero),
+      html: `
+        <div class="tt-row"><span class="tt-label">Month</span><span class="tt-value">${k}</span></div>
+        <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${v >= 0 ? 'pos' : 'neg'}">${fmtUsd(v)}</span></div>
+        <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${months[k].n}</span></div>
+        <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${months[k].wins}</span></div>
+        <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${months[k].losses}</span></div>
+        <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${fmtPct(winRate)}</span></div>`,
+    });
   });
   // x labels (every other if many)
   ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
@@ -330,28 +437,35 @@ function drawMonthlyPnl(trades) {
   keys.forEach((k, i) => {
     if (i % step === 0) ctx.fillText(k.slice(2), padX + i * bw + bw / 2, h - 4);
   });
+  _attachTooltip("chart-monthly", "tt-monthly");
 }
 
 function drawHoldHistogram(trades) {
   const r = _setupCanvas("chart-holds"); if (!r) return;
   const { ctx, w, h } = r;
+  _hitRegions["chart-holds"] = [];
   if (!trades.length) {
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
   }
   const buckets = [
-    { label: "≤10s", lo: 0,    hi: 10,   c: 0 },
-    { label: "10-30s", lo: 10, hi: 30,   c: 0 },
-    { label: "30-60s", lo: 30, hi: 60,   c: 0 },
-    { label: "1-5m",   lo: 60, hi: 300,  c: 0 },
-    { label: "5-30m",  lo: 300, hi: 1800, c: 0 },
-    { label: "30m-2h", lo: 1800, hi: 7200, c: 0 },
-    { label: "2-8h",   lo: 7200, hi: 28800, c: 0 },
+    { label: "≤10s", lo: 0,    hi: 10,   c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "10-30s", lo: 10, hi: 30,   c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "30-60s", lo: 30, hi: 60,   c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "1-5m",   lo: 60, hi: 300,  c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "5-30m",  lo: 300, hi: 1800, c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "30m-2h", lo: 1800, hi: 7200, c: 0, pnl: 0, wins: 0, losses: 0 },
+    { label: "2-8h",   lo: 7200, hi: 28800, c: 0, pnl: 0, wins: 0, losses: 0 },
   ];
   trades.forEach(t => {
     const s = t.hold_s ?? 0;
-    for (const b of buckets) if (s >= b.lo && s < b.hi) { b.c++; break; }
+    const p = t.pnl_usd || 0;
+    for (const b of buckets) if (s >= b.lo && s < b.hi) {
+      b.c++; b.pnl += p;
+      if (p > 0) b.wins++; else if (p < 0) b.losses++;
+      break;
+    }
   });
   const maxC = Math.max(...buckets.map(b => b.c), 1);
   const padX = 30, padY = 30;
@@ -369,12 +483,26 @@ function drawHoldHistogram(trades) {
     // label below
     ctx.fillStyle = "#5d6b85";
     ctx.fillText(b.label, x + (bw - 8) / 2, h - 8);
+    // hit region
+    _hitRegions["chart-holds"].push({
+      x0: x, x1: x + bw - 8,
+      y0: h - padY - bh - 14, y1: h - padY,
+      html: `
+        <div class="tt-row"><span class="tt-label">Bucket</span><span class="tt-value">${b.label}</span></div>
+        <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.c}</span></div>
+        <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
+        <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${b.wins}</span></div>
+        <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${b.losses}</span></div>
+        ${isMicro ? '<div class="tt-row"><span class="tt-label">Lucid</span><span class="tt-value neg">microscalp range</span></div>' : ''}`,
+    });
   });
+  _attachTooltip("chart-holds", "tt-holds");
 }
 
 function drawWinLossHistogram(trades) {
   const r = _setupCanvas("chart-wlhist"); if (!r) return;
   const { ctx, w, h } = r;
+  _hitRegions["chart-wlhist"] = [];
   if (!trades.length) {
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
@@ -383,11 +511,15 @@ function drawWinLossHistogram(trades) {
   const wins = trades.filter(t => (t.pnl_usd || 0) > 0);
   const losses = trades.filter(t => (t.pnl_usd || 0) < 0);
   const padX = 30, padY = 30;
+  const winTotal = wins.reduce((s, t) => s + t.pnl_usd, 0);
+  const lossTotal = losses.reduce((s, t) => s + t.pnl_usd, 0);
   const lanes = [
-    { label: `Wins (${wins.length})`, color: "#22d39a",
-      avg: wins.length ? wins.reduce((s, t) => s + t.pnl_usd, 0) / wins.length : 0 },
-    { label: `Losses (${losses.length})`, color: "#ff5470",
-      avg: losses.length ? losses.reduce((s, t) => s + t.pnl_usd, 0) / losses.length : 0 },
+    { key: "wins", label: `Wins (${wins.length})`, color: "#22d39a",
+      n: wins.length, avg: wins.length ? winTotal / wins.length : 0,
+      total: winTotal, biggest: wins.length ? Math.max(...wins.map(t => t.pnl_usd)) : 0 },
+    { key: "losses", label: `Losses (${losses.length})`, color: "#ff5470",
+      n: losses.length, avg: losses.length ? lossTotal / losses.length : 0,
+      total: lossTotal, biggest: losses.length ? Math.min(...losses.map(t => t.pnl_usd)) : 0 },
   ];
   const maxV = Math.max(...lanes.map(l => Math.abs(l.avg)), 1);
   const bw = (w - 2 * padX) / 2;
@@ -400,7 +532,18 @@ function drawWinLossHistogram(trades) {
     ctx.fillText(fmtUsd(lane.avg), x + (bw - 40) / 2, h - padY - bh - 6);
     ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
     ctx.fillText(lane.label, x + (bw - 40) / 2, h - 10);
+    _hitRegions["chart-wlhist"].push({
+      x0: x, x1: x + bw - 40,
+      y0: h - padY - bh - 20, y1: h - padY,
+      html: `
+        <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value">${lane.key === 'wins' ? 'Wins' : 'Losses'}</span></div>
+        <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${lane.n}</span></div>
+        <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.avg)}</span></div>
+        <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.total)}</span></div>
+        <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.biggest)}</span></div>`,
+    });
   });
+  _attachTooltip("chart-wlhist", "tt-wlhist");
 }
 
 // ---- Master render ------------------------------------------------------
