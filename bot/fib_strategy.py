@@ -60,6 +60,14 @@ MIN_DYNAMIC_MNQ = 1               # floor for Lucid's suggested_n downscale
 # HTF trend filter — only fire setups WITH the higher-timeframe trend.
 # 5-min major pivots at k=10 define the trend; LONG only in UP, SHORT in DOWN.
 HTF_PIVOT_K = 10                  # major-pivot fractal on the 5-min trend bars
+# MSS (Market Structure Shift) invalidation: a trend is invalidated the
+# moment price breaks the most recent minor swing in the opposing direction.
+# We scan for minor (k=MSS_MINOR_K) pivots that formed AFTER the macro
+# pivot and check whether current price has broken them. This unsticks
+# the trend after a reversal that the slow k=10 fractals haven't yet
+# confirmed — exactly the "stale DOWN trend after a V-bottom" case where
+# the bot was firing SHORTs into an active recovery rally.
+MSS_MINOR_K = 3                   # smaller fractal for intra-trend swing detection
 
 # ---------------------------------------------------------------------------
 # Safety constants — Lucid compliance hard gates
@@ -298,20 +306,28 @@ def check_trigger(setup: FibSetup, last_bar: pd.Series) -> bool:
 
 
 def compute_htf_trend(bars_5m: pd.DataFrame) -> str:
-    """Compute the current 5-min trend state from major pivots.
+    """Compute the current 5-min trend state from major pivots, with
+    Market-Structure-Shift (MSS) invalidation layered on top.
 
-    Returns "UP" / "DOWN" / "FLAT". The trend is set by the two most
-    recent confirmed major pivots (k=10 fractals). A higher-low followed
-    by a higher-high = UP; lower-high followed by lower-low = DOWN.
-    Setups whose side disagrees with the trend are rejected at detection."""
+    Returns "UP" / "DOWN" / "FLAT".
+
+    Step 1 — macro trend from major (k=HTF_PIVOT_K) pivots: the last two
+    confirmed major pivots set the leg direction. higher-low → higher-
+    high = UP; lower-high → lower-low = DOWN.
+
+    Step 2 — MSS invalidation: even when the macro trend is set, check
+    whether price has BROKEN STRUCTURE since. After a downtrend's last
+    major low, the FIRST minor (k=MSS_MINOR_K) high formed AFTER that
+    low is the "key swing high" — if current close exceeds it, the
+    downtrend thesis is dead and we return FLAT until a new trend
+    confirms. Mirror logic for an uptrend. This unsticks the trend after
+    fast reversals the slow k=10 fractals haven't yet caught."""
     if len(bars_5m) < 2 * HTF_PIVOT_K + 1:
         return "FLAT"
     h = bars_5m["high"].to_numpy()
     l = bars_5m["low"].to_numpy()
     n = len(bars_5m)
-    # Walk the confirmed pivots in time order, keep only the most recent
-    # one in each direction. The pair (last_low, last_high) defines the
-    # current trend leg.
+    # Step 1: most-recent major pivots
     last_h_val = last_l_val = None
     last_h_src = last_l_src = -1
     for t in range(HTF_PIVOT_K, n - HTF_PIVOT_K):
@@ -323,10 +339,40 @@ def compute_htf_trend(bars_5m: pd.DataFrame) -> str:
     if last_h_val is None or last_l_val is None:
         return "FLAT"
     if last_h_src > last_l_src and last_h_val > last_l_val:
-        return "UP"
-    if last_l_src > last_h_src and last_l_val < last_h_val:
+        macro = "UP"
+    elif last_l_src > last_h_src and last_l_val < last_h_val:
+        macro = "DOWN"
+    else:
+        return "FLAT"
+
+    # Step 2: MSS invalidation — scan for minor pivots formed AFTER the
+    # macro pivot that defined the trend, and check whether current
+    # price has broken them in the opposing direction.
+    current_close = float(bars_5m["close"].iloc[-1])
+    k = MSS_MINOR_K
+    if macro == "DOWN":
+        # After the macro LOW, find the first confirmed minor HIGH. If
+        # price now closes above it, structure is broken → FLAT.
+        scan_start = last_l_src + k + 1
+        for t in range(scan_start, n - k):
+            win_h = h[t - k: t + k + 1]
+            if h[t] == win_h.max():
+                # This is the most recent confirmed minor high after the
+                # macro low — if price closed above it, MSS triggered.
+                if current_close > h[t]:
+                    return "FLAT"
+                # Otherwise the structure still holds; trend is DOWN.
+                return "DOWN"
         return "DOWN"
-    return "FLAT"
+    else:  # macro == "UP"
+        scan_start = last_h_src + k + 1
+        for t in range(scan_start, n - k):
+            win_l = l[t - k: t + k + 1]
+            if l[t] == win_l.min():
+                if current_close < l[t]:
+                    return "FLAT"
+                return "UP"
+        return "UP"
 
 
 # ---------------------------------------------------------------------------

@@ -54,12 +54,22 @@ html, body {
   border-bottom: 1px solid var(--border);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.brand {
+  display: flex; align-items: center; gap: 8px;
+  /* Allow badges to wrap to a second row on narrow screens instead of
+     overflowing horizontally (the bug where "5M DOWN" + "REAL 1M" used
+     to slide off the screen on mobile). */
+  flex-wrap: wrap;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .badge { font-size: 9px; padding: 2px 6px; }
+}
 .brand-mark {
   font-size: 22px; color: var(--cyan);
   text-shadow: 0 0 18px rgba(86, 212, 255, 0.6);
 }
-.brand-text { font-weight: 600; letter-spacing: 0.4px; }
+.brand-text { font-weight: 600; letter-spacing: 0.4px; margin-right: 4px; }
 .badge {
   font-size: 10px; padding: 3px 8px; border-radius: 6px;
   text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;
