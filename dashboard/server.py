@@ -274,27 +274,34 @@ def api_price():
 
 @app.route("/api/candles")
 def api_candles():
-    """NQ=F 5-min bars for the lightweight-charts chart.
+    """NQ=F 1-min bars for the lightweight-charts chart — matches the
+    setup-detection timeframe the bot trades on.
 
-    Strategy: try fresh yfinance first. If yfinance returns data that's
-    more than 30 min stale (common — yfinance often stops updating NQ=F
-    intraday), aggressively merge the CNBC live-bar ledger to bridge the
-    gap. If yfinance fails entirely, fall back to the CNBC ledger alone.
+    Strategy: try fresh 1-min first (Polygon/yfinance via download_nq);
+    fall back to cached on transient failure. If the live 1-min feed is
+    unavailable, fall back to 5-min so the chart still shows something.
     """
     df = None
     yf_age_min = None
+    timeframe_used = "1min"
     try:
-        # Force fresh — yfinance internal cache can hold stale frames
-        df = download_nq("5min", force_refresh=True).tail(500)
+        df = download_nq("1min", force_refresh=True).tail(500)
         if df is not None and not df.empty:
             latest = df.index[-1]
             if latest.tz is None:
                 latest = pd.Timestamp(latest).tz_localize("UTC")
             yf_age_min = (pd.Timestamp.now(tz="UTC") - latest).total_seconds() / 60
     except Exception as e:
-        logger.warning(f"candles fetch failed: {e}")
+        logger.warning(f"1-min candles fetch failed: {e}")
+        try:
+            df = download_nq("1min").tail(500)
+        except Exception:
+            df = None
+    # Last-ditch fallback: 5-min so the chart never goes blank.
+    if df is None or df.empty:
         try:
             df = download_nq("5min").tail(500)
+            timeframe_used = "5min"
         except Exception:
             df = None
 

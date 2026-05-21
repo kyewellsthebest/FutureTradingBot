@@ -131,8 +131,44 @@ class FibRuntime:
         self._bars_1m: Optional[pd.DataFrame] = None
         self._bars_1m_source: str = "synth"   # "real" or "synth"
         self._last_bar_refresh = 0.0
-        # Recent completed trades for dashboard
+        # Recent completed trades for dashboard. Hydrated from the
+        # SQLite trade log on construction so history survives restarts.
         self.recent_trades: deque = deque(maxlen=30)
+        self._hydrate_recent_trades()
+
+    def _hydrate_recent_trades(self) -> None:
+        """Load the last 30 closed trades from persistence so the Trades
+        tab keeps history across bot restarts / Railway redeploys."""
+        try:
+            rows = persistence.load_trades(limit=30, only_closed=True)
+        except Exception as e:
+            logger.warning(f"trade-history hydrate failed: {e}")
+            return
+        # persistence.load_trades returns newest-first ORDER BY entry_time DESC.
+        # Convert each DB row into the dashboard's expected record shape.
+        for row in rows:
+            try:
+                hold_s = 0.0
+                if row.get("entry_time") and row.get("exit_time"):
+                    et = pd.Timestamp(row["entry_time"])
+                    xt = pd.Timestamp(row["exit_time"])
+                    hold_s = (xt - et).total_seconds()
+                rec = {
+                    "ts": row.get("exit_time") or row.get("entry_time"),
+                    "entry_ts": row.get("entry_time"),
+                    "side": row.get("side"),
+                    "n_mnq": int(row.get("qty") or 0),
+                    "entry_px": float(row.get("entry_px") or 0),
+                    "exit_px": float(row.get("exit_px") or 0),
+                    "exit_reason": row.get("exit_reason") or "",
+                    "pnl_usd": float(row.get("pnl") or 0),
+                    "pnl_pts": 0.0,
+                    "hold_s": float(hold_s),
+                }
+                self.recent_trades.append(rec)
+            except Exception as e:
+                logger.debug(f"skip malformed trade row: {e}")
+        logger.info(f"hydrated {len(self.recent_trades)} trade(s) from DB")
 
     def stop(self, *_):
         logger.info("stop received")
@@ -251,14 +287,10 @@ class FibRuntime:
 
     # ---- trade lifecycle hooks ----------------------------------------
     def _on_trade_open(self, trade, now: datetime) -> None:
-        if SHADOW_MODE:
-            logger.info(f"[SHADOW OPEN] {trade.side} {trade.n_mnq} MNQ "
-                        f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
-                        f"tgt={trade.target_px:.2f}")
-            return
-        # Live: open the paper position via LucidAccount.
-        # PaperAccount.enter() applies its own entry slippage internally;
-        # pass the raw fill price and let the account model take it.
+        # Always route through the paper account so balance + DB persist
+        # in both LIVE and SHADOW modes. The mode label only controls
+        # whether we'd ALSO send a real broker order (we never do yet,
+        # so today shadow and live are functionally identical).
         try:
             self.account.enter(
                 signal_name=f"FIB_{trade.side}_{int(trade.setup.level50)}",
@@ -269,25 +301,25 @@ class FibRuntime:
                    max(abs(trade.stop_px - trade.entry_px), 1e-9),
                 now=now,
             )
-            logger.info(f"[LIVE OPEN] {trade.side} {trade.n_mnq} MNQ @ {trade.entry_px:.2f}")
+            tag = "SHADOW" if SHADOW_MODE else "LIVE"
+            logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
+                        f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
+                        f"tgt={trade.target_px:.2f}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
 
     def _on_trade_close(self, record: dict, now: datetime) -> None:
-        if SHADOW_MODE:
-            logger.info(f"[SHADOW CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
-                        f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
-            return
-        # Live: close the paper position. _close() handles balance update,
-        # DB persistence, and the Lucid trail-floor / DLL bookkeeping via
-        # the LucidAccount override.
+        # Always close through the paper account so balance updates and
+        # the trade is persisted to the SQLite DB — surviving restarts.
         adverse = (record["exit_reason"] == "stop")
         try:
             self.account._close(exit_px_raw=record["exit_px"],
                                 reason=record["exit_reason"],
                                 adverse=adverse, now=now)
-            logger.info(f"[LIVE CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f}")
+            tag = "SHADOW" if SHADOW_MODE else "LIVE"
+            logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
+                        f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
