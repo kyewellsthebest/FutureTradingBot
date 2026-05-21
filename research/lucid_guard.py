@@ -240,14 +240,23 @@ def evaluate_trade(
 
     # 7. 40% consistency rule — only blocks new profitable entries when today is
     #    already >= 40% of running total. Losing trades are unaffected.
-    running_total = state.cum_pnl + state.today_pnl
-    if running_total > 0 and state.today_pnl > 0:
-        day_share = state.today_pnl / running_total
-        if day_share >= CONSISTENCY_PCT:
-            return GuardDecision(False,
-                                  f"40% consistency cap: today is {day_share*100:.0f}% of total profit; "
-                                  f"taking more would worsen the ratio",
-                                  "consistency_40pct")
+    #
+    #    GATED by MIN_DAYS_TO_PAYOUT: this rule is a payout-eligibility check
+    #    (no single day can be >=40% of total profits when you go to withdraw),
+    #    not a real-time trading throttle. On day 1 with cum_pnl=0, the very
+    #    first +$1 win makes today's share = 100%, which would block every
+    #    subsequent trade indefinitely. Since payout isn't possible until
+    #    n_trading_days >= MIN_DAYS_TO_PAYOUT, applying this rule before then
+    #    creates an artificial deadlock with no compliance benefit.
+    if state.n_trading_days >= MIN_DAYS_TO_PAYOUT:
+        running_total = state.cum_pnl + state.today_pnl
+        if running_total > 0 and state.today_pnl > 0:
+            day_share = state.today_pnl / running_total
+            if day_share >= CONSISTENCY_PCT:
+                return GuardDecision(False,
+                                      f"40% consistency cap: today is {day_share*100:.0f}% of total profit; "
+                                      f"taking more would worsen the ratio",
+                                      "consistency_40pct")
 
     # 8. Microscalp ratio — block if >50% of profits already came from <=5s holds
     if state.micro_total_profit > 0:

@@ -51,7 +51,7 @@ logger = logging.getLogger("fib_strategy")
 # Strategy parameters — tuned from the 1-min + 5-min-trend backtest
 # ---------------------------------------------------------------------------
 PIVOT_K = 3                       # fractal swing-pivot lookback (1-min bars)
-MIN_LEG_PTS = 5                   # minimum leg size for a tradeable swing
+MIN_LEG_PTS = 15                  # minimum leg size for a tradeable swing
 MAX_SETUP_AGE_BARS = 120          # 1-min bars (=~2 h) before setup expires
 TARGET_REWARD_RATIO = 1.00        # full-pivot target (1:1 RR)
 MAX_HOLD_1M_BARS = 480            # 8 h hard cap on a single trade
