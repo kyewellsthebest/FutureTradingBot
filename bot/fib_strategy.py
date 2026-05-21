@@ -25,9 +25,9 @@ Safety layers (compliance + risk):
      holds. Circuit-breaker disables the strategy if it crosses 40%.
 
 Backtest performance (5 MNQ, 2 yrs REAL 1-min NQ from Polygon, Lucid rules,
-1-min trend filter at k=30, no MSS):
-  ~10.9k trades / 53.2% win rate / +$258k net / max DD -$3.8k
-  Monthly avg: ~$10.7k / Trades/mo: ~456 / PF: 1.43
+1-min trend filter k=30, PIVOT_K=3, MIN_LEG=5, entry-sanity gate):
+  ~17.6k trades / 64.0% win rate / +$460k net / max DD -$3.5k
+  Monthly avg: ~$19.2k / Trades/mo: ~736 / PF: 1.54
 """
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ logger = logging.getLogger("fib_strategy")
 # ---------------------------------------------------------------------------
 # Strategy parameters — tuned from the 1-min + 5-min-trend backtest
 # ---------------------------------------------------------------------------
-PIVOT_K = 5                       # fractal swing-pivot lookback (1-min bars)
-MIN_LEG_PTS = 10                  # minimum leg size for a tradeable swing
+PIVOT_K = 3                       # fractal swing-pivot lookback (1-min bars)
+MIN_LEG_PTS = 5                   # minimum leg size for a tradeable swing
 MAX_SETUP_AGE_BARS = 120          # 1-min bars (=~2 h) before setup expires
 TARGET_REWARD_RATIO = 1.00        # full-pivot target (1:1 RR)
 MAX_HOLD_1M_BARS = 480            # 8 h hard cap on a single trade
