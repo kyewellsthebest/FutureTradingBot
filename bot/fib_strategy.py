@@ -104,6 +104,11 @@ class FibSetup:
     pivot_low_val: float
     level50: float
     expires_at: datetime
+    # Timestamps of the bars where the pivot extremes were FORMED (not
+    # the detection timestamp). The dashboard uses these to anchor the
+    # historical stop/target line segments back to their source candles.
+    pivot_high_ts: Optional[datetime] = None
+    pivot_low_ts: Optional[datetime] = None
     used: bool = False
     # Sticky trigger / lifecycle tracking. The entry condition (price
     # touching level50) is evaluated on EVERY tick, including while another
@@ -300,11 +305,24 @@ def detect_setup(bars_10m: pd.DataFrame, now: datetime) -> Optional[FibSetup]:
         return None
     bars_remaining = MAX_SETUP_AGE_BARS - bars_since_p1_confirm
     expires_at = now + timedelta(minutes=10 * bars_remaining)
+    # Capture the timestamps of the pivot bars so we can later render
+    # historical stop/target line segments anchored to those candles.
+    try:
+        pivot_high_ts = bars_10m.index[h_src].to_pydatetime() \
+                         if hasattr(bars_10m.index[h_src], "to_pydatetime") \
+                         else bars_10m.index[h_src]
+        pivot_low_ts = bars_10m.index[l_src].to_pydatetime() \
+                        if hasattr(bars_10m.index[l_src], "to_pydatetime") \
+                        else bars_10m.index[l_src]
+    except Exception:
+        pivot_high_ts = pivot_low_ts = None
     return FibSetup(
         detected_at=now,
         side=side,
         pivot_high_val=h_val,
         pivot_low_val=l_val,
+        pivot_high_ts=pivot_high_ts,
+        pivot_low_ts=pivot_low_ts,
         level50=(h_val + l_val) / 2.0,
         expires_at=expires_at,
     )
@@ -516,6 +534,12 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
         "pnl_usd": float(pnl_usd),
         "pnl_pts": float(pnl_pts),
         "hold_s": float(trade.hold_seconds(now)),
+        # Levels + pivot anchor timestamps — dashboard uses these to draw
+        # the historical entry/stop/target line segments after the trade.
+        "stop_px": float(trade.stop_px),
+        "target_px": float(trade.target_px),
+        "pivot_high_ts": trade.setup.pivot_high_ts,
+        "pivot_low_ts": trade.setup.pivot_low_ts,
     }
 
 

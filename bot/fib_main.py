@@ -66,6 +66,15 @@ def _setup_logging() -> None:
     logger.setLevel(logging.INFO)
 
 
+def _iso(v):
+    """ISO-format a timestamp-ish value, robust to None / non-datetime."""
+    if v is None: return None
+    if hasattr(v, "isoformat"):
+        try: return v.isoformat()
+        except Exception: pass
+    return str(v)
+
+
 # ---------------------------------------------------------------------------
 # Bar utilities — synthesize 1-min from 5-min for setup detection
 # ---------------------------------------------------------------------------
@@ -350,8 +359,10 @@ class FibRuntime:
                 "funded_accounts": funded_snap,
                 "recent_trades": [
                     {**t,
-                     "ts": t["ts"].isoformat() if hasattr(t["ts"], "isoformat") else str(t["ts"]),
-                     "entry_ts": t["entry_ts"].isoformat() if hasattr(t["entry_ts"], "isoformat") else str(t["entry_ts"])}
+                     "ts": _iso(t.get("ts")),
+                     "entry_ts": _iso(t.get("entry_ts")),
+                     "pivot_high_ts": _iso(t.get("pivot_high_ts")),
+                     "pivot_low_ts": _iso(t.get("pivot_low_ts"))}
                     for t in list(self.recent_trades)[:30]
                 ],
             }

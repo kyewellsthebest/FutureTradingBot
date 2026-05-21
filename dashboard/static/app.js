@@ -61,6 +61,7 @@ async function pollCandles() {
       if (candleSeries && state.candles && Array.isArray(state.candles)) {
         candleSeries.setData(state.candles);
         updateChartMarkers();
+        updateTradeLineSegments();
       }
     }
   } catch (e) {}
@@ -276,6 +277,7 @@ function initChart() {
   if (state.candles) candleSeries.setData(state.candles);
   updateChartMarkers();
   updateSetupLines();
+  updateTradeLineSegments();
   window.addEventListener("resize", () => {
     chart.resize(el.clientWidth, el.clientHeight);
   });
@@ -370,6 +372,85 @@ function updateSetupLines() {
         title: `stop`,
       }));
       _setupLines[key] = lines;
+    } catch (e) { /* series may not be ready */ }
+  });
+}
+
+// Historical trade-level line segments. For each recent closed trade
+// we draw three 2-point horizontal segments:
+//   - STOP   at stop_px, from the pivot bar that FORMED the stop level
+//            (pivot_high candle for SHORT, pivot_low for LONG) to the
+//            bar where the trade actually closed.
+//   - TARGET at target_px, anchored to the OPPOSITE pivot bar, same end.
+//   - ENTRY  at entry_px, from the entry bar to the exit bar.
+// Auto-expires alongside the marker TTL (1 hr) so the chart stays clean.
+const _tradeLineSeries = {};   // keyed by exit timestamp string
+function updateTradeLineSegments() {
+  if (!candleSeries || !chart) return;
+  const trades = (state.data && state.data.recent_trades) || [];
+  const cutoff = Date.now() - MARKER_TTL_MS;
+  const wanted = {};
+  trades.forEach(t => {
+    const exitT = new Date(t.ts).getTime();
+    if (exitT < cutoff) return;
+    if (!t.entry_ts || !t.stop_px || !t.target_px) return;
+    if (!t.pivot_high_ts || !t.pivot_low_ts) return;   // need both anchors
+    wanted[t.ts] = t;
+  });
+  // Remove series for trades that aged out
+  Object.keys(_tradeLineSeries).forEach(key => {
+    if (!wanted[key]) {
+      try {
+        _tradeLineSeries[key].forEach(s => chart.removeSeries(s));
+      } catch (e) {}
+      delete _tradeLineSeries[key];
+    }
+  });
+  // Add series for trades that haven't been drawn yet
+  Object.keys(wanted).forEach(key => {
+    if (_tradeLineSeries[key]) return;
+    const t = wanted[key];
+    const isLong = t.side === "LONG";
+    const stopAnchor = isLong ? t.pivot_low_ts : t.pivot_high_ts;
+    const tgtAnchor = isLong ? t.pivot_high_ts : t.pivot_low_ts;
+    const exitSec = Math.floor(new Date(t.ts).getTime() / 1000);
+    const entrySec = Math.floor(new Date(t.entry_ts).getTime() / 1000);
+    const stopSec = Math.floor(new Date(stopAnchor).getTime() / 1000);
+    const tgtSec = Math.floor(new Date(tgtAnchor).getTime() / 1000);
+    const series = [];
+    try {
+      const stopSeries = chart.addLineSeries({
+        color: "#ff5470", lineWidth: 1, lineStyle: 2,   // dashed
+        priceLineVisible: false, lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      stopSeries.setData([
+        { time: stopSec, value: t.stop_px },
+        { time: exitSec, value: t.stop_px },
+      ]);
+      series.push(stopSeries);
+      const tgtSeries = chart.addLineSeries({
+        color: "#22d39a", lineWidth: 1, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      tgtSeries.setData([
+        { time: tgtSec, value: t.target_px },
+        { time: exitSec, value: t.target_px },
+      ]);
+      series.push(tgtSeries);
+      const entrySeries = chart.addLineSeries({
+        color: isLong ? "#22d39a" : "#ff5470",
+        lineWidth: 2, lineStyle: 0,    // solid
+        priceLineVisible: false, lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      entrySeries.setData([
+        { time: entrySec, value: t.entry_px },
+        { time: exitSec, value: t.entry_px },
+      ]);
+      series.push(entrySeries);
+      _tradeLineSeries[key] = series;
     } catch (e) { /* series may not be ready */ }
   });
 }
@@ -745,4 +826,5 @@ function renderAll() {
   renderPerformanceGraphs();
   updateChartMarkers();
   updateSetupLines();
+  updateTradeLineSegments();
 }
