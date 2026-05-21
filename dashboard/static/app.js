@@ -178,9 +178,23 @@ function renderLive(d) {
 
   // today
   setText("today-fired", d.signals_fired ?? 0);
-  setText("today-closed", (d.recent_trades || []).filter(t =>
-    new Date(t.ts).toDateString() === new Date().toDateString()).length);
+  const todayTrades = (d.recent_trades || []).filter(t =>
+    new Date(t.ts).toDateString() === new Date().toDateString());
+  setText("today-closed", todayTrades.length);
   setText("today-pnl", fmtUsd(acc.today_pnl ?? 0));
+  // Win rate + avg hold (computed from today's recent trades, since
+  // these aren't available in the LucidState snapshot)
+  if (todayTrades.length > 0) {
+    const wins = todayTrades.filter(t => (t.pnl_usd || 0) > 0).length;
+    const wr = wins / todayTrades.length;
+    setText("today-wr", (wr * 100).toFixed(1) + "%");
+    const avgHold = todayTrades.reduce((s, t) => s + (t.hold_s || 0), 0)
+                    / todayTrades.length;
+    setText("today-hold", fmtHold(avgHold));
+  } else {
+    setText("today-wr", "—");
+    setText("today-hold", "—");
+  }
 
   // system
   setText("sys-cycle", d.cycle ?? 0);
@@ -288,6 +302,21 @@ function updateSetupLines() {
     const key = `${s.side}|${s.level50.toFixed(2)}|${stateTag}`;
     wanted[key] = s;
   });
+  // Also draw lines for the ACTIVE TRADE while it's open. These vanish
+  // automatically once active_trade is null (trade closed), leaving the
+  // entry/exit arrow markers behind as the historical record.
+  if (fib.active_trade) {
+    const a = fib.active_trade;
+    wanted[`ACTIVE|${a.entry_px.toFixed(2)}|live`] = {
+      side: a.side,
+      level50: a.entry_px,
+      target_px: a.target_px,
+      stop_px: a.stop_px,
+      entry_armed: true,
+      last_block_reason: null,
+      _is_active: true,
+    };
+  }
   // Remove lines whose setups are no longer pending
   Object.keys(_setupLines).forEach(key => {
     if (!wanted[key]) {
@@ -305,11 +334,16 @@ function updateSetupLines() {
     const tagColor = isLong ? "#22d39a" : "#ff5470";
     const lines = [];
     try {
-      let levelLabel = `Fib 50% ${s.side}`;
-      if (s.last_block_reason) {
-        levelLabel += ` (BLOCKED: ${s.last_block_reason})`;
-      } else if (s.entry_armed) {
-        levelLabel += ` (ARMED)`;
+      let levelLabel;
+      if (s._is_active) {
+        levelLabel = `Entry ${s.side}`;
+      } else {
+        levelLabel = `Fib 50% ${s.side}`;
+        if (s.last_block_reason) {
+          levelLabel += ` (BLOCKED: ${s.last_block_reason})`;
+        } else if (s.entry_armed) {
+          levelLabel += ` (ARMED)`;
+        }
       }
       lines.push(candleSeries.createPriceLine({
         price: s.level50,
@@ -674,15 +708,17 @@ function drawWinLossHistogram(trades) {
       n: losses.length, avg: losses.length ? lossTotal / losses.length : 0,
       total: lossTotal, biggest: losses.length ? Math.min(...losses.map(t => t.pnl_usd)) : 0 },
   ];
-  const maxV = Math.max(...lanes.map(l => Math.abs(l.avg)), 1);
+  // Bar heights + labels show TOTALs (not averages) — totals are the
+  // metric that actually matters (your aggregate profit vs aggregate loss).
+  const maxV = Math.max(...lanes.map(l => Math.abs(l.total)), 1);
   const bw = (w - 2 * padX) / 2;
   lanes.forEach((lane, i) => {
     const x = padX + i * bw + 20;
-    const bh = (Math.abs(lane.avg) / maxV) * (h - 2 * padY);
+    const bh = (Math.abs(lane.total) / maxV) * (h - 2 * padY);
     ctx.fillStyle = lane.color;
     ctx.fillRect(x, h - padY - bh, bw - 40, bh);
     ctx.fillStyle = lane.color; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(fmtUsd(lane.avg), x + (bw - 40) / 2, h - padY - bh - 6);
+    ctx.fillText(fmtUsd(lane.total), x + (bw - 40) / 2, h - padY - bh - 6);
     ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
     ctx.fillText(lane.label, x + (bw - 40) / 2, h - 10);
     _hitRegions["chart-wlhist"].push({

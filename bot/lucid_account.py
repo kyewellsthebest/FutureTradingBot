@@ -57,7 +57,7 @@ LUCID_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "lucid_acco
 # Railway deploy. The bot remembers the last applied serial in the state
 # file; on startup if it doesn't match this constant, _hard_reset_all()
 # runs once, then the new serial is persisted so it won't trigger again.
-RESET_SERIAL = 1
+RESET_SERIAL = 2
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +329,43 @@ class LucidAccount(PaperAccount):
             self._auto_restart(now)
             return result
         # DLL auto-flatten check (informational — main loop will refuse new entries)
+        if self.lucid.today_pnl <= -DLL:
+            logger.warning(f"DLL hit: today P&L ${self.lucid.today_pnl:+.0f} ≤ -${DLL:.0f}; "
+                           f"no new entries until tomorrow")
+        self._save_lucid()
+        return result
+
+    def _close(self, exit_px_raw: float, reason: str,
+                adverse: bool, now: datetime) -> dict:
+        """Override PaperAccount._close to ALSO update Lucid bookkeeping.
+
+        The fib_main flow calls account._close() directly (bypassing
+        check_exit's tick-based simulation), which means without this
+        override the Lucid state (today_pnl, microscalp tracker,
+        trail-floor breach check) is never updated. That's why the
+        dashboard's TODAY P&L stayed at $0 even after losing trades —
+        balance updated, but today_pnl didn't."""
+        self._maybe_roll_eod(now)
+        result = super()._close(exit_px_raw, reason, adverse, now)
+        pnl = float(result.get("pnl", 0.0))
+        self.lucid.today_pnl += pnl
+        # Microscalp tracker (Lucid's >5s hold rule)
+        try:
+            entry_t = pd.Timestamp(result.get("entry_time") or "")
+            exit_t = pd.Timestamp(result.get("exit_time") or "")
+            hold_s = (exit_t - entry_t).total_seconds()
+        except Exception:
+            hold_s = 60.0
+        if pnl > 0:
+            self.lucid.micro_total_profit += pnl
+            if hold_s <= 5:
+                self.lucid.micro_short_profit += pnl
+        # Real-time trail-floor breach check
+        if self.state.balance <= self.lucid.trail_floor:
+            self.lucid.blown = True
+            self.lucid.blow_reason = (
+                f"trail_breach@${self.state.balance:.0f}<=${self.lucid.trail_floor:.0f}"
+            )
         if self.lucid.today_pnl <= -DLL:
             logger.warning(f"DLL hit: today P&L ${self.lucid.today_pnl:+.0f} ≤ -${DLL:.0f}; "
                            f"no new entries until tomorrow")
