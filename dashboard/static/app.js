@@ -262,7 +262,11 @@ function updateSetupLines() {
   const setups = fib.pending_setup_details || [];
   const wanted = {};
   setups.forEach(s => {
-    const key = `${s.side}|${s.level50.toFixed(2)}`;
+    // Include armed/blocked state in the key so the line re-renders
+    // (with a new label) when the setup transitions states.
+    const stateTag = s.last_block_reason ? "blocked"
+                   : s.entry_armed ? "armed" : "pending";
+    const key = `${s.side}|${s.level50.toFixed(2)}|${stateTag}`;
     wanted[key] = s;
   });
   // Remove lines whose setups are no longer pending
@@ -282,13 +286,19 @@ function updateSetupLines() {
     const tagColor = isLong ? "#22d39a" : "#ff5470";
     const lines = [];
     try {
+      let levelLabel = `Fib 50% ${s.side}`;
+      if (s.last_block_reason) {
+        levelLabel += ` (BLOCKED: ${s.last_block_reason})`;
+      } else if (s.entry_armed) {
+        levelLabel += ` (ARMED)`;
+      }
       lines.push(candleSeries.createPriceLine({
         price: s.level50,
         color: tagColor,
         lineWidth: 2,
         lineStyle: 0,   // solid
         axisLabelVisible: true,
-        title: `Fib 50% ${s.side}`,
+        title: levelLabel,
       }));
       lines.push(candleSeries.createPriceLine({
         price: s.target_px,

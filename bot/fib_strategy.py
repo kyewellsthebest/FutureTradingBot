@@ -73,6 +73,17 @@ class FibSetup:
     level50: float
     expires_at: datetime
     used: bool = False
+    # Sticky trigger / lifecycle tracking. The entry condition (price
+    # touching level50) is evaluated on EVERY tick, including while another
+    # trade is open, so a 50% touch that happens during another trade's
+    # lifetime isn't lost. Once armed, the setup fires on the next tick
+    # active_trade is None.
+    entry_armed: bool = False
+    fire_attempted: bool = False  # set True after first trigger-loop pass
+    peak_high: float = -1e18      # max bar.high seen since detection
+    peak_low: float = 1e18        # min bar.low seen since detection
+    last_block_reason: Optional[str] = None
+    last_block_at: Optional[datetime] = None
 
     @property
     def leg_pts(self) -> float:
@@ -88,6 +99,54 @@ class FibSetup:
     @property
     def stop_px(self) -> float:
         return self.pivot_high_val if self.side == "SHORT" else self.pivot_low_val
+
+    def update_from_bar(self, bar: pd.Series) -> None:
+        """Update peak high/low and arm the entry trigger if level50 was
+        touched. Safe to call on every tick — including while another
+        trade is open."""
+        self.peak_high = max(self.peak_high, float(bar["high"]))
+        self.peak_low = min(self.peak_low, float(bar["low"]))
+        if not self.entry_armed:
+            if self.side == "SHORT" and self.peak_high >= self.level50:
+                self.entry_armed = True
+            elif self.side == "LONG" and self.peak_low <= self.level50:
+                self.entry_armed = True
+
+    def target_reached(self) -> bool:
+        if self.side == "LONG":
+            return self.peak_high >= self.target_px
+        return self.peak_low <= self.target_px
+
+    def stop_reached(self) -> bool:
+        if self.side == "LONG":
+            return self.peak_low <= self.stop_px
+        return self.peak_high >= self.stop_px
+
+    def is_invalidated(self) -> bool:
+        """Drop the setup from the watch list when its thesis is moot.
+
+        Pre-arm (price never touched level50): invalidate as soon as
+        target or stop is reached — the swing happened without us.
+
+        Post-arm (level50 was touched but we haven't fired yet, e.g.
+        because another trade was open or Lucid was blocking): give the
+        setup at least one trigger-loop pass before allowing
+        invalidation. Otherwise a wide bar that spans both level50 AND
+        the target on the SAME tick would arm the setup and immediately
+        invalidate it — we'd never get a fire attempt."""
+        if self.used:
+            return False
+        if not self.fire_attempted:
+            # Pre-arm: only invalidate if target/stop reached without a
+            # 50% touch ever happening.
+            if not self.entry_armed:
+                return self.target_reached() or self.stop_reached()
+            # Armed but not yet attempted (active_trade was open this
+            # tick) — keep alive so next tick can fire.
+            return False
+        # We've had at least one fire attempt. Invalidate if price has
+        # moved past target or stop in the meantime.
+        return self.target_reached() or self.stop_reached()
 
 
 @dataclass
@@ -407,6 +466,20 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     if state.circuit_breaker_tripped:
         return None
 
+    # Update peak high/low and arm-state for ALL pending setups, EVERY
+    # tick — even while another trade is open. This makes the entry
+    # trigger sticky: a level50 touch that happens during another trade's
+    # lifetime gets remembered and fires once active_trade clears.
+    for setup in state.pending_setups:
+        if setup.used:
+            continue
+        was_armed = setup.entry_armed
+        setup.update_from_bar(last_1m_bar)
+        if setup.entry_armed and not was_armed:
+            logger.info("[ARMED] %s level50=%.2f (peak_h=%.2f peak_l=%.2f)",
+                        setup.side, setup.level50,
+                        setup.peak_high, setup.peak_low)
+
     # 1. manage active trade first
     if state.active_trade is not None:
         result = should_exit(state.active_trade, last_1m_bar, now)
@@ -437,30 +510,57 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             # already in pending list as well
             new_setup = None
         else:
+            # Seed extremes with the bar that detected the setup, so a
+            # setup that's confirmed AT a level50 touch (the pivot was
+            # k=5 bars ago, price has since moved) arms immediately.
+            new_setup.update_from_bar(last_1m_bar)
             state.pending_setups.append(new_setup)
-            logger.debug("[SETUP] %s level50=%.2f leg=%.1fpts",
-                         new_setup.side, new_setup.level50, new_setup.leg_pts)
+            logger.debug("[SETUP] %s level50=%.2f leg=%.1fpts armed=%s",
+                         new_setup.side, new_setup.level50,
+                         new_setup.leg_pts, new_setup.entry_armed)
 
-    # 3. expire stale setups
-    state.pending_setups = [s for s in state.pending_setups
-                             if s.expires_at > now and not s.used]
-
-    # 4. check triggers against the latest 1-min bar
-    for setup in state.pending_setups:
-        if not check_trigger(setup, last_1m_bar):
+    # 3. expire stale setups + drop pre-entry invalidations (price already
+    #    reached target or stop without us ever firing).
+    fresh: list[FibSetup] = []
+    for s in state.pending_setups:
+        if s.used or s.expires_at <= now:
             continue
+        if s.is_invalidated():
+            why = "target" if s.target_reached() else "stop"
+            logger.info("[INVALID] %s level50=%.2f — price reached %s "
+                        "before entry (peak_h=%.2f peak_l=%.2f tgt=%.2f "
+                        "stop=%.2f)", s.side, s.level50, why,
+                        s.peak_high, s.peak_low, s.target_px, s.stop_px)
+            continue
+        fresh.append(s)
+    state.pending_setups = fresh
+
+    # 4. fire any armed setup. We iterate every tick (not just the bar a
+    #    setup arms on) so Lucid blocks naturally retry until the setup
+    #    fires, invalidates, or expires.
+    for setup in state.pending_setups:
+        if not setup.entry_armed:
+            continue
+        setup.fire_attempted = True   # gate post-arm invalidation
         # Lucid pre-check
         decision = lucid_precheck(setup, n_mnq, lucid)
         if not decision.allowed:
-            logger.info("[BLOCKED] Lucid: %s", decision.reason)
-            setup.used = True
-            state.recent_used_setups.append(_setup_key(setup))
+            # DON'T mark used — Lucid limits can shift across the day
+            # (DLL window, trail-floor changes). Setup keeps retrying on
+            # subsequent ticks until it fires, gets invalidated by price,
+            # or expires. Surface the block reason on the dashboard.
+            if decision.reason != setup.last_block_reason:
+                logger.info("[BLOCKED] %s level50=%.2f reason=%s",
+                            setup.side, setup.level50, decision.reason)
+            setup.last_block_reason = decision.reason
+            setup.last_block_at = now
             continue
         # entry at this bar's close — closest realistic fill
         entry_px = float(last_1m_bar["close"])
         new_trade = open_trade(setup, n_mnq, entry_px, now)
         if new_trade is None:
-            # geometry guard tripped — already logged; skip this setup
+            # geometry guard tripped — already logged; this is structural,
+            # mark used so we don't keep retrying.
             setup.used = True
             state.recent_used_setups.append(_setup_key(setup))
             continue
@@ -514,6 +614,11 @@ def snapshot(state: FibStrategyState,
             "pivot_low_val": s.pivot_low_val,
             "target_px": s.target_px,
             "stop_px": s.stop_px,
+            "entry_armed": s.entry_armed,
+            "last_block_reason": s.last_block_reason,
+            "last_block_at": s.last_block_at.isoformat()
+                if s.last_block_at and hasattr(s.last_block_at, "isoformat")
+                else None,
             "detected_at": s.detected_at.isoformat()
                 if hasattr(s.detected_at, "isoformat") else str(s.detected_at),
             "expires_at": s.expires_at.isoformat()
