@@ -14,20 +14,21 @@ Sizing       : 5 MNQ default with Lucid `suggested_n` auto-downscale
 Safety layers (compliance + risk):
   1. Lucid pre-trade gates — DLL and trail-floor checks before every entry,
      with auto-downscale via the precheck's suggested_n.
-  2. 1-min HTF trend filter (k=30) — longs only fire when the 1-min
-     trend is UP, shorts only when DOWN. Same-timeframe trend reacts
-     in ~30 min, so it doesn't lag a fast reversal the way the older
-     5-min filter did. Backtested PF 1.43 on real 1-min data vs 1.26
-     with the 5-min + MSS variant we replaced.
+  2. 1-min HTF trend is COMPUTED for the dashboard badge but is NOT
+     used to filter setups. User wants every structurally-valid Fib
+     setup to fire regardless of trend reading.  The filter blocked
+     real opportunities during trend transitions; removing it costs
+     PF (1.98 → 1.52) but raises monthly P&L (+$25.9k → +$37.0k) and
+     never misses a setup the structural filter would have allowed.
   3. Hard 10-second min hold on TARGET exits — keeps trades out of Lucid's
      microscalp bucket. Stops always fire immediately (no profit to track).
   4. Live microscalp ratio tracker — rolling 30-day % of profit from ≤5s
      holds. Circuit-breaker disables the strategy if it crosses 40%.
 
 Backtest performance (5 MNQ, 2 yrs REAL 1-min NQ from Polygon, Lucid rules,
-1-min trend filter HTF_K=5, PIVOT_K=3, MIN_LEG=5, entry-sanity gate):
-  ~16.0k trades / 68.2% win rate / +$622k net / max DD -$3.5k
-  Monthly avg: ~$25.9k / Trades/mo: ~669 / PF: 1.98
+PIVOT_K=3, MIN_LEG=5, entry-sanity gate, NO HTF filter):
+  ~34.6k trades / 63.5% win rate / +$886k net / max DD -$4.1k
+  Monthly avg: ~$37.0k / Trades/mo: ~1,444 / PF: 1.52
 """
 from __future__ import annotations
 
@@ -605,11 +606,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     new_setup = detect_setup(bars_setup, now)
     if new_setup is not None:
         key = _setup_key(new_setup)
-        # HTF trend filter — LONG only when 5-min trend is UP, SHORT
-        # only when 5-min trend is DOWN. FLAT (no clear trend) blocks
-        # everything. This is the filter that lifted PF 2.39 -> 2.55 in
-        # backtest.
-        if bars_trend is not None:
+        # HTF trend is computed and published for the dashboard badge,
+        # but it NO LONGER blocks setup acceptance — the user wants every
+        # structurally-valid Fib setup to fire regardless of where the
+        # trend reading currently sits. The structural filter (PIVOT_K=3
+        # confirmed swing) + entry-sanity gate (must have >=25% of leg
+        # as risk-room) + Lucid precheck are the remaining safeguards.
+        if False:  # (HTF filter disabled — see comment above)
             if (state.htf_trend == "UP" and new_setup.side != "LONG") or \
                (state.htf_trend == "DOWN" and new_setup.side != "SHORT") or \
                (state.htf_trend == "FLAT"):
