@@ -106,7 +106,7 @@ function renderTopbar(d) {
   const htf = fib.htf_trend || "FLAT";
   const htfEl = document.getElementById("badge-htf");
   if (htfEl) {
-    htfEl.textContent = "5m " + htf;
+    htfEl.textContent = "1m " + htf;
     htfEl.className = "badge badge-htf " +
       (htf === "UP" ? "htf-up" : htf === "DOWN" ? "htf-down" : "htf-flat");
   }

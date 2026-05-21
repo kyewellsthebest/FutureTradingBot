@@ -15,7 +15,7 @@
       <span class="brand-text">Futures Trading Bot</span>
       <span class="badge badge-version" id="badge-version">fib</span>
       <span class="badge badge-mode" id="badge-mode">shadow</span>
-      <span class="badge badge-htf htf-flat" id="badge-htf">5m FLAT</span>
+      <span class="badge badge-htf htf-flat" id="badge-htf">1m FLAT</span>
       <span class="badge badge-src src-synth" id="badge-src">synth 1m</span>
     </div>
     <div class="topbar-stats">
@@ -127,8 +127,8 @@
         <div class="card">
           <div class="card-header">Strategy Rules</div>
           <div class="card-body kv-list">
-            <div class="kv-row"><span>Entry timeframe</span><b>1-min bars (synth from 5-min Polygon)</b></div>
-            <div class="kv-row"><span>Trend filter</span><b>5-min HTF — LONG only in UP, SHORT only in DOWN</b></div>
+            <div class="kv-row"><span>Entry timeframe</span><b>1-min bars (real Polygon when available, synth fallback)</b></div>
+            <div class="kv-row"><span>Trend filter</span><b>1-min HTF at k=30 — LONG only in UP, SHORT only in DOWN</b></div>
             <div class="kv-row"><span>Side direction</span><b>With HTF trend (retracement entry, trend-following bias)</b></div>
             <div class="kv-row"><span>Target</span><b>Full prior pivot (1:1 planned RR)</b></div>
             <div class="kv-row"><span>Stop</span><b>Original swing extreme (structural)</b></div>
@@ -139,16 +139,15 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-header">Backtest Reference (2 years NQ + 5-min trend filter)</div>
+          <div class="card-header">Backtest Reference (2 years REAL 1-min NQ from Polygon)</div>
           <div class="card-body kv-list">
-            <div class="kv-row"><span>Total trades</span><b>22,610</b></div>
-            <div class="kv-row"><span>Trades / day</span><b>~36 average (1-73 range)</b></div>
-            <div class="kv-row"><span>Win rate</span><b>58.6%</b></div>
-            <div class="kv-row"><span>Profit factor</span><b>2.55</b></div>
-            <div class="kv-row"><span>Avg hold</span><b>7 min</b></div>
-            <div class="kv-row"><span>Monthly avg (synth)</span><b>~$61k (real expectation $30-50k)</b></div>
-            <div class="kv-row"><span>Max drawdown</span><b>−$4,728</b></div>
-            <div class="kv-row"><span>Worst week</span><b>+$928 (positive even in chop)</b></div>
+            <div class="kv-row"><span>Total trades</span><b>10,941</b></div>
+            <div class="kv-row"><span>Trades / month</span><b>~456</b></div>
+            <div class="kv-row"><span>Win rate</span><b>53.2%</b></div>
+            <div class="kv-row"><span>Profit factor</span><b>1.43</b></div>
+            <div class="kv-row"><span>Monthly avg</span><b>+$10,767</b></div>
+            <div class="kv-row"><span>Max drawdown</span><b>−$3,820</b></div>
+            <div class="kv-row"><span>Compared to 10-min Fib</span><b>2.6× more trades, 24% smaller DD</b></div>
           </div>
         </div>
       </div>

@@ -230,9 +230,14 @@ class FibRuntime:
         # The fib strategy reads a research/lucid_guard.LucidState — the
         # bot's LucidAccount has a helper to build that on demand.
         runtime_lucid = self.account._build_runtime_lucid_state()
+        # bars_trend is the same 1-min series as bars_setup — the HTF
+        # filter now runs on 1-min bars with k=30 (~30 min confirmation)
+        # instead of 5-min k=10 (~50 min). Same-timeframe trend reacts
+        # faster than the older 5-min variant and dropped PF 1.26 -> 1.43
+        # in real-data backtest.
         record = on_new_1m_bar(self.state, runtime_lucid,
                                self._bars_1m, last_1m, now,
-                               n_mnq=N_MNQ, bars_trend=self._bars_5m)
+                               n_mnq=N_MNQ, bars_trend=self._bars_1m)
 
         # Trade opened this tick?
         if not had_trade_before and self.state.active_trade is not None:
