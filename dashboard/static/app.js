@@ -297,11 +297,7 @@ function updateSetupLines() {
   const setups = fib.pending_setup_details || [];
   const wanted = {};
   setups.forEach(s => {
-    // Include armed/blocked state in the key so the line re-renders
-    // (with a new label) when the setup transitions states.
-    const stateTag = s.last_block_reason ? "blocked"
-                   : s.entry_armed ? "armed" : "pending";
-    const key = `${s.side}|${s.level50.toFixed(2)}|${stateTag}`;
+    const key = `${s.side}|${s.level50.toFixed(2)}|pending`;
     wanted[key] = s;
   });
   // Also draw lines for the ACTIVE TRADE while it's open. These vanish
@@ -340,12 +336,11 @@ function updateSetupLines() {
       if (s._is_active) {
         levelLabel = `Entry ${s.side}`;
       } else {
-        levelLabel = `Fib 50% ${s.side}`;
-        if (s.last_block_reason) {
-          levelLabel += ` (BLOCKED: ${s.last_block_reason})`;
-        } else if (s.entry_armed) {
-          levelLabel += ` (ARMED)`;
-        }
+        // Whether the setup is just waiting for price to touch level50
+        // or has been temporarily blocked by Lucid, the user only wants
+        // to see "Entry Pending" on the chart — the verbose technical
+        // reason (DLL room, consistency cap, etc) stays in the logs.
+        levelLabel = `Entry Pending`;
       }
       lines.push(candleSeries.createPriceLine({
         price: s.level50,
