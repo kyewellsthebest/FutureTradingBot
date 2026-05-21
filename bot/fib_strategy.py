@@ -59,6 +59,17 @@ MAX_HOLD_1M_BARS = 480            # 8 h hard cap on a single trade
 DEFAULT_SIZE = 5                  # MNQ contracts (5 MNQ for Lucid 50K Pro)
 MIN_DYNAMIC_MNQ = 1               # floor for Lucid's suggested_n downscale
 
+# Entry-sanity gate: when the trigger condition fires, the bot enters at
+# the LATEST 1-min bar's CLOSE — but that close can be far past level50
+# if price ripped through it inside the bar (a fast retrace + continuation).
+# Without this gate, the bot fires SHORTs where entry is 1 pt away from
+# the stop, which then takes 1 bar to stop out (the live -$15 / 6-sec
+# trade the user flagged). We require the actual entry-to-stop distance
+# to be at least MIN_ENTRY_RISK_FRAC of the swing leg — if not, this
+# tick is skipped and the setup keeps watching for a better fill on a
+# subsequent bar where price comes back into the valid retrace zone.
+MIN_ENTRY_RISK_FRAC = 0.25        # entry must leave >= 25% of leg as risk-room
+
 # HTF trend filter — same-timeframe (1-min) trend gate. The trend is
 # defined by the most recent two major (k=HTF_PIVOT_K) pivots on the
 # SAME 1-min bars used for setup detection, so the filter reacts at the
@@ -656,6 +667,23 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             continue
         # entry at this bar's close — closest realistic fill
         entry_px = float(last_1m_bar["close"])
+        # Entry-sanity gate: if price has already ripped past level50 toward
+        # the stop, the trade has almost no risk-room and gets stopped out
+        # in the next bar (the user's -$15/6-sec SHORT case). Skip this
+        # tick — DON'T mark used, so the setup keeps watching. If price
+        # retraces back into the valid zone we'll fire properly; if it
+        # never does, the setup expires or invalidates safely with no
+        # trade.
+        actual_risk = abs(setup.stop_px - entry_px)
+        min_risk = setup.leg_pts * MIN_ENTRY_RISK_FRAC
+        if actual_risk < min_risk:
+            logger.info("[SKIP-TICK] %s level50=%.2f — entry %.2f only "
+                        "%.1fpts from stop %.2f (min %.1fpts = %.0f%% of "
+                        "leg %.1fpts); waiting for better fill",
+                        setup.side, setup.level50, entry_px, actual_risk,
+                        setup.stop_px, min_risk,
+                        MIN_ENTRY_RISK_FRAC * 100, setup.leg_pts)
+            continue
         new_trade = open_trade(setup, size_to_use, entry_px, now)
         if new_trade is None:
             # geometry guard tripped — already logged; this is structural,
