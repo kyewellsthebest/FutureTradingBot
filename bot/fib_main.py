@@ -67,12 +67,37 @@ def _setup_logging() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Bar utilities — resample 5-min source to 10-min and 1-min
+# Bar utilities — synthesize 1-min from 5-min for setup detection
 # ---------------------------------------------------------------------------
-def _to_10min(bars_5m: pd.DataFrame) -> pd.DataFrame:
-    return bars_5m.resample("10min").agg({
-        "open": "first", "high": "max", "low": "min",
-        "close": "last", "volume": "sum"}).dropna()
+def _synth_1min_from_5min(bars_5m: pd.DataFrame) -> pd.DataFrame:
+    """Synthesize 1-min OHLCV by walking a deterministic O→{L|H}→mid→{H|L}→C
+    path inside each 5-min bar (up bars dip to L early, peak at H late;
+    down bars do the opposite). Preserves the parent 5-min OHLC exactly
+    across each 5-bar block. This matches the backtest synthesis path
+    so live behavior mirrors the validated numbers."""
+    if bars_5m is None or bars_5m.empty:
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+    o = bars_5m["open"].to_numpy()
+    h = bars_5m["high"].to_numpy()
+    l = bars_5m["low"].to_numpy()
+    c = bars_5m["close"].to_numpy()
+    v = bars_5m["volume"].to_numpy()
+    idx = bars_5m.index
+    rows = []
+    for i in range(len(bars_5m)):
+        if c[i] >= o[i]:
+            wp = [o[i], l[i], (l[i] + h[i]) / 2, h[i], c[i]]
+        else:
+            wp = [o[i], h[i], (h[i] + l[i]) / 2, l[i], c[i]]
+        ts = idx[i]
+        for k in range(5):
+            so = wp[k]
+            sc = wp[k + 1] if k + 1 < len(wp) else c[i]
+            rows.append((ts + pd.Timedelta(minutes=k),
+                          so, max(so, sc), min(so, sc), sc, v[i] / 5))
+    df = pd.DataFrame(rows, columns=["ts", "open", "high", "low",
+                                      "close", "volume"])
+    return df.set_index("ts")
 
 
 def _build_last_1m_from_price(monitor_snap, last_5m_close: float) -> pd.Series:
@@ -99,9 +124,12 @@ class FibRuntime:
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
-        # Cache fetched 10-min bars; refresh every 60s when flat
-        self._bars_10m: Optional[pd.DataFrame] = None
-        self._last_10m_refresh = 0.0
+        # Cache fetched 5-min bars + synthesized 1-min; refresh every 60s when flat.
+        # 1-min = setup detection timeframe (synthesized from 5-min source).
+        # 5-min = HTF trend filter timeframe (raw Polygon data).
+        self._bars_5m: Optional[pd.DataFrame] = None
+        self._bars_1m: Optional[pd.DataFrame] = None
+        self._last_bar_refresh = 0.0
         # Recent completed trades for dashboard
         self.recent_trades: deque = deque(maxlen=30)
 
@@ -114,7 +142,9 @@ class FibRuntime:
         _setup_logging()
         sync_clock()
         mode = "SHADOW (no orders)" if SHADOW_MODE else "LIVE"
-        logger.info(f"[fib_main] starting — {mode} mode, size={N_MNQ} MNQ, "
+        logger.info(f"[fib_main] starting — {mode} mode, "
+                    f"strategy=Fib 50% (1-min setup + 5-min HTF trend), "
+                    f"size={N_MNQ} MNQ default, "
                     f"min_target_hold={MIN_TARGET_HOLD_SECONDS}s, "
                     f"circuit_breaker_threshold={MICROSCALP_HARD_THRESHOLD*100:.0f}%")
         self.monitor.start()
@@ -150,28 +180,32 @@ class FibRuntime:
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 
-        # Refresh 10-min bars at most every 60s
+        # Refresh 5-min + synthesized 1-min bars at most every 60s
         tnow = time.time()
-        if self._bars_10m is None or tnow - self._last_10m_refresh > 60:
+        if self._bars_5m is None or tnow - self._last_bar_refresh > 60:
             try:
                 nq5 = download_nq("5min")
                 if nq5 is not None and not nq5.empty:
                     if nq5.index.tz is None:
                         nq5.index = nq5.index.tz_localize("UTC")
-                    self._bars_10m = _to_10min(nq5)
-                    self._last_10m_refresh = tnow
+                    self._bars_5m = nq5
+                    self._bars_1m = _synth_1min_from_5min(nq5)
+                    self._last_bar_refresh = tnow
             except Exception as e:
-                logger.warning(f"10-min refresh failed: {e}")
-                if self._bars_10m is None:
+                logger.warning(f"bar refresh failed: {e}")
+                if self._bars_5m is None:
                     return
 
-        if self._bars_10m is None or self._bars_10m.empty:
+        if self._bars_5m is None or self._bars_5m.empty:
+            return
+        if self._bars_1m is None or self._bars_1m.empty:
             return
 
-        # Synthesize a 1-min bar from the price-monitor's accumulated
-        # tick high/low. Tight enough for exit timing (5s tick when in trade).
-        last_10m_close = float(self._bars_10m["close"].iloc[-1])
-        last_1m = _build_last_1m_from_price(snap, last_10m_close)
+        # Synthesize the live 1-min bar from accumulated tick high/low.
+        # Used for exit-detection precision (tight when in-trade) and to
+        # arm/invalidate pending setups against very recent price.
+        last_5m_close = float(self._bars_5m["close"].iloc[-1])
+        last_1m = _build_last_1m_from_price(snap, last_5m_close)
 
         self.bars_processed += 1
         had_trade_before = self.state.active_trade is not None
@@ -179,7 +213,8 @@ class FibRuntime:
         # bot's LucidAccount has a helper to build that on demand.
         runtime_lucid = self.account._build_runtime_lucid_state()
         record = on_new_1m_bar(self.state, runtime_lucid,
-                               self._bars_10m, last_1m, now, n_mnq=N_MNQ)
+                               self._bars_1m, last_1m, now,
+                               n_mnq=N_MNQ, bars_trend=self._bars_5m)
 
         # Trade opened this tick?
         if not had_trade_before and self.state.active_trade is not None:
@@ -246,7 +281,7 @@ class FibRuntime:
             blob = {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "shadow" if SHADOW_MODE else "live",
-                "strategy": "Fib 50% retracement (10-min/5 MNQ)",
+                "strategy": "Fib 50% (1-min entries + 5-min HTF trend filter)",
                 "cycle": self.cycle,
                 "last_error": self.last_error,
                 "bars_processed": self.bars_processed,

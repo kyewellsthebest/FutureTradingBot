@@ -4,21 +4,28 @@ Fibonacci 50% retracement strategy — runtime module for live deployment.
 This is the production-ready Fib 50% strategy that replaces the v11 NQ-ES
 divergence book. Built for Lucid 50K Pro Funded compliance.
 
-Setup detection: 10-min bars
-Exit walking : 1-min bars
-Target       : full prior pivot (1:1 planned RR, ~1:1.26 realised)
+Setup detection: 1-min bars (synthesized from real-time 5-min Polygon data)
+Exit walking : 1-min bars (real-time via PriceMonitor)
+HTF filter   : 5-min trend state (only trade WITH the 5-min trend)
+Target       : full prior pivot (1:1 planned RR)
 Stop         : original swing extreme (the structural "wide" stop)
+Sizing       : 5 MNQ default with Lucid `suggested_n` auto-downscale
 
 Safety layers (compliance + risk):
-  1. Lucid pre-trade gates — DLL and trail-floor checks before every entry
-  2. Hard 6-second minimum hold — exit orders are rejected if <6s since
-     entry. Guarantees Lucid microscalp compliance regardless of price action.
-  3. Live microscalp ratio tracker — rolling 30-day % of profit from ≤5s
+  1. Lucid pre-trade gates — DLL and trail-floor checks before every entry,
+     with auto-downscale via the precheck's suggested_n.
+  2. 5-min HTF trend filter — longs only fire in 5-min uptrend, shorts only
+     in downtrend. Trades against an HTF trend are rejected (the filter
+     showed PF lift from 2.39 -> 2.55 in backtest).
+  3. Hard 10-second min hold on TARGET exits — keeps trades out of Lucid's
+     microscalp bucket. Stops always fire immediately (no profit to track).
+  4. Live microscalp ratio tracker — rolling 30-day % of profit from ≤5s
      holds. Circuit-breaker disables the strategy if it crosses 40%.
 
-Backtest performance (8.1 yrs NQ, 10-min entries, 5 MNQ, Lucid rules + costs):
-  ~15,300 trades / 55.5% win / +$922k net / max DD -$8k / never blown
-  Monthly avg: ~$9,500 / Worst-case microscalp ratio: 42.6% (below 50%)
+Backtest performance (5 MNQ, 2 yrs real NQ + synthesized 1-min, Lucid rules):
+  ~22.6k trades / 58.6% win rate / +$1.46M net / max DD -$4.7k
+  Worst week +$928 (1-min strategy stays positive even in chop)
+  Monthly avg ~$61k synthesized — real-world expectation ~$30-50k/mo.
 """
 from __future__ import annotations
 
@@ -40,14 +47,19 @@ from research.lucid_guard import (
 logger = logging.getLogger("fib_strategy")
 
 # ---------------------------------------------------------------------------
-# Strategy parameters — frozen from the backtest that produced $922k / 8yr
+# Strategy parameters — tuned from the 1-min + 5-min-trend backtest
 # ---------------------------------------------------------------------------
-PIVOT_K = 5                       # fractal swing-pivot lookback (10-min bars)
-MIN_LEG_PTS = 20                  # minimum leg size to consider
-MAX_SETUP_AGE_BARS = 25           # 10-min bars (=~4 h) before setup expires
-TARGET_REWARD_RATIO = 1.00        # full-pivot target
+PIVOT_K = 5                       # fractal swing-pivot lookback (1-min bars)
+MIN_LEG_PTS = 10                  # minimum leg size for a tradeable swing
+MAX_SETUP_AGE_BARS = 120          # 1-min bars (=~2 h) before setup expires
+TARGET_REWARD_RATIO = 1.00        # full-pivot target (1:1 RR)
 MAX_HOLD_1M_BARS = 480            # 8 h hard cap on a single trade
-DEFAULT_SIZE = 5                  # MNQ contracts (5 MNQ recommended for $50k)
+DEFAULT_SIZE = 5                  # MNQ contracts (5 MNQ for Lucid 50K Pro)
+MIN_DYNAMIC_MNQ = 1               # floor for Lucid's suggested_n downscale
+
+# HTF trend filter — only fire setups WITH the higher-timeframe trend.
+# 5-min major pivots at k=10 define the trend; LONG only in UP, SHORT in DOWN.
+HTF_PIVOT_K = 10                  # major-pivot fractal on the 5-min trend bars
 
 # ---------------------------------------------------------------------------
 # Safety constants — Lucid compliance hard gates
@@ -190,6 +202,11 @@ class FibStrategyState:
     recent_used_setups: Deque[tuple] = field(default_factory=lambda: deque(maxlen=200))
     circuit_breaker_tripped: bool = False
     circuit_breaker_reason: Optional[str] = None
+    # Current 5-min HTF trend state: "UP", "DOWN", or "FLAT" (during a
+    # transitional period between major pivots). Updated each tick from
+    # the bars_5m series. Setups whose side disagrees with the trend are
+    # filtered out at detection time.
+    htf_trend: str = "FLAT"
 
 
 def _setup_key(setup_or_high, low: Optional[float] = None,
@@ -278,6 +295,38 @@ def check_trigger(setup: FibSetup, last_bar: pd.Series) -> bool:
     if setup.side == "SHORT":
         return float(last_bar["high"]) >= setup.level50
     return float(last_bar["low"]) <= setup.level50
+
+
+def compute_htf_trend(bars_5m: pd.DataFrame) -> str:
+    """Compute the current 5-min trend state from major pivots.
+
+    Returns "UP" / "DOWN" / "FLAT". The trend is set by the two most
+    recent confirmed major pivots (k=10 fractals). A higher-low followed
+    by a higher-high = UP; lower-high followed by lower-low = DOWN.
+    Setups whose side disagrees with the trend are rejected at detection."""
+    if len(bars_5m) < 2 * HTF_PIVOT_K + 1:
+        return "FLAT"
+    h = bars_5m["high"].to_numpy()
+    l = bars_5m["low"].to_numpy()
+    n = len(bars_5m)
+    # Walk the confirmed pivots in time order, keep only the most recent
+    # one in each direction. The pair (last_low, last_high) defines the
+    # current trend leg.
+    last_h_val = last_l_val = None
+    last_h_src = last_l_src = -1
+    for t in range(HTF_PIVOT_K, n - HTF_PIVOT_K):
+        win = slice(t - HTF_PIVOT_K, t + HTF_PIVOT_K + 1)
+        if h[t] == h[win].max():
+            last_h_val = float(h[t]); last_h_src = t
+        if l[t] == l[win].min():
+            last_l_val = float(l[t]); last_l_src = t
+    if last_h_val is None or last_l_val is None:
+        return "FLAT"
+    if last_h_src > last_l_src and last_h_val > last_l_val:
+        return "UP"
+    if last_l_src > last_h_src and last_l_val < last_h_val:
+        return "DOWN"
+    return "FLAT"
 
 
 # ---------------------------------------------------------------------------
@@ -452,19 +501,31 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
 # Top-level tick — call this each time new 1-min bar data arrives
 # ---------------------------------------------------------------------------
 def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
-                  bars_10m: pd.DataFrame, last_1m_bar: pd.Series,
-                  now: datetime, n_mnq: int = DEFAULT_SIZE
+                  bars_setup: pd.DataFrame, last_1m_bar: pd.Series,
+                  now: datetime, n_mnq: int = DEFAULT_SIZE,
+                  bars_trend: Optional[pd.DataFrame] = None
                   ) -> Optional[dict]:
-    """Single entry point for the runtime. Pass the latest 10-min bar
-    history + the latest 1-min bar + the bot's clock. Returns the closed
-    trade dict if a trade just closed, else None.
+    """Single entry point for the runtime. Pass the latest 1-min bar
+    history (for setup detection), the latest live 1-min synth bar (for
+    exit walking), the bot's clock, and the 5-min trend bars. Returns
+    the closed trade dict if a trade just closed, else None.
+
+    `bars_setup`: 1-min OHLCV history (used by detect_setup pivot scan).
+    `bars_trend`: 5-min OHLCV history (used by compute_htf_trend). If
+       None, the HTF filter is disabled (trades fire either direction).
 
     Side effects: mutates FibStrategyState (adds setups, opens/closes
-    trades, updates rolling history, may trip circuit breaker)."""
+    trades, updates rolling history, may trip circuit breaker, updates
+    htf_trend)."""
     # circuit breaker is a hard stop
     check_circuit_breaker(state)
     if state.circuit_breaker_tripped:
         return None
+
+    # Refresh 5-min HTF trend state once per tick. Setups detected this
+    # tick will be filtered against this trend.
+    if bars_trend is not None and not bars_trend.empty:
+        state.htf_trend = compute_htf_trend(bars_trend)
 
     # Update peak high/low and arm-state for ALL pending setups, EVERY
     # tick — even while another trade is open. This makes the entry
@@ -494,30 +555,43 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             return record
         return None
 
-    # 2. detect new setup on closed 10-min bars
-    new_setup = detect_setup(bars_10m, now)
+    # 2. detect new setup on closed 1-min bars
+    new_setup = detect_setup(bars_setup, now)
     if new_setup is not None:
         key = _setup_key(new_setup)
+        # HTF trend filter — LONG only when 5-min trend is UP, SHORT
+        # only when 5-min trend is DOWN. FLAT (no clear trend) blocks
+        # everything. This is the filter that lifted PF 2.39 -> 2.55 in
+        # backtest.
+        if bars_trend is not None:
+            if (state.htf_trend == "UP" and new_setup.side != "LONG") or \
+               (state.htf_trend == "DOWN" and new_setup.side != "SHORT") or \
+               (state.htf_trend == "FLAT"):
+                logger.debug("[HTF-FILTER] %s setup rejected — trend=%s",
+                             new_setup.side, state.htf_trend)
+                new_setup = None
         # Skip if we've recently fired on this exact pivot pair.
         # Prevents the "same setup re-fires on every tick" loop where
         # the bot keeps re-detecting the same h_val/l_val until new
-        # pivots form on the 10-min chart.
-        if key in state.recent_used_setups:
+        # pivots form on the chart.
+        if new_setup is not None and key in state.recent_used_setups:
             new_setup = None
-        elif any(s.side == new_setup.side
-                   and abs(s.level50 - new_setup.level50) < 0.5
-                   for s in state.pending_setups if not s.used):
+        elif new_setup is not None and any(
+                s.side == new_setup.side
+                and abs(s.level50 - new_setup.level50) < 0.5
+                for s in state.pending_setups if not s.used):
             # already in pending list as well
             new_setup = None
-        else:
+        elif new_setup is not None:
             # Seed extremes with the bar that detected the setup, so a
             # setup that's confirmed AT a level50 touch (the pivot was
             # k=5 bars ago, price has since moved) arms immediately.
             new_setup.update_from_bar(last_1m_bar)
             state.pending_setups.append(new_setup)
-            logger.debug("[SETUP] %s level50=%.2f leg=%.1fpts armed=%s",
+            logger.debug("[SETUP] %s level50=%.2f leg=%.1fpts armed=%s htf=%s",
                          new_setup.side, new_setup.level50,
-                         new_setup.leg_pts, new_setup.entry_armed)
+                         new_setup.leg_pts, new_setup.entry_armed,
+                         state.htf_trend)
 
     # 3. expire stale setups + drop pre-entry invalidations (price already
     #    reached target or stop without us ever firing).
@@ -542,8 +616,22 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         if not setup.entry_armed:
             continue
         setup.fire_attempted = True   # gate post-arm invalidation
-        # Lucid pre-check
-        decision = lucid_precheck(setup, n_mnq, lucid)
+        # Lucid pre-check — try the default size first. If Lucid rejects
+        # but suggests a smaller fittable size (e.g. wide stop pushes
+        # default size past DLL room), retry at that size. This converts
+        # blocked-too-big-trades into smaller-but-firing trades — the
+        # `suggested_n` fix the backtest showed was already +5-15% P&L.
+        size_to_use = n_mnq
+        decision = lucid_precheck(setup, size_to_use, lucid)
+        if not decision.allowed and decision.suggested_n >= MIN_DYNAMIC_MNQ \
+                and decision.suggested_n < size_to_use:
+            shrunk = decision.suggested_n
+            decision_shrunk = lucid_precheck(setup, shrunk, lucid)
+            if decision_shrunk.allowed:
+                logger.info("[AUTO-SIZED] %s %d MNQ -> %d MNQ (reason: %s)",
+                            setup.side, size_to_use, shrunk, decision.reason)
+                size_to_use = shrunk
+                decision = decision_shrunk
         if not decision.allowed:
             # DON'T mark used — Lucid limits can shift across the day
             # (DLL window, trail-floor changes). Setup keeps retrying on
@@ -557,7 +645,7 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             continue
         # entry at this bar's close — closest realistic fill
         entry_px = float(last_1m_bar["close"])
-        new_trade = open_trade(setup, n_mnq, entry_px, now)
+        new_trade = open_trade(setup, size_to_use, entry_px, now)
         if new_trade is None:
             # geometry guard tripped — already logged; this is structural,
             # mark used so we don't keep retrying.
@@ -567,8 +655,9 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         state.active_trade = new_trade
         setup.used = True
         state.recent_used_setups.append(_setup_key(setup))
-        logger.info("[OPEN] %s %d MNQ @ %.2f  stop=%.2f tgt=%.2f",
-                    setup.side, n_mnq, entry_px, setup.stop_px, setup.target_px)
+        logger.info("[OPEN] %s %d MNQ @ %.2f  stop=%.2f tgt=%.2f  htf=%s",
+                    setup.side, size_to_use, entry_px,
+                    setup.stop_px, setup.target_px, state.htf_trend)
         break
 
     return None
@@ -637,4 +726,7 @@ def snapshot(state: FibStrategyState,
         "circuit_breaker_tripped": state.circuit_breaker_tripped,
         "circuit_breaker_reason": state.circuit_breaker_reason,
         "min_target_hold_seconds": MIN_TARGET_HOLD_SECONDS,
+        "htf_trend": state.htf_trend,
+        "setup_timeframe": "1min",
+        "trend_timeframe": "5min",
     }

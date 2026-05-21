@@ -100,6 +100,16 @@ function renderTopbar(d) {
   const modeBadge = document.getElementById("badge-mode");
   modeBadge.className = "badge badge-mode" + (d.mode === "live" ? " live" : "");
   setText("badge-version", "fib");
+
+  // 5-min HTF trend badge — only set if the element exists in HTML.
+  // The strategy snapshot publishes htf_trend = "UP" / "DOWN" / "FLAT".
+  const htf = fib.htf_trend || "FLAT";
+  const htfEl = document.getElementById("badge-htf");
+  if (htfEl) {
+    htfEl.textContent = "5m " + htf;
+    htfEl.className = "badge badge-htf " +
+      (htf === "UP" ? "htf-up" : htf === "DOWN" ? "htf-down" : "htf-flat");
+  }
 }
 
 function renderLive(d) {
