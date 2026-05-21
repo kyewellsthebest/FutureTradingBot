@@ -378,20 +378,28 @@ function updateSetupLines() {
 //            bar where the trade actually closed.
 //   - TARGET at target_px, anchored to the OPPOSITE pivot bar, same end.
 //   - ENTRY  at entry_px, from the entry bar to the exit bar.
-// Auto-expires alongside the marker TTL (1 hr) so the chart stays clean.
+//
+// Only the MOST RECENT closed trade gets these lines — when the bot is
+// firing 5+ trades per hour, drawing lines for all of them turns the
+// chart into an unreadable mess. Older trades still get their entry/exit
+// arrow markers via updateChartMarkers().
+const TRADE_LINE_TTL_MS = 10 * 60 * 1000;  // 10 minutes
 const _tradeLineSeries = {};   // keyed by exit timestamp string
 function updateTradeLineSegments() {
   if (!candleSeries || !chart) return;
   const trades = (state.data && state.data.recent_trades) || [];
-  const cutoff = Date.now() - MARKER_TTL_MS;
-  const wanted = {};
+  const cutoff = Date.now() - TRADE_LINE_TTL_MS;
+  // Find the most-recent closed trade that's eligible to be drawn
+  let pick = null;
   trades.forEach(t => {
     const exitT = new Date(t.ts).getTime();
     if (exitT < cutoff) return;
     if (!t.entry_ts || !t.stop_px || !t.target_px) return;
-    if (!t.pivot_high_ts || !t.pivot_low_ts) return;   // need both anchors
-    wanted[t.ts] = t;
+    if (!t.pivot_high_ts || !t.pivot_low_ts) return;
+    if (!pick || exitT > new Date(pick.ts).getTime()) pick = t;
   });
+  const wanted = {};
+  if (pick) wanted[pick.ts] = pick;
   // Remove series for trades that aged out
   Object.keys(_tradeLineSeries).forEach(key => {
     if (!wanted[key]) {
