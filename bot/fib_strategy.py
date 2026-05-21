@@ -25,9 +25,9 @@ Safety layers (compliance + risk):
      holds. Circuit-breaker disables the strategy if it crosses 40%.
 
 Backtest performance (5 MNQ, 2 yrs REAL 1-min NQ from Polygon, Lucid rules,
-1-min trend filter k=30, PIVOT_K=3, MIN_LEG=5, entry-sanity gate):
-  ~17.6k trades / 64.0% win rate / +$460k net / max DD -$3.5k
-  Monthly avg: ~$19.2k / Trades/mo: ~736 / PF: 1.54
+1-min trend filter HTF_K=7, PIVOT_K=3, MIN_LEG=5, entry-sanity gate):
+  ~16.6k trades / 67.7% win rate / +$600k net / max DD -$4.5k
+  Monthly avg: ~$25k / Trades/mo: ~692 / PF: 1.95
 """
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ MIN_ENTRY_RISK_FRAC = 0.25        # entry must leave >= 25% of leg as risk-room
 # case (a real example: bot took SHORT @ 29258 30 min into a recovery
 # rally because the 5-min trend still showed DOWN; the new 1-min trend
 # at k=30 catches the reversal in ~30 min and flips to UP first).
-HTF_PIVOT_K = 30                  # major-pivot fractal on 1-min trend bars
+HTF_PIVOT_K = 7                   # major-pivot fractal on 1-min trend bars
 
 # ---------------------------------------------------------------------------
 # Safety constants — Lucid compliance hard gates
