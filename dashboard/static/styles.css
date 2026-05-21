@@ -75,6 +75,9 @@ html, body {
 .badge-htf.htf-up    { background: rgba(34,211,154,0.20); color: var(--green); border: 1px solid rgba(34,211,154,0.45); }
 .badge-htf.htf-down  { background: rgba(255,84,112,0.20); color: var(--red);   border: 1px solid rgba(255,84,112,0.45); }
 .badge-htf.htf-flat  { background: var(--panel-soft);    color: var(--text-soft); }
+.badge-src           { font-size: 10px; }
+.badge-src.src-real  { background: rgba(34,211,154,0.15); color: var(--green);   border: 1px solid rgba(34,211,154,0.30); }
+.badge-src.src-synth { background: var(--panel-soft);    color: var(--text-soft); }
 
 .topbar-stats {
   display: flex; gap: 28px; align-items: center;

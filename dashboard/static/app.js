@@ -110,6 +110,15 @@ function renderTopbar(d) {
     htfEl.className = "badge badge-htf " +
       (htf === "UP" ? "htf-up" : htf === "DOWN" ? "htf-down" : "htf-flat");
   }
+  // Data source badge — "real 1m" if Polygon/yfinance 1-min came through,
+  // "synth 1m" if we're falling back to deriving from 5-min OHLC.
+  const src = d.bars_1m_source || "synth";
+  const srcEl = document.getElementById("badge-src");
+  if (srcEl) {
+    srcEl.textContent = (src === "real" ? "real 1m" : "synth 1m");
+    srcEl.className = "badge badge-src " +
+      (src === "real" ? "src-real" : "src-synth");
+  }
 }
 
 function renderLive(d) {

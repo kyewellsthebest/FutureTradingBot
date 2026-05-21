@@ -129,6 +129,7 @@ class FibRuntime:
         # 5-min = HTF trend filter timeframe (raw Polygon data).
         self._bars_5m: Optional[pd.DataFrame] = None
         self._bars_1m: Optional[pd.DataFrame] = None
+        self._bars_1m_source: str = "synth"   # "real" or "synth"
         self._last_bar_refresh = 0.0
         # Recent completed trades for dashboard
         self.recent_trades: deque = deque(maxlen=30)
@@ -180,7 +181,11 @@ class FibRuntime:
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 
-        # Refresh 5-min + synthesized 1-min bars at most every 60s
+        # Refresh 5-min (HTF trend) + 1-min (setup detection) bars at most
+        # every 60s. Prefer REAL 1-min from Polygon/yfinance; fall back to
+        # synthesizing 1-min from 5-min if 1-min source is unavailable. The
+        # synth path mirrors the backtest exactly so behavior degrades
+        # gracefully when the 1-min feed has a hiccup.
         tnow = time.time()
         if self._bars_5m is None or tnow - self._last_bar_refresh > 60:
             try:
@@ -189,7 +194,20 @@ class FibRuntime:
                     if nq5.index.tz is None:
                         nq5.index = nq5.index.tz_localize("UTC")
                     self._bars_5m = nq5
-                    self._bars_1m = _synth_1min_from_5min(nq5)
+                    # Try real 1-min; if unavailable, synthesize.
+                    nq1 = None
+                    try:
+                        nq1 = download_nq("1min")
+                        if nq1 is not None and not nq1.empty and nq1.index.tz is None:
+                            nq1.index = nq1.index.tz_localize("UTC")
+                    except Exception as e:
+                        logger.debug(f"1-min fetch failed (will synth): {e}")
+                    if nq1 is None or nq1.empty:
+                        self._bars_1m = _synth_1min_from_5min(nq5)
+                        self._bars_1m_source = "synth"
+                    else:
+                        self._bars_1m = nq1
+                        self._bars_1m_source = "real"
                     self._last_bar_refresh = tnow
             except Exception as e:
                 logger.warning(f"bar refresh failed: {e}")
@@ -282,6 +300,7 @@ class FibRuntime:
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "shadow" if SHADOW_MODE else "live",
                 "strategy": "Fib 50% (1-min entries + 5-min HTF trend filter)",
+                "bars_1m_source": self._bars_1m_source,
                 "cycle": self.cycle,
                 "last_error": self.last_error,
                 "bars_processed": self.bars_processed,

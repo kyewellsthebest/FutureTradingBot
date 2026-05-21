@@ -102,10 +102,12 @@ def _get(url: str, tries: int = 4) -> tuple[dict | None, str | None]:
     return None, "exhausted retries"
 
 
-def fetch_contract_bars(ticker: str) -> pd.DataFrame | None:
-    """5-min OHLCV bars for one outright contract from the aggs endpoint."""
+def fetch_contract_bars(ticker: str, resolution: str = "5_minute"
+                         ) -> pd.DataFrame | None:
+    """OHLCV bars for one outright contract from the aggs endpoint.
+    `resolution`: "1_minute" / "5_minute" / "1_hour" / "1_day"."""
     url = (f"https://api.polygon.io/futures/v1/aggs/{ticker}"
-           f"?resolution=5_minute&limit=50000&apiKey={KEY}")
+           f"?resolution={resolution}&limit=50000&apiKey={KEY}")
     data, err = _get(url)
     if err:
         log.info(f"  {ticker}: {err}")
@@ -130,16 +132,17 @@ def fetch_contract_bars(ticker: str) -> pd.DataFrame | None:
     return df[~df.index.duplicated(keep="last")]
 
 
-def build_continuous(product: str) -> pd.DataFrame | None:
+def build_continuous(product: str, resolution: str = "5_minute"
+                      ) -> pd.DataFrame | None:
     """Stitch a continuous front-month series. Each quarterly contract
     contributes the bars between the prior contract's expiry and its own."""
     tickers = quarterly_tickers(product)
-    log.info(f"{product}: {len(tickers)} quarterly contracts constructed "
-             f"({tickers[0][0]} … {tickers[-1][0]})")
+    log.info(f"{product} ({resolution}): {len(tickers)} quarterly contracts "
+             f"constructed ({tickers[0][0]} … {tickers[-1][0]})")
     segments = []
     prev_exp = None
     for ticker, exp in tickers:
-        bars = fetch_contract_bars(ticker)
+        bars = fetch_contract_bars(ticker, resolution=resolution)
         time.sleep(0.3)                  # gentle on rate limits
         exp_ts = pd.Timestamp(exp, tz="UTC")
         if bars is None or bars.empty:
@@ -164,21 +167,42 @@ def main() -> None:
         log.error("POLYGON_API not set — aborting")
         sys.exit(1)
     summary = {}
+
+    # 5-min for all products (research / cross-asset backtesting)
     for product in PRODUCTS:
-        log.info(f"=== {product} ===")
+        log.info(f"=== {product} 5-min ===")
         try:
-            df = build_continuous(product)
+            df = build_continuous(product, resolution="5_minute")
         except Exception as e:
-            log.warning(f"{product} crashed: {e}")
+            log.warning(f"{product} 5-min crashed: {e}")
             df = None
         if df is None or df.empty:
-            summary[product] = "FAILED"
+            summary[f"{product}_5min"] = "FAILED"
             continue
         out = OUT_DIR / f"{product}_5min.csv"
         df.to_csv(out)
-        summary[product] = (f"{len(df)} bars "
-                            f"{df.index[0].date()}→{df.index[-1].date()}")
-        log.info(f"{product}: wrote {len(df):,} bars → {out.name}")
+        summary[f"{product}_5min"] = (f"{len(df)} bars "
+                                       f"{df.index[0].date()}→{df.index[-1].date()}")
+        log.info(f"{product} 5-min: wrote {len(df):,} bars → {out.name}")
+
+    # 1-min for NQ only (live trading + 1-min strategy backtest). 1-min
+    # for all 8 products would be ~560MB committed; we only need it for
+    # the one product we actually trade.
+    log.info("=== NQ 1-min ===")
+    try:
+        df1 = build_continuous("NQ", resolution="1_minute")
+    except Exception as e:
+        log.warning(f"NQ 1-min crashed: {e}")
+        df1 = None
+    if df1 is None or df1.empty:
+        summary["NQ_1min"] = "FAILED"
+    else:
+        out = OUT_DIR / "NQ_1min.csv"
+        df1.to_csv(out)
+        summary["NQ_1min"] = (f"{len(df1)} bars "
+                               f"{df1.index[0].date()}→{df1.index[-1].date()}")
+        log.info(f"NQ 1-min: wrote {len(df1):,} bars → {out.name}")
+
     log.info("=" * 50)
     log.info("SUMMARY")
     for p, s in summary.items():

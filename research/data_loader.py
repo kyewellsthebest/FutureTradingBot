@@ -40,11 +40,12 @@ if not logger.handlers:
     logger.addHandler(fh)
 
 SYMBOL = "NQ=F"
-Timeframe = Literal["daily", "1hr", "5min"]
+Timeframe = Literal["daily", "1hr", "5min", "1min"]
 TIMEFRAME_CONFIG: dict[str, tuple[str, str, str, int]] = {
     "daily": ("1d", "max", "nq_daily.csv", 7200),
     "1hr":   ("1h", "730d", "nq_1hr.csv", 7200),
     "5min":  ("5m", "60d", "nq_5min.csv", 600),
+    "1min":  ("1m", "7d",  "nq_1min.csv", 60),
 }
 CACHE_TTL_SECONDS = 7200
 
@@ -295,7 +296,8 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
     if not key:
         return None
     tk = ticker or polygon_front_month(product)
-    res_map = {"5min": "5_minute", "1hr": "1_hour", "daily": "1_day"}
+    res_map = {"1min": "1_minute", "5min": "5_minute",
+               "1hr": "1_hour", "daily": "1_day"}
     resolution = res_map.get(timeframe, "5_minute")
 
     path = DATA_DIR / "cache" / f"polyfut_{tk}_{timeframe}.csv"
@@ -390,7 +392,7 @@ def _try_polygon_futures(product: str, timeframe: Timeframe,
     frame) returns None, so wiring Polygon in can only help the bot, never
     break it: a bad Polygon response silently defers to the old path.
     """
-    if not _polygon_key() or timeframe not in ("5min", "1hr"):
+    if not _polygon_key() or timeframe not in ("1min", "5min", "1hr"):
         return None
     try:
         df = download_polygon_futures(product, timeframe,
