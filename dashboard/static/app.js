@@ -394,7 +394,7 @@ function updateSetupLines() {
 // firing 5+ trades per hour, drawing lines for all of them turns the
 // chart into an unreadable mess. Older trades still get their entry/exit
 // arrow markers via updateChartMarkers().
-const TRADE_LINE_TTL_MS = 10 * 60 * 1000;  // 10 minutes
+const TRADE_LINE_TTL_MS = 30 * 60 * 1000;  // 30 minutes
 const _tradeLineSeries = {};   // keyed by exit timestamp string
 function updateTradeLineSegments() {
   if (!candleSeries || !chart) return;
@@ -425,6 +425,7 @@ function updateTradeLineSegments() {
     if (_tradeLineSeries[key]) return;
     const t = wanted[key];
     const isLong = t.side === "LONG";
+    const won = (t.pnl_usd || 0) > 0;
     const stopAnchor = isLong ? t.pivot_low_ts : t.pivot_high_ts;
     const tgtAnchor = isLong ? t.pivot_high_ts : t.pivot_low_ts;
     const exitSec = Math.floor(new Date(t.ts).getTime() / 1000);
@@ -433,31 +434,39 @@ function updateTradeLineSegments() {
     const tgtSec = Math.floor(new Date(tgtAnchor).getTime() / 1000);
     const series = [];
     try {
+      // STOP line — dashed red, thick. Title shows the actual stop price
+      // so you can read it directly off the chart.
       const stopSeries = chart.addLineSeries({
-        color: "#ff5470", lineWidth: 1, lineStyle: 2,   // dashed
-        priceLineVisible: false, lastValueVisible: false,
+        color: "#ff5470", lineWidth: 3, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: true,
         crosshairMarkerVisible: false,
+        title: `STOP ${t.stop_px.toFixed(2)}`,
       });
       stopSeries.setData([
         { time: stopSec, value: t.stop_px },
         { time: exitSec, value: t.stop_px },
       ]);
       series.push(stopSeries);
+      // TARGET line — dashed green, thick. Title shows actual price.
       const tgtSeries = chart.addLineSeries({
-        color: "#22d39a", lineWidth: 1, lineStyle: 2,
-        priceLineVisible: false, lastValueVisible: false,
+        color: "#22d39a", lineWidth: 3, lineStyle: 2,
+        priceLineVisible: false, lastValueVisible: true,
         crosshairMarkerVisible: false,
+        title: `TARGET ${t.target_px.toFixed(2)}`,
       });
       tgtSeries.setData([
         { time: tgtSec, value: t.target_px },
         { time: exitSec, value: t.target_px },
       ]);
       series.push(tgtSeries);
+      // ENTRY line — solid, thick, colored by trade outcome (green=win,
+      // red=loss). Title shows side + entry price.
       const entrySeries = chart.addLineSeries({
-        color: isLong ? "#22d39a" : "#ff5470",
-        lineWidth: 2, lineStyle: 0,    // solid
-        priceLineVisible: false, lastValueVisible: false,
+        color: won ? "#22d39a" : "#ff5470",
+        lineWidth: 4, lineStyle: 0,
+        priceLineVisible: false, lastValueVisible: true,
         crosshairMarkerVisible: false,
+        title: `${t.side} ENTRY ${t.entry_px.toFixed(2)}`,
       });
       entrySeries.setData([
         { time: entrySec, value: t.entry_px },
