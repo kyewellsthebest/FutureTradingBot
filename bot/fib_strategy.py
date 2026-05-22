@@ -716,6 +716,24 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         if not setup.entry_armed:
             continue
         setup.fire_attempted = True   # gate post-arm invalidation
+        # Re-check HTF trend + chop AT FIRE TIME, not just at detection.
+        # Otherwise a setup detected during clean trend conditions can
+        # wait in pending_setups for minutes, and fire later when
+        # conditions have deteriorated to chop or the trend has flipped
+        # against the setup's side. The chop filter shipped earlier was
+        # only running at detect time — this closes the gap.
+        if bars_trend is not None:
+            tr = state.htf_trend
+            if (tr == "UP" and setup.side != "LONG") or \
+               (tr == "DOWN" and setup.side != "SHORT") or \
+               (tr == "FLAT"):
+                logger.debug("[HTF-FILTER@fire] %s blocked — trend now %s",
+                             setup.side, tr)
+                continue
+        if state.chop_index < CHOP_THRESHOLD:
+            logger.debug("[CHOP-FILTER@fire] %s blocked — chop=%.2f < %.2f",
+                         setup.side, state.chop_index, CHOP_THRESHOLD)
+            continue
         # Lucid pre-check — try the default size first. If Lucid rejects
         # but suggests a smaller fittable size (e.g. wide stop pushes
         # default size past DLL room), retry at that size. This converts
