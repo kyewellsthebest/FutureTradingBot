@@ -710,14 +710,16 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                 logger.debug("[HTF-FILTER] %s setup rejected — trend=%s",
                              new_setup.side, state.htf_trend)
                 new_setup = None
-        # Chop filter — block setups when the market is wiggling in a
-        # range with no directional progress (chop_index < threshold).
-        # Backtested at CHOP_THRESHOLD=0.30: PF 1.83 → 2.06, DD reduced
-        # 23%, at cost of ~30% fewer trades.
-        if new_setup is not None and state.chop_index < CHOP_THRESHOLD:
-            logger.debug("[CHOP-FILTER] %s setup rejected — chop=%.2f < %.2f",
-                         new_setup.side, state.chop_index, CHOP_THRESHOLD)
-            new_setup = None
+        # Chop filter — DISABLED per user request. The chop_index value
+        # is still computed and displayed on the dashboard badge so the
+        # user can see when conditions are choppy, but it no longer
+        # blocks setups. Trade-off: PF drops 1.95 → 1.68 in backtest
+        # vs current chop-filtered behavior, but every visible Fib
+        # setup that matches the HTF trend will fire.
+        # if new_setup is not None and state.chop_index < CHOP_THRESHOLD:
+        #     logger.debug("[CHOP-FILTER] %s setup rejected — chop=%.2f < %.2f",
+        #                  new_setup.side, state.chop_index, CHOP_THRESHOLD)
+        #     new_setup = None
         # Skip if we've recently fired on this exact pivot pair.
         # Prevents the "same setup re-fires on every tick" loop where
         # the bot keeps re-detecting the same h_val/l_val until new
@@ -778,10 +780,7 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                 logger.debug("[HTF-FILTER@fire] %s blocked — trend now %s",
                              setup.side, tr)
                 continue
-        if state.chop_index < CHOP_THRESHOLD:
-            logger.debug("[CHOP-FILTER@fire] %s blocked — chop=%.2f < %.2f",
-                         setup.side, state.chop_index, CHOP_THRESHOLD)
-            continue
+        # Chop filter DISABLED — see comment at detect-time chop check.
         # Lucid pre-check — try the default size first. If Lucid rejects
         # but suggests a smaller fittable size (e.g. wide stop pushes
         # default size past DLL room), retry at that size. This converts
