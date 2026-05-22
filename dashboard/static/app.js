@@ -111,6 +111,17 @@ function renderTopbar(d) {
     htfEl.className = "badge badge-htf " +
       (htf === "UP" ? "htf-up" : htf === "DOWN" ? "htf-down" : "htf-flat");
   }
+  // Chop badge — shows current chop index (0.0 chop → 1.0 clean trend)
+  // and color-codes whether the chop filter would block a setup right now.
+  const chopIdx = fib.chop_index ?? 0;
+  const chopThr = fib.chop_threshold ?? 0.3;
+  const chopBlocking = chopIdx < chopThr;
+  const chopEl = document.getElementById("badge-chop");
+  if (chopEl) {
+    chopEl.textContent = `chop ${chopIdx.toFixed(2)}`;
+    chopEl.className = "badge badge-chop " + (chopBlocking ? "chop-block" : "chop-ok");
+  }
+
   // Data source badge — "real 1m" if Polygon/yfinance 1-min came through,
   // "synth 1m" if we're falling back to deriving from 5-min OHLC.
   const src = d.bars_1m_source || "synth";
