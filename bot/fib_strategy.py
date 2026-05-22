@@ -133,6 +133,11 @@ class FibSetup:
     peak_low: float = 1e18        # min bar.low seen since detection
     last_block_reason: Optional[str] = None
     last_block_at: Optional[datetime] = None
+    # Timestamp of the bar whose high/low first touched level50 (= the
+    # moment of arming). Used for the chart's entry-arrow placement so
+    # the arrow lands on the candle that triggered entry, NOT on the
+    # later candle where the bot actually processed the fill.
+    armed_at_ts: Optional[datetime] = None
 
     @property
     def leg_pts(self) -> float:
@@ -571,6 +576,10 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
         "target_px": float(trade.target_px),
         "pivot_high_ts": trade.setup.pivot_high_ts,
         "pivot_low_ts": trade.setup.pivot_low_ts,
+        # Timestamp of the candle that armed the setup. Used for the chart
+        # entry-arrow placement so it lands on the bar that first touched
+        # level50, NOT on the bar where the trigger was processed.
+        "armed_at_ts": trade.setup.armed_at_ts,
     }
 
 
@@ -630,6 +639,14 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         was_armed = setup.entry_armed
         setup.update_from_bar(arming_bar)
         if setup.entry_armed and not was_armed:
+            # Record the timestamp of the bar that armed the setup. If the
+            # arming_bar is a Series from a DataFrame, its .name is its
+            # index value (the bar's timestamp).
+            try:
+                setup.armed_at_ts = arming_bar.name \
+                    if hasattr(arming_bar, "name") else None
+            except Exception:
+                setup.armed_at_ts = None
             logger.info("[ARMED] %s level50=%.2f (peak_h=%.2f peak_l=%.2f)",
                         setup.side, setup.level50,
                         setup.peak_high, setup.peak_low)

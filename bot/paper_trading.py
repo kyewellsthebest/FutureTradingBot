@@ -184,8 +184,10 @@ class PaperAccount:
         now = now or datetime.now(timezone.utc)
         # entry slippage: pay up if LONG, receive less if SHORT
         slipped = entry_px_raw + SLIPPAGE_POINTS if side == "LONG" else entry_px_raw - SLIPPAGE_POINTS
-        # commission deducted at entry
-        self.state.balance -= COMMISSION_ROUND_TRIP
+        # commission deducted at entry — SCALED BY QTY so 5 MNQ pays
+        # ~$10 round-trip instead of the full $60 (which is for 30 MNQ).
+        commission = COMMISSION_ROUND_TRIP * (qty / CONTRACTS)
+        self.state.balance -= commission
 
         trade_id = persistence.insert_trade({
             "signal_name": signal_name, "side": side,

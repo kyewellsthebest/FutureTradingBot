@@ -86,7 +86,11 @@ function renderTopbar(d) {
   const acc = d.lucid_account || {};
   const bal = acc.balance ?? 50000;
   setText("kpi-balance", fmtUsdPlain(bal));
-  const today = acc.today_pnl ?? 0;
+  // Compute today's P&L from actual closed trades — same authoritative
+  // source the Activity card uses. acc.today_pnl had drift bugs.
+  const today = (d.recent_trades || [])
+    .filter(t => new Date(t.ts).toDateString() === new Date().toDateString())
+    .reduce((s, t) => s + (t.pnl_usd || 0), 0);
   const todayEl = document.getElementById("kpi-today");
   todayEl.textContent = fmtUsd(today);
   todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
@@ -193,7 +197,11 @@ function renderLive(d) {
   const todayTrades = (d.recent_trades || []).filter(t =>
     new Date(t.ts).toDateString() === new Date().toDateString());
   setText("today-closed", todayTrades.length);
-  setText("today-pnl", fmtUsd(acc.today_pnl ?? 0));
+  // Compute today P&L from the actual trade records, not lucid.today_pnl.
+  // The Lucid state had drift bugs in earlier sessions; the trade DB is
+  // authoritative. This also matches what the monthly P&L tooltip shows.
+  const todayPnlComputed = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+  setText("today-pnl", fmtUsd(todayPnlComputed));
   // Win rate + avg hold (computed from today's recent trades, since
   // these aren't available in the LucidState snapshot)
   if (todayTrades.length > 0) {
@@ -494,7 +502,11 @@ function updateChartMarkers() {
   trades.forEach(t => {
     const exitT = new Date(t.ts).getTime();
     if (exitT < cutoff) return;
-    const entryT = new Date(t.entry_ts || t.ts).getTime();
+    // Prefer armed_at_ts (the bar that first touched level50) so the
+    // entry arrow lands on the candle that triggered the entry, not the
+    // tick-later candle where the bot processed the fill. Fall back to
+    // entry_ts for older records that don't have it yet.
+    const entryT = new Date(t.armed_at_ts || t.entry_ts || t.ts).getTime();
     const pnl = t.pnl_usd || 0;
     const win = pnl >= 0;
     const pnlStr = (pnl >= 0 ? "+$" : "-$") +

@@ -362,7 +362,8 @@ class FibRuntime:
                      "ts": _iso(t.get("ts")),
                      "entry_ts": _iso(t.get("entry_ts")),
                      "pivot_high_ts": _iso(t.get("pivot_high_ts")),
-                     "pivot_low_ts": _iso(t.get("pivot_low_ts"))}
+                     "pivot_low_ts": _iso(t.get("pivot_low_ts")),
+                     "armed_at_ts": _iso(t.get("armed_at_ts"))}
                     for t in list(self.recent_trades)[:30]
                 ],
             }
