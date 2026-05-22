@@ -779,7 +779,18 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             setup.last_block_at = now
             continue
         # entry at this bar's close — closest realistic fill
-        entry_px = float(last_1m_bar["close"])
+        # ENTRY AT LEVEL50 — the actual 50% Fib midpoint between pivot
+        # high and pivot low. The previous implementation used
+        # last_1m_bar.close, which meant when the arming bar spiked up
+        # to level50 then closed away from it (very common), the entry
+        # got recorded at the close price instead of at the level the
+        # strategy is designed to trade. This destroyed the planned 1:1
+        # RR — e.g. a SHORT meant to be 32pts risk / 32pts reward
+        # could become 50pts risk / 14pts reward purely from the
+        # entry-fill mismatch. Treat the order as a limit at level50,
+        # which is realistic for live trading (the limit fills the
+        # instant the bar's high touches the level).
+        entry_px = float(setup.level50)
         # Entry-sanity gate: if price has already ripped past level50 toward
         # the stop, the trade has almost no risk-room and gets stopped out
         # in the next bar (the user's -$15/6-sec SHORT case). Skip this
