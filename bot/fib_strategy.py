@@ -576,11 +576,26 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # tick — even while another trade is open. This makes the entry
     # trigger sticky: a level50 touch that happens during another trade's
     # lifetime gets remembered and fires once active_trade clears.
+    #
+    # IMPORTANT: arming uses the most recent CLOSED 1-min bar from
+    # bars_setup, NOT the live synthesized sub-minute bar. A sub-minute
+    # wick that spikes through level50 then immediately retreats was
+    # historically arming setups and firing trades that hit target in
+    # 10-15 seconds — the user's "the bot is mistaking tiny choppy
+    # price action for real 1-min Fib trades" observation. Using the
+    # closed 1-min bar makes arming require an ACTUAL 1-min-bar close
+    # whose high/low spans level50, not just an intra-bar wick.
+    arming_bar = last_1m_bar
+    if bars_setup is not None and not bars_setup.empty:
+        try:
+            arming_bar = bars_setup.iloc[-1]
+        except Exception:
+            arming_bar = last_1m_bar
     for setup in state.pending_setups:
         if setup.used:
             continue
         was_armed = setup.entry_armed
-        setup.update_from_bar(last_1m_bar)
+        setup.update_from_bar(arming_bar)
         if setup.entry_armed and not was_armed:
             logger.info("[ARMED] %s level50=%.2f (peak_h=%.2f peak_l=%.2f)",
                         setup.side, setup.level50,
