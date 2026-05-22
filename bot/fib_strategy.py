@@ -337,7 +337,7 @@ def detect_setup(bars_10m: pd.DataFrame, now: datetime) -> Optional[FibSetup]:
                         else bars_10m.index[l_src]
     except Exception:
         pivot_high_ts = pivot_low_ts = None
-    return FibSetup(
+    setup = FibSetup(
         detected_at=now,
         side=side,
         pivot_high_val=h_val,
@@ -347,6 +347,37 @@ def detect_setup(bars_10m: pd.DataFrame, now: datetime) -> Optional[FibSetup]:
         level50=(h_val + l_val) / 2.0,
         expires_at=expires_at,
     )
+    # Backfill the peak_high / peak_low / entry_armed state from bars
+    # since the later pivot was FORMED. This is critical: without it,
+    # the bot only starts tracking peak_low (LONG) / peak_high (SHORT)
+    # AFTER the setup gets confirmed (~k bars after the pivot). If
+    # price already dipped through level50 during those confirmation
+    # bars, the bot would miss the trigger and stay "Entry Pending"
+    # forever. With the backfill, the setup arms immediately on
+    # detection if price has already touched level50 since the pivot.
+    later_src = max(h_src, l_src)
+    if later_src < len(bars_10m):
+        history = bars_10m.iloc[later_src:]
+        if not history.empty:
+            setup.peak_high = float(history["high"].max())
+            setup.peak_low = float(history["low"].min())
+            armed_idx = None
+            if setup.side == "LONG" and setup.peak_low <= setup.level50:
+                setup.entry_armed = True
+                for i in range(len(history)):
+                    if float(history["low"].iloc[i]) <= setup.level50:
+                        armed_idx = i; break
+            elif setup.side == "SHORT" and setup.peak_high >= setup.level50:
+                setup.entry_armed = True
+                for i in range(len(history)):
+                    if float(history["high"].iloc[i]) >= setup.level50:
+                        armed_idx = i; break
+            if armed_idx is not None:
+                try:
+                    setup.armed_at_ts = history.index[armed_idx]
+                except Exception:
+                    setup.armed_at_ts = None
+    return setup
 
 
 def check_trigger(setup: FibSetup, last_bar: pd.Series) -> bool:
