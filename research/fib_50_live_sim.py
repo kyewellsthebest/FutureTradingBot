@@ -30,14 +30,14 @@ DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "polygon" / "NQ_1m
 
 # === Strategy parameters ====================================================
 PIVOT_K              = 3        # confirmed swing pivots on 1-min
-MIN_LEG_PTS          = 25.0     # ignore tiny legs
+MIN_LEG_PTS          = 60.0     # only large structural legs (was 25)
 MIN_ENTRY_RISK_FRAC  = 0.25     # entry must leave >=25% of leg as risk-room
 MAX_HOLD_BARS        = 120      # 2-hr hard cap
 MAX_SETUP_AGE_BARS   = 60       # setup expires 60 min after pivot
 
-# Trend filter (NET-DISP)
-TREND_LOOKBACK_BARS  = 30
-TREND_MIN_RATIO      = 0.40
+# Trend filter (NET-DISP) — STRICTER VERSION to match prior realistic-fill backtest
+TREND_LOOKBACK_BARS  = 60
+TREND_MIN_RATIO      = 0.50
 
 # Entry mechanic
 USE_ARM_REJECT       = True     # require arming bar's close inside the leg
@@ -180,9 +180,27 @@ def run_live_sim(nq: pd.DataFrame) -> tuple[list[Trade], pd.Series]:
             for s in pending_setups:
                 # check arming (high / low touches level50)
                 if s.armed_at_bar < 0:
+                    armed_now = False
                     if s.side == "SHORT" and h[t] >= s.level50:
-                        s.armed_at_bar = t
+                        armed_now = True
                     elif s.side == "LONG" and l[t] <= s.level50:
+                        armed_now = True
+                    if armed_now:
+                        # RE-CHECK trend filter at arming time. The trend
+                        # at setup-creation may have flipped by now.
+                        lo = max(0, t - TREND_LOOKBACK_BARS + 1)
+                        if t - lo >= 5:
+                            net_move = c[t] - c[lo]
+                            rng = h[lo:t+1].max() - l[lo:t+1].min()
+                            trend_ok = False
+                            if rng > 0:
+                                ratio = net_move / rng
+                                if s.side == "LONG"  and ratio >  TREND_MIN_RATIO:
+                                    trend_ok = True
+                                if s.side == "SHORT" and ratio < -TREND_MIN_RATIO:
+                                    trend_ok = True
+                            if not trend_ok:
+                                continue  # skip arming this setup
                         s.armed_at_bar = t
                 # check ARM-REJECT confirmation (arming bar must close back
                 # inside the leg)
@@ -248,6 +266,9 @@ def run_live_sim(nq: pd.DataFrame) -> tuple[list[Trade], pd.Series]:
         ]
 
         # --- generate new setup from latest confirmed pivots -------------
+        # SINGLE-SHOT: each pivot pair can only ever produce one setup.
+        # If the setup expires unfilled, we don't retry — matches earlier
+        # backtest semantics and prevents over-counting.
         if (cur_h_src >= 0 and cur_l_src >= 0 and cur_h_src != cur_l_src
                 and active_trade is None):
             key = (cur_h_src, cur_l_src)
@@ -291,6 +312,11 @@ def run_live_sim(nq: pd.DataFrame) -> tuple[list[Trade], pd.Series]:
                                         pivot_low_px=cur_l_px,
                                         level50=level50,
                                     ))
+                                    # SINGLE-SHOT: mark this pivot pair as
+                                    # used the moment we create a setup,
+                                    # so even if it expires unfilled, we
+                                    # won't keep re-creating it.
+                                    used_setup_keys.add(key)
 
         equity_curve[t] = equity
 
