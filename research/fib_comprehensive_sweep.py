@@ -67,14 +67,16 @@ def main() -> None:
         nq.index = nq.index.tz_localize("UTC")
     print(f"  bars: {len(nq):,}")
 
-    # Entry levels (Fib + standard decimals)
+    # FINE-GRAINED sweep — every decimal in the user's target zone
     entries = [
-        0.236, 0.30, 0.382, 0.45, 0.50, 0.55,
-        0.618, 0.65, 0.70, 0.75, 0.786,
+        0.20, 0.236, 0.25, 0.30, 0.35, 0.382,
+        0.40, 0.45, 0.50, 0.55,
     ]
-    # Target extensions (beyond opposite pivot, expressed as fraction of leg)
-    # 0.0 = at opposite pivot (1.0x leg traveled from entry's side of leg)
-    target_exts = [0.0, 0.1, 0.272, 0.382, 0.5, 0.618]
+    # Target extensions — fine grid from 0 to +0.60 (1.0x to 1.6x leg)
+    target_exts = [
+        0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.272,
+        0.30, 0.35, 0.382, 0.40, 0.45, 0.50, 0.55, 0.60,
+    ]
 
     print(f"\nSweeping {len(entries)} entries x {len(target_exts)} targets "
           f"= {len(entries) * len(target_exts)} configs")
