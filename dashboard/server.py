@@ -56,6 +56,12 @@ def index():
     return send_from_directory(STATIC_DIR, "index.html")
 
 
+@app.route("/report")
+def report():
+    """Ultra-real simulation report page (Dec 2025 – Feb 2026 backtest)."""
+    return send_from_directory(STATIC_DIR, "simulation_report.html")
+
+
 @app.route("/static/<path:p>")
 def static_files(p):
     return send_from_directory(STATIC_DIR, p)
