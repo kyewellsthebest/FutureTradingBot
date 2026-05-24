@@ -104,7 +104,7 @@ function renderTopbar(d) {
   setText("badge-mode", d.mode || "shadow");
   const modeBadge = document.getElementById("badge-mode");
   modeBadge.className = "badge badge-mode" + (d.mode === "live" ? " live" : "");
-  setText("badge-version", "fib");
+  setText("badge-version", "pullback");
 
   // 5-min HTF trend badge — only set if the element exists in HTML.
   // The strategy snapshot publishes htf_trend = "UP" / "DOWN" / "FLAT".
@@ -302,187 +302,30 @@ function initChart() {
   });
 }
 
-// Draw a 50% retracement line per pending setup so the chart shows
-// what the bot is watching for an entry. Three lines per setup:
-//   - bold line at level50  (entry trigger)
-//   - faint line at target  (would-be exit on success)
-//   - faint line at stop    (would-be exit on failure)
-// Setups disappear automatically — the strategy prunes pending_setups
-// the moment a trade fires, the setup expires, or Lucid blocks it, so
-// next poll the line just stops being in pending_setup_details.
+// DISABLED per user request — chart shows BUY/SELL arrows only, no lines.
+// Pending-setup horizontal lines and active-trade level lines were
+// removed for chart clarity. Any previously-drawn lines are cleaned up
+// here on each poll so the chart stays clean if the bot restarts with
+// existing line state.
 function updateSetupLines() {
   if (!candleSeries) return;
-  const fib = (state.data && state.data.fib) || {};
-  const setups = fib.pending_setup_details || [];
-  const wanted = {};
-  setups.forEach(s => {
-    const key = `${s.side}|${s.level50.toFixed(2)}|pending`;
-    wanted[key] = s;
-  });
-  // Also draw lines for the ACTIVE TRADE while it's open. These vanish
-  // automatically once active_trade is null (trade closed), leaving the
-  // entry/exit arrow markers behind as the historical record.
-  if (fib.active_trade) {
-    const a = fib.active_trade;
-    wanted[`ACTIVE|${a.entry_px.toFixed(2)}|live`] = {
-      side: a.side,
-      level50: a.entry_px,
-      target_px: a.target_px,
-      stop_px: a.stop_px,
-      entry_armed: true,
-      last_block_reason: null,
-      _is_active: true,
-    };
-  }
-  // Remove lines whose setups are no longer pending
   Object.keys(_setupLines).forEach(key => {
-    if (!wanted[key]) {
-      const lines = _setupLines[key];
-      try { lines.forEach(l => candleSeries.removePriceLine(l)); }
-      catch (e) {}
-      delete _setupLines[key];
-    }
-  });
-  // Add lines for new setups
-  Object.keys(wanted).forEach(key => {
-    if (_setupLines[key]) return;  // already drawn
-    const s = wanted[key];
-    const isLong = s.side === "LONG";
-    const tagColor = isLong ? "#22d39a" : "#ff5470";
-    const lines = [];
-    try {
-      let levelLabel;
-      if (s._is_active) {
-        levelLabel = `Entry ${s.side}`;
-      } else {
-        // Whether the setup is just waiting for price to touch level50
-        // or has been temporarily blocked by Lucid, the user only wants
-        // to see "Entry Pending" on the chart — the verbose technical
-        // reason (DLL room, consistency cap, etc) stays in the logs.
-        levelLabel = `Entry Pending`;
-      }
-      lines.push(candleSeries.createPriceLine({
-        price: s.level50,
-        color: tagColor,
-        lineWidth: 2,
-        lineStyle: 0,   // solid
-        axisLabelVisible: true,
-        title: levelLabel,
-      }));
-      lines.push(candleSeries.createPriceLine({
-        price: s.target_px,
-        color: "#22d39a",
-        lineWidth: 1,
-        lineStyle: 2,   // dashed
-        axisLabelVisible: true,
-        title: `target`,
-      }));
-      lines.push(candleSeries.createPriceLine({
-        price: s.stop_px,
-        color: "#ff5470",
-        lineWidth: 1,
-        lineStyle: 2,   // dashed
-        axisLabelVisible: true,
-        title: `stop`,
-      }));
-      _setupLines[key] = lines;
-    } catch (e) { /* series may not be ready */ }
+    try { _setupLines[key].forEach(l => candleSeries.removePriceLine(l)); }
+    catch (e) {}
+    delete _setupLines[key];
   });
 }
 
-// Historical trade-level line segments. For each recent closed trade
-// we draw three 2-point horizontal segments:
-//   - STOP   at stop_px, from the pivot bar that FORMED the stop level
-//            (pivot_high candle for SHORT, pivot_low for LONG) to the
-//            bar where the trade actually closed.
-//   - TARGET at target_px, anchored to the OPPOSITE pivot bar, same end.
-//   - ENTRY  at entry_px, from the entry bar to the exit bar.
-//
-// Only the MOST RECENT closed trade gets these lines — when the bot is
-// firing 5+ trades per hour, drawing lines for all of them turns the
-// chart into an unreadable mess. Older trades still get their entry/exit
-// arrow markers via updateChartMarkers().
-const TRADE_LINE_TTL_MS = 30 * 60 * 1000;  // 30 minutes
-const _tradeLineSeries = {};   // keyed by exit timestamp string
+// DISABLED per user request — chart shows BUY/SELL arrows only, no lines.
+// Stop/target/entry line segments removed for chart clarity. Cleans up
+// any existing series on each poll so stale lines don't linger.
+const _tradeLineSeries = {};   // kept for cleanup of any existing series
 function updateTradeLineSegments() {
-  if (!candleSeries || !chart) return;
-  const trades = (state.data && state.data.recent_trades) || [];
-  const cutoff = Date.now() - TRADE_LINE_TTL_MS;
-  // Find the most-recent closed trade that's eligible to be drawn
-  let pick = null;
-  trades.forEach(t => {
-    const exitT = new Date(t.ts).getTime();
-    if (exitT < cutoff) return;
-    if (!t.entry_ts || !t.stop_px || !t.target_px) return;
-    if (!t.pivot_high_ts || !t.pivot_low_ts) return;
-    if (!pick || exitT > new Date(pick.ts).getTime()) pick = t;
-  });
-  const wanted = {};
-  if (pick) wanted[pick.ts] = pick;
-  // Remove series for trades that aged out
+  if (!chart) return;
   Object.keys(_tradeLineSeries).forEach(key => {
-    if (!wanted[key]) {
-      try {
-        _tradeLineSeries[key].forEach(s => chart.removeSeries(s));
-      } catch (e) {}
-      delete _tradeLineSeries[key];
-    }
-  });
-  // Add series for trades that haven't been drawn yet
-  Object.keys(wanted).forEach(key => {
-    if (_tradeLineSeries[key]) return;
-    const t = wanted[key];
-    const isLong = t.side === "LONG";
-    const won = (t.pnl_usd || 0) > 0;
-    const stopAnchor = isLong ? t.pivot_low_ts : t.pivot_high_ts;
-    const tgtAnchor = isLong ? t.pivot_high_ts : t.pivot_low_ts;
-    const exitSec = Math.floor(new Date(t.ts).getTime() / 1000);
-    const entrySec = Math.floor(new Date(t.entry_ts).getTime() / 1000);
-    const stopSec = Math.floor(new Date(stopAnchor).getTime() / 1000);
-    const tgtSec = Math.floor(new Date(tgtAnchor).getTime() / 1000);
-    const series = [];
-    try {
-      // STOP line — dashed red, thick. Title shows the actual stop price
-      // so you can read it directly off the chart.
-      const stopSeries = chart.addLineSeries({
-        color: "#ff5470", lineWidth: 3, lineStyle: 2,
-        priceLineVisible: false, lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        title: `STOP ${t.stop_px.toFixed(2)}`,
-      });
-      stopSeries.setData([
-        { time: stopSec, value: t.stop_px },
-        { time: exitSec, value: t.stop_px },
-      ]);
-      series.push(stopSeries);
-      // TARGET line — dashed green, thick. Title shows actual price.
-      const tgtSeries = chart.addLineSeries({
-        color: "#22d39a", lineWidth: 3, lineStyle: 2,
-        priceLineVisible: false, lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        title: `TARGET ${t.target_px.toFixed(2)}`,
-      });
-      tgtSeries.setData([
-        { time: tgtSec, value: t.target_px },
-        { time: exitSec, value: t.target_px },
-      ]);
-      series.push(tgtSeries);
-      // ENTRY line — solid, thick, colored by trade outcome (green=win,
-      // red=loss). Title shows side + entry price.
-      const entrySeries = chart.addLineSeries({
-        color: won ? "#22d39a" : "#ff5470",
-        lineWidth: 4, lineStyle: 0,
-        priceLineVisible: false, lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        title: `${t.side} ENTRY ${t.entry_px.toFixed(2)}`,
-      });
-      entrySeries.setData([
-        { time: entrySec, value: t.entry_px },
-        { time: exitSec, value: t.entry_px },
-      ]);
-      series.push(entrySeries);
-      _tradeLineSeries[key] = series;
-    } catch (e) { /* series may not be ready */ }
+    try { _tradeLineSeries[key].forEach(s => chart.removeSeries(s)); }
+    catch (e) {}
+    delete _tradeLineSeries[key];
   });
 }
 

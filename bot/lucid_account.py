@@ -57,7 +57,7 @@ LUCID_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "lucid_acco
 # Railway deploy. The bot remembers the last applied serial in the state
 # file; on startup if it doesn't match this constant, _hard_reset_all()
 # runs once, then the new serial is persisted so it won't trigger again.
-RESET_SERIAL = 8  # bumped for pullback-strategy switchover (1 MNQ fixed)
+RESET_SERIAL = 9  # bumped per user request: fresh $50k reset + dashboard refresh
 
 
 # ---------------------------------------------------------------------------
