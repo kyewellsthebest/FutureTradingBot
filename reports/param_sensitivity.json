@@ -1,0 +1,218 @@
+{
+  "BASELINE": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 8647,
+    "wr": 44.0,
+    "total": 14064.0,
+    "ret_mo": 10.79,
+    "dd_usd": -1327.0,
+    "dd_pct": 2.65,
+    "pf": 1.113,
+    "rr": 1.41,
+    "trades_per_mo": 3316.0
+  },
+  "impulse -1 (4pt)": {
+    "params": {
+      "IMPULSE_PTS": 4.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 9327,
+    "wr": 44.2,
+    "total": 14804.0,
+    "ret_mo": 11.35,
+    "dd_usd": -1150.0,
+    "dd_pct": 2.3,
+    "pf": 1.111,
+    "rr": 1.4,
+    "trades_per_mo": 3577.0
+  },
+  "impulse +1 (6pt)": {
+    "params": {
+      "IMPULSE_PTS": 6.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 7882,
+    "wr": 43.8,
+    "total": 12179.0,
+    "ret_mo": 9.34,
+    "dd_usd": -1555.0,
+    "dd_pct": 3.11,
+    "pf": 1.106,
+    "rr": 1.42,
+    "trades_per_mo": 3023.0
+  },
+  "impulse +2 (7pt)": {
+    "params": {
+      "IMPULSE_PTS": 7.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 7158,
+    "wr": 43.8,
+    "total": 11338.0,
+    "ret_mo": 8.7,
+    "dd_usd": -1301.0,
+    "dd_pct": 2.6,
+    "pf": 1.108,
+    "rr": 1.42,
+    "trades_per_mo": 2745.0
+  },
+  "retrace 0.5": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.5,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 10195,
+    "wr": 42.6,
+    "total": 7172.0,
+    "ret_mo": 5.5,
+    "dd_usd": -3152.0,
+    "dd_pct": 6.3,
+    "pf": 1.047,
+    "rr": 1.41,
+    "trades_per_mo": 3910.0
+  },
+  "retrace 0.786": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.786,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 6990,
+    "wr": 43.9,
+    "total": 10008.0,
+    "ret_mo": 7.68,
+    "dd_usd": -1287.0,
+    "dd_pct": 2.57,
+    "pf": 1.099,
+    "rr": 1.41,
+    "trades_per_mo": 2681.0
+  },
+  "stop -1 (5pt)": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 5.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 8910,
+    "wr": 40.0,
+    "total": 12015.0,
+    "ret_mo": 9.22,
+    "dd_usd": -1699.0,
+    "dd_pct": 3.4,
+    "pf": 1.102,
+    "rr": 1.65,
+    "trades_per_mo": 3417.0
+  },
+  "stop +1 (7pt)": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 7.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 8435,
+    "wr": 47.4,
+    "total": 15021.0,
+    "ret_mo": 11.52,
+    "dd_usd": -1342.0,
+    "dd_pct": 2.68,
+    "pf": 1.115,
+    "rr": 1.24,
+    "trades_per_mo": 3235.0
+  },
+  "target -1 (9pt)": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 9.0
+    },
+    "n": 8796,
+    "wr": 46.0,
+    "total": 10922.0,
+    "ret_mo": 8.38,
+    "dd_usd": -1478.0,
+    "dd_pct": 2.96,
+    "pf": 1.089,
+    "rr": 1.28,
+    "trades_per_mo": 3373.0
+  },
+  "target +2 (12pt)": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 3,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 12.0
+    },
+    "n": 8360,
+    "wr": 40.7,
+    "total": 17162.0,
+    "ret_mo": 13.16,
+    "dd_usd": -954.0,
+    "dd_pct": 1.91,
+    "pf": 1.135,
+    "rr": 1.65,
+    "trades_per_mo": 3206.0
+  },
+  "window 2 bars": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 2,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 8976,
+    "wr": 41.5,
+    "total": 383.0,
+    "ret_mo": 0.29,
+    "dd_usd": -2593.0,
+    "dd_pct": 5.19,
+    "pf": 1.003,
+    "rr": 1.41,
+    "trades_per_mo": 3442.0
+  },
+  "window 4 bars": {
+    "params": {
+      "IMPULSE_PTS": 5.0,
+      "IMPULSE_WINDOW_BARS": 4,
+      "PULLBACK_PCT": 0.618,
+      "STOP_PTS": 6.0,
+      "TARGET_PTS": 10.0
+    },
+    "n": 8134,
+    "wr": 46.4,
+    "total": 24710.0,
+    "ret_mo": 18.95,
+    "dd_usd": -918.0,
+    "dd_pct": 1.84,
+    "pf": 1.221,
+    "rr": 1.41,
+    "trades_per_mo": 3119.0
+  }
+}

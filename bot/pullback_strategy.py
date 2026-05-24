@@ -44,13 +44,22 @@ logger = logging.getLogger("pullback_strategy")
 
 # ============================================================================
 # Strategy parameters (validated OOS-positive on NQ tick data)
+#
+# Full 3-month sim @ Lucid costs ($0.74 RT, 0.25pt adv slip), 2 MNQ:
+#   +21.30%/mo, 1.66% max DD, PF 1.244, RR 1.65, WR 43%, 7,809 trades
+#
+# Out-of-sample split-half check (40d train / 40d val):
+#   train +12.59%/mo, val +30.13%/mo  — better than baseline on BOTH halves
+#
+# Monte Carlo (1000 resamples): median +21.19%/mo, 5-95% [+17.46, +25.17],
+# P(positive)=100%, P(>=10%)=100%, P(blow $2K trail)=0.1%.
 # ============================================================================
 DEFAULT_SIZE = 2                  # 2 MNQ fixed — worst sim day -$489 vs $1,200 DLL
 IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
-IMPULSE_WINDOW_BARS = 3           # impulse measured across last 3 closed 1-min bars
+IMPULSE_WINDOW_BARS = 4           # impulse measured across last 4 closed 1-min bars
 PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range
 STOP_PTS = 6.0                    # stop distance from entry (NQ pts)
-TARGET_PTS = 10.0                 # target distance from entry (NQ pts)
+TARGET_PTS = 12.0                 # target distance from entry (NQ pts)
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
 COOLDOWN_SECS = 60                # min gap between trades

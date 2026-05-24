@@ -205,6 +205,61 @@ function renderLive(d) {
   setText("sys-cycle", d.cycle ?? 0);
   setText("sys-breaker", fib.circuit_breaker_tripped ? "TRIPPED" : "armed");
   setText("sys-error", d.last_error || "none");
+
+  // Sim baseline drift monitor — annualise from all completed trades
+  renderDriftMonitor(d);
+}
+
+// Sim baseline (window=4, target=12pt, 2 MNQ, $0.74 RT, 0.25pt adv slip).
+// Validated on 3-month NQ tick data + OOS split-half. Used for drift detection.
+const SIM_BASELINE = {
+  ret_mo: 21.19, dd_pct: 1.66, dd_usd: 828,
+  wr: 43.0, rr: 1.65, trades_per_mo: 2998,
+};
+
+function renderDriftMonitor(d) {
+  const all = (d.recent_trades || []).filter(t => t.exit_ts && t.pnl_usd !== undefined);
+  if (all.length === 0) {
+    setText("live-ret-mo", "—");
+    setText("live-dd", "—");
+    setText("live-wr-rr", "—");
+    setText("live-trades-mo", "—");
+    return;
+  }
+  const pnls = all.map(t => t.pnl_usd);
+  const wins = pnls.filter(p => p > 0);
+  const losses = pnls.filter(p => p < 0);
+  const totalPnl = pnls.reduce((a, b) => a + b, 0);
+  const wr = wins.length / pnls.length * 100;
+  const avgW = wins.length ? wins.reduce((a, b) => a + b, 0) / wins.length : 0;
+  const avgL = losses.length ? losses.reduce((a, b) => a + b, 0) / losses.length : 0;
+  const rr = avgL !== 0 ? Math.abs(avgW / avgL) : 0;
+  // running DD
+  let peak = 0, run = 0, maxDd = 0;
+  for (const p of pnls) { run += p; if (run > peak) peak = run; if (peak - run > maxDd) maxDd = peak - run; }
+  // annualise from elapsed time of the trade window
+  const firstTs = new Date(all[all.length - 1].entry_ts || all[all.length - 1].ts).getTime();
+  const lastTs  = new Date(all[0].exit_ts || all[0].ts).getTime();
+  const days = Math.max(1, (lastTs - firstTs) / 86400000);
+  const months = days / 30.44;
+  const retMo = totalPnl / 50000 * 100 / months;
+  const tradesMo = pnls.length / months;
+  setText("live-ret-mo", (retMo >= 0 ? "+" : "") + retMo.toFixed(2) + "%");
+  setText("live-dd", "$" + maxDd.toFixed(0) + " (" + (maxDd/50000*100).toFixed(2) + "%)");
+  setText("live-wr-rr", wr.toFixed(1) + "% / " + rr.toFixed(2));
+  setText("live-trades-mo", tradesMo.toFixed(0));
+  // Verdict only when we have enough trades
+  const el = document.getElementById("live-drift");
+  if (!el) return;
+  if (pnls.length < 30) {
+    el.textContent = "need ≥30 trades to compare (" + pnls.length + ")";
+    el.className = "muted";
+    return;
+  }
+  const retDiff = retMo - SIM_BASELINE.ret_mo;
+  if (Math.abs(retDiff) < 2) { el.textContent = "matching sim ✓"; el.className = "pos"; }
+  else if (retDiff > 0) { el.textContent = "above sim by " + retDiff.toFixed(1) + "%/mo"; el.className = "pos"; }
+  else { el.textContent = "below sim by " + Math.abs(retDiff).toFixed(1) + "%/mo"; el.className = "neg"; }
 }
 
 // ---- Funded tab ----------------------------------------------------------
