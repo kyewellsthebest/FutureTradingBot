@@ -48,6 +48,12 @@ LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_fib.log"
 
 SHADOW_MODE = os.environ.get("BOT_SHADOW_MODE", "1") == "1"
 N_MNQ = int(os.environ.get("FIB_N_MNQ", str(DEFAULT_SIZE)))
+# Execution cost overrides (Lucid 50K Pro / Tradovate prop-firm defaults).
+# These override the paper account's legacy market-order constants. Tune
+# via env if your broker statement shows different rates.
+ENTRY_SLIP_PTS = float(os.environ.get("FIB_ENTRY_SLIP_PTS", "0.0"))      # limit fills
+ADVERSE_SLIP_PTS = float(os.environ.get("FIB_ADVERSE_SLIP_PTS", "0.25")) # realistic MNQ stop slip
+COMM_PER_MNQ_RT = float(os.environ.get("FIB_COMM_PER_MNQ_RT", "0.74"))   # Lucid prop rate
 
 
 # ---------------------------------------------------------------------------
@@ -303,11 +309,8 @@ class FibRuntime:
         try:
             # Pullback strategy uses LIMIT-style entries (waits for price to
             # touch pullback_entry, fills at that level). Override the paper
-            # account's defaults (designed for legacy market-order Fib v1):
-            #   entry_slip=0     limit orders fill at limit or better
-            #   adverse_slip=0.5 modest market-order slip on stop triggers
-            #   commission=$1    realistic MNQ prop-firm rate (legacy default
-            #                    was $2 inherited from 30-contract NQ era)
+            # account's legacy market-order defaults with prop-firm-realistic
+            # values (env-configurable for tuning to actual broker statements).
             self.account.enter(
                 signal_name=f"FIB_{trade.side}_{int(trade.setup.level50)}",
                 side=trade.side, entry_px_raw=trade.entry_px,
@@ -316,9 +319,9 @@ class FibRuntime:
                 rr=abs(trade.target_px - trade.entry_px) /
                    max(abs(trade.stop_px - trade.entry_px), 1e-9),
                 now=now,
-                entry_slip_pts=0.0,
-                adverse_slip_pts=0.5,
-                commission_per_mnq_rt=1.0,
+                entry_slip_pts=ENTRY_SLIP_PTS,
+                adverse_slip_pts=ADVERSE_SLIP_PTS,
+                commission_per_mnq_rt=COMM_PER_MNQ_RT,
             )
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "

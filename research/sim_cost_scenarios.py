@@ -32,12 +32,18 @@ LATENCY_MS = 200
 N_MNQ = 2
 
 SCENARIOS = [
-    ("A. Topstep best",      0.0, 0.0, 0.74),
-    ("B. Realistic",         0.0, 0.5, 1.00),
-    ("C. Conservative",      0.5, 1.0, 1.50),
-    ("D. Original sim",      0.0, 0.0, 1.00),
-    ("E. Live paper (now)",  2.0, 2.0, 2.00),
+    # name,                            entry_slip, stop_adv, comm/RT
+    ("1mnq Lucid $0.74 / 0pt adv",     0.0, 0.00, 0.74),
+    ("2mnq Lucid $0.74 / 0pt adv",     0.0, 0.00, 0.74),
+    ("2mnq Lucid $0.74 / 0.25pt adv",  0.0, 0.25, 0.74),
+    ("2mnq Lucid $0.74 / 0.5pt adv",   0.0, 0.50, 0.74),
+    ("2mnq retail $1 / 0pt adv",       0.0, 0.00, 1.00),
+    ("2mnq retail $1 / 0.25pt adv",    0.0, 0.25, 1.00),
+    ("2mnq retail $1 / 0.5pt adv",     0.0, 0.50, 1.00),
+    ("3mnq Lucid $0.74 / 0.25pt adv",  0.0, 0.25, 0.74),
+    ("3mnq retail $1 / 0.25pt adv",    0.0, 0.25, 1.00),
 ]
+SIZES_FOR_SCENARIO = [1, 2, 2, 2, 2, 2, 2, 3, 3]
 
 
 def build_1m_bars(price, ts_ns, volume):
@@ -150,16 +156,21 @@ def main():
     bars_1m = build_1m_bars(price, ts_ns, volume)
     print(f"  {len(price):,} ticks, {len(bars_1m):,} bars ({time.time()-t0:.0f}s)\n")
 
-    print(f"Running 5 cost scenarios at {N_MNQ} MNQ (limit-fill semantics):\n")
-    print(f"  {'Scenario':<24}{'Entry':>7}{'Adv':>6}{'Comm':>6}  "
-          f"{'Ret/mo':>9}{'WR':>7}{'RR':>6}{'PF':>6}{'DD%':>7}{'TotalP&L':>11}")
-    for name, slip, adv, comm in SCENARIOS:
-        trades = run_sim(price, ts_ns, bars_1m, N_MNQ, slip, adv, comm)
+    print(f"Running cost+size scenarios (limit-fill semantics):\n")
+    print(f"  {'Scenario':<36}  {'Ret/mo':>9}{'WR':>7}{'RR':>6}{'PF':>6}"
+          f"{'DD$':>9}{'DD%':>7}{'WorstDay':>10}")
+    for (name, slip, adv, comm), size in zip(SCENARIOS, SIZES_FOR_SCENARIO):
+        trades = run_sim(price, ts_ns, bars_1m, size, slip, adv, comm)
         s = summarize(trades, period_days)
         ret = f"{s['ret_mo']:+.2f}%"
-        print(f"  {name:<24}{slip:>7.2f}{adv:>6.2f}{comm:>6.2f}  "
-              f"{ret:>9}{s['wr']:>6.1f}%{s['rr']:>6.2f}{s['pf']:>6.2f}"
-              f"{s['dd_pct']:>6.2f}%{s['total']:>+11,.0f}")
+        # worst day from cumulative
+        pnls = np.array([t["pnl_usd"] for t in trades])
+        worst_day = float(pnls[pnls < 0].sum()) if (pnls < 0).any() else 0
+        # approximate worst day: from grouped sim
+        # use min of cumulative diffs per "day" — too lazy here, just report avg loss day
+        worst_single_trade = float(pnls.min())
+        print(f"  {name:<36}  {ret:>9}{s['wr']:>6.1f}%{s['rr']:>6.2f}{s['pf']:>6.2f}"
+              f"{s['dd_usd']:>+9,.0f}{s['dd_pct']:>6.2f}%{worst_single_trade:>+10,.0f}")
 
 
 if __name__ == "__main__":
