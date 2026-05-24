@@ -285,7 +285,18 @@ def open_trade(setup: FibSetup, n_mnq: int, entry_px: float,
 def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
                 now: datetime) -> Optional[tuple[float, str]]:
     """Return (exit_px, reason) if this bar triggers exit, else None.
-    Exits: stop, target, or timeout."""
+    Exits: stop, target, or timeout.
+
+    HARD MIN-HOLD: ALL exits (stop, target, timeout) blocked if hold_s
+    < MIN_TARGET_HOLD_SECONDS (10s). No trade closes faster than 10
+    seconds regardless of reason. This is stricter than the original
+    fib strategy (which only blocked target exits) — applied per
+    user spec to prevent any sub-10s trades.
+    """
+    hold_s = trade.hold_seconds(now)
+    if hold_s < MIN_TARGET_HOLD_SECONDS:
+        return None   # too soon — wait for at least 10s of hold
+
     high = float(last_1m_bar["high"])
     low = float(last_1m_bar["low"])
     close = float(last_1m_bar["close"])
@@ -294,19 +305,11 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
         if low <= trade.stop_px:
             return trade.stop_px, "stop"
         if high >= trade.target_px:
-            # microscalp safety: very fast target exits get blocked unless
-            # the trade is allowed to develop. Same logic as fib strategy.
-            hold_s = trade.hold_seconds(now)
-            if hold_s < MIN_TARGET_HOLD_SECONDS:
-                return None
             return trade.target_px, "target"
     else:
         if high >= trade.stop_px:
             return trade.stop_px, "stop"
         if low <= trade.target_px:
-            hold_s = trade.hold_seconds(now)
-            if hold_s < MIN_TARGET_HOLD_SECONDS:
-                return None
             return trade.target_px, "target"
 
     if now >= trade.max_hold_until:
