@@ -29,7 +29,7 @@ from typing import Optional
 import pandas as pd
 
 from bot import persistence
-from bot.fib_strategy import (
+from bot.pullback_strategy import (
     DEFAULT_SIZE, FibStrategyState, MICROSCALP_HARD_THRESHOLD,
     MIN_TARGET_HOLD_SECONDS, lucid_precheck, on_new_1m_bar,
     snapshot as fib_snapshot,
