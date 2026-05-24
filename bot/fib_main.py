@@ -301,6 +301,13 @@ class FibRuntime:
         # whether we'd ALSO send a real broker order (we never do yet,
         # so today shadow and live are functionally identical).
         try:
+            # Pullback strategy uses LIMIT-style entries (waits for price to
+            # touch pullback_entry, fills at that level). Override the paper
+            # account's defaults (designed for legacy market-order Fib v1):
+            #   entry_slip=0     limit orders fill at limit or better
+            #   adverse_slip=0.5 modest market-order slip on stop triggers
+            #   commission=$1    realistic MNQ prop-firm rate (legacy default
+            #                    was $2 inherited from 30-contract NQ era)
             self.account.enter(
                 signal_name=f"FIB_{trade.side}_{int(trade.setup.level50)}",
                 side=trade.side, entry_px_raw=trade.entry_px,
@@ -309,6 +316,9 @@ class FibRuntime:
                 rr=abs(trade.target_px - trade.entry_px) /
                    max(abs(trade.stop_px - trade.entry_px), 1e-9),
                 now=now,
+                entry_slip_pts=0.0,
+                adverse_slip_pts=0.5,
+                commission_per_mnq_rt=1.0,
             )
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "

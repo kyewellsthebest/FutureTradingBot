@@ -49,6 +49,7 @@ class OpenPosition:
     vol_regime: str = ""
     daily_bias: str = ""
     rr: float = 0.0
+    adverse_slip_pts: float | None = None   # per-position override for stop slip
 
 
 @dataclass
@@ -178,15 +179,25 @@ class PaperAccount:
               stop_px: float, target_px: float, qty: int = CONTRACTS,
               ml_decision: str = "", ml_confidence: float = 0.0,
               vol_regime: str = "", daily_bias: str = "", rr: float = 0.0,
-              now: datetime | None = None) -> OpenPosition:
+              now: datetime | None = None,
+              entry_slip_pts: float | None = None,
+              adverse_slip_pts: float | None = None,
+              commission_per_mnq_rt: float | None = None) -> OpenPosition:
+        """`entry_slip_pts` overrides the default SLIPPAGE_POINTS (2pt) per call.
+        Strategies that send LIMIT orders should pass 0 — limit orders fill at
+        limit or better. `adverse_slip_pts` overrides the default
+        ADVERSE_SLIPPAGE_POINTS (2pt) applied on stop fills.
+        `commission_per_mnq_rt` overrides the default $2/contract (legacy NQ
+        figure) with the actual MNQ broker rate (~$0.74-$1)."""
         if self.state.open_position is not None:
             raise RuntimeError("position already open")
         now = now or datetime.now(timezone.utc)
-        # entry slippage: pay up if LONG, receive less if SHORT
-        slipped = entry_px_raw + SLIPPAGE_POINTS if side == "LONG" else entry_px_raw - SLIPPAGE_POINTS
-        # commission deducted at entry — SCALED BY QTY so 5 MNQ pays
-        # ~$10 round-trip instead of the full $60 (which is for 30 MNQ).
-        commission = COMMISSION_ROUND_TRIP * (qty / CONTRACTS)
+        slip = SLIPPAGE_POINTS if entry_slip_pts is None else entry_slip_pts
+        slipped = entry_px_raw + slip if side == "LONG" else entry_px_raw - slip
+        if commission_per_mnq_rt is None:
+            commission = COMMISSION_ROUND_TRIP * (qty / CONTRACTS)
+        else:
+            commission = commission_per_mnq_rt * qty
         self.state.balance -= commission
 
         trade_id = persistence.insert_trade({
@@ -202,6 +213,7 @@ class PaperAccount:
             stop_px=stop_px, target_px=target_px, qty=qty,
             ml_decision=ml_decision, ml_confidence=ml_confidence,
             vol_regime=vol_regime, daily_bias=daily_bias, rr=rr,
+            adverse_slip_pts=adverse_slip_pts,
         )
         self.state.open_position = op
         self._roll_daily(now)
@@ -240,9 +252,9 @@ class PaperAccount:
                adverse: bool, now: datetime) -> dict:
         op = self.state.open_position
         assert op is not None
+        adv = ADVERSE_SLIPPAGE_POINTS if op.adverse_slip_pts is None else op.adverse_slip_pts
         if adverse:
-            exit_px = exit_px_raw - ADVERSE_SLIPPAGE_POINTS if op.side == "LONG" \
-                                                              else exit_px_raw + ADVERSE_SLIPPAGE_POINTS
+            exit_px = exit_px_raw - adv if op.side == "LONG" else exit_px_raw + adv
         else:
             exit_px = exit_px_raw
 
