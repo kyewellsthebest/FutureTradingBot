@@ -32,3 +32,6 @@ data/v14_progress.json
 data/v15_progress.json
 data/signal_dataset.csv
 data/sr_progress.json
+
+# Tick data (large files, store locally only)
+data/tick/
