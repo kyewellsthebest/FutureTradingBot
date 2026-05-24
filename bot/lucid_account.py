@@ -57,7 +57,7 @@ LUCID_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "lucid_acco
 # Railway deploy. The bot remembers the last applied serial in the state
 # file; on startup if it doesn't match this constant, _hard_reset_all()
 # runs once, then the new serial is persisted so it won't trigger again.
-RESET_SERIAL = 9  # bumped per user request: fresh $50k reset + dashboard refresh
+RESET_SERIAL = 10  # bumped again: now also wipes dashboard_data.json + signal_events.json
 
 
 # ---------------------------------------------------------------------------
@@ -176,9 +176,10 @@ class LucidAccount(PaperAccount):
         self.save()
 
     def _hard_reset_all(self) -> None:
-        """One-shot full reset triggered by BOT_RESET_ACCOUNT=1. Wipes
-        paper balance, Lucid bookkeeping AND the trades DB so the
-        dashboard shows a clean $50k account with zero trade history."""
+        """One-shot full reset triggered by RESET_SERIAL bump or
+        BOT_RESET_ACCOUNT=1. Wipes paper balance, Lucid bookkeeping,
+        the trades DB, the dashboard JSON cache, and signal-event JSON so
+        the dashboard shows a clean $50k account with zero trade history."""
         logger.warning("=== HARD RESET requested — wiping account back to $50k ===")
         # Lucid state → fresh, but record the serial we just applied so
         # the bump-trigger doesn't loop on every restart.
@@ -207,6 +208,22 @@ class LucidAccount(PaperAccount):
                 logger.warning("=== trades DB cleared ===")
         except Exception as e:
             logger.warning(f"trades DB wipe failed (non-fatal): {e}")
+        # Dashboard JSON cache → deleted (regenerated on next snapshot in ~60s)
+        try:
+            dashboard_path = LUCID_STATE_PATH.parent / "dashboard_data.json"
+            if dashboard_path.exists():
+                dashboard_path.unlink()
+                logger.warning("=== dashboard_data.json deleted ===")
+        except Exception as e:
+            logger.warning(f"dashboard cache wipe failed (non-fatal): {e}")
+        # Signal events JSON → deleted
+        try:
+            sig_path = LUCID_STATE_PATH.parent / "signal_events.json"
+            if sig_path.exists():
+                sig_path.unlink()
+                logger.warning("=== signal_events.json deleted ===")
+        except Exception as e:
+            logger.warning(f"signal events wipe failed (non-fatal): {e}")
         logger.warning(f"=== HARD RESET COMPLETE — balance ${START_BAL:,.0f}, "
                        f"trail ${INITIAL_TRAIL:,.0f} ===")
         logger.warning("=== REMEMBER to unset BOT_RESET_ACCOUNT in Railway "
