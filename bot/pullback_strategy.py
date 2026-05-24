@@ -45,7 +45,7 @@ logger = logging.getLogger("pullback_strategy")
 # ============================================================================
 # Strategy parameters (validated OOS-positive on NQ tick data)
 # ============================================================================
-DEFAULT_SIZE = 1                  # 1 MNQ fixed (NOT 5)
+DEFAULT_SIZE = 2                  # 2 MNQ fixed — worst sim day -$489 vs $1,200 DLL
 IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
 IMPULSE_WINDOW_BARS = 3           # impulse measured across last 3 closed 1-min bars
 PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range
