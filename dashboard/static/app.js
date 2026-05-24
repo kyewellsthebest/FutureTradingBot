@@ -106,25 +106,10 @@ function renderTopbar(d) {
   modeBadge.className = "badge badge-mode" + (d.mode === "live" ? " live" : "");
   setText("badge-version", "pullback");
 
-  // 5-min HTF trend badge — only set if the element exists in HTML.
-  // The strategy snapshot publishes htf_trend = "UP" / "DOWN" / "FLAT".
-  const htf = fib.htf_trend || "FLAT";
-  const htfEl = document.getElementById("badge-htf");
-  if (htfEl) {
-    htfEl.textContent = "1m " + htf;
-    htfEl.className = "badge badge-htf " +
-      (htf === "UP" ? "htf-up" : htf === "DOWN" ? "htf-down" : "htf-flat");
-  }
-  // Chop badge — shows current chop index (0.0 chop → 1.0 clean trend)
-  // and color-codes whether the chop filter would block a setup right now.
-  const chopIdx = fib.chop_index ?? 0;
-  const chopThr = fib.chop_threshold ?? 0.3;
-  const chopBlocking = chopIdx < chopThr;
-  const chopEl = document.getElementById("badge-chop");
-  if (chopEl) {
-    chopEl.textContent = `chop ${chopIdx.toFixed(2)}`;
-    chopEl.className = "badge badge-chop " + (chopBlocking ? "chop-block" : "chop-ok");
-  }
+  // HTF trend + chop badges REMOVED — the pullback strategy doesn't
+  // use either filter. We just look for the 5pt impulse and trade it.
+  // (The strategy snapshot still emits htf_trend/chop_index for backwards
+  // compat with old dashboard versions, but the UI no longer renders them.)
 
   // Data source badge — "real 1m" if Polygon/yfinance 1-min came through,
   // "synth 1m" if we're falling back to deriving from 5-min OHLC.
