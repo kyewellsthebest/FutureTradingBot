@@ -1,6 +1,6 @@
-"""Out-of-sample validation + sanity checks for the pullback strategy.
+"""Out-of-sample validation + sanity checks for top strategies.
 
-If the strategy works as backtest claims (+97%/mo, 5.6% DD), it should:
+If the strategies work as backtest claims, they should:
   1. Show similar results on first half (IS) and second half (OOS)
   2. Survive on individual weeks/months separately
   3. Have realistic trade-by-trade equity curve (not one mega-winner)
@@ -13,14 +13,14 @@ from pathlib import Path
 import sys
 sys.path.insert(0, "/home/user/HFTBot")
 from research.tick_precise_framework import (
-    build_1m_bars, strategy_pullback_impulse, summarize, hits_spec,
-    STARTING_BALANCE,
+    build_1m_bars, strategy_pullback_impulse, strategy_momentum_cumdelta,
+    summarize, hits_spec, STARTING_BALANCE,
 )
 
 SRC = Path("/home/user/HFTBot/data/tick/NQ.03-26.Last.parquet")
 
-# THE config we're validating
-BEST_CONFIG = {
+# Top configs from sweep
+PULLBACK_CONFIG = {
     "impulse_pts": 5.0,
     "impulse_window_bars": 3,
     "pullback_pct": 0.618,
@@ -31,15 +31,39 @@ BEST_CONFIG = {
     "cooldown_secs": 60,
 }
 
+MOMENTUM_CONFIG = {
+    "n_bars_required": 2,
+    "min_total_move_pts": 6.0,
+    "cumdelta_confirm_window_secs": 60,
+    "cumdelta_min_thresh": 800,
+    "init_stop_pts": 2.0,
+    "target_pts": 6.0,
+    "max_hold_secs": 900,
+    "cooldown_secs": 60,
+}
 
-def split_data(df, fraction):
-    n = len(df)
-    cut = int(n * fraction)
-    return df.iloc[:cut], df.iloc[cut:]
 
-
-def slice_arrays(ts_ns, *arrs, mask):
-    return [a[mask] for a in arrs]
+def test_config(label, strat_func, kwargs, price, ts_ns, volume, aggressor,
+                bars_1m, signed_vol, period_days):
+    """Run a strategy and report stats."""
+    print(f"\n--- {label} ---")
+    if strat_func == strategy_pullback_impulse:
+        trades = strat_func(price, ts_ns, volume, aggressor, bars_1m, **kwargs)
+    elif strat_func == strategy_momentum_cumdelta:
+        trades = strat_func(bars_1m, price, ts_ns, signed_vol, **kwargs)
+    else:
+        return None
+    s = summarize(trades, period_days)
+    if not s:
+        print("  No trades")
+        return None
+    flag = " ★★★★ HITS SPEC!" if hits_spec(s) else ""
+    print(f"  n={s['n']} ({s['trades_per_mo']:.0f}/mo, {s['trades_per_day']:.1f}/day)")
+    print(f"  WR={s['wr']*100:.1f}% PF={s['pf']:.2f} RR={s['rr']:.2f}")
+    print(f"  $/trade=${s['per']:+.2f}  Total=${s['total']:+,.0f}  Streak={s['max_streak']}")
+    print(f"  Max DD=${s['maxdd']:,.0f} ({abs(s['maxdd_pct']):.1f}%)")
+    print(f"  RETURN: {s['ret_per_mo']:+.2f}%/mo{flag}")
+    return trades, s
 
 
 def main():
@@ -48,119 +72,106 @@ def main():
     df = pd.read_parquet(SRC)
     period_days = (df["ts"].iloc[-1] - df["ts"].iloc[0]).total_seconds() / 86400
     print(f"  {len(df):,} ticks over {period_days:.0f} days")
-
     price = df["price"].to_numpy(dtype=np.float32)
     volume = df["volume"].to_numpy(dtype=np.int32)
     aggressor = df["aggressor"].to_numpy(dtype=np.int8)
     ts_ns = df["ts"].astype("int64").to_numpy()
-    print(f"  Loaded in {time.time()-t0:.0f}s")
-
+    signed_vol = (volume * aggressor).astype(np.int64)
     bars_1m = build_1m_bars(price, ts_ns, volume, aggressor)
-    print(f"  Built {len(bars_1m):,} 1-min bars in {time.time()-t0:.0f}s\n")
+    print(f"  Loaded + {len(bars_1m):,} bars in {time.time()-t0:.0f}s\n")
 
-    # ==== TEST 1: FULL period baseline ====
+    # ==== FULL PERIOD ====
     print("=" * 100)
     print("TEST 1: FULL PERIOD")
     print("=" * 100)
-    trades = strategy_pullback_impulse(price, ts_ns, volume, aggressor,
-                                        bars_1m, **BEST_CONFIG)
-    s = summarize(trades, period_days)
-    if s:
-        flag = "★★★★ HITS SPEC!" if hits_spec(s) else ""
-        print(f"  n={s['n']} ({s['trades_per_mo']:.0f}/mo, {s['trades_per_day']:.1f}/day)")
-        print(f"  WR={s['wr']*100:.1f}% PF={s['pf']:.2f} RR={s['rr']:.2f}")
-        print(f"  $/trade=${s['per']:+.2f}  Total=${s['total']:+,.0f}")
-        print(f"  Max DD=${s['maxdd']:,.0f} ({abs(s['maxdd_pct']):.1f}%)")
-        print(f"  Max losing streak: {s['max_streak']}")
-        print(f"  RETURN: {s['ret_per_mo']:+.2f}%/mo  {flag}")
-    print()
+    pullback_full = test_config("PULLBACK", strategy_pullback_impulse,
+                                  PULLBACK_CONFIG, price, ts_ns, volume,
+                                  aggressor, bars_1m, signed_vol, period_days)
+    momentum_full = test_config("MOMENTUM+CUMDELTA", strategy_momentum_cumdelta,
+                                  MOMENTUM_CONFIG, price, ts_ns, volume,
+                                  aggressor, bars_1m, signed_vol, period_days)
 
-    # ==== TEST 2: IS / OOS split ====
-    print("=" * 100)
-    print("TEST 2: IN-SAMPLE (first 60%) vs OUT-OF-SAMPLE (last 40%)")
+    # ==== IS / OOS SPLIT ====
+    print("\n" + "=" * 100)
+    print("TEST 2: IN-SAMPLE (60%) vs OUT-OF-SAMPLE (40%)")
     print("=" * 100)
     split_idx = int(len(ts_ns) * 0.6)
-    split_ts = pd.Timestamp(ts_ns[split_idx])
-    in_mask = ts_ns < ts_ns[split_idx]
+    split_ts = ts_ns[split_idx]
+    in_mask = ts_ns < split_ts
     out_mask = ~in_mask
-
     in_days = (pd.Timestamp(ts_ns[in_mask][-1]) - pd.Timestamp(ts_ns[in_mask][0])).total_seconds() / 86400
     out_days = (pd.Timestamp(ts_ns[out_mask][-1]) - pd.Timestamp(ts_ns[out_mask][0])).total_seconds() / 86400
-    print(f"  IS: {pd.Timestamp(ts_ns[0]).date()} → {split_ts.date()}  ({in_days:.0f} days)")
-    print(f"  OOS: {split_ts.date()} → {pd.Timestamp(ts_ns[-1]).date()}  ({out_days:.0f} days)")
+    print(f"  Split @ {pd.Timestamp(split_ts).date()}  "
+          f"IS={in_days:.0f}d  OOS={out_days:.0f}d")
 
-    in_bars = bars_1m[bars_1m.index < split_ts]
-    out_bars = bars_1m[bars_1m.index >= split_ts]
+    in_bars = bars_1m[bars_1m.index < pd.Timestamp(split_ts, tz="UTC")]
+    out_bars = bars_1m[bars_1m.index >= pd.Timestamp(split_ts, tz="UTC")]
 
-    print("\n  Running IS...")
-    is_trades = strategy_pullback_impulse(price[in_mask], ts_ns[in_mask],
-                                           volume[in_mask], aggressor[in_mask],
-                                           in_bars, **BEST_CONFIG)
-    is_s = summarize(is_trades, in_days)
-    print("  Running OOS...")
-    out_trades = strategy_pullback_impulse(price[out_mask], ts_ns[out_mask],
-                                            volume[out_mask], aggressor[out_mask],
-                                            out_bars, **BEST_CONFIG)
-    out_s = summarize(out_trades, out_days)
+    for label, mask, bars, pdays in [("IS", in_mask, in_bars, in_days),
+                                       ("OOS", out_mask, out_bars, out_days)]:
+        print(f"\n  === {label} ===")
+        p = price[mask]; tn = ts_ns[mask]; v = volume[mask]; a = aggressor[mask]
+        sv = signed_vol[mask]
+        for strat_label, sf, kw in [("Pullback", strategy_pullback_impulse, PULLBACK_CONFIG),
+                                     ("Momentum+CD", strategy_momentum_cumdelta, MOMENTUM_CONFIG)]:
+            try:
+                if sf == strategy_pullback_impulse:
+                    trades = sf(p, tn, v, a, bars, **kw)
+                else:
+                    trades = sf(bars, p, tn, sv, **kw)
+                s = summarize(trades, pdays)
+                if not s:
+                    print(f"    {strat_label}: no trades"); continue
+                flag = " ★★★★" if hits_spec(s) else ""
+                print(f"    {strat_label}: n={s['n']} WR={s['wr']*100:.1f}% "
+                      f"PF={s['pf']:.2f} RR={s['rr']:.2f} "
+                      f"DD={abs(s['maxdd_pct']):.1f}% "
+                      f"→ {s['ret_per_mo']:+.2f}%/mo{flag}")
+            except Exception as e:
+                print(f"    {strat_label}: ERROR {e}")
 
-    for label, s in [("IS", is_s), ("OOS", out_s)]:
-        if not s:
-            print(f"  {label}: no trades"); continue
-        flag = "★★★★ HITS SPEC!" if hits_spec(s) else ""
-        print(f"  {label:>4}: n={s['n']} ({s['trades_per_mo']:.0f}/mo) "
-              f"WR={s['wr']*100:.1f}% PF={s['pf']:.2f} RR={s['rr']:.2f} "
-              f"DD={abs(s['maxdd_pct']):.1f}% → {s['ret_per_mo']:+.2f}%/mo {flag}")
-    print()
+    # ==== Weekly consistency for Pullback ====
+    if pullback_full:
+        trades, _ = pullback_full
+        if trades:
+            print("\n" + "=" * 100)
+            print("TEST 3: PULLBACK WEEKLY CONSISTENCY")
+            print("=" * 100)
+            tdf = pd.DataFrame(trades)
+            tdf["entry_ts"] = pd.to_datetime(tdf["entry_ts"], utc=True)
+            tdf["week"] = tdf["entry_ts"].dt.to_period("W")
+            weekly = tdf.groupby("week").agg(
+                trades=("pnl_usd", "size"),
+                wins=("pnl_usd", lambda x: (x > 0).sum()),
+                pnl=("pnl_usd", "sum"),
+            )
+            weekly["wr"] = weekly["wins"] / weekly["trades"] * 100
+            weekly["ret_pct"] = weekly["pnl"] / STARTING_BALANCE * 100
+            print(f"  {'Week':<22} {'n':>5} {'WR':>6} {'P&L':>10} {'Ret%':>7}")
+            for w, r in weekly.iterrows():
+                print(f"  {str(w):<22} {int(r['trades']):>5} "
+                      f"{r['wr']:>5.1f}% ${r['pnl']:>+8,.0f} {r['ret_pct']:>+6.2f}%")
+            wins_weeks = (weekly['pnl'] > 0).sum()
+            print(f"\n  {wins_weeks}/{len(weekly)} weeks profitable")
 
-    # ==== TEST 3: per-week breakdown ====
-    print("=" * 100)
-    print("TEST 3: PER-WEEK CONSISTENCY (full-period trades broken down)")
-    print("=" * 100)
-    tdf = pd.DataFrame(trades)
-    if len(tdf) > 0:
-        tdf["entry_ts"] = pd.to_datetime(tdf["entry_ts"], utc=True)
-        tdf["week"] = tdf["entry_ts"].dt.to_period("W")
-        weekly = tdf.groupby("week").agg(
-            trades=("pnl_usd", "size"),
-            wins=("pnl_usd", lambda x: (x > 0).sum()),
-            pnl=("pnl_usd", "sum"),
-        )
-        weekly["wr"] = weekly["wins"] / weekly["trades"] * 100
-        weekly["ret_pct"] = weekly["pnl"] / STARTING_BALANCE * 100
-        print(f"  {'Week':<22} {'Trades':>7} {'Wins':>5} {'WR':>6} {'PnL':>10} {'Ret%':>7}")
-        for w, r in weekly.iterrows():
-            tag = " WIN" if r['pnl'] > 0 else " LOSS"
-            print(f"  {str(w):<22} {int(r['trades']):>7} {int(r['wins']):>5} "
-                  f"{r['wr']:>5.1f}% ${r['pnl']:>+8,.0f} {r['ret_pct']:>+6.2f}%{tag}")
-        winning_weeks = (weekly['pnl'] > 0).sum()
-        print(f"\n  Winning weeks: {winning_weeks}/{len(weekly)} "
-              f"({winning_weeks/len(weekly)*100:.0f}%)")
-    print()
-
-    # ==== TEST 4: Trade equity curve sanity ====
-    print("=" * 100)
-    print("TEST 4: EQUITY CURVE PROFILE (looking for one-mega-winner bias)")
-    print("=" * 100)
-    if len(tdf) > 0:
-        pnls = tdf["pnl_usd"].to_numpy()
-        cum = pnls.cumsum()
-        # Top 10 biggest trades by abs value
-        sorted_pnls = sorted(pnls.tolist(), key=lambda x: -abs(x))
-        print(f"  Top 10 trades by |P&L|:")
-        for i, p in enumerate(sorted_pnls[:10]):
-            print(f"    #{i+1}: ${p:+,.0f}")
-        # contribution of top 10% trades
-        n_top = max(1, int(len(pnls) * 0.10))
-        sorted_desc = sorted(pnls.tolist(), reverse=True)
-        top10pct_sum = sum(sorted_desc[:n_top])
-        total = sum(pnls)
-        print(f"\n  Top 10% trades contribute: ${top10pct_sum:+,.0f} "
-              f"({top10pct_sum/total*100 if total else 0:.0f}% of total)")
-        # if top 10% = >90% of profit, it's a "lottery ticket" strategy
-        print(f"  Distribution: avg ${pnls.mean():+.2f}, "
-              f"median ${np.median(pnls):+.2f}, "
-              f"std ${pnls.std():.2f}")
+    # ==== Top-trade contribution check ====
+    if pullback_full:
+        trades, _ = pullback_full
+        if trades:
+            print("\n" + "=" * 100)
+            print("TEST 4: PULLBACK - IS THE EDGE FROM A FEW MEGA-TRADES?")
+            print("=" * 100)
+            pnls = np.array([t["pnl_usd"] for t in trades])
+            sorted_desc = np.sort(pnls)[::-1]
+            for pct in [1, 5, 10, 25, 50]:
+                k = max(1, int(len(pnls) * pct / 100))
+                top_k_sum = sorted_desc[:k].sum()
+                total = pnls.sum()
+                pct_contrib = top_k_sum / total * 100 if total else 0
+                print(f"  Top {pct}% of trades ({k:>4} trades): "
+                      f"${top_k_sum:>+10,.0f}  ({pct_contrib:.1f}% of total)")
 
 
 if __name__ == "__main__":
     main()
+

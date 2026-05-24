@@ -190,8 +190,11 @@ def strategy_pullback_impulse(price, ts_ns, volume, aggressor,
             stop_px = pullback_entry + init_stop_pts
             target_px = pullback_entry - target_pts
 
-        # signal time = close of impulse bar
-        signal_ts = int(bar_ts_ns[i])
+        # FIX: signal fires at bar i's CLOSE = bar i+1's START timestamp
+        # bar_ts_ns[i] is the OPEN timestamp of bar i (1-min before close).
+        # Using bar_ts_ns[i] would be 60s of look-ahead.
+        if i + 1 >= n_bars: continue
+        signal_ts = int(bar_ts_ns[i + 1])
 
         if last_exit_ts > 0 and signal_ts - last_exit_ts < cd_ns:
             continue
@@ -308,11 +311,13 @@ def strategy_momentum_cumdelta(bars_1m, price, ts_ns, signed_vol,
         if side == 1 and recent_delta < cumdelta_min_thresh: continue
         if side == -1 and recent_delta > -cumdelta_min_thresh: continue
 
-        # Enter at next bar's open via market
-        sig_ts = int(bar_ts_ns[i])
+        # FIX: signal fires at bar i's CLOSE = bar i+1's START timestamp
+        # Using bar_ts_ns[i] would be 60s of look-ahead.
+        if i + 1 >= n_bars: continue
+        sig_ts = int(bar_ts_ns[i + 1])
         if last_exit_ts > 0 and sig_ts - last_exit_ts < cd_ns: continue
 
-        entry_intent = float(bar_arr[i, 3])  # close of signal bar
+        entry_intent = float(bar_arr[i, 3])  # close of signal bar (NOW known)
         if side == 1:
             stop_px = entry_intent - init_stop_pts
             target_px = entry_intent + target_pts
