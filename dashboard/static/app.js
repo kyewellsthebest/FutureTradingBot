@@ -206,8 +206,86 @@ function renderLive(d) {
   setText("sys-breaker", fib.circuit_breaker_tripped ? "TRIPPED" : "armed");
   setText("sys-error", d.last_error || "none");
 
+  // Bot health diagnostics — surfaces bar source, cycle, counters, market hours
+  renderBotHealth(d);
+
   // Sim baseline drift monitor — annualise from all completed trades
   renderDriftMonitor(d);
+}
+
+// CME globex schedule (NQ): Sun 18:00 ET open → Fri 17:00 ET close,
+// with a daily 17:00-18:00 ET maintenance break Mon-Thu. All in NY tz.
+function cmeMarketStatus() {
+  const now = new Date();
+  const ny = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+  const dow = ny.getDay();  // 0=Sun, 6=Sat
+  const hr  = ny.getHours();
+  if (dow === 6) return {open: false, label: "CLOSED (Saturday)"};
+  if (dow === 0 && hr < 18) return {open: false, label: `CLOSED — reopens ${18 - hr}h (Sun 6pm ET)`};
+  if (dow === 5 && hr >= 17) return {open: false, label: "CLOSED (Fri 5pm ET → Sun 6pm ET)"};
+  if (dow >= 1 && dow <= 4 && hr === 17) return {open: false, label: "DAILY BREAK (5-6pm ET)"};
+  return {open: true, label: "OPEN ✓"};
+}
+
+function renderBotHealth(d) {
+  const mkt = cmeMarketStatus();
+  const mktEl = document.getElementById("health-market");
+  mktEl.textContent = mkt.label;
+  mktEl.className = mkt.open ? "pos" : "muted";
+
+  const src = d.bars_1m_source || "—";
+  const srcEl = document.getElementById("health-bar-source");
+  srcEl.textContent = src === "real" ? "real (Polygon/yfinance) ✓" :
+                      src === "synth" ? "SYNTH (1m derived from 5m bars)" : src;
+  srcEl.className = src === "real" ? "pos" : "muted";
+
+  // Last tick freshness
+  const ageEl = document.getElementById("health-price-ts");
+  if (d.price_ts) {
+    const ageS = (Date.now() - new Date(d.price_ts).getTime()) / 1000;
+    if (ageS < 0) ageEl.textContent = "future?";
+    else if (ageS < 60)  { ageEl.textContent = `${ageS.toFixed(0)}s ago`; ageEl.className = "pos"; }
+    else if (ageS < 600) { ageEl.textContent = `${(ageS/60).toFixed(1)}min ago`; ageEl.className = ""; }
+    else                 { ageEl.textContent = `${(ageS/60).toFixed(0)}min ago (stale)`; ageEl.className = "neg"; }
+  } else {
+    ageEl.textContent = "no tick yet"; ageEl.className = "muted";
+  }
+
+  const snapEl = document.getElementById("health-snap-age");
+  if (d.ts) {
+    const ageS = (Date.now() - new Date(d.ts).getTime()) / 1000;
+    if (ageS < 30)       { snapEl.textContent = `${ageS.toFixed(0)}s ago`; snapEl.className = "pos"; }
+    else if (ageS < 300) { snapEl.textContent = `${(ageS/60).toFixed(1)}min ago`; snapEl.className = ""; }
+    else                 { snapEl.textContent = `${(ageS/60).toFixed(0)}min ago — bot may be down!`; snapEl.className = "neg"; }
+  } else { snapEl.textContent = "—"; }
+
+  setText("health-cycle", (d.cycle ?? 0).toLocaleString());
+  setText("health-bars", (d.bars_processed ?? 0).toLocaleString());
+  setText("health-fired", d.signals_fired ?? 0);
+  setText("health-blocked", d.signals_blocked ?? 0);
+  setText("health-pending", (d.fib?.pending_setups ?? 0));
+  const errEl = document.getElementById("health-error");
+  errEl.textContent = d.last_error || "none";
+  errEl.className = d.last_error ? "neg" : "muted";
+
+  // Banner: top-line interpretation
+  const banner = document.getElementById("health-banner");
+  if (!d.ts || (Date.now() - new Date(d.ts).getTime())/1000 > 300) {
+    banner.textContent = "⚠ bot may be down (no recent snapshot)";
+    banner.className = "neg";
+  } else if (!mkt.open) {
+    banner.textContent = "market closed — bot idle";
+    banner.className = "muted";
+  } else if (src === "synth") {
+    banner.textContent = "running on SYNTH bars — fewer signals expected";
+    banner.className = "muted";
+  } else if ((d.signals_fired ?? 0) === 0 && (d.bars_processed ?? 0) > 60) {
+    banner.textContent = "open & processing but zero signals — recheck strategy params";
+    banner.className = "neg";
+  } else {
+    banner.textContent = "trading ✓";
+    banner.className = "pos";
+  }
 }
 
 // Sim baseline (window=4, target=12pt, 2 MNQ, $0.74 RT, 0.25pt adv slip).

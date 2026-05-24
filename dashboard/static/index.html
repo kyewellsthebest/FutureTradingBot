@@ -111,6 +111,21 @@
 
       <div class="grid">
         <div class="card">
+          <div class="card-header">Bot Health <span id="health-banner" class="muted" style="float:right;font-weight:normal;font-size:12px;"></span></div>
+          <div class="card-body kv-list" id="bot-health">
+            <div class="kv-row"><span>Market status</span><b id="health-market">—</b></div>
+            <div class="kv-row"><span>1-min bar source</span><b id="health-bar-source">—</b></div>
+            <div class="kv-row"><span>Last price update</span><b id="health-price-ts">—</b></div>
+            <div class="kv-row"><span>Snapshot age</span><b id="health-snap-age">—</b></div>
+            <div class="kv-row"><span>Cycles since start</span><b id="health-cycle">0</b></div>
+            <div class="kv-row"><span>Bars processed (session)</span><b id="health-bars">0</b></div>
+            <div class="kv-row"><span>Signals fired (session)</span><b id="health-fired">0</b></div>
+            <div class="kv-row"><span>Signals blocked (session)</span><b id="health-blocked">0</b></div>
+            <div class="kv-row"><span>Setups currently armed</span><b id="health-pending">0</b></div>
+            <div class="kv-row"><span>Last error</span><b id="health-error" class="muted">none</b></div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-header">Sim Baseline vs Live (drift monitor)</div>
           <div class="card-body kv-list" id="sim-baseline">
             <div class="kv-row"><span>Sim return / mo</span><b class="pos">+21.19%</b></div>
