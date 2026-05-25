@@ -382,7 +382,20 @@ class FibRuntime:
             }
             DASHBOARD_PATH.write_text(json.dumps(blob, indent=2, default=str))
         except Exception as e:
-            logger.debug(f"dashboard publish failed: {e}")
+            # Was silently swallowed at DEBUG — caused the May 25 zombie-bot
+            # incident where the dashboard showed "UPDATED —" for hours
+            # because EVERY publish threw and nobody saw. Now: log at ERROR
+            # so it shows in Railway logs, AND write the traceback to
+            # data/bot_crash.txt so /api/diag can surface it.
+            logger.error(f"dashboard publish failed: {e!r}", exc_info=True)
+            try:
+                import traceback as _tb
+                from datetime import datetime as _dt, timezone as _tz
+                (DASHBOARD_PATH.parent / "bot_crash.txt").write_text(
+                    f"[{_dt.now(_tz.utc).isoformat()}] "
+                    f"_publish_dashboard crashed: {e!r}\n\n{_tb.format_exc()}")
+            except Exception:
+                pass
 
 
 def main() -> int:

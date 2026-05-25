@@ -78,8 +78,18 @@ def _bot_thread() -> None:
     import traceback as _tb
     crash_log = DATA_DIR / "bot_crash.txt"
     heartbeat = DATA_DIR / "bot_heartbeat.txt"
+    # Step-marker heartbeat — each checkpoint overwrites the file. If the
+    # bot hangs, the LAST step name tells us exactly which line is stuck.
+    def _hb(step: str) -> None:
+        try:
+            heartbeat.write_text(
+                f"step={step} time={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} "
+                f"version={bot_version}\n")
+        except Exception:
+            pass
     while True:
         try:
+            _hb("importing_runtime")
             if bot_version == "legacy":
                 from bot.main import Runtime
                 log.info("starting LEGACY bot loop (V3 strategies)")
@@ -90,16 +100,10 @@ def _bot_thread() -> None:
                 from bot.fib_main import FibRuntime as Runtime
                 mode = "SHADOW" if os.environ.get("BOT_SHADOW_MODE", "1") == "1" else "LIVE"
                 log.info(f"starting Fib 50% retracement bot ({mode} mode)")
-            # Heartbeat — written before Runtime().run() so /api/diag can
-            # distinguish "bot thread booted then crashed inside the loop"
-            # from "bot thread never started".
-            try:
-                heartbeat.write_text(
-                    f"booted_at={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} "
-                    f"version={bot_version}\n")
-            except Exception:
-                pass
-            Runtime().run()
+            _hb("instantiating_runtime")
+            rt = Runtime()
+            _hb("entering_run_loop")
+            rt.run()
             log.warning("bot loop exited cleanly — restarting in 5s")
         except Exception as e:
             tb = _tb.format_exc()
