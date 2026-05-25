@@ -86,18 +86,27 @@ function renderTopbar(d) {
   const acc = d.lucid_account || {};
   const bal = acc.balance ?? 50000;
   setText("kpi-balance", fmtUsdPlain(bal));
-  // Today's P&L: authoritative server-side aggregation over the trades DB,
-  // filtered by NY date (Lucid's day boundary). Replaces the old client-side
-  // filter that summed recent_trades (capped at 30) -- caused the balance/
-  // today drift the user spotted ($50,668 with today +$557 implied $111 of
-  // phantom prior-day P&L that didn't exist).
-  const today = (d.lifetime_stats || {}).today_pnl ?? 0;
+  // Today's P&L and trade count -- computed from the FULL trades cache
+  // using BROWSER LOCAL date (not server NY date). User is in AEST, so
+  // their "today" is the AEST calendar day. NY-date filter was missing
+  // the trades from before NY midnight (= 2pm AEST) and showing 68 when
+  // 183 was the right number.
+  const allT = _allTradesCache.trades || [];
+  const todayStr = new Date().toDateString();
+  const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
+  const today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
   const todayEl = document.getElementById("kpi-today");
   todayEl.textContent = fmtUsd(today);
   todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
-  // Trades-today counter -- auto-resets at NY midnight because the server's
-  // SQL filter (date(exit_time, '-4h') = date('now', '-4h')) rolls over there.
-  setText("kpi-trades-today", (d.lifetime_stats || {}).today_trades ?? 0);
+  setText("kpi-trades-today", todayTrades.length);
+  // Background-refresh the cache so kpi numbers stay live even if the
+  // user never opens the Performance tab.
+  if (Date.now() - _allTradesCache.ts > 30_000) {
+    _allTradesCache.ts = Date.now();
+    fetch("/api/all_trades").then(r => r.json()).then(trades => {
+      if (Array.isArray(trades)) _allTradesCache.trades = trades;
+    }).catch(() => {});
+  }
   const fib = d.fib || {};
   const at = fib.active_trade;
   const posText = at ? `${at.side} ${at.n_mnq}` : "FLAT";
@@ -550,18 +559,12 @@ let _allTradesCache = { trades: null, ts: 0 };
 let _perfPeriod = "today";
 function _filterByPeriod(trades, period) {
   if (period === "all" || !trades || !trades.length) return trades || [];
-  // Cutoffs computed from the latest trade's exit_ts so the "today" bucket
-  // works even if the user's wall clock is in a different tz.
-  // For "today" we use the NY date of the last trade (= same NY date the
-  // server's today_pnl filter uses).
-  const lastT = new Date(trades[trades.length - 1].ts).getTime();
   if (period === "today") {
-    // NY date of last trade: shift UTC by -4h then strip time.
-    const ny = new Date(lastT - 4*3600*1000);
-    const startNyDate = new Date(Date.UTC(ny.getUTCFullYear(), ny.getUTCMonth(), ny.getUTCDate()));
-    const cutoff = startNyDate.getTime() + 4*3600*1000;  // UTC midnight NY = +4h UTC
-    return trades.filter(t => new Date(t.ts).getTime() >= cutoff);
+    // Browser local date -- matches the top-bar kpi-trades-today counter.
+    const todayStr = new Date().toDateString();
+    return trades.filter(t => new Date(t.ts).toDateString() === todayStr);
   }
+  const lastT = new Date(trades[trades.length - 1].ts).getTime();
   if (period === "week")  return trades.filter(t => new Date(t.ts).getTime() >= lastT - 7*86400000);
   if (period === "month") return trades.filter(t => new Date(t.ts).getTime() >= lastT - 30*86400000);
   return trades;
