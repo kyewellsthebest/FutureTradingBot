@@ -824,6 +824,208 @@ def api_last_trades():
     return jsonify(persistence.load_trades(limit=100))
 
 
+@app.route("/api/export/<period>")
+def api_export(period):
+    """Self-contained printable HTML trade report. period in
+    {day,week,month,all}. Browser can save-as-PDF. The report includes
+    aggregate stats (P&L, WR, RR, PF, max DD, hold-time distribution)
+    and a full trade-by-trade ledger. Always filtered to trades since
+    lucid_account.started_at (current strategy version only)."""
+    import pandas as _pd
+    from datetime import timedelta as _td
+    now_utc = datetime.now(timezone.utc)
+    # Period -> cutoff datetime (None = no period cap)
+    period = (period or "all").lower()
+    if period == "day":
+        period_cut = now_utc - _td(days=1)
+    elif period == "week":
+        period_cut = now_utc - _td(days=7)
+    elif period == "month":
+        period_cut = now_utc - _td(days=30)
+    elif period == "all":
+        period_cut = None
+    else:
+        return ("unknown period", 400)
+    # Strategy-deploy cutoff (always applied)
+    deploy_cut = None
+    try:
+        lp = DATA_DIR / "lucid_account.json"
+        if lp.exists():
+            ls = json.loads(lp.read_text())
+            sa = ls.get("started_at")
+            if sa:
+                deploy_cut = _pd.Timestamp(sa)
+                if deploy_cut.tz is None:
+                    deploy_cut = deploy_cut.tz_localize("UTC")
+                else:
+                    deploy_cut = deploy_cut.tz_convert("UTC")
+    except Exception:
+        pass
+    # Load + filter
+    raw = persistence.load_trades(limit=100_000, only_closed=True)
+    trades = []
+    for r in raw:
+        et = r.get("entry_time"); xt = r.get("exit_time")
+        if not et or not xt: continue
+        try:
+            et_ts = _pd.Timestamp(et)
+            xt_ts = _pd.Timestamp(xt)
+            if et_ts.tz is None: et_ts = et_ts.tz_localize("UTC")
+            else: et_ts = et_ts.tz_convert("UTC")
+            if xt_ts.tz is None: xt_ts = xt_ts.tz_localize("UTC")
+            else: xt_ts = xt_ts.tz_convert("UTC")
+        except Exception:
+            continue
+        if deploy_cut is not None and et_ts < deploy_cut: continue
+        if period_cut is not None and et_ts < period_cut: continue
+        trades.append({
+            "entry_ts": et_ts, "exit_ts": xt_ts,
+            "hold_s": (xt_ts - et_ts).total_seconds(),
+            "side": r.get("side"),
+            "qty": int(r.get("qty") or 0),
+            "entry_px": float(r.get("entry_px") or 0),
+            "exit_px": float(r.get("exit_px") or 0),
+            "stop_px": float(r.get("stop_px") or 0),
+            "target_px": float(r.get("target_px") or 0),
+            "exit_reason": r.get("exit_reason") or "",
+            "pnl": float(r.get("pnl") or 0),
+            "commission": float(r.get("commission") or 0),
+        })
+    trades.sort(key=lambda t: t["entry_ts"])
+    # Aggregate stats
+    n = len(trades)
+    wins = [t for t in trades if t["pnl"] > 0]
+    losses = [t for t in trades if t["pnl"] < 0]
+    pnl_total = sum(t["pnl"] for t in trades)
+    pnl_wins = sum(t["pnl"] for t in wins)
+    pnl_losses = sum(t["pnl"] for t in losses)
+    wr = (len(wins) / n * 100) if n else 0
+    avg_w = (pnl_wins / len(wins)) if wins else 0
+    avg_l = (pnl_losses / len(losses)) if losses else 0
+    rr = (abs(avg_w / avg_l)) if avg_l else 0
+    pf = (abs(pnl_wins / pnl_losses)) if pnl_losses else 0
+    # Cumulative + max DD
+    cum = 0.0; peak = 0.0; max_dd = 0.0
+    for t in trades:
+        cum += t["pnl"]
+        if cum > peak: peak = cum
+        if peak - cum > max_dd: max_dd = peak - cum
+    # Period label
+    period_label = {
+        "day":   "Last 24 hours",
+        "week":  "Last 7 days",
+        "month": "Last 30 days",
+        "all":   "All trades (since strategy deploy)",
+    }.get(period, period)
+    # Render HTML
+    html = _render_export_html(
+        trades=trades, n=n, wins=wins, losses=losses,
+        pnl_total=pnl_total, wr=wr, rr=rr, pf=pf, max_dd=max_dd,
+        avg_w=avg_w, avg_l=avg_l, period_label=period_label,
+        generated_at=now_utc, deploy_cut=deploy_cut,
+    )
+    filename = f"hftbot_trades_{period}_{now_utc.strftime('%Y%m%d_%H%M')}.html"
+    from flask import Response
+    return Response(
+        html, mimetype="text/html",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _render_export_html(trades, n, wins, losses, pnl_total, wr, rr, pf,
+                        max_dd, avg_w, avg_l, period_label, generated_at,
+                        deploy_cut) -> str:
+    """Build the printable trade-report HTML. Self-contained (no CDN)."""
+    def _row(t):
+        et = t["entry_ts"].strftime("%Y-%m-%d %H:%M:%S UTC")
+        xt = t["exit_ts"].strftime("%H:%M:%S")
+        hold = f"{t['hold_s']:.0f}s" if t["hold_s"] < 60 else f"{t['hold_s']/60:.1f}m"
+        pnl_class = "pos" if t["pnl"] > 0 else "neg" if t["pnl"] < 0 else ""
+        side_class = "long" if t["side"] == "LONG" else "short"
+        return (f"<tr>"
+                f"<td class='mono'>{et}</td>"
+                f"<td class='mono'>{xt}</td>"
+                f"<td class='hold'>{hold}</td>"
+                f"<td class='{side_class}'>{t['side']}</td>"
+                f"<td>{t['qty']}</td>"
+                f"<td class='mono'>{t['entry_px']:.2f}</td>"
+                f"<td class='mono'>{t['stop_px']:.2f}</td>"
+                f"<td class='mono'>{t['target_px']:.2f}</td>"
+                f"<td class='mono'>{t['exit_px']:.2f}</td>"
+                f"<td>{t['exit_reason']}</td>"
+                f"<td class='mono {pnl_class}'>${t['pnl']:+,.2f}</td>"
+                f"</tr>")
+    rows = "\n".join(_row(t) for t in trades) or "<tr><td colspan='11' style='text-align:center;color:#888'>No trades in this period.</td></tr>"
+    deploy_str = deploy_cut.strftime("%Y-%m-%d %H:%M UTC") if deploy_cut else "—"
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8" />
+<title>HFTBot Trade Report — {period_label}</title>
+<style>
+  @media print {{ body {{ background: white; color: black; }} .no-print {{ display: none; }} }}
+  body {{ font-family: -apple-system, system-ui, sans-serif; background: #0f1422;
+         color: #d4dae5; max-width: 1200px; margin: 0 auto; padding: 24px;
+         font-size: 13px; }}
+  h1 {{ color: #22d39a; margin: 0 0 4px 0; font-size: 22px; }}
+  h2 {{ color: #d4dae5; margin: 22px 0 8px 0; font-size: 15px;
+        border-bottom: 1px solid #2a3344; padding-bottom: 4px; }}
+  .meta {{ color: #8a93a6; font-size: 11px; margin-bottom: 18px; }}
+  .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+           margin-bottom: 18px; }}
+  .stat {{ background: #161d2b; border: 1px solid #1f2733; border-radius: 8px;
+           padding: 10px 12px; }}
+  .stat-label {{ font-size: 10px; color: #8a93a6; text-transform: uppercase;
+                 letter-spacing: 0.6px; }}
+  .stat-value {{ font-size: 18px; font-weight: 700; margin-top: 4px;
+                 font-variant-numeric: tabular-nums; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+  th, td {{ padding: 4px 6px; text-align: right;
+           border-bottom: 1px solid rgba(255,255,255,0.05); }}
+  th {{ background: #161d2b; color: #8a93a6; text-transform: uppercase;
+        font-size: 10px; letter-spacing: 0.5px; }}
+  th:first-child, td:first-child {{ text-align: left; }}
+  td:nth-child(4) {{ text-align: left; }}
+  td:nth-child(10) {{ text-align: left; }}
+  .mono {{ font-family: 'SF Mono', Menlo, Consolas, monospace;
+           font-variant-numeric: tabular-nums; }}
+  .pos {{ color: #22d39a; }} .neg {{ color: #ff5470; }}
+  .long {{ color: #22d39a; font-weight: 600; }}
+  .short {{ color: #ff5470; font-weight: 600; }}
+  .hold {{ color: #8a93a6; }}
+</style></head><body>
+<h1>HFTBot Trade Report</h1>
+<div class="meta">
+  Period: <b>{period_label}</b> &middot;
+  Generated: {generated_at.strftime("%Y-%m-%d %H:%M UTC")} &middot;
+  Strategy deploy cutoff: {deploy_str}
+</div>
+<div class="grid">
+  <div class="stat"><div class="stat-label">Trades</div><div class="stat-value">{n}</div></div>
+  <div class="stat"><div class="stat-label">Win rate</div><div class="stat-value">{wr:.1f}%</div></div>
+  <div class="stat"><div class="stat-label">Net P&L</div>
+    <div class="stat-value {'pos' if pnl_total>=0 else 'neg'}">${pnl_total:+,.2f}</div></div>
+  <div class="stat"><div class="stat-label">Profit factor</div>
+    <div class="stat-value">{pf:.2f}</div></div>
+  <div class="stat"><div class="stat-label">R:R realised</div>
+    <div class="stat-value">{rr:.2f}</div></div>
+  <div class="stat"><div class="stat-label">Wins / Losses</div>
+    <div class="stat-value">{len(wins)} / {len(losses)}</div></div>
+  <div class="stat"><div class="stat-label">Avg win / loss</div>
+    <div class="stat-value" style="font-size:14px">${avg_w:+,.2f} / ${avg_l:+,.2f}</div></div>
+  <div class="stat"><div class="stat-label">Max drawdown</div>
+    <div class="stat-value neg">-${max_dd:,.0f}</div></div>
+</div>
+<h2>Trades ({n})</h2>
+<table>
+<thead><tr>
+  <th>Entry (UTC)</th><th>Exit</th><th>Hold</th><th>Side</th><th>Qty</th>
+  <th>Entry</th><th>Stop</th><th>Target</th><th>Exit</th><th>Reason</th><th>P&amp;L</th>
+</tr></thead>
+<tbody>
+{rows}
+</tbody></table>
+</body></html>"""
+
+
 @app.route("/api/lucid_account")
 def api_lucid_account():
     """Live Lucid 50K Pro Funded account state."""

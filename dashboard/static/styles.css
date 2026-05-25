@@ -310,3 +310,39 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+
+/* EXPORT BAR (Performance tab) --------------------------------- */
+.export-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: #0f1422;
+  border: 1px solid #1f2733;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.export-label {
+  font-size: 12px; color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.btn-export {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(34, 211, 154, 0.12);
+  color: #22d39a;
+  border: 1px solid rgba(34, 211, 154, 0.35);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 120ms;
+}
+.btn-export:hover { background: rgba(34, 211, 154, 0.22); }
+.btn-export-alt {
+  background: rgba(110, 130, 160, 0.12);
+  color: #b0b7c3;
+  border-color: rgba(110, 130, 160, 0.35);
+}
+.btn-export-alt:hover { background: rgba(110, 130, 160, 0.22); }
