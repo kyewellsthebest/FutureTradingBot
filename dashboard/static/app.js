@@ -265,8 +265,17 @@ function cmeMarketStatus() {
 function renderBotHealth(d) {
   const mkt = cmeMarketStatus();
   const mktEl = document.getElementById("health-market");
-  mktEl.textContent = mkt.label;
-  mktEl.className = mkt.open ? "pos" : "muted";
+  // Layer Lucid's window over CME's: if Lucid says closed but CME is open,
+  // surface the more restrictive rule. d.fib.lucid_window_blocked is the
+  // authoritative server-side check (uses pytz-correct DST).
+  const lucidBlocked = (d.fib || {}).lucid_window_blocked === true;
+  if (lucidBlocked) {
+    mktEl.textContent = "LUCID WINDOW CLOSED (4:45-6pm ET / weekend)";
+    mktEl.className = "neg";
+  } else {
+    mktEl.textContent = mkt.label;
+    mktEl.className = mkt.open ? "pos" : "muted";
+  }
 
   const src = d.bars_1m_source || "—";
   const srcEl = document.getElementById("health-bar-source");

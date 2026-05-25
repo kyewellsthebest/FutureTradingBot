@@ -67,6 +67,42 @@ MIN_TARGET_HOLD_SECONDS = 10      # Lucid microscalp safety: target exits < 10s 
 MICROSCALP_HARD_THRESHOLD = 0.40  # circuit breaker if >40% of recent trades < MIN_TARGET_HOLD_SECONDS
 MICROSCALP_WINDOW_DAYS = 30
 
+# Lucid Allowed Trading Times -- per Lucid Help Center:
+#   "All positions must be closed by 4:45 PM EST, Monday through Friday"
+#   "Trading resumes at 6:00 PM EST, Sunday through Thursday"
+# We block new ENTRIES during the closed window. Existing positions ride
+# out: MAX_HOLD_SECS = 600s means anything we open in the last 10 min
+# before 4:45 PM ET would naturally exit before Lucid's auto-close, and
+# Lucid explicitly says "holding a position past this time does not result
+# in a failed account" -- they handle the auto-close, no penalty to us.
+# So the simplest correct gate is: block entries inside the closed window.
+
+
+def _in_lucid_closed_window(now: datetime) -> bool:
+    """True if `now` falls inside Lucid's no-trade window.
+
+    Closed:
+      - Mon-Thu 16:45 ET to 18:00 ET   (daily maintenance break)
+      - Fri 16:45 ET through Sun 18:00 ET  (weekend close)
+    Returns False otherwise (open for entries)."""
+    try:
+        ny = pd.Timestamp(now).tz_convert("America/New_York")
+    except Exception:
+        return False  # if tz handling fails, don't block (fail-open)
+    dow = ny.weekday()   # 0=Mon ... 6=Sun
+    hm = ny.hour * 60 + ny.minute
+    OPEN = 18 * 60          # 18:00 ET = market open
+    CLOSE = 16 * 60 + 45    # 16:45 ET = Lucid mandatory close
+    if dow == 5:                          # Saturday
+        return True
+    if dow == 4 and hm >= CLOSE:          # Friday after 16:45 ET
+        return True
+    if dow == 6 and hm < OPEN:            # Sunday before 18:00 ET
+        return True
+    if dow <= 3 and CLOSE <= hm < OPEN:   # Mon-Thu in the daily break
+        return True
+    return False
+
 
 # ============================================================================
 # Setup / trade dataclasses (names match fib_strategy for compatibility)
@@ -419,9 +455,14 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             return record
         return None
 
-    # 2. Cooldown gate (no new entries until COOLDOWN_SECS after last close)
+    # 2a. Cooldown gate (no new entries until COOLDOWN_SECS after last close)
     in_cooldown = (state.last_trade_close_ts is not None and
                    (now - state.last_trade_close_ts).total_seconds() < COOLDOWN_SECS)
+    # 2b. Lucid trading-window gate (no entries during 16:45-18:00 ET daily
+    # break, or Fri 16:45 ET through Sun 18:00 ET weekend close). Existing
+    # positions are NOT force-closed here -- Lucid handles their 16:45 auto-
+    # close with no penalty per their rules.
+    lucid_blocked = _in_lucid_closed_window(now)
 
     # 3. DETECT new setup from latest 1-min bar history
     new_setup = detect_pullback_setup(bars_setup, now)
@@ -443,6 +484,14 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     # 5. FIRE armed setups
     if in_cooldown:
+        return None
+    if lucid_blocked:
+        # Tag pending setups so the dashboard can show "Lucid window closed"
+        # instead of silently sitting on armed setups.
+        for s in state.pending_setups:
+            if not s.used:
+                s.last_block_reason = "lucid_trading_window_closed"
+                s.last_block_at = now
         return None
 
     for setup in state.pending_setups:
@@ -501,6 +550,8 @@ def snapshot(state: FibStrategyState,
         "microscalp_threshold": MICROSCALP_HARD_THRESHOLD,
         "microscalp_window_days": MICROSCALP_WINDOW_DAYS,
         "min_target_hold_seconds": MIN_TARGET_HOLD_SECONDS,
+        "lucid_window_blocked": _in_lucid_closed_window(
+            datetime.now(timezone.utc) if state else datetime.now(timezone.utc)),
         "htf_trend": state.htf_trend,
         "chop_index": state.chop_index,
         "circuit_breaker": {
