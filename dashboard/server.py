@@ -752,24 +752,54 @@ def api_trades():
 
 @app.route("/api/all_trades")
 def api_all_trades():
-    """All closed trades, normalised to the dashboard's recent_trades shape.
-    Used by the Performance tab so equity curve / monthly P&L / hold-time
-    histogram / win-loss distribution aggregate over the FULL history, not
-    just the in-memory 30-deep deque the bot publishes in /api/data."""
+    """All closed trades since the current strategy was deployed, normalised
+    to the dashboard's recent_trades shape. Used by the Performance tab so
+    equity curve / monthly P&L / hold-time histogram / win-loss distribution
+    aggregate over the FULL history (not just the 30-deep recent_trades
+    deque), AND only count trades fired by the active strategy version
+    (filtered by lucid_account.started_at)."""
     rows = persistence.load_trades(limit=100_000, only_closed=True)
+    # Cutoff: only count trades since the most recent RESET_SERIAL bump.
+    # Without this, pre-upgrade trades (older window=3 / target=10 params)
+    # could pollute the Performance tab once those trades' DB rows survive
+    # a partial reset.
+    cutoff = None
+    try:
+        lp = DATA_DIR / "lucid_account.json"
+        if lp.exists():
+            ls = json.loads(lp.read_text())
+            sa = ls.get("started_at")
+            if sa:
+                cutoff = pd.Timestamp(sa).tz_convert("UTC") \
+                    if pd.Timestamp(sa).tz is not None \
+                    else pd.Timestamp(sa).tz_localize("UTC")
+    except Exception as e:
+        logger.warning(f"/api/all_trades cutoff parse failed: {e}")
     out = []
     for r in rows:
         et, xt = r.get("entry_time"), r.get("exit_time")
-        hold_s = 0.0
-        if et and xt:
-            try:
-                import pandas as _pd
-                hold_s = (_pd.Timestamp(xt) - _pd.Timestamp(et)).total_seconds()
-            except Exception:
-                pass
+        if not et or not xt:
+            continue
+        # Parse + normalise to UTC. SQLite stores both "2026-05-25T12:00:00+00:00"
+        # and (legacy) "2026-05-25 12:00:00" -- string sort would interleave
+        # these wrong. We parse with pandas (handles both) and convert to
+        # canonical UTC ISO so JS new Date() interprets identically.
+        try:
+            et_ts = pd.Timestamp(et)
+            xt_ts = pd.Timestamp(xt)
+            if et_ts.tz is None: et_ts = et_ts.tz_localize("UTC")
+            else: et_ts = et_ts.tz_convert("UTC")
+            if xt_ts.tz is None: xt_ts = xt_ts.tz_localize("UTC")
+            else: xt_ts = xt_ts.tz_convert("UTC")
+        except Exception:
+            continue
+        if cutoff is not None and et_ts < cutoff:
+            continue
+        hold_s = (xt_ts - et_ts).total_seconds()
         out.append({
-            "ts": xt or et,
-            "entry_ts": et,
+            "ts": xt_ts.isoformat(),
+            "entry_ts": et_ts.isoformat(),
+            "_sort_key": et_ts.timestamp(),  # numeric sort, drop before send
             "side": r.get("side"),
             "n_mnq": int(r.get("qty") or 0),
             "entry_px": float(r.get("entry_px") or 0),
@@ -779,8 +809,12 @@ def api_all_trades():
             "pnl_pts": 0.0,
             "hold_s": float(hold_s),
         })
-    # Oldest-first so equity curve walks chronologically.
-    out.reverse()
+    # Sort by real timestamp (not the lexicographic SQL order) so the equity
+    # curve walks left-to-right strictly chronologically even if entry_time
+    # rows are stored in mixed string formats.
+    out.sort(key=lambda d: d["_sort_key"])
+    for d in out:
+        d.pop("_sort_key", None)
     return jsonify(out)
 
 
