@@ -50,6 +50,8 @@ class OpenPosition:
     daily_bias: str = ""
     rr: float = 0.0
     adverse_slip_pts: float | None = None   # per-position override for stop slip
+    commission_paid: float = 0.0            # round-trip cost deducted at entry,
+                                            # needed at close to record true net P&L
 
 
 @dataclass
@@ -214,6 +216,7 @@ class PaperAccount:
             ml_decision=ml_decision, ml_confidence=ml_confidence,
             vol_regime=vol_regime, daily_bias=daily_bias, rr=rr,
             adverse_slip_pts=adverse_slip_pts,
+            commission_paid=commission,
         )
         self.state.open_position = op
         self._roll_daily(now)
@@ -263,9 +266,15 @@ class PaperAccount:
         else:
             points = op.entry_px - exit_px
         gross = points * DOLLARS_PER_POINT * (op.qty / CONTRACTS)
-        net = gross  # commission already paid at entry
+        # True economic P&L = gross - commission_paid_at_entry. We add the
+        # gross to balance here, but the DB pnl field needs to record the
+        # NET so balance, lifetime_stats, and today_pnl all agree.
+        # (Previously net=gross which made today_pnl miss the commission
+        # cost -- showed up on dashboard as a phantom "closed_days = -$X"
+        # equal to today's accumulated commissions.)
+        net = gross - op.commission_paid
 
-        self.state.balance += net
+        self.state.balance += gross
         self.state.realized_pnl += net
         self.state.total_trades += 1
         is_winner = net > 0
@@ -281,6 +290,15 @@ class PaperAccount:
                                       self.state.balance - self.state.peak_balance)
 
         persistence.close_trade(op.db_id, now.isoformat(), exit_px, reason, net)
+        # Record the actual commission paid -- the DB schema has a column
+        # but enter() never populated it. Used by migrate_commission_into_pnl
+        # to distinguish migrated rows ($0-$5) from unmigrated rows ($60).
+        try:
+            with persistence._conn() as conn:
+                conn.execute("UPDATE trades SET commission=? WHERE id=?",
+                             (op.commission_paid, op.db_id))
+        except Exception as e:
+            logger.debug(f"commission persistence failed (non-fatal): {e}")
         self.state.open_position = None
         self.save()
         logger.info(f"EXIT {op.side} {op.signal_name} @ {exit_px:.2f} ({reason}) "

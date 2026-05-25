@@ -153,6 +153,37 @@ def load_closed_trades_today(now_utc_iso: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def migrate_commission_into_pnl(commission_per_mnq_rt: float = 0.74) -> int:
+    """One-shot migration: trades closed BEFORE the May 25 commission-accounting
+    fix recorded their pnl as gross (no commission deducted), while balance was
+    correctly net of commissions. This left a small phantom "closed days = -$X"
+    drift on the dashboard equal to today's accumulated commissions.
+
+    Fix: for any trade with the legacy default commission value (>= $50, which
+    can only be the unmigrated DEFAULT 60.0 marker -- real Lucid commissions
+    are <$2 per round trip), subtract qty * commission_per_mnq_rt from pnl and
+    write the real commission value into the column. Idempotent: only touches
+    rows whose commission column is still at the legacy default.
+
+    Returns the number of rows migrated."""
+    with _conn() as conn:
+        cur = conn.cursor()
+        rows = cur.execute(
+            "SELECT id, qty, pnl FROM trades "
+            "WHERE exit_time IS NOT NULL AND pnl IS NOT NULL "
+            "AND commission >= 50.0"
+        ).fetchall()
+        if not rows:
+            return 0
+        for r in rows:
+            real_comm = commission_per_mnq_rt * (r["qty"] or 0)
+            new_pnl = (r["pnl"] or 0.0) - real_comm
+            cur.execute("UPDATE trades SET pnl=?, commission=? WHERE id=?",
+                        (new_pnl, real_comm, r["id"]))
+        conn.commit()
+        return len(rows)
+
+
 def lifetime_stats() -> dict:
     """Aggregate every closed trade in the DB. Used by the Live tab's
     "Today's Activity" card after we replaced today-only with lifetime --

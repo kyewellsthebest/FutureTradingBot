@@ -212,6 +212,17 @@ class FibRuntime:
     def run(self) -> int:
         _setup_logging()
         sync_clock()
+        # One-shot historical commission migration. Trades closed before the
+        # commission-into-pnl fix have inflated pnl values by ~$1.48 each
+        # (qty=2 * $0.74 RT) which made the dashboard show a small phantom
+        # "closed_days" drift. This is idempotent -- only touches rows still
+        # carrying the schema's legacy DEFAULT 60.0 commission marker.
+        try:
+            migrated = persistence.migrate_commission_into_pnl(COMM_PER_MNQ_RT)
+            if migrated:
+                logger.warning(f"migrated commission accounting on {migrated} historical trade(s)")
+        except Exception as e:
+            logger.warning(f"commission migration failed (non-fatal): {e}")
         mode = "SHADOW (no orders)" if SHADOW_MODE else "LIVE"
         logger.info(f"[fib_main] starting — {mode} mode, "
                     f"strategy=Fib 50% (1-min setup + 5-min HTF trend), "
