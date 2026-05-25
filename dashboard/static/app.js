@@ -177,25 +177,17 @@ function renderLive(d) {
       ? `CIRCUIT BREAKER TRIPPED: ${fib.circuit_breaker_reason || ''}`
       : `Lucid ban threshold: 50% · safety cap: 40%`);
 
-  // today
+  // Activity card -- lifetime stats from the trade DB, NOT filtered by
+  // today's date and NOT capped by the 30-deep recent_trades deque. The
+  // back-end aggregates every closed trade ever in one SQL pass and ships
+  // the result as d.lifetime_stats.
   setText("today-fired", d.signals_fired ?? 0);
-  const todayTrades = (d.recent_trades || []).filter(t =>
-    new Date(t.ts).toDateString() === new Date().toDateString());
-  setText("today-closed", todayTrades.length);
-  // Compute today P&L from the actual trade records, not lucid.today_pnl.
-  // The Lucid state had drift bugs in earlier sessions; the trade DB is
-  // authoritative. This also matches what the monthly P&L tooltip shows.
-  const todayPnlComputed = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
-  setText("today-pnl", fmtUsd(todayPnlComputed));
-  // Win rate + avg hold (computed from today's recent trades, since
-  // these aren't available in the LucidState snapshot)
-  if (todayTrades.length > 0) {
-    const wins = todayTrades.filter(t => (t.pnl_usd || 0) > 0).length;
-    const wr = wins / todayTrades.length;
-    setText("today-wr", (wr * 100).toFixed(1) + "%");
-    const avgHold = todayTrades.reduce((s, t) => s + (t.hold_s || 0), 0)
-                    / todayTrades.length;
-    setText("today-hold", fmtHold(avgHold));
+  const life = d.lifetime_stats || {};
+  setText("today-closed", life.n_trades ?? 0);
+  setText("today-pnl", fmtUsd(life.total_pnl ?? 0));
+  if ((life.n_trades ?? 0) > 0) {
+    setText("today-wr", (life.win_rate ?? 0).toFixed(1) + "%");
+    setText("today-hold", fmtHold(life.avg_hold_s ?? 0));
   } else {
     setText("today-wr", "—");
     setText("today-hold", "—");

@@ -355,9 +355,19 @@ class FibRuntime:
             fib_snap = fib_snapshot(self.state, current_price=current_price)
             lucid_snap = self.account.lucid_snapshot()
             funded_snap = self.account.ledger.snapshot()
+            # Lifetime aggregate (every closed trade ever) -- the "Today's
+            # Activity" card was previously filtering recent_trades which is
+            # capped at 30 in this deque, hiding earlier history once the
+            # bot had been running long enough.
+            try:
+                lifetime = persistence.lifetime_stats()
+            except Exception as e:
+                logger.debug(f"lifetime_stats failed: {e}")
+                lifetime = None
             blob = {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "shadow" if SHADOW_MODE else "live",
+                "lifetime_stats": lifetime,
                 "strategy": "Fib 50% (1-min entries + 5-min HTF trend filter)",
                 "bars_1m_source": self._bars_1m_source,
                 "cycle": self.cycle,

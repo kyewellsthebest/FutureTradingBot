@@ -153,6 +153,37 @@ def load_closed_trades_today(now_utc_iso: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def lifetime_stats() -> dict:
+    """Aggregate every closed trade in the DB. Used by the Live tab's
+    "Today's Activity" card after we replaced today-only with lifetime --
+    the deque(maxlen=30) cap was hiding earlier wins once >=30 trades closed.
+    Pure SQL aggregation -- O(1) memory regardless of trade count."""
+    sql = """
+        SELECT
+            COUNT(*) AS n_trades,
+            COALESCE(SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END), 0) AS wins,
+            COALESCE(SUM(pnl), 0.0) AS total_pnl,
+            COALESCE(AVG((julianday(exit_time) - julianday(entry_time)) * 86400.0),
+                     0.0) AS avg_hold_s
+        FROM trades
+        WHERE exit_time IS NOT NULL
+    """
+    with _conn() as conn:
+        row = conn.execute(sql).fetchone()
+    if row is None or row["n_trades"] == 0:
+        return {"n_trades": 0, "wins": 0, "win_rate": 0.0,
+                "total_pnl": 0.0, "avg_hold_s": 0.0}
+    n = int(row["n_trades"])
+    wins = int(row["wins"])
+    return {
+        "n_trades": n,
+        "wins": wins,
+        "win_rate": round(wins / n * 100, 1) if n else 0.0,
+        "total_pnl": round(float(row["total_pnl"]), 2),
+        "avg_hold_s": round(float(row["avg_hold_s"]), 1),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Dashboard / signal-event JSON snapshots
 # ---------------------------------------------------------------------------
