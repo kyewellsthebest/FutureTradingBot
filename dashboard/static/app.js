@@ -635,7 +635,11 @@ function drawEquityCurve(trades) {
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
   }
-  const sorted = trades.slice().reverse();
+  // /api/all_trades now returns chronologically sorted (oldest first), so
+  // we walk in array order. Legacy: state.data.recent_trades was newest-
+  // first which is why this used to .reverse() -- removing that .reverse()
+  // matters now that the trades come from the new endpoint.
+  const sorted = trades.slice();
   let bal = start;
   const points = [{ v: start, t: null, trade: null }];
   sorted.forEach(t => { bal += (t.pnl_usd || 0); points.push({ v: bal, t: t.ts, trade: t }); });
