@@ -86,10 +86,12 @@ def api_diag():
         "ts": datetime.now(timezone.utc).isoformat(),
         "files": {
             "dashboard_data.json": _info(base / "dashboard_data.json"),
-            "lucid_state.json":    _info(base / "lucid_state.json"),
+            "lucid_account.json":  _info(base / "lucid_account.json"),  # correct name
             "paper_trades.db":     _info(base / "paper_trades.db"),
             "signal_events.json":  _info(base / "signal_events.json"),
             "live_bars.json":      _info(base / "live_bars.json"),
+            "bot_heartbeat.txt":   _info(base / "bot_heartbeat.txt"),
+            "bot_crash.txt":       _info(base / "bot_crash.txt"),
         },
         "env": {
             "BOT_SHADOW_MODE": _os.environ.get("BOT_SHADOW_MODE", "1"),
@@ -97,6 +99,19 @@ def api_diag():
             "POLYGON_API":     "set" if _os.environ.get("POLYGON_API") else "missing",
         },
     }
+    # Show the actual crash traceback if one was captured by live_runner.
+    cp = base / "bot_crash.txt"
+    if cp.exists():
+        try:
+            out["crash_traceback"] = cp.read_text()[-4000:]
+        except Exception as e:
+            out["crash_traceback"] = f"<read failed: {e}>"
+    hb = base / "bot_heartbeat.txt"
+    if hb.exists():
+        try:
+            out["heartbeat"] = hb.read_text().strip()
+        except Exception:
+            pass
     # Snapshot fields the bot is supposed to populate. If these are missing,
     # the bot loop never reached _publish_dashboard().
     try:
@@ -118,7 +133,7 @@ def api_diag():
     # Try to read Lucid state directly — if the bot ever ran, applied_reset_serial
     # is the most reliable "bot was alive" marker.
     try:
-        lp = base / "lucid_state.json"
+        lp = base / "lucid_account.json"
         if lp.exists():
             ls = json.loads(lp.read_text())
             out["lucid"] = {
