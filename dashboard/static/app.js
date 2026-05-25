@@ -95,6 +95,9 @@ function renderTopbar(d) {
   const todayEl = document.getElementById("kpi-today");
   todayEl.textContent = fmtUsd(today);
   todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
+  // Trades-today counter -- auto-resets at NY midnight because the server's
+  // SQL filter (date(exit_time, '-4h') = date('now', '-4h')) rolls over there.
+  setText("kpi-trades-today", (d.lifetime_stats || {}).today_trades ?? 0);
   const fib = d.fib || {};
   const at = fib.active_trade;
   const posText = at ? `${at.side} ${at.n_mnq}` : "FLAT";
