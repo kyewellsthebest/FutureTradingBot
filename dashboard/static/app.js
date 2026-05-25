@@ -544,24 +544,58 @@ const _hitRegions = {};
 // distribution at 30 trades). Refreshed on every renderPerformanceGraphs
 // call, but only if last fetch was >30s ago.
 let _allTradesCache = { trades: null, ts: 0 };
+// Period selector state. Default "today" so the Performance panels match
+// the top-bar "Trades Today" counter (user feedback: jarring when Win/Loss
+// shows 183 while Trades Today says 68).
+let _perfPeriod = "today";
+function _filterByPeriod(trades, period) {
+  if (period === "all" || !trades || !trades.length) return trades || [];
+  // Cutoffs computed from the latest trade's exit_ts so the "today" bucket
+  // works even if the user's wall clock is in a different tz.
+  // For "today" we use the NY date of the last trade (= same NY date the
+  // server's today_pnl filter uses).
+  const lastT = new Date(trades[trades.length - 1].ts).getTime();
+  if (period === "today") {
+    // NY date of last trade: shift UTC by -4h then strip time.
+    const ny = new Date(lastT - 4*3600*1000);
+    const startNyDate = new Date(Date.UTC(ny.getUTCFullYear(), ny.getUTCMonth(), ny.getUTCDate()));
+    const cutoff = startNyDate.getTime() + 4*3600*1000;  // UTC midnight NY = +4h UTC
+    return trades.filter(t => new Date(t.ts).getTime() >= cutoff);
+  }
+  if (period === "week")  return trades.filter(t => new Date(t.ts).getTime() >= lastT - 7*86400000);
+  if (period === "month") return trades.filter(t => new Date(t.ts).getTime() >= lastT - 30*86400000);
+  return trades;
+}
+function _renderPerfPanels(allTrades) {
+  const filtered = _filterByPeriod(allTrades, _perfPeriod);
+  drawEquityCurve(filtered);
+  drawMonthlyPnl(filtered);
+  drawHoldHistogram(filtered);
+  drawWinLossHistogram(filtered);
+}
 function renderPerformanceGraphs() {
+  // Wire up period buttons once
+  document.querySelectorAll(".btn-period").forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => {
+      _perfPeriod = btn.dataset.period;
+      document.querySelectorAll(".btn-period").forEach(b =>
+        b.classList.toggle("active", b === btn));
+      if (_allTradesCache.trades) _renderPerfPanels(_allTradesCache.trades);
+    });
+  });
   // Draw immediately with whatever's cached so the tab isn't blank on open
   const cached = _allTradesCache.trades
                  || (state.data && state.data.recent_trades) || [];
-  drawEquityCurve(cached);
-  drawMonthlyPnl(cached);
-  drawHoldHistogram(cached);
-  drawWinLossHistogram(cached);
+  _renderPerfPanels(cached);
   // Background refresh
   if (Date.now() - _allTradesCache.ts < 30_000) return;
   _allTradesCache.ts = Date.now();
   fetch("/api/all_trades").then(r => r.json()).then(trades => {
     if (!Array.isArray(trades)) return;
     _allTradesCache.trades = trades;
-    drawEquityCurve(trades);
-    drawMonthlyPnl(trades);
-    drawHoldHistogram(trades);
-    drawWinLossHistogram(trades);
+    _renderPerfPanels(trades);
   }).catch(() => {});
 }
 

@@ -205,7 +205,14 @@
     <!-- PERFORMANCE ------------------------------------------------ -->
     <section class="tabpane" id="pane-performance">
       <div class="export-bar">
-        <span class="export-label">Download trade report:</span>
+        <span class="export-label">Period:</span>
+        <button class="btn-period active" data-period="today">Today</button>
+        <button class="btn-period" data-period="week">Week</button>
+        <button class="btn-period" data-period="month">Month</button>
+        <button class="btn-period" data-period="all">All</button>
+      </div>
+      <div class="export-bar">
+        <span class="export-label">Download report:</span>
         <a class="btn-export" href="/api/export/day" download>Daily</a>
         <a class="btn-export" href="/api/export/week" download>Weekly</a>
         <a class="btn-export" href="/api/export/month" download>Monthly</a>

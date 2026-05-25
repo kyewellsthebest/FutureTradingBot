@@ -346,3 +346,24 @@ html, body {
   border-color: rgba(110, 130, 160, 0.35);
 }
 .btn-export-alt:hover { background: rgba(110, 130, 160, 0.22); }
+
+/* PERIOD SELECTOR --------------------------------------------- */
+.btn-period {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(110, 130, 160, 0.10);
+  color: #b0b7c3;
+  border: 1px solid rgba(110, 130, 160, 0.28);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.btn-period:hover { background: rgba(110, 130, 160, 0.20); }
+.btn-period.active {
+  background: rgba(34, 211, 154, 0.16);
+  color: #22d39a;
+  border-color: rgba(34, 211, 154, 0.50);
+}
