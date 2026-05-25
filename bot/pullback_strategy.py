@@ -249,18 +249,48 @@ def lucid_precheck(setup: FibSetup, n_mnq: int, lucid: LucidState,
 # ============================================================================
 def microscalp_ratio_30d(completed: Deque[dict],
                           now: Optional[datetime] = None) -> float:
-    """% of recent target-exit trades that closed in < MIN_TARGET_HOLD_SECONDS."""
-    if not completed: return 0.0
+    """% of recent target-exit trades that closed in < MIN_TARGET_HOLD_SECONDS.
+
+    Reads the persistent trades DB instead of the in-memory completed_trades
+    deque -- the latter was empty after every bot restart, so the dashboard
+    gauge was stuck at 0% even after thousands of live trades. (Bug spotted
+    by user on May 25.)"""
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=MICROSCALP_WINDOW_DAYS)
-    recent_target = [t for t in completed
-                     if t.get("exit_reason") == "target"
-                     and pd.to_datetime(t.get("exit_ts", t.get("entry_ts"))).to_pydatetime()
-                         > cutoff]
-    if not recent_target: return 0.0
-    scalps = sum(1 for t in recent_target
-                 if t.get("hold_s", 999) < MIN_TARGET_HOLD_SECONDS)
-    return scalps / len(recent_target)
+    try:
+        from bot import persistence
+        # Pull every target exit in the lookback window. We avoid loading
+        # losing trades because Lucid's rule only counts profitable scalps.
+        sql_cutoff = cutoff.isoformat()
+        with persistence._conn() as conn:
+            rows = conn.execute(
+                """SELECT exit_reason, exit_time, entry_time, pnl
+                   FROM trades
+                   WHERE exit_time IS NOT NULL
+                     AND exit_time >= ?
+                     AND exit_reason = 'target'""",
+                (sql_cutoff,)
+            ).fetchall()
+        targets = [dict(r) for r in rows]
+    except Exception:
+        # Fall back to in-memory deque (older code path) if DB unreachable
+        targets = [t for t in (completed or [])
+                   if t.get("exit_reason") == "target"
+                   and pd.to_datetime(t.get("exit_ts", t.get("entry_ts"))).to_pydatetime()
+                       > cutoff]
+    if not targets: return 0.0
+    def _hold_s(t: dict) -> float:
+        # Persisted rows give entry/exit timestamps; in-memory rows give hold_s.
+        if t.get("hold_s") is not None:
+            return float(t["hold_s"])
+        try:
+            et = pd.to_datetime(t.get("entry_time") or t.get("entry_ts"))
+            xt = pd.to_datetime(t.get("exit_time") or t.get("exit_ts"))
+            return (xt - et).total_seconds()
+        except Exception:
+            return 999.0
+    scalps = sum(1 for t in targets if _hold_s(t) < MIN_TARGET_HOLD_SECONDS)
+    return scalps / len(targets)
 
 
 def check_circuit_breaker(state: FibStrategyState) -> None:

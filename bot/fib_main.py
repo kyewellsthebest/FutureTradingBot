@@ -73,12 +73,31 @@ def _setup_logging() -> None:
 
 
 def _iso(v):
-    """ISO-format a timestamp-ish value, robust to None / non-datetime."""
+    """ISO-format a timestamp-ish value, robust to None / non-datetime.
+
+    CRITICAL: always returns a UTC-aware ISO string (with +00:00 or Z).
+    Naive strings from SQLite get a UTC suffix appended -- without this,
+    JS new Date(naive_string) interprets the value in the BROWSER's local
+    timezone, which on a phone in AEST is +10h ahead of UTC. The trade
+    markers then land 10h past the latest candle on the chart, causing
+    all markers to pile up on the rightmost bar instead of their real
+    candle. (Caused the May 25 "all arrows on one candle" bug.)
+    """
     if v is None: return None
     if hasattr(v, "isoformat"):
-        try: return v.isoformat()
-        except Exception: pass
-    return str(v)
+        try:
+            iso = v.isoformat()
+        except Exception:
+            iso = str(v)
+    else:
+        iso = str(v)
+    # If the rendered string carries no tz designator, assume UTC.
+    # ISO tz markers: "+HH:MM", "-HH:MM", "Z" anywhere after the time
+    # component (i.e. after position 10 = "YYYY-MM-DD").
+    if len(iso) >= 11 and not (iso.endswith("Z") or "+" in iso[10:] or "-" in iso[10:]):
+        # Replace SQLite's space separator with 'T' so JS Date sees ISO 8601
+        iso = iso.replace(" ", "T", 1) + "+00:00"
+    return iso
 
 
 # ---------------------------------------------------------------------------

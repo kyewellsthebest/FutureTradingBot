@@ -485,12 +485,17 @@ function updateChartMarkers() {
   const markers = [];
   trades.forEach(t => {
     const exitT = new Date(t.ts).getTime();
-    if (exitT < cutoff) return;
+    // Guard against bad/NaN/missing timestamps -- if a trade's ts is
+    // unparseable, Lightweight Charts treats the marker time as "newer
+    // than every bar" and dumps it on the rightmost candle. Better to
+    // silently drop the marker than to corrupt the chart.
+    if (!Number.isFinite(exitT) || exitT < cutoff) return;
     // Prefer armed_at_ts (the bar that first touched level50) so the
     // entry arrow lands on the candle that triggered the entry, not the
     // tick-later candle where the bot processed the fill. Fall back to
     // entry_ts for older records that don't have it yet.
     const entryT = new Date(t.armed_at_ts || t.entry_ts || t.ts).getTime();
+    if (!Number.isFinite(entryT)) return;
     const pnl = t.pnl_usd || 0;
     const win = pnl >= 0;
     const pnlStr = (pnl >= 0 ? "+$" : "-$") +
