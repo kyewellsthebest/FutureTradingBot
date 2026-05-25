@@ -66,6 +66,91 @@ def api_health():
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
 
 
+@app.route("/api/diag")
+def api_diag():
+    """Server-side diagnostic — tells you whether the BOT process (not just
+    the Flask dashboard) is actually alive and writing. Triggered by the
+    "no trades yet" debugging session: dashboard server can be up while
+    the bot loop has crashed silently."""
+    from pathlib import Path as _P
+    import os as _os
+    base = _P(__file__).resolve().parent.parent / "data"
+    def _info(p):
+        if not p.exists(): return {"exists": False}
+        st = p.stat()
+        age = (datetime.now(timezone.utc).timestamp() - st.st_mtime)
+        return {"exists": True, "size": st.st_size,
+                "age_s": round(age, 1),
+                "mtime": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat()}
+    out = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "files": {
+            "dashboard_data.json": _info(base / "dashboard_data.json"),
+            "lucid_state.json":    _info(base / "lucid_state.json"),
+            "paper_trades.db":     _info(base / "paper_trades.db"),
+            "signal_events.json":  _info(base / "signal_events.json"),
+            "live_bars.json":      _info(base / "live_bars.json"),
+        },
+        "env": {
+            "BOT_SHADOW_MODE": _os.environ.get("BOT_SHADOW_MODE", "1"),
+            "BOT_VERSION":     _os.environ.get("BOT_VERSION", "fib"),
+            "POLYGON_API":     "set" if _os.environ.get("POLYGON_API") else "missing",
+        },
+    }
+    # Snapshot fields the bot is supposed to populate. If these are missing,
+    # the bot loop never reached _publish_dashboard().
+    try:
+        snap = persistence.load_dashboard()
+        out["snapshot"] = {
+            "has_ts": bool(snap.get("ts")),
+            "has_cycle": "cycle" in snap,
+            "cycle": snap.get("cycle"),
+            "bars_processed": snap.get("bars_processed"),
+            "bars_1m_source": snap.get("bars_1m_source"),
+            "signals_fired": snap.get("signals_fired"),
+            "signals_blocked": snap.get("signals_blocked"),
+            "last_error": snap.get("last_error"),
+            "mode": snap.get("mode"),
+            "price_ts": snap.get("price_ts"),
+        }
+    except Exception as e:
+        out["snapshot"] = {"error": str(e)}
+    # Try to read Lucid state directly — if the bot ever ran, applied_reset_serial
+    # is the most reliable "bot was alive" marker.
+    try:
+        lp = base / "lucid_state.json"
+        if lp.exists():
+            ls = json.loads(lp.read_text())
+            out["lucid"] = {
+                "applied_reset_serial": ls.get("applied_reset_serial"),
+                "started_at":           ls.get("started_at"),
+                "balance":              ls.get("balance"),
+                "today_pnl":            ls.get("today_pnl"),
+            }
+    except Exception as e:
+        out["lucid"] = {"error": str(e)}
+    # CNBC poller (writes live_bars.json every 30s); independent of bot
+    lb = base / "live_bars.json"
+    if lb.exists():
+        out["cnbc_poller_alive"] = (datetime.now(timezone.utc).timestamp()
+                                    - lb.stat().st_mtime) < 120
+    else:
+        out["cnbc_poller_alive"] = False
+    # Top-level interpretation
+    snap_age = out["files"]["dashboard_data.json"].get("age_s", 1e9)
+    if not out["files"]["dashboard_data.json"]["exists"]:
+        out["verdict"] = "bot has NEVER written a snapshot — startup crash or wiped <60s ago"
+    elif snap_age > 300:
+        out["verdict"] = f"bot snapshot is {snap_age/60:.1f}min stale — bot loop is dead"
+    elif not out["snapshot"].get("has_cycle"):
+        out["verdict"] = "snapshot file exists but no cycle field — wrong bot version?"
+    elif out["snapshot"].get("cycle", 0) < 2:
+        out["verdict"] = "bot is starting up (first cycle pending)"
+    else:
+        out["verdict"] = "bot is alive and ticking"
+    return jsonify(out)
+
+
 @app.route("/api/health/polygon")
 def api_health_polygon():
     """Probe what the configured Polygon.io key can actually access.

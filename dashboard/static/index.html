@@ -113,10 +113,13 @@
         <div class="card">
           <div class="card-header">Bot Health <span id="health-banner" class="muted" style="float:right;font-weight:normal;font-size:12px;"></span></div>
           <div class="card-body kv-list" id="bot-health">
+            <div class="kv-row"><span>Process verdict</span><b id="health-verdict" class="muted">checking…</b></div>
             <div class="kv-row"><span>Market status</span><b id="health-market">—</b></div>
             <div class="kv-row"><span>1-min bar source</span><b id="health-bar-source">—</b></div>
             <div class="kv-row"><span>Last price update</span><b id="health-price-ts">—</b></div>
-            <div class="kv-row"><span>Snapshot age</span><b id="health-snap-age">—</b></div>
+            <div class="kv-row"><span>Snapshot age (in-memory)</span><b id="health-snap-age">—</b></div>
+            <div class="kv-row"><span>Snapshot age (on-disk)</span><b id="health-file-age" class="muted">—</b></div>
+            <div class="kv-row"><span>Lucid reset serial</span><b id="health-reset-serial" class="muted">—</b></div>
             <div class="kv-row"><span>Cycles since start</span><b id="health-cycle">0</b></div>
             <div class="kv-row"><span>Bars processed (session)</span><b id="health-bars">0</b></div>
             <div class="kv-row"><span>Signals fired (session)</span><b id="health-fired">0</b></div>

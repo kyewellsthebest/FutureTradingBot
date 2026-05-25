@@ -208,9 +208,39 @@ function renderLive(d) {
 
   // Bot health diagnostics — surfaces bar source, cycle, counters, market hours
   renderBotHealth(d);
+  // Async: poll /api/diag for server-side process-alive verdict
+  fetchDiag();
 
   // Sim baseline drift monitor — annualise from all completed trades
   renderDriftMonitor(d);
+}
+
+// Server-side process-alive check. Independent of d.ts because the bot
+// process can die while Flask + CNBC poller keep serving stale prices.
+let _diagLast = 0;
+function fetchDiag() {
+  if (Date.now() - _diagLast < 15000) return;  // throttle to 15s
+  _diagLast = Date.now();
+  fetch("/api/diag").then(r => r.json()).then(diag => {
+    const v = document.getElementById("health-verdict");
+    if (!v) return;
+    v.textContent = diag.verdict || "—";
+    v.className = diag.verdict && diag.verdict.startsWith("bot is alive") ? "pos" :
+                  diag.verdict && diag.verdict.includes("starting up") ? "" : "neg";
+    const fa = diag.files?.["dashboard_data.json"]?.age_s;
+    if (fa !== undefined) {
+      const el = document.getElementById("health-file-age");
+      if (el) {
+        el.textContent = fa < 60 ? `${fa.toFixed(0)}s` :
+                         fa < 3600 ? `${(fa/60).toFixed(1)}min` :
+                                     `${(fa/3600).toFixed(1)}h`;
+        el.className = fa < 120 ? "pos" : fa < 600 ? "" : "neg";
+      }
+    }
+    const ls = diag.lucid?.applied_reset_serial;
+    const el2 = document.getElementById("health-reset-serial");
+    if (el2) el2.textContent = ls !== undefined ? `${ls}` : "—";
+  }).catch(() => {});
 }
 
 // CME globex schedule (NQ): Sun 18:00 ET open → Fri 17:00 ET close,
