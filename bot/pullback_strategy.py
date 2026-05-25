@@ -342,6 +342,7 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
     pnl_usd = pnl_pts * trade.n_mnq * 2.0   # $2/pt per MNQ; commissions
                                             # handled in the account layer
     return {
+        "ts": now,  # alias for exit_ts -- dashboard publish uses t.get("ts")
         "entry_ts": trade.entry_ts, "exit_ts": now,
         "side": trade.side, "n_mnq": trade.n_mnq,
         "entry_px": trade.entry_px, "exit_px": exit_px,
