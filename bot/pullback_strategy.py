@@ -455,7 +455,8 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 # Snapshot (for dashboard)
 # ============================================================================
 def snapshot(state: FibStrategyState,
-             dashboard_extras: Optional[dict] = None) -> dict:
+             dashboard_extras: Optional[dict] = None,
+             current_price: Optional[float] = None) -> dict:
     out = {
         "strategy": "pullback_impulse_v1",
         "default_size": DEFAULT_SIZE,
@@ -487,6 +488,13 @@ def snapshot(state: FibStrategyState,
             "stop_px": t.stop_px, "target_px": t.target_px,
             "hold_s": t.hold_seconds(),
         }
+        if current_price is not None:
+            side = 1 if t.side == "LONG" else -1
+            unrealized_pts = (current_price - t.entry_px) * side
+            out["active_trade"]["current_price"] = current_price
+            out["active_trade"]["unrealized_pnl_pts"] = round(unrealized_pts, 2)
+            out["active_trade"]["unrealized_pnl_usd"] = round(
+                unrealized_pts * 2.0 * t.n_mnq, 2)
     for s in state.pending_setups:
         if s.used: continue
         out["pending_setups"].append({
