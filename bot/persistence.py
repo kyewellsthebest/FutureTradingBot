@@ -172,15 +172,30 @@ def lifetime_stats() -> dict:
         row = conn.execute(sql).fetchone()
     if row is None or row["n_trades"] == 0:
         return {"n_trades": 0, "wins": 0, "win_rate": 0.0,
-                "total_pnl": 0.0, "avg_hold_s": 0.0}
+                "total_pnl": 0.0, "avg_hold_s": 0.0, "today_pnl": 0.0,
+                "today_trades": 0}
     n = int(row["n_trades"])
     wins = int(row["wins"])
+    # Today's P&L computed server-side from the trades DB using NY date
+    # (Lucid defines days in NY tz). The dashboard's previous client-side
+    # filter used browser tz on a 30-deep deque -> sums drifted as the
+    # deque rotated. Now authoritative.
+    today_sql = """
+        SELECT COUNT(*) AS n, COALESCE(SUM(pnl), 0.0) AS today_pnl
+        FROM trades
+        WHERE exit_time IS NOT NULL
+          AND date(exit_time, '-4 hours') = date('now', '-4 hours')
+    """
+    with _conn() as conn:
+        today_row = conn.execute(today_sql).fetchone()
     return {
         "n_trades": n,
         "wins": wins,
         "win_rate": round(wins / n * 100, 1) if n else 0.0,
         "total_pnl": round(float(row["total_pnl"]), 2),
         "avg_hold_s": round(float(row["avg_hold_s"]), 1),
+        "today_pnl": round(float(today_row["today_pnl"]) if today_row else 0.0, 2),
+        "today_trades": int(today_row["n"]) if today_row else 0,
     }
 
 

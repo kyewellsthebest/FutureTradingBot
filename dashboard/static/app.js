@@ -86,11 +86,12 @@ function renderTopbar(d) {
   const acc = d.lucid_account || {};
   const bal = acc.balance ?? 50000;
   setText("kpi-balance", fmtUsdPlain(bal));
-  // Compute today's P&L from actual closed trades — same authoritative
-  // source the Activity card uses. acc.today_pnl had drift bugs.
-  const today = (d.recent_trades || [])
-    .filter(t => new Date(t.ts).toDateString() === new Date().toDateString())
-    .reduce((s, t) => s + (t.pnl_usd || 0), 0);
+  // Today's P&L: authoritative server-side aggregation over the trades DB,
+  // filtered by NY date (Lucid's day boundary). Replaces the old client-side
+  // filter that summed recent_trades (capped at 30) -- caused the balance/
+  // today drift the user spotted ($50,668 with today +$557 implied $111 of
+  // phantom prior-day P&L that didn't exist).
+  const today = (d.lifetime_stats || {}).today_pnl ?? 0;
   const todayEl = document.getElementById("kpi-today");
   todayEl.textContent = fmtUsd(today);
   todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
