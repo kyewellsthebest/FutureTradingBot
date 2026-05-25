@@ -750,6 +750,40 @@ def api_trades():
     return jsonify(persistence.load_trades(limit=200))
 
 
+@app.route("/api/all_trades")
+def api_all_trades():
+    """All closed trades, normalised to the dashboard's recent_trades shape.
+    Used by the Performance tab so equity curve / monthly P&L / hold-time
+    histogram / win-loss distribution aggregate over the FULL history, not
+    just the in-memory 30-deep deque the bot publishes in /api/data."""
+    rows = persistence.load_trades(limit=100_000, only_closed=True)
+    out = []
+    for r in rows:
+        et, xt = r.get("entry_time"), r.get("exit_time")
+        hold_s = 0.0
+        if et and xt:
+            try:
+                import pandas as _pd
+                hold_s = (_pd.Timestamp(xt) - _pd.Timestamp(et)).total_seconds()
+            except Exception:
+                pass
+        out.append({
+            "ts": xt or et,
+            "entry_ts": et,
+            "side": r.get("side"),
+            "n_mnq": int(r.get("qty") or 0),
+            "entry_px": float(r.get("entry_px") or 0),
+            "exit_px": float(r.get("exit_px") or 0),
+            "exit_reason": r.get("exit_reason") or "",
+            "pnl_usd": float(r.get("pnl") or 0),
+            "pnl_pts": 0.0,
+            "hold_s": float(hold_s),
+        })
+    # Oldest-first so equity curve walks chronologically.
+    out.reverse()
+    return jsonify(out)
+
+
 @app.route("/api/last_trades")
 def api_last_trades():
     """Last 100 trades for the live dashboard table + chart."""

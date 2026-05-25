@@ -535,13 +535,31 @@ function updateChartMarkers() {
 // Hit-test regions for tooltips: { canvasId: [{x,y,r,html} | {x0,x1,y0,y1,html}, ...] }
 const _hitRegions = {};
 
+// All-trade history cache for the Performance tab. We fetch the full DB
+// once per visit instead of reading the truncated recent_trades deque
+// (which capped equity curve / monthly P&L / hold histogram / win-loss
+// distribution at 30 trades). Refreshed on every renderPerformanceGraphs
+// call, but only if last fetch was >30s ago.
+let _allTradesCache = { trades: null, ts: 0 };
 function renderPerformanceGraphs() {
-  if (!state.trades && !state.data) return;
-  const trades = (state.data && state.data.recent_trades) || [];
-  drawEquityCurve(trades);
-  drawMonthlyPnl(trades);
-  drawHoldHistogram(trades);
-  drawWinLossHistogram(trades);
+  // Draw immediately with whatever's cached so the tab isn't blank on open
+  const cached = _allTradesCache.trades
+                 || (state.data && state.data.recent_trades) || [];
+  drawEquityCurve(cached);
+  drawMonthlyPnl(cached);
+  drawHoldHistogram(cached);
+  drawWinLossHistogram(cached);
+  // Background refresh
+  if (Date.now() - _allTradesCache.ts < 30_000) return;
+  _allTradesCache.ts = Date.now();
+  fetch("/api/all_trades").then(r => r.json()).then(trades => {
+    if (!Array.isArray(trades)) return;
+    _allTradesCache.trades = trades;
+    drawEquityCurve(trades);
+    drawMonthlyPnl(trades);
+    drawHoldHistogram(trades);
+    drawWinLossHistogram(trades);
+  }).catch(() => {});
 }
 
 function _attachTooltip(canvasId, tooltipId) {
