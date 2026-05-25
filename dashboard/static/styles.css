@@ -367,3 +367,29 @@ html, body {
   color: #22d39a;
   border-color: rgba(34, 211, 154, 0.50);
 }
+
+/* PERFORMANCE TAB LIFETIME SUMMARY ----------------------------- */
+.lifetime-summary { padding: 16px 14px; margin-bottom: 14px; }
+.lifetime-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: end;
+}
+.lifetime-stat { min-width: 0; }
+.lifetime-label {
+  font-size: 10px; color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+.lifetime-value {
+  font-size: 24px; font-weight: 800;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.5px;
+}
+.lifetime-stat:first-child .lifetime-value { font-size: 32px; }
+.lifetime-value.pos { color: var(--green); }
+.lifetime-value.neg { color: var(--red); }
+@media (max-width: 600px) {
+  .lifetime-row { grid-template-columns: 1fr 1fr; }
+  .lifetime-stat:first-child { grid-column: span 2; }
+}

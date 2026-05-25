@@ -579,11 +579,38 @@ function _filterByPeriod(trades, period) {
   return trades;
 }
 function _renderPerfPanels(allTrades) {
+  _renderLifetimeSummary(allTrades);
   const filtered = _filterByPeriod(allTrades, _perfPeriod);
   drawEquityCurve(filtered);
   drawMonthlyPnl(filtered);
   drawHoldHistogram(filtered);
   drawWinLossHistogram(filtered);
+}
+
+function _renderLifetimeSummary(trades) {
+  // ALWAYS lifetime (since strategy deploy) -- ignores the period selector
+  // by design; this is the "career totals" row the user requested so they
+  // see how much money the bot has actually made beyond today's P&L counter.
+  const el = (id) => document.getElementById(id);
+  const pnlEl = el("lifetime-pnl"); if (!pnlEl) return;
+  if (!trades || !trades.length) {
+    pnlEl.textContent = "$0"; pnlEl.className = "lifetime-value";
+    el("lifetime-trades").textContent = "0";
+    el("lifetime-wr").textContent = "—";
+    el("lifetime-dd").textContent = "—";
+    return;
+  }
+  const pnls = trades.map(t => t.pnl_usd || 0);
+  const total = pnls.reduce((s, p) => s + p, 0);
+  const wins = pnls.filter(p => p > 0).length;
+  // Running drawdown
+  let cum = 0, peak = 0, maxDd = 0;
+  for (const p of pnls) { cum += p; if (cum > peak) peak = cum; if (peak - cum > maxDd) maxDd = peak - cum; }
+  pnlEl.textContent = fmtUsd(total);
+  pnlEl.className = "lifetime-value " + (total > 0 ? "pos" : total < 0 ? "neg" : "");
+  el("lifetime-trades").textContent = trades.length.toLocaleString();
+  el("lifetime-wr").textContent = (wins / trades.length * 100).toFixed(1) + "%";
+  el("lifetime-dd").textContent = "-$" + maxDd.toFixed(0);
 }
 function renderPerformanceGraphs() {
   // Wire up period buttons once

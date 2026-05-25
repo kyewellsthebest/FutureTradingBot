@@ -204,6 +204,26 @@
 
     <!-- PERFORMANCE ------------------------------------------------ -->
     <section class="tabpane" id="pane-performance">
+      <div class="card lifetime-summary">
+        <div class="lifetime-row">
+          <div class="lifetime-stat">
+            <div class="lifetime-label">Total P&L since deploy</div>
+            <div class="lifetime-value" id="lifetime-pnl">—</div>
+          </div>
+          <div class="lifetime-stat">
+            <div class="lifetime-label">Trades</div>
+            <div class="lifetime-value" id="lifetime-trades">—</div>
+          </div>
+          <div class="lifetime-stat">
+            <div class="lifetime-label">Win rate</div>
+            <div class="lifetime-value" id="lifetime-wr">—</div>
+          </div>
+          <div class="lifetime-stat">
+            <div class="lifetime-label">Max DD</div>
+            <div class="lifetime-value" id="lifetime-dd">—</div>
+          </div>
+        </div>
+      </div>
       <div class="export-bar">
         <span class="export-label">Period:</span>
         <button class="btn-period active" data-period="today">Today</button>
