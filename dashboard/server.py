@@ -47,6 +47,34 @@ app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
 CORS(app)
 
 
+# Multi-account routing: every API request can specify ?account=N. The
+# before_request hook binds the request handler thread to that account so
+# all persistence calls during the request resolve to data/account_<N>/.
+# Default "1" preserves single-account behaviour.
+@app.before_request
+def _bind_account_from_query():
+    from flask import request
+    from bot.account_ctx import set_account
+    set_account(request.args.get("account", "1"))
+
+
+@app.route("/api/accounts")
+def api_accounts():
+    """List of known accounts for the dashboard's account selector. Always
+    includes "1" (the legacy / primary account)."""
+    from bot.account_ctx import list_known_accounts
+    import os as _os
+    # Also include any account IDs explicitly configured in ACCOUNTS env
+    # even if they haven't created a data dir yet.
+    configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1,2").split(",") if a.strip()]
+    known = list_known_accounts()
+    merged = []
+    for a in configured + known:
+        if a not in merged:
+            merged.append(a)
+    return jsonify({"accounts": merged})
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -74,7 +102,8 @@ def api_diag():
     the bot loop has crashed silently."""
     from pathlib import Path as _P
     import os as _os
-    base = _P(__file__).resolve().parent.parent / "data"
+    from bot.account_ctx import data_dir as _acct_dir
+    base = _acct_dir()   # per-account (respects ?account=N from before_request)
     def _info(p):
         if not p.exists(): return {"exists": False}
         st = p.stat()
@@ -765,7 +794,7 @@ def api_all_trades():
     # a partial reset.
     cutoff = None
     try:
-        lp = DATA_DIR / "lucid_account.json"
+        from bot.account_ctx import data_dir as _acct_dir; lp = _acct_dir() / "lucid_account.json"
         if lp.exists():
             ls = json.loads(lp.read_text())
             sa = ls.get("started_at")
@@ -849,7 +878,7 @@ def api_export(period):
     # Strategy-deploy cutoff (always applied)
     deploy_cut = None
     try:
-        lp = DATA_DIR / "lucid_account.json"
+        from bot.account_ctx import data_dir as _acct_dir; lp = _acct_dir() / "lucid_account.json"
         if lp.exists():
             ls = json.loads(lp.read_text())
             sa = ls.get("started_at")

@@ -393,3 +393,54 @@ html, body {
   .lifetime-row { grid-template-columns: 1fr 1fr; }
   .lifetime-stat:first-child { grid-column: span 2; }
 }
+
+/* ACCOUNT SWITCHER (top-left brand area) ----------------------- */
+.brand-text-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.account-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--text-mute);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: inherit;
+}
+.account-toggle:hover { color: #d4dae5; }
+.account-menu {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  min-width: 220px;
+  background: #0f1422;
+  border: 1px solid #2a3344;
+  border-radius: 8px;
+  padding: 6px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.account-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #d4dae5;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.account-item:hover { background: rgba(255,255,255,0.05); }
+.account-item.active {
+  background: rgba(34,211,154,0.12);
+  color: #22d39a;
+}
+.account-item-id {
+  font-size: 10px;
+  color: var(--text-mute);
+  font-family: 'SF Mono', Menlo, monospace;
+}

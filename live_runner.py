@@ -66,24 +66,29 @@ def _bootstrap_bundled_config() -> None:
         log.info("bundled config already present in data/ — no bootstrap needed")
 
 
-def _bot_thread() -> None:
-    """Run the 60-second tick loop. Catches and re-runs on uncaught crash.
+def _bot_thread(account_id: str = "1") -> None:
+    """Run the bot tick loop for one specific account. Catches and re-runs
+    on uncaught crash. Defaults to account_id="1" for backwards compat with
+    single-account deployments.
 
-    Default runtime is the Fib 50% retracement strategy (single strategy,
-    10-min entries, 5 MNQ, Lucid-compliant). Set BOT_VERSION=v11 to fall
-    back to the old NQ-ES stat-arb book; BOT_VERSION=legacy for the V3
-    runtime. BOT_SHADOW_MODE=0 in env switches Fib from shadow to live.
+    Default runtime is the Fib 50% retracement strategy. Set BOT_VERSION=v11
+    to fall back to the old NQ-ES stat-arb book; BOT_VERSION=legacy for the
+    V3 runtime. BOT_SHADOW_MODE=0 in env switches Fib from shadow to live.
     """
+    # Bind THIS thread to its account so all module-level path lookups
+    # (persistence, lucid_account, fib_main DASHBOARD_PATH) resolve to
+    # data/account_<N>/ for non-default accounts.
+    from bot.account_ctx import set_account, data_dir as _dd
+    set_account(account_id)
     bot_version = os.environ.get("BOT_VERSION", "fib").lower()
     import traceback as _tb
-    crash_log = DATA_DIR / "bot_crash.txt"
-    heartbeat = DATA_DIR / "bot_heartbeat.txt"
-    # Step-marker heartbeat — each checkpoint overwrites the file. If the
-    # bot hangs, the LAST step name tells us exactly which line is stuck.
+    crash_log = _dd() / "bot_crash.txt"
+    heartbeat = _dd() / "bot_heartbeat.txt"
     def _hb(step: str) -> None:
         try:
             heartbeat.write_text(
-                f"step={step} time={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} "
+                f"step={step} account={account_id} "
+                f"time={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} "
                 f"version={bot_version}\n")
         except Exception:
             pass
@@ -92,28 +97,27 @@ def _bot_thread() -> None:
             _hb("importing_runtime")
             if bot_version == "legacy":
                 from bot.main import Runtime
-                log.info("starting LEGACY bot loop (V3 strategies)")
+                log.info(f"[acct {account_id}] starting LEGACY bot loop")
+                rt = Runtime()
             elif bot_version == "v11":
                 from bot.v11_main import V11Runtime as Runtime
-                log.info("starting v11 bot loop (NQ-ES stat-arb, 117 strategies)")
+                log.info(f"[acct {account_id}] starting v11 bot loop")
+                rt = Runtime()
             else:
-                from bot.fib_main import FibRuntime as Runtime
+                from bot.fib_main import FibRuntime
                 mode = "SHADOW" if os.environ.get("BOT_SHADOW_MODE", "1") == "1" else "LIVE"
-                log.info(f"starting Fib 50% retracement bot ({mode} mode)")
-            _hb("instantiating_runtime")
-            rt = Runtime()
+                log.info(f"[acct {account_id}] starting Fib 50% bot ({mode} mode)")
+                rt = FibRuntime(account_id=account_id)
             _hb("entering_run_loop")
             rt.run()
-            log.warning("bot loop exited cleanly — restarting in 5s")
+            log.warning(f"[acct {account_id}] bot loop exited cleanly — restarting in 5s")
         except Exception as e:
             tb = _tb.format_exc()
-            log.exception(f"bot loop crashed: {e} — restarting in 30s")
-            # Persist the traceback so /api/diag can show it. Without this
-            # the user is blind unless they have Railway log access.
+            log.exception(f"[acct {account_id}] bot loop crashed: {e} — restarting in 30s")
             try:
                 crash_log.write_text(
                     f"[{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}] "
-                    f"version={bot_version}  crash: {e!r}\n\n{tb}")
+                    f"account={account_id} version={bot_version}  crash: {e!r}\n\n{tb}")
             except Exception:
                 pass
             time.sleep(30)
@@ -139,8 +143,24 @@ def main() -> int:
     # Background dashboard
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
     t.start()
-    # Main thread runs the bot loop (so signal handlers install correctly)
-    _bot_thread()
+    # Parse ACCOUNTS env var: comma-separated list of account IDs to run.
+    # Default "1,2" -- user explicitly asked for the "Futures Trading Bot 2"
+    # account in addition to the existing one. Override via ACCOUNTS env if
+    # you want a different set.
+    accounts = [a.strip() for a in os.environ.get("ACCOUNTS", "1,2").split(",") if a.strip()]
+    if len(accounts) == 1:
+        # Single-account mode: run on the main thread so SIGINT/SIGTERM
+        # handlers install correctly (only main thread can install them).
+        _bot_thread(accounts[0])
+    else:
+        # Multi-account mode: spawn each non-primary account in a daemon
+        # thread, run the first account on the main thread (for signals).
+        log.info(f"multi-account mode -- launching {len(accounts)} accounts: {accounts}")
+        for aid in accounts[1:]:
+            th = threading.Thread(target=_bot_thread, args=(aid,),
+                                  name=f"bot-acct-{aid}", daemon=True)
+            th.start()
+        _bot_thread(accounts[0])
     return 0
 
 

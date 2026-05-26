@@ -12,7 +12,11 @@
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark">⬢</span>
-      <span class="brand-text">Futures Trading Bot</span>
+      <span class="brand-text-wrap" id="account-switcher">
+        <span class="brand-text" id="brand-text-label">Futures Trading Bot</span>
+        <button class="account-toggle" id="account-toggle" aria-label="Switch account">▾</button>
+        <div class="account-menu" id="account-menu" hidden></div>
+      </span>
       <span class="badge badge-version" id="badge-version">pullback</span>
       <span class="badge badge-mode" id="badge-mode">shadow</span>
       <span class="badge badge-src src-synth" id="badge-src">synth 1m</span>

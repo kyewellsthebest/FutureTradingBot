@@ -5,6 +5,12 @@ Persistence layer.
   data/paper_trades.db      — SQLite trade ledger, indexed on (entry_time, signal_name)
   data/dashboard_data.json  — full dashboard payload (60s flush)
   data/signal_events.json   — recent fired signals (rolling, 100 max)
+
+Multi-account: paths resolve per-thread via bot.account_ctx.data_dir(). The
+legacy account_id "1" still uses the top-level data/ directory; new accounts
+("2", "3", ...) live under data/account_<N>/. Module-level constants like
+_account_path() are exposed via PEP 562 __getattr__ so external code that
+references them continues to work without changes.
 """
 from __future__ import annotations
 
@@ -14,14 +20,24 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from research.data_loader import DATA_DIR
+from bot.account_ctx import data_dir
 
 logger = logging.getLogger("persistence")
 
-ACCOUNT_PATH = DATA_DIR / "paper_account.json"
-TRADES_DB_PATH = DATA_DIR / "paper_trades.db"
-DASHBOARD_PATH = DATA_DIR / "dashboard_data.json"
-SIGNAL_EVENTS_PATH = DATA_DIR / "signal_events.json"
+# Internal helpers — always resolve to the current thread's account.
+def _account_path():      return data_dir() / "paper_account.json"
+def _trades_db_path():    return data_dir() / "paper_trades.db"
+def _dashboard_path():    return data_dir() / "dashboard_data.json"
+def _signal_events_path(): return data_dir() / "signal_events.json"
+
+
+def __getattr__(name):
+    """Backward-compat: persistence.ACCOUNT_PATH etc. still work."""
+    if name == "ACCOUNT_PATH":      return _account_path()
+    if name == "TRADES_DB_PATH":    return _trades_db_path()
+    if name == "DASHBOARD_PATH":    return _dashboard_path()
+    if name == "SIGNAL_EVENTS_PATH": return _signal_events_path()
+    raise AttributeError(f"module 'persistence' has no attribute {name!r}")
 
 DEFAULT_ACCOUNT = {
     "balance": 50_000.0,
@@ -49,19 +65,19 @@ def now_iso() -> str:
 # ---------------------------------------------------------------------------
 
 def load_account() -> dict:
-    if not ACCOUNT_PATH.exists():
+    if not _account_path().exists():
         save_account(DEFAULT_ACCOUNT)
         return dict(DEFAULT_ACCOUNT)
     try:
-        return json.loads(ACCOUNT_PATH.read_text())
+        return json.loads(_account_path().read_text())
     except Exception as e:
         logger.error(f"account read failed: {e}")
         return dict(DEFAULT_ACCOUNT)
 
 
 def save_account(acct: dict) -> None:
-    ACCOUNT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    ACCOUNT_PATH.write_text(json.dumps(acct, indent=2, default=str))
+    _account_path().parent.mkdir(parents=True, exist_ok=True)
+    _account_path().write_text(json.dumps(acct, indent=2, default=str))
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +111,8 @@ CREATE INDEX IF NOT EXISTS idx_trades_signal ON trades (signal_name);
 
 
 def _conn() -> sqlite3.Connection:
-    TRADES_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(TRADES_DB_PATH))
+    _trades_db_path().parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(_trades_db_path()))
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA)
     return conn
@@ -235,36 +251,36 @@ def lifetime_stats() -> dict:
 # ---------------------------------------------------------------------------
 
 def save_dashboard(state: dict) -> None:
-    DASHBOARD_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DASHBOARD_PATH.write_text(json.dumps(state, indent=2, default=str))
+    _dashboard_path().parent.mkdir(parents=True, exist_ok=True)
+    _dashboard_path().write_text(json.dumps(state, indent=2, default=str))
 
 
 def load_dashboard() -> dict:
-    if not DASHBOARD_PATH.exists():
+    if not _dashboard_path().exists():
         return {}
     try:
-        return json.loads(DASHBOARD_PATH.read_text())
+        return json.loads(_dashboard_path().read_text())
     except Exception:
         return {}
 
 
 def push_signal_event(event: dict, max_keep: int = 100) -> None:
     arr: list = []
-    if SIGNAL_EVENTS_PATH.exists():
+    if _signal_events_path().exists():
         try:
-            arr = json.loads(SIGNAL_EVENTS_PATH.read_text())
+            arr = json.loads(_signal_events_path().read_text())
         except Exception:
             arr = []
     arr.append(event)
     arr = arr[-max_keep:]
-    SIGNAL_EVENTS_PATH.write_text(json.dumps(arr, indent=2, default=str))
+    _signal_events_path().write_text(json.dumps(arr, indent=2, default=str))
 
 
 def load_signal_events(limit: int = 25) -> list[dict]:
-    if not SIGNAL_EVENTS_PATH.exists():
+    if not _signal_events_path().exists():
         return []
     try:
-        arr = json.loads(SIGNAL_EVENTS_PATH.read_text())
+        arr = json.loads(_signal_events_path().read_text())
     except Exception:
         return []
     return arr[-limit:]

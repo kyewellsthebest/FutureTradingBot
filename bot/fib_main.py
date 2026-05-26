@@ -38,12 +38,19 @@ from bot.lucid_account import LucidAccount
 from bot.price_monitor import PriceMonitor
 from research.clock_sync import real_utc_now, sync_clock
 from research.data_loader import DATA_DIR, download_nq, download_symbol
+from bot.account_ctx import data_dir as _account_data_dir
 
 logger = logging.getLogger("bot_fib")
 
 CYCLE_FLAT_SECONDS = 60
 CYCLE_TRADE_SECONDS = 5
-DASHBOARD_PATH = DATA_DIR / "dashboard_data.json"
+def _dashboard_path():
+    """Resolve per-account so each FibRuntime writes to its own snapshot."""
+    return _account_data_dir() / "dashboard_data.json"
+def __getattr__(name):
+    """Backward-compat for any code that imported DASHBOARD_PATH directly."""
+    if name == "DASHBOARD_PATH": return _dashboard_path()
+    raise AttributeError(f"module 'fib_main' has no attribute {name!r}")
 LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_fib.log"
 
 SHADOW_MODE = os.environ.get("BOT_SHADOW_MODE", "1") == "1"
@@ -148,7 +155,14 @@ def _build_last_1m_from_price(monitor_snap, last_5m_close: float) -> pd.Series:
 # Runtime
 # ---------------------------------------------------------------------------
 class FibRuntime:
-    def __init__(self) -> None:
+    def __init__(self, account_id: str = "1") -> None:
+        # Bind THIS thread to this account so all persistence calls during
+        # __init__ (LucidAccount load, paper account load) read/write the
+        # correct namespace. live_runner.py spawns one FibRuntime per
+        # account configured in the ACCOUNTS env var.
+        from bot.account_ctx import set_account
+        set_account(account_id)
+        self.account_id = account_id
         self.state = FibStrategyState()
         self.account = LucidAccount()
         self.monitor = PriceMonitor()
@@ -210,6 +224,11 @@ class FibRuntime:
 
     # ---- main loop -----------------------------------------------------
     def run(self) -> int:
+        # Re-bind in case this is a different thread than __init__ ran in
+        # (live_runner spawns one thread per account, and constructs the
+        # Runtime inside that thread, but be defensive).
+        from bot.account_ctx import set_account
+        set_account(self.account_id)
         _setup_logging()
         sync_clock()
         # One-shot historical commission migration. Trades closed before the
@@ -420,7 +439,7 @@ class FibRuntime:
                     for t in list(self.recent_trades)[:30]
                 ],
             }
-            DASHBOARD_PATH.write_text(json.dumps(blob, indent=2, default=str))
+            _dashboard_path().write_text(json.dumps(blob, indent=2, default=str))
         except Exception as e:
             # Was silently swallowed at DEBUG — caused the May 25 zombie-bot
             # incident where the dashboard showed "UPDATED —" for hours
@@ -431,7 +450,7 @@ class FibRuntime:
             try:
                 import traceback as _tb
                 from datetime import datetime as _dt, timezone as _tz
-                (DASHBOARD_PATH.parent / "bot_crash.txt").write_text(
+                (_dashboard_path().parent / "bot_crash.txt").write_text(
                     f"[{_dt.now(_tz.utc).isoformat()}] "
                     f"_publish_dashboard crashed: {e!r}\n\n{_tb.format_exc()}")
             except Exception:

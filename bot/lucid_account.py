@@ -51,7 +51,15 @@ from research.signal_filters import DOLLARS_PER_POINT, NY_TZ
 
 logger = logging.getLogger("lucid_account")
 
-LUCID_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "lucid_account.json"
+from bot.account_ctx import data_dir
+def _lucid_state_path():
+    return data_dir() / "lucid_account.json"
+
+def __getattr__(name):
+    """Backward-compat: code referencing module-level LUCID_STATE_PATH
+    keeps working but resolves per current thread's account."""
+    if name == "LUCID_STATE_PATH": return _lucid_state_path()
+    raise AttributeError(f"module 'lucid_account' has no attribute {name!r}")
 
 # Bump this any time we need to force a full account reset on the next
 # Railway deploy. The bot remembers the last applied serial in the state
@@ -90,13 +98,13 @@ class LucidAccountState:
 
 
 def _load_state() -> LucidAccountState:
-    if not LUCID_STATE_PATH.exists():
+    if not _lucid_state_path().exists():
         s = LucidAccountState(started_at=datetime.now(timezone.utc).isoformat())
         _save_state(s)
         return s
     try:
         import json
-        return LucidAccountState.from_dict(json.loads(LUCID_STATE_PATH.read_text()))
+        return LucidAccountState.from_dict(json.loads(_lucid_state_path().read_text()))
     except Exception as e:
         logger.error(f"lucid state load failed: {e}; resetting")
         s = LucidAccountState(started_at=datetime.now(timezone.utc).isoformat())
@@ -106,8 +114,8 @@ def _load_state() -> LucidAccountState:
 
 def _save_state(s: LucidAccountState) -> None:
     import json
-    LUCID_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LUCID_STATE_PATH.write_text(json.dumps(s.to_dict(), indent=2, default=str))
+    _lucid_state_path().parent.mkdir(parents=True, exist_ok=True)
+    _lucid_state_path().write_text(json.dumps(s.to_dict(), indent=2, default=str))
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +204,7 @@ class LucidAccount(PaperAccount):
         # Trades DB → wiped (best-effort)
         try:
             import sqlite3
-            db_path = LUCID_STATE_PATH.parent / "paper_trades.db"
+            db_path = _lucid_state_path().parent / "paper_trades.db"
             if db_path.exists():
                 con = sqlite3.connect(db_path)
                 cur = con.cursor()
@@ -210,7 +218,7 @@ class LucidAccount(PaperAccount):
             logger.warning(f"trades DB wipe failed (non-fatal): {e}")
         # Dashboard JSON cache → deleted (regenerated on next snapshot in ~60s)
         try:
-            dashboard_path = LUCID_STATE_PATH.parent / "dashboard_data.json"
+            dashboard_path = _lucid_state_path().parent / "dashboard_data.json"
             if dashboard_path.exists():
                 dashboard_path.unlink()
                 logger.warning("=== dashboard_data.json deleted ===")
@@ -218,7 +226,7 @@ class LucidAccount(PaperAccount):
             logger.warning(f"dashboard cache wipe failed (non-fatal): {e}")
         # Signal events JSON → deleted
         try:
-            sig_path = LUCID_STATE_PATH.parent / "signal_events.json"
+            sig_path = _lucid_state_path().parent / "signal_events.json"
             if sig_path.exists():
                 sig_path.unlink()
                 logger.warning("=== signal_events.json deleted ===")

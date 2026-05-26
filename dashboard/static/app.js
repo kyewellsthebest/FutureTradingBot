@@ -5,6 +5,77 @@ const POLL_MS = 5000;
 let state = { data: null, candles: null, trades: null };
 let chart = null, candleSeries = null;
 
+// Multi-account: every API request is namespaced by ?account=N. The
+// active account is persisted in localStorage so a refresh keeps the
+// user on whichever account they were viewing.
+let currentAccount = localStorage.getItem("hftbot.account") || "1";
+
+// Account-aware fetch wrapper — appends ?account=N to the URL.
+function af(url) {
+  const sep = url.includes("?") ? "&" : "?";
+  return url + sep + "account=" + encodeURIComponent(currentAccount);
+}
+function setAccount(id) {
+  if (id === currentAccount) return;
+  currentAccount = id;
+  localStorage.setItem("hftbot.account", id);
+  // Wipe all caches so the new account's data loads fresh.
+  state = { data: null, candles: null, trades: null };
+  _allTradesCache = { trades: null, ts: 0 };
+  if (candleSeries) { try { candleSeries.setData([]); candleSeries.setMarkers([]); } catch (e) {} }
+  // Refresh everything immediately
+  poll(); pollCandles(); pollTrades();
+  // Refresh the account-menu label
+  renderAccountSwitcher();
+}
+async function loadAccounts() {
+  try {
+    const r = await fetch("/api/accounts");
+    if (!r.ok) return;
+    const j = await r.json();
+    window._knownAccounts = j.accounts || ["1"];
+    renderAccountSwitcher();
+  } catch (e) {}
+}
+function renderAccountSwitcher() {
+  const accounts = window._knownAccounts || ["1"];
+  // Label
+  const label = document.getElementById("brand-text-label");
+  if (label) label.textContent = currentAccount === "1" ? "Futures Trading Bot"
+                                                        : `Futures Trading Bot ${currentAccount}`;
+  const menu = document.getElementById("account-menu");
+  if (!menu) return;
+  menu.innerHTML = accounts.map(a => `
+    <div class="account-item ${a === currentAccount ? 'active' : ''}" data-account="${a}">
+      <span>${a === "1" ? "Futures Trading Bot" : "Futures Trading Bot " + a}</span>
+      <span class="account-item-id">#${a}</span>
+    </div>`).join("");
+  menu.querySelectorAll(".account-item").forEach(el => {
+    el.addEventListener("click", () => {
+      setAccount(el.dataset.account);
+      menu.hidden = true;
+    });
+  });
+}
+// Wire up the dropdown toggle once DOM is ready
+function _wireAccountSwitcher() {
+  const btn = document.getElementById("account-toggle");
+  const menu = document.getElementById("account-menu");
+  if (!btn || !menu || btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  document.addEventListener("click", () => { menu.hidden = true; });
+}
+document.addEventListener("DOMContentLoaded", () => {
+  _wireAccountSwitcher();
+  renderAccountSwitcher();
+  loadAccounts();
+  setInterval(loadAccounts, 60_000);  // refresh in case ACCOUNTS env adds new ones
+});
+
 // ---- Tab routing ---------------------------------------------------------
 function activateTab(name) {
   document.querySelectorAll(".tab").forEach(t =>
@@ -46,7 +117,7 @@ const setClass = (id, cls) => { const el = document.getElementById(id); if (el) 
 // ---- Polling -------------------------------------------------------------
 async function poll() {
   try {
-    const r = await fetch("/api/data");
+    const r = await fetch(af("/api/data"));
     if (r.ok) {
       state.data = await r.json();
       renderAll();
@@ -55,7 +126,7 @@ async function poll() {
 }
 async function pollCandles() {
   try {
-    const r = await fetch("/api/candles");
+    const r = await fetch(af("/api/candles"));
     if (r.ok) {
       state.candles = await r.json();
       if (candleSeries && state.candles && Array.isArray(state.candles)) {
@@ -68,7 +139,7 @@ async function pollCandles() {
 }
 async function pollTrades() {
   try {
-    const r = await fetch("/api/trades");
+    const r = await fetch(af("/api/trades"));
     if (r.ok) state.trades = await r.json();
     renderTradesTable();
     renderPerformanceGraphs();
@@ -92,7 +163,7 @@ poll(); pollCandles(); pollTrades();
 // a WebSocket subscriber, not just faster polling.
 async function pollPriceOnly() {
   try {
-    const r = await fetch("/api/price");
+    const r = await fetch(af("/api/price"));
     if (!r.ok) return;
     const j = await r.json();
     const px = j.price;
@@ -151,7 +222,7 @@ function renderTopbar(d) {
   // user never opens the Performance tab.
   if (Date.now() - _allTradesCache.ts > 30_000) {
     _allTradesCache.ts = Date.now();
-    fetch("/api/all_trades").then(r => r.json()).then(trades => {
+    fetch(af("/api/all_trades")).then(r => r.json()).then(trades => {
       if (Array.isArray(trades)) _allTradesCache.trades = trades;
     }).catch(() => {});
   }
@@ -274,7 +345,7 @@ let _diagLast = 0;
 function fetchDiag() {
   if (Date.now() - _diagLast < 15000) return;  // throttle to 15s
   _diagLast = Date.now();
-  fetch("/api/diag").then(r => r.json()).then(diag => {
+  fetch(af("/api/diag")).then(r => r.json()).then(diag => {
     const v = document.getElementById("health-verdict");
     if (!v) return;
     v.textContent = diag.verdict || "—";
@@ -681,7 +752,7 @@ function renderPerformanceGraphs() {
   // Background refresh
   if (Date.now() - _allTradesCache.ts < 30_000) return;
   _allTradesCache.ts = Date.now();
-  fetch("/api/all_trades").then(r => r.json()).then(trades => {
+  fetch(af("/api/all_trades")).then(r => r.json()).then(trades => {
     if (!Array.isArray(trades)) return;
     _allTradesCache.trades = trades;
     _renderPerfPanels(trades);
