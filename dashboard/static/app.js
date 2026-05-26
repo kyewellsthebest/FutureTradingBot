@@ -380,11 +380,13 @@ function renderBotHealth(d) {
   }
 }
 
-// Sim baseline (window=4, target=12pt, 2 MNQ, $0.74 RT, 0.25pt adv slip).
-// Validated on 3-month NQ tick data + OOS split-half. Used for drift detection.
+// Sim baseline (window=4, target=18pt, 2 MNQ, $0.74 RT, 0.25pt adv slip).
+// Validated on 3-month NQ tick data + OOS split-half + 1000-run Monte Carlo.
+// Updated 2026-05-26 after strategy_bakeoff_tick.py showed target=18 beats
+// target=12 on BOTH OOS halves with similar DD.
 const SIM_BASELINE = {
-  ret_mo: 21.19, dd_pct: 1.66, dd_usd: 828,
-  wr: 43.0, rr: 1.65, trades_per_mo: 2998,
+  ret_mo: 27.04, dd_pct: 1.75, dd_usd: 875,
+  wr: 37.3, rr: 2.19, trades_per_mo: 2767,
 };
 
 function renderDriftMonitor(d) {

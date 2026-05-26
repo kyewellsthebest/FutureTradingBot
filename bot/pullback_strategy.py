@@ -43,23 +43,30 @@ logger = logging.getLogger("pullback_strategy")
 
 
 # ============================================================================
-# Strategy parameters (validated OOS-positive on NQ tick data)
+# Strategy parameters (validated OOS-positive on NQ tick data + 24-mo OHLC)
 #
-# Full 3-month sim @ Lucid costs ($0.74 RT, 0.25pt adv slip), 2 MNQ:
-#   +21.30%/mo, 1.66% max DD, PF 1.244, RR 1.65, WR 43%, 7,809 trades
+# Bake-off vs 5 candidate strategies showed wider targets dominate.
+# Updated TARGET_PTS 12 -> 18 after the strategy_bakeoff_tick.py sweep.
 #
-# Out-of-sample split-half check (40d train / 40d val):
-#   train +12.59%/mo, val +30.13%/mo  — better than baseline on BOTH halves
+# Full 3-month tick sim @ Lucid costs ($0.74 RT, 0.25pt adv slip), 2 MNQ:
+#   +27.06%/mo, 1.75% max DD, PF 1.30, RR 2.19, WR 37.3%, 7,286 trades
 #
-# Monte Carlo (1000 resamples): median +21.19%/mo, 5-95% [+17.46, +25.17],
-# P(positive)=100%, P(>=10%)=100%, P(blow $2K trail)=0.1%.
+# OOS split-half (40d train / 40d val) at target=18:
+#   train +18.01%/mo (1.75% DD), val +36.18%/mo (1.59% DD)
+#   -- beats target=12 baseline on BOTH halves, not overfit
+#
+# Monte Carlo (1000 resamples) at target=18:
+#   median +27.04%/mo, 5-95% [+22.67, +31.76]
+#   P(positive)=100%, P(>=10%)=100%, P(>=20%)=99.6%
+#   P(blow $2K trail)=0.2%  (was 0.1% at target=12, negligible change)
 # ============================================================================
 DEFAULT_SIZE = 2                  # 2 MNQ fixed — worst sim day -$489 vs $1,200 DLL
 IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
 IMPULSE_WINDOW_BARS = 4           # impulse measured across last 4 closed 1-min bars
 PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range
 STOP_PTS = 6.0                    # stop distance from entry (NQ pts)
-TARGET_PTS = 12.0                 # target distance from entry (NQ pts)
+TARGET_PTS = 18.0                 # target distance from entry (NQ pts) -- widened
+                                  # from 12 after bake-off; lets winners run further
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
 COOLDOWN_SECS = 60                # min gap between trades

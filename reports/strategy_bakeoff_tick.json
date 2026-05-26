@@ -1,0 +1,112 @@
+{
+  "BASELINE (pullback)": {
+    "n": 7871,
+    "wr": 43.3,
+    "total_pnl": 29203.0,
+    "ret_mo": 22.4,
+    "max_dd_usd": -959.0,
+    "max_dd_pct": 1.92,
+    "pf": 1.256,
+    "rr": 1.64,
+    "trades_per_mo": 3019.0
+  },
+  "VWAP_FADE": {
+    "n": 9268,
+    "wr": 33.1,
+    "total_pnl": -13215.0,
+    "ret_mo": -10.14,
+    "max_dd_usd": -15131.0,
+    "max_dd_pct": 30.26,
+    "pf": 0.932,
+    "rr": 1.89,
+    "trades_per_mo": 3554.0
+  },
+  "DONCHIAN_20": {
+    "n": 3466,
+    "wr": 45.0,
+    "total_pnl": -9000.0,
+    "ret_mo": -6.9,
+    "max_dd_usd": -11309.0,
+    "max_dd_pct": 22.62,
+    "pf": 0.923,
+    "rr": 1.13,
+    "trades_per_mo": 1329.0
+  },
+  "ORB_15min": {
+    "n": 56,
+    "wr": 44.6,
+    "total_pnl": -1169.0,
+    "ret_mo": -0.9,
+    "max_dd_usd": -1643.0,
+    "max_dd_pct": 3.29,
+    "pf": 0.779,
+    "rr": 0.97,
+    "trades_per_mo": 21.0
+  },
+  "ENGULF": {
+    "n": 2570,
+    "wr": 33.5,
+    "total_pnl": -6388.0,
+    "ret_mo": -4.9,
+    "max_dd_usd": -7311.0,
+    "max_dd_pct": 14.62,
+    "pf": 0.853,
+    "rr": 1.69,
+    "trades_per_mo": 986.0
+  },
+  "BASELINE_HRS_11-15": {
+    "n": 2210,
+    "wr": 45.2,
+    "total_pnl": 13436.0,
+    "ret_mo": 10.31,
+    "max_dd_usd": -349.0,
+    "max_dd_pct": 0.7,
+    "pf": 1.424,
+    "rr": 1.73,
+    "trades_per_mo": 848.0
+  },
+  "BASELINE_TIGHT 4/6": {
+    "n": 12941,
+    "wr": 42.8,
+    "total_pnl": -12938.0,
+    "ret_mo": -9.92,
+    "max_dd_usd": -13240.0,
+    "max_dd_pct": 26.48,
+    "pf": 0.905,
+    "rr": 1.21,
+    "trades_per_mo": 4963.0
+  },
+  "BASELINE_WIDE  6/18": {
+    "n": 7286,
+    "wr": 37.3,
+    "total_pnl": 35281.0,
+    "ret_mo": 27.06,
+    "max_dd_usd": -875.0,
+    "max_dd_pct": 1.75,
+    "pf": 1.303,
+    "rr": 2.19,
+    "trades_per_mo": 2794.0
+  },
+  "BASELINE_MOMENTUM": {
+    "n": 14656,
+    "wr": 40.3,
+    "total_pnl": -39112.0,
+    "ret_mo": -30.0,
+    "max_dd_usd": -41171.0,
+    "max_dd_pct": 82.34,
+    "pf": 0.862,
+    "rr": 1.28,
+    "trades_per_mo": 5621.0
+  },
+  "BASELINE_DROP_BAD_HRS": {
+    "n": 6542,
+    "wr": 43.7,
+    "total_pnl": 26195.0,
+    "ret_mo": 20.09,
+    "max_dd_usd": -825.0,
+    "max_dd_pct": 1.65,
+    "pf": 1.279,
+    "rr": 1.65,
+    "trades_per_mo": 2509.0
+  }
+}

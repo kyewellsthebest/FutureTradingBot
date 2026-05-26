@@ -135,9 +135,9 @@
         <div class="card">
           <div class="card-header">Sim Baseline vs Live (drift monitor)</div>
           <div class="card-body kv-list" id="sim-baseline">
-            <div class="kv-row"><span>Sim return / mo</span><b class="pos">+21.19%</b></div>
+            <div class="kv-row"><span>Sim return / mo</span><b class="pos">+27.04%</b></div>
             <div class="kv-row"><span>Live return / mo (annualised)</span><b id="live-ret-mo">—</b></div>
-            <div class="kv-row"><span>Sim max DD</span><b>$828 (1.66%)</b></div>
+            <div class="kv-row"><span>Sim max DD</span><b>$875 (1.75%)</b></div>
             <div class="kv-row"><span>Live current DD</span><b id="live-dd">—</b></div>
             <div class="kv-row"><span>Sim WR / RR</span><b>43.0% / 1.65</b></div>
             <div class="kv-row"><span>Live WR / RR</span><b id="live-wr-rr">—</b></div>
@@ -153,7 +153,7 @@
     <section class="tabpane" id="pane-chart">
       <div class="card card-tall">
         <div class="card-header">
-          NQ · 1-min · Pullback Impulse (5pt impulse over 4 bars → 0.618 retrace, stop 6 / target 12)
+          NQ · 1-min · Pullback Impulse (5pt impulse over 4 bars → 0.618 retrace, stop 6 / target 18)
         </div>
         <div id="chart-container" class="chart-container"></div>
       </div>
@@ -170,7 +170,7 @@
             <div class="kv-row"><span>Entry</span><b>LIMIT at 0.618 retracement of impulse range</b></div>
             <div class="kv-row"><span>Setup expiry</span><b>5 minutes (cancel if not filled)</b></div>
             <div class="kv-row"><span>Stop</span><b>6 NQ pts from entry</b></div>
-            <div class="kv-row"><span>Target</span><b>12 NQ pts from entry (2.0 RR planned, 1.65 realised)</b></div>
+            <div class="kv-row"><span>Target</span><b>18 NQ pts from entry (3.0 RR planned, 2.19 realised)</b></div>
             <div class="kv-row"><span>Default size</span><b>2 MNQ fixed</b></div>
             <div class="kv-row"><span>Min target hold</span><b>10 seconds (Lucid microscalp safety)</b></div>
             <div class="kv-row"><span>Stops fire</span><b>Immediately (no hold gate)</b></div>
@@ -191,11 +191,11 @@
         <div class="card">
           <div class="card-header">Backtest Validation (3-mo NQ tick data, 8,647 trades)</div>
           <div class="card-body kv-list">
-            <div class="kv-row"><span>Median return / mo (Monte Carlo)</span><b class="pos">+21.19%</b></div>
-            <div class="kv-row"><span>5-95% confidence range</span><b>+17.46% to +25.17%</b></div>
+            <div class="kv-row"><span>Median return / mo (Monte Carlo)</span><b class="pos">+27.04%</b></div>
+            <div class="kv-row"><span>5-95% confidence range</span><b>+22.67% to +31.76%</b></div>
             <div class="kv-row"><span>P(positive month)</span><b class="pos">100%</b></div>
             <div class="kv-row"><span>P(≥10% / mo)</span><b class="pos">100%</b></div>
-            <div class="kv-row"><span>P(DD breaches $2K trail)</span><b class="pos">0.1%</b></div>
+            <div class="kv-row"><span>P(DD breaches $2K trail)</span><b class="pos">0.2%</b></div>
             <div class="kv-row"><span>OOS split-half (train / val)</span><b>+12.59% / +30.13% (both beat baseline)</b></div>
           </div>
         </div>
