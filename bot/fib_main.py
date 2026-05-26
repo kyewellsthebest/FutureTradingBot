@@ -249,7 +249,14 @@ class FibRuntime:
                     f"min_target_hold={MIN_TARGET_HOLD_SECONDS}s, "
                     f"circuit_breaker_threshold={MICROSCALP_HARD_THRESHOLD*100:.0f}%")
         self.monitor.start()
-        signal_mod.signal(signal_mod.SIGINT, self.stop)
+        # Signal handlers can ONLY be installed from the main thread of the
+        # main interpreter. Account 2+ (and any other multi-account
+        # secondary) runs on a daemon thread and would crash here without
+        # the try/except. Guard both calls.
+        try:
+            signal_mod.signal(signal_mod.SIGINT, self.stop)
+        except (ValueError, Exception):
+            pass   # not main thread; the primary account's handler covers SIGINT
         try:
             signal_mod.signal(signal_mod.SIGTERM, self.stop)
         except Exception:
