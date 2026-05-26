@@ -102,6 +102,29 @@ async function pollPriceOnly() {
     // Keep state.data.price in sync so the active-trade unrealised P&L
     // tooltip and any other readers stay live too.
     if (state.data) state.data.price = +px;
+    // Update the live (in-progress) candle so the chart's last bar's
+    // close/high/low tick with each price refresh, instead of snapping
+    // only when a new 1-min bar arrives. Lightweight-charts' update()
+    // replaces the bar with matching time in-place; we extend the
+    // running high/low + set close = current price.
+    if (candleSeries && state.candles && state.candles.length) {
+      const last = state.candles[state.candles.length - 1];
+      const newClose = +px;
+      const newHigh = Math.max(last.high, newClose);
+      const newLow  = Math.min(last.low,  newClose);
+      try {
+        candleSeries.update({
+          time:  last.time,
+          open:  last.open,
+          high:  newHigh,
+          low:   newLow,
+          close: newClose,
+        });
+        // Persist in cache so the next /api/candles refresh doesn't
+        // overwrite a partial bar with a stale one.
+        last.high = newHigh; last.low = newLow; last.close = newClose;
+      } catch (e) { /* chart not ready yet */ }
+    }
   } catch (e) { /* network blip — next tick will retry */ }
 }
 
