@@ -1,0 +1,68 @@
+{
+  "BASELINE (pullback)": {
+    "n": 40812,
+    "wr": 45.2,
+    "total_pnl": 211372.0,
+    "ret_mo": 17.62,
+    "max_dd_usd": -827.0,
+    "max_dd_pct": 1.65,
+    "pf": 1.371,
+    "rr": 1.66,
+    "trades_per_mo": 1701.0
+  },
+  "VWAP_FADE": {
+    "n": 45264,
+    "wr": 35.2,
+    "total_pnl": 12541.0,
+    "ret_mo": 1.05,
+    "max_dd_usd": -14604.0,
+    "max_dd_pct": 29.21,
+    "pf": 1.013,
+    "rr": 1.86,
+    "trades_per_mo": 1887.0
+  },
+  "DONCHIAN_20": {
+    "n": 18674,
+    "wr": 46.4,
+    "total_pnl": -52315.0,
+    "ret_mo": -4.36,
+    "max_dd_usd": -56773.0,
+    "max_dd_pct": 113.55,
+    "pf": 0.916,
+    "rr": 1.06,
+    "trades_per_mo": 778.0
+  },
+  "ORB_15min": {
+    "n": 253,
+    "wr": 52.2,
+    "total_pnl": -1389.0,
+    "ret_mo": -0.12,
+    "max_dd_usd": -4554.0,
+    "max_dd_pct": 9.11,
+    "pf": 0.927,
+    "rr": 0.85,
+    "trades_per_mo": 11.0
+  },
+  "ENGULF": {
+    "n": 12543,
+    "wr": 35.6,
+    "total_pnl": -12641.0,
+    "ret_mo": -1.05,
+    "max_dd_usd": -14017.0,
+    "max_dd_pct": 28.03,
+    "pf": 0.94,
+    "rr": 1.7,
+    "trades_per_mo": 523.0
+  },
+  "BASELINE_HRS_11-15": {
+    "n": 12147,
+    "wr": 46.3,
+    "total_pnl": 85374.0,
+    "ret_mo": 7.12,
+    "max_dd_usd": -691.0,
+    "max_dd_pct": 1.38,
+    "pf": 1.498,
+    "rr": 1.74,
+    "trades_per_mo": 506.0
+  }
+}
