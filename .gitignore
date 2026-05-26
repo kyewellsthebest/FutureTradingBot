@@ -35,3 +35,7 @@ data/sr_progress.json
 
 # Tick data (large files, store locally only)
 data/tick/
+
+# Multi-account runtime state — each account's data dir is initialised
+# on first bot boot in production; never check in local smoke-test state.
+data/account_*/
