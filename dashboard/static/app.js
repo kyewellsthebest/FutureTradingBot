@@ -78,7 +78,32 @@ async function pollTrades() {
 setInterval(poll, POLL_MS);
 setInterval(pollCandles, 30_000);
 setInterval(pollTrades, 15_000);
+setInterval(pollPriceOnly, 1000);   // 1Hz price refresh -- decouples the
+                                    // top-bar NQ tick from the heavier
+                                    // 5s /api/data snapshot poll. Server
+                                    // returns cached in-memory price so
+                                    // there's zero external-API cost.
 poll(); pollCandles(); pollTrades();
+
+// Lightweight price-only poll. Hits /api/price (microseconds server-side
+// since the value's in-memory) and updates kpi-price + the live current
+// price the chart marker tooltips read from. Limited by the bot's own 3s
+// PriceMonitor cadence -- true tick-by-tick would need Polygon Premium +
+// a WebSocket subscriber, not just faster polling.
+async function pollPriceOnly() {
+  try {
+    const r = await fetch("/api/price");
+    if (!r.ok) return;
+    const j = await r.json();
+    const px = j.price;
+    if (px == null) return;
+    const el = document.getElementById("kpi-price");
+    if (el) el.textContent = (+px).toFixed(2);
+    // Keep state.data.price in sync so the active-trade unrealised P&L
+    // tooltip and any other readers stay live too.
+    if (state.data) state.data.price = +px;
+  } catch (e) { /* network blip — next tick will retry */ }
+}
 
 // ---- TOPBAR + LIVE ------------------------------------------------------
 function renderTopbar(d) {
