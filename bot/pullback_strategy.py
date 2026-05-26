@@ -213,16 +213,28 @@ class FibStrategyState:
 # ============================================================================
 # Setup detection from last N closed bars
 # ============================================================================
-def detect_pullback_setup(bars: pd.DataFrame, now: datetime
+def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
+                          params: Optional[dict] = None
                           ) -> Optional[FibSetup]:
     """Look at last IMPULSE_WINDOW_BARS closed bars; if their net move
     >= IMPULSE_PTS, return a pending pullback setup. Else None.
+
+    `params` overrides the module-level defaults so different accounts
+    can run different strategy params side-by-side. Expected keys:
+    IMPULSE_PTS, IMPULSE_WINDOW_BARS, PULLBACK_PCT, STOP_PTS, TARGET_PTS.
     """
-    if bars is None or len(bars) < IMPULSE_WINDOW_BARS:
+    p = params or {}
+    imp_pts    = p.get("IMPULSE_PTS",        IMPULSE_PTS)
+    imp_window = p.get("IMPULSE_WINDOW_BARS", IMPULSE_WINDOW_BARS)
+    pull_pct   = p.get("PULLBACK_PCT",       PULLBACK_PCT)
+    stop_pts   = p.get("STOP_PTS",           STOP_PTS)
+    tgt_pts    = p.get("TARGET_PTS",         TARGET_PTS)
+
+    if bars is None or len(bars) < imp_window:
         return None
-    window = bars.iloc[-IMPULSE_WINDOW_BARS:]
+    window = bars.iloc[-imp_window:]
     net = float(window["close"].iloc[-1]) - float(window["open"].iloc[0])
-    if abs(net) < IMPULSE_PTS:
+    if abs(net) < imp_pts:
         return None
     impulse_high = float(window["high"].max())
     impulse_low = float(window["low"].min())
@@ -232,13 +244,13 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime
 
     side = "LONG" if net > 0 else "SHORT"
     if side == "LONG":
-        pullback_entry = impulse_high - PULLBACK_PCT * impulse_range
-        stop_px = pullback_entry - STOP_PTS
-        target_px = pullback_entry + TARGET_PTS
+        pullback_entry = impulse_high - pull_pct * impulse_range
+        stop_px = pullback_entry - stop_pts
+        target_px = pullback_entry + tgt_pts
     else:
-        pullback_entry = impulse_low + PULLBACK_PCT * impulse_range
-        stop_px = pullback_entry + STOP_PTS
-        target_px = pullback_entry - TARGET_PTS
+        pullback_entry = impulse_low + pull_pct * impulse_range
+        stop_px = pullback_entry + stop_pts
+        target_px = pullback_entry - tgt_pts
 
     # bar timestamps for chart placement
     try:
@@ -432,7 +444,8 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
 def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                   bars_setup: pd.DataFrame, last_1m_bar: pd.Series,
                   now: datetime, n_mnq: int = DEFAULT_SIZE,
-                  bars_trend: Optional[pd.DataFrame] = None
+                  bars_trend: Optional[pd.DataFrame] = None,
+                  params: Optional[dict] = None,
                   ) -> Optional[dict]:
     """Single entry per tick. Returns closed-trade dict if a trade exited.
 
@@ -472,7 +485,7 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     lucid_blocked = _in_lucid_closed_window(now)
 
     # 3. DETECT new setup from latest 1-min bar history
-    new_setup = detect_pullback_setup(bars_setup, now)
+    new_setup = detect_pullback_setup(bars_setup, now, params=params)
     if new_setup is not None:
         key = _setup_key(new_setup)
         # dedup against recent + pending

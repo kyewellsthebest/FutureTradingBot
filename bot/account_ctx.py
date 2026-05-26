@@ -57,3 +57,37 @@ def list_known_accounts() -> list[str]:
                 if aid != "1":
                     out.append(aid)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Per-account strategy params -- account 1 stays on the original target=12
+# config (preserves the existing $1.3k+ live track record); account 2 runs
+# the upgraded target=18 config so the user can A/B compare live.
+# ---------------------------------------------------------------------------
+_DEFAULT_PARAMS = {
+    # ACCOUNT 1 -- pre-upgrade baseline (deployed since the bot first went live)
+    "1": {
+        "IMPULSE_PTS":        5.0,
+        "IMPULSE_WINDOW_BARS": 4,
+        "PULLBACK_PCT":       0.618,
+        "STOP_PTS":           6.0,
+        "TARGET_PTS":         12.0,   # original target
+    },
+    # ACCOUNT 2 -- upgraded target=18 config (from strategy_bakeoff_tick.py)
+    # validated +27.04%/mo median Monte Carlo, OOS-positive on both halves.
+    "2": {
+        "IMPULSE_PTS":        5.0,
+        "IMPULSE_WINDOW_BARS": 4,
+        "PULLBACK_PCT":       0.618,
+        "STOP_PTS":           6.0,
+        "TARGET_PTS":         18.0,   # wider target -- $72 winners vs $48
+    },
+}
+
+
+def get_strategy_params(account_id: str | None = None) -> dict:
+    """Return the strategy parameter dict for an account. Falls back to
+    account "2" defaults (the newest config) for any future account IDs not
+    explicitly listed."""
+    aid = account_id or get_account()
+    return dict(_DEFAULT_PARAMS.get(aid, _DEFAULT_PARAMS["2"]))

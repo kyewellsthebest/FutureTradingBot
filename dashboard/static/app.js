@@ -15,6 +15,48 @@ function af(url) {
   const sep = url.includes("?") ? "&" : "?";
   return url + sep + "account=" + encodeURIComponent(currentAccount);
 }
+// Per-account strategy / sim baseline display values. Mirrors
+// bot/account_ctx.py _DEFAULT_PARAMS + the values reported by the
+// strategy_bakeoff_tick + Monte Carlo runs for each config.
+const ACCOUNT_STRATEGY = {
+  "1": {
+    label: "Original (target=12)",
+    target_label: "12 NQ pts from entry (2.0 RR planned, 1.65 realised)",
+    sim_ret: "+21.19%", sim_dd: "$828 (1.66%)",
+    sim_wr_rr: "44.0% / 1.65", sim_trades_mo: "~3,300",
+    mc_ret: "+21.19%", mc_range: "+17.46% to +25.17%",
+    trail_prob: "0.1%", oos: "+12.59% / +30.13% (both beat baseline)",
+    sim_ret_mo_num: 21.19, sim_dd_pct_num: 1.66, sim_dd_usd_num: 828,
+  },
+  "2": {
+    label: "Upgraded (target=18)",
+    target_label: "18 NQ pts from entry (3.0 RR planned, 2.19 realised)",
+    sim_ret: "+27.04%", sim_dd: "$875 (1.75%)",
+    sim_wr_rr: "37.3% / 2.19", sim_trades_mo: "~2,770",
+    mc_ret: "+27.04%", mc_range: "+22.67% to +31.76%",
+    trail_prob: "0.2%", oos: "+18.01% / +36.18% (wins both halves)",
+    sim_ret_mo_num: 27.04, sim_dd_pct_num: 1.75, sim_dd_usd_num: 875,
+  },
+};
+
+function renderAccountStrategyDisplay() {
+  const s = ACCOUNT_STRATEGY[currentAccount] || ACCOUNT_STRATEGY["2"];
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("strat-target",            s.target_label);
+  set("strat-baseline-ret",      s.sim_ret);
+  set("strat-baseline-dd",       s.sim_dd);
+  set("strat-baseline-wrrr",     s.sim_wr_rr);
+  set("strat-baseline-tradesmo", s.sim_trades_mo);
+  set("strat-baseline-ret-mc",   s.mc_ret);
+  set("strat-baseline-range",    s.mc_range);
+  set("strat-baseline-trail",    s.trail_prob);
+  set("strat-baseline-oos",      s.oos);
+  // Drift Monitor uses the numeric values directly
+  SIM_BASELINE.ret_mo = s.sim_ret_mo_num;
+  SIM_BASELINE.dd_pct = s.sim_dd_pct_num;
+  SIM_BASELINE.dd_usd = s.sim_dd_usd_num;
+}
+
 function setAccount(id) {
   if (id === currentAccount) return;
   currentAccount = id;
@@ -25,8 +67,8 @@ function setAccount(id) {
   if (candleSeries) { try { candleSeries.setData([]); candleSeries.setMarkers([]); } catch (e) {} }
   // Refresh everything immediately
   poll(); pollCandles(); pollTrades();
-  // Refresh the account-menu label
   renderAccountSwitcher();
+  renderAccountStrategyDisplay();
 }
 async function loadAccounts() {
   try {
@@ -72,6 +114,7 @@ function _wireAccountSwitcher() {
 document.addEventListener("DOMContentLoaded", () => {
   _wireAccountSwitcher();
   renderAccountSwitcher();
+  renderAccountStrategyDisplay();  // populate Strategy tab + sim baseline for current account
   loadAccounts();
   setInterval(loadAccounts, 60_000);  // refresh in case ACCOUNTS env adds new ones
 });

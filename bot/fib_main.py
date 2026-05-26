@@ -342,9 +342,13 @@ class FibRuntime:
         # instead of 5-min k=10 (~50 min). Same-timeframe trend reacts
         # faster than the older 5-min variant and dropped PF 1.26 -> 1.43
         # in real-data backtest.
+        # Per-account strategy params (account 1 = target=12 legacy,
+        # account 2 = target=18 upgrade -- see bot/account_ctx.py).
+        from bot.account_ctx import get_strategy_params
         record = on_new_1m_bar(self.state, runtime_lucid,
                                self._bars_1m, last_1m, now,
-                               n_mnq=N_MNQ, bars_trend=self._bars_1m)
+                               n_mnq=N_MNQ, bars_trend=self._bars_1m,
+                               params=get_strategy_params(self.account_id))
 
         # Trade opened this tick?
         if not had_trade_before and self.state.active_trade is not None:
