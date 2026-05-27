@@ -46,6 +46,15 @@ const ACCOUNT_STRATEGY = {
     trail_prob: "<0.1%", oos: "train DD 1.75→1.39%, val DD 1.59→1.49%",
     sim_ret_mo_num: 26.98, sim_dd_pct_num: 1.49, sim_dd_usd_num: 745,
   },
+  "4": {
+    label: "Adaptive stops (pivot in strong trend)",
+    target_label: "18 NQ pts; stop 6pt normally / 10pt counter-trend when 4h move ≥80pt",
+    sim_ret: "+28.35%", sim_dd: "$910 (1.82%)",
+    sim_wr_rr: "39.5% / 2.10", sim_trades_mo: "~2,710",
+    mc_ret: "+28.35%", mc_range: "beats baseline both train + val halves",
+    trail_prob: "<0.2%", oos: "train +18.01→+18.80%, val +36.18→+37.96%",
+    sim_ret_mo_num: 28.35, sim_dd_pct_num: 1.82, sim_dd_usd_num: 910,
+  },
 };
 
 function renderAccountStrategyDisplay() {

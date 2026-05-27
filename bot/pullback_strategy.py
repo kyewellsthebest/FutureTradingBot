@@ -222,6 +222,15 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     `params` overrides the module-level defaults so different accounts
     can run different strategy params side-by-side. Expected keys:
     IMPULSE_PTS, IMPULSE_WINDOW_BARS, PULLBACK_PCT, STOP_PTS, TARGET_PTS.
+    Optional:
+      STRONG_TREND_LOOKBACK_BARS (e.g. 240 = 4h)
+      STRONG_TREND_THRESHOLD_PTS (e.g. 80) -- if last lookback bars'
+        close-vs-close move exceeds this, treat as "strong trend" and
+        widen the COUNTER-TREND stop (not with-trend) so the strategy
+        doesn't get whipped out as fast during sustained directional
+        moves. Validated +28%/mo, lower DD than baseline.
+      STOP_PTS_COUNTER_TREND (e.g. 10.0) -- the wider stop used when
+        the new setup opposes the current strong-trend bias.
     """
     p = params or {}
     imp_pts    = p.get("IMPULSE_PTS",        IMPULSE_PTS)
@@ -229,6 +238,10 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     pull_pct   = p.get("PULLBACK_PCT",       PULLBACK_PCT)
     stop_pts   = p.get("STOP_PTS",           STOP_PTS)
     tgt_pts    = p.get("TARGET_PTS",         TARGET_PTS)
+    # Trend-aware stop widening (optional)
+    trend_lb   = p.get("STRONG_TREND_LOOKBACK_BARS")
+    trend_thr  = p.get("STRONG_TREND_THRESHOLD_PTS")
+    counter_stop_pts = p.get("STOP_PTS_COUNTER_TREND")
 
     if bars is None or len(bars) < imp_window:
         return None
@@ -243,13 +256,30 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
         return None
 
     side = "LONG" if net > 0 else "SHORT"
+
+    # Compute strong-trend bias if configured. If the setup direction
+    # opposes the current trend, use the wider counter-trend stop so the
+    # trade survives intra-trend whipsaws.
+    effective_stop_pts = stop_pts
+    if (trend_lb is not None and trend_thr is not None
+            and counter_stop_pts is not None and len(bars) >= trend_lb):
+        try:
+            c_arr = bars["close"].to_numpy()
+            trend_net = float(c_arr[-1] - c_arr[-trend_lb])
+            if abs(trend_net) >= float(trend_thr):
+                trend_dir = "LONG" if trend_net > 0 else "SHORT"
+                if trend_dir != side:
+                    effective_stop_pts = float(counter_stop_pts)
+        except Exception:
+            pass
+
     if side == "LONG":
         pullback_entry = impulse_high - pull_pct * impulse_range
-        stop_px = pullback_entry - stop_pts
+        stop_px = pullback_entry - effective_stop_pts
         target_px = pullback_entry + tgt_pts
     else:
         pullback_entry = impulse_low + pull_pct * impulse_range
-        stop_px = pullback_entry + stop_pts
+        stop_px = pullback_entry + effective_stop_pts
         target_px = pullback_entry - tgt_pts
 
     # bar timestamps for chart placement

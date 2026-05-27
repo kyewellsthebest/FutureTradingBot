@@ -66,7 +66,7 @@ def api_accounts():
     import os as _os
     # Also include any account IDs explicitly configured in ACCOUNTS env
     # even if they haven't created a data dir yet.
-    configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1,2,3").split(",") if a.strip()]
+    configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1,2,3,4").split(",") if a.strip()]
     known = list_known_accounts()
     merged = []
     for a in configured + known:

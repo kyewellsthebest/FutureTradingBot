@@ -96,6 +96,23 @@ _DEFAULT_PARAMS = {
         "TARGET_PTS":         18.0,
         "MIN_ATR":            4.0,    # skip entries when 14-bar ATR < 4pt
     },
+    # ACCOUNT 4 -- target=18 + adaptive counter-trend stops. The "pivot"
+    # config: when a strong sustained trend is detected (last 4h net move
+    # >= 80pt), counter-trend setups get a 10pt stop instead of 6pt so
+    # they survive intra-trend whipsaws. Validated +28.35%/mo (BEATS
+    # baseline +27.06%) with similar DD and only 6 losing days out of 79
+    # (best of all). OOS positive on both halves -- train ret +18.01 ->
+    # +18.80%, val ret +36.18 -> +37.96%, both halves WR improved 2-3pp.
+    "4": {
+        "IMPULSE_PTS":        5.0,
+        "IMPULSE_WINDOW_BARS": 4,
+        "PULLBACK_PCT":       0.618,
+        "STOP_PTS":           6.0,
+        "TARGET_PTS":         18.0,
+        "STRONG_TREND_LOOKBACK_BARS": 240,   # 4 hours of 1-min bars
+        "STRONG_TREND_THRESHOLD_PTS":  80.0,
+        "STOP_PTS_COUNTER_TREND":     10.0,
+    },
 }
 
 
