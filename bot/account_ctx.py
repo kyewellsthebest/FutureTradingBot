@@ -104,10 +104,18 @@ _DEFAULT_PARAMS = {
         "STOP_PTS":           6.0,
         "TARGET_PTS":         18.0,
         "MIN_ATR":            4.0,
-        "MIN_VOL_RATIO":      0.5,   # NEW: skip when recent vol is < 0.5x longer-term
+        "MIN_VOL_RATIO":      0.5,
         "STRONG_TREND_LOOKBACK_BARS": 240,
         "STRONG_TREND_THRESHOLD_PTS":  80.0,
         "STOP_PTS_COUNTER_TREND":     10.0,
+        # Streak circuit-breaker: after 4 consecutive losses, pause new
+        # entries for 60 minutes. Backtest impact: -6%/mo return BUT
+        # 68% reduction in 10+ losing streaks (18 -> 8 over 79 days) and
+        # worst single-day loss reduced from -$338 to -$258. Designed
+        # to protect against extended bad regimes pushing toward the
+        # Lucid trail floor.
+        "POST_STREAK_LOSSES":     4,
+        "POST_STREAK_PAUSE_MINS": 60,
     },
 }
 

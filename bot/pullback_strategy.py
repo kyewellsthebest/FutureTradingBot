@@ -208,6 +208,11 @@ class FibStrategyState:
     htf_trend: str = "FLAT"           # dashboard compatibility
     chop_index: float = 0.0           # dashboard compatibility
     last_trade_close_ts: Optional[datetime] = None   # for cooldown
+    # Post-streak circuit-breaker state (optional, governed by params).
+    # Tracks consecutive losses; when threshold hit, blocks new entries
+    # until pause_until_ts. Reset on any winning trade.
+    consecutive_losses: int = 0
+    pause_until_ts: Optional[datetime] = None
 
 
 # ============================================================================
@@ -499,6 +504,21 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             state.completed_trades.append(record)
             state.active_trade = None
             state.last_trade_close_ts = now
+            # Post-streak circuit breaker: track consecutive losses; pause
+            # entries after N in a row. Reset on any winning trade.
+            n_losses_trip = (params or {}).get("POST_STREAK_LOSSES")
+            pause_mins    = (params or {}).get("POST_STREAK_PAUSE_MINS")
+            if n_losses_trip is not None and pause_mins is not None:
+                if record["pnl_usd"] < 0:
+                    state.consecutive_losses += 1
+                    if state.consecutive_losses >= int(n_losses_trip):
+                        from datetime import timedelta
+                        state.pause_until_ts = now + timedelta(minutes=int(pause_mins))
+                        logger.warning(f"[STREAK BREAK] {state.consecutive_losses} consecutive losses — "
+                                       f"pausing new entries until {state.pause_until_ts.isoformat()}")
+                        state.consecutive_losses = 0   # arm again after pause
+                else:
+                    state.consecutive_losses = 0
             logger.info("[CLOSE] %s pnl=$%.2f hold=%.1fs reason=%s",
                         record["side"], record["pnl_usd"],
                         record["hold_s"], record["exit_reason"])
@@ -576,6 +596,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     # 5. FIRE armed setups
     if in_cooldown:
+        return None
+    # Post-streak pause: if active, block entries until expiry
+    if state.pause_until_ts is not None and now < state.pause_until_ts:
+        for s in state.pending_setups:
+            if not s.used:
+                s.last_block_reason = "post_streak_pause"
+                s.last_block_at = now
         return None
     if atr_blocked:
         # Low-ATR regime -- skip firing too. Setups already armed before
