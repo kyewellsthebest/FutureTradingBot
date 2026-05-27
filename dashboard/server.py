@@ -60,19 +60,13 @@ def _bind_account_from_query():
 
 @app.route("/api/accounts")
 def api_accounts():
-    """List of known accounts for the dashboard's account selector. Always
-    includes "1" (the legacy / primary account)."""
-    from bot.account_ctx import list_known_accounts
+    """List of accounts ACTIVELY configured to run (from ACCOUNTS env). We
+    deliberately do NOT include orphan account_N directories from disk --
+    once a config is removed, the account should disappear from the
+    dropdown even if its data dir still exists."""
     import os as _os
-    # Also include any account IDs explicitly configured in ACCOUNTS env
-    # even if they haven't created a data dir yet.
     configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1,2,3").split(",") if a.strip()]
-    known = list_known_accounts()
-    merged = []
-    for a in configured + known:
-        if a not in merged:
-            merged.append(a)
-    return jsonify({"accounts": merged})
+    return jsonify({"accounts": configured})
 
 
 # ---------------------------------------------------------------------------
