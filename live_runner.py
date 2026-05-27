@@ -147,7 +147,10 @@ def main() -> int:
     # Default "1,2" -- user explicitly asked for the "Futures Trading Bot 2"
     # account in addition to the existing one. Override via ACCOUNTS env if
     # you want a different set.
-    accounts = [a.strip() for a in os.environ.get("ACCOUNTS", "1,2").split(",") if a.strip()]
+    # Default "1,2,3" -- A/B/C: legacy target=12, upgrade target=18,
+    # filtered target=18+ATR>=4 (lowest DD config). User can override
+    # via ACCOUNTS env to disable any of them.
+    accounts = [a.strip() for a in os.environ.get("ACCOUNTS", "1,2,3").split(",") if a.strip()]
     if len(accounts) == 1:
         # Single-account mode: run on the main thread so SIGINT/SIGTERM
         # handlers install correctly (only main thread can install them).

@@ -82,6 +82,20 @@ _DEFAULT_PARAMS = {
         "STOP_PTS":           6.0,
         "TARGET_PTS":         18.0,   # wider target -- $72 winners vs $48
     },
+    # ACCOUNT 3 -- target=18 + ATR>=4 regime filter. Worst-day forensics
+    # showed baseline loses on low-ATR drift days (ATR 1.6-2.8) while
+    # winning on volatile days. The filter skips entries when 14-bar ATR
+    # is below 4.0 pt. OOS-validated: train DD 1.75 -> 1.39%, val DD
+    # 1.59 -> 1.49%, return basically unchanged on both halves. Worst
+    # single day improved from -$384 to -$294.
+    "3": {
+        "IMPULSE_PTS":        5.0,
+        "IMPULSE_WINDOW_BARS": 4,
+        "PULLBACK_PCT":       0.618,
+        "STOP_PTS":           6.0,
+        "TARGET_PTS":         18.0,
+        "MIN_ATR":            4.0,    # skip entries when 14-bar ATR < 4pt
+    },
 }
 
 

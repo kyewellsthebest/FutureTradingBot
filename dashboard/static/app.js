@@ -37,6 +37,15 @@ const ACCOUNT_STRATEGY = {
     trail_prob: "0.2%", oos: "+18.01% / +36.18% (wins both halves)",
     sim_ret_mo_num: 27.04, sim_dd_pct_num: 1.75, sim_dd_usd_num: 875,
   },
+  "3": {
+    label: "Filtered (target=18 + ATR≥4)",
+    target_label: "18 NQ pts from entry, ATR-gated (skip low-volatility days)",
+    sim_ret: "+26.98%", sim_dd: "$745 (1.49%)",
+    sim_wr_rr: "36.9% / 2.19", sim_trades_mo: "~2,600",
+    mc_ret: "+26.98%", mc_range: "similar to acct 2 (lower variance)",
+    trail_prob: "<0.1%", oos: "train DD 1.75→1.39%, val DD 1.59→1.49%",
+    sim_ret_mo_num: 26.98, sim_dd_pct_num: 1.49, sim_dd_usd_num: 745,
+  },
 };
 
 function renderAccountStrategyDisplay() {
