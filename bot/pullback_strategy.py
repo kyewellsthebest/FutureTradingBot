@@ -518,19 +518,43 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # baseline LOSES money predominantly on low-ATR drift days (ATR < 3).
     # Skipping setup detection when ATR < threshold drops max DD ~15%
     # without sacrificing return (-0.08%). OOS-validated on both halves.
+    #
+    # ALSO: vol-ratio filter (params["MIN_VOL_RATIO"]). When the recent
+    # 5-bar ATR is significantly smaller than the 60-bar ATR (< 0.5x), it
+    # indicates the "calm before the storm" -- volatility is collapsing,
+    # which historically precedes losing trades (69.6% loss rate vs 63%
+    # baseline, NEGATIVE total P&L). Skip these entries.
     atr_blocked = False
     min_atr = (params or {}).get("MIN_ATR")
-    if min_atr is not None and bars_setup is not None and len(bars_setup) >= 15:
-        h_arr = bars_setup["high"].to_numpy()[-15:]
-        l_arr = bars_setup["low"].to_numpy()[-15:]
-        c_arr = bars_setup["close"].to_numpy()[-15:]
+    min_vol_ratio = (params or {}).get("MIN_VOL_RATIO")
+    if (min_atr is not None or min_vol_ratio is not None) and \
+            bars_setup is not None and len(bars_setup) >= 60:
+        h_arr = bars_setup["high"].to_numpy()
+        l_arr = bars_setup["low"].to_numpy()
+        c_arr = bars_setup["close"].to_numpy()
         import numpy as _np
-        tr = _np.maximum.reduce([h_arr - l_arr,
-                                  _np.abs(h_arr - _np.r_[c_arr[0], c_arr[:-1]]),
-                                  _np.abs(l_arr - _np.r_[c_arr[0], c_arr[:-1]])])
-        current_atr = float(tr[1:].mean())   # 14-bar ATR
-        if current_atr < float(min_atr):
+        # 14-bar ATR
+        h14 = h_arr[-15:]; l14 = l_arr[-15:]; c14 = c_arr[-15:]
+        tr14 = _np.maximum.reduce([h14 - l14,
+                                    _np.abs(h14 - _np.r_[c14[0], c14[:-1]]),
+                                    _np.abs(l14 - _np.r_[c14[0], c14[:-1]])])
+        atr14_now = float(tr14[1:].mean())
+        if min_atr is not None and atr14_now < float(min_atr):
             atr_blocked = True
+        # Vol-ratio: 5-bar ATR / 60-bar ATR
+        if not atr_blocked and min_vol_ratio is not None:
+            h5 = h_arr[-6:]; l5 = l_arr[-6:]; c5 = c_arr[-6:]
+            tr5 = _np.maximum.reduce([h5 - l5,
+                                       _np.abs(h5 - _np.r_[c5[0], c5[:-1]]),
+                                       _np.abs(l5 - _np.r_[c5[0], c5[:-1]])])
+            atr5_now = float(tr5[1:].mean())
+            h60 = h_arr[-61:]; l60 = l_arr[-61:]; c60 = c_arr[-61:]
+            tr60 = _np.maximum.reduce([h60 - l60,
+                                        _np.abs(h60 - _np.r_[c60[0], c60[:-1]]),
+                                        _np.abs(l60 - _np.r_[c60[0], c60[:-1]])])
+            atr60_now = float(tr60[1:].mean())
+            if atr60_now > 0 and (atr5_now / atr60_now) < float(min_vol_ratio):
+                atr_blocked = True
 
     # 3. DETECT new setup from latest 1-min bar history
     new_setup = None if atr_blocked else detect_pullback_setup(bars_setup, now, params=params)

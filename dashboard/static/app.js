@@ -38,13 +38,13 @@ const ACCOUNT_STRATEGY = {
     sim_ret_mo_num: 27.04, sim_dd_pct_num: 1.75, sim_dd_usd_num: 875,
   },
   "3": {
-    label: "Smart filter (ATR + adaptive stops)",
-    target_label: "18 NQ pts; skip quiet days (ATR<4); widen stops 6→10 in strong trend",
-    sim_ret: "+28.23%", sim_dd: "$795 (1.59%)",
-    sim_wr_rr: "39.1% / 2.16", sim_trades_mo: "~2,550",
-    mc_ret: "+28.23%", mc_range: "beats baseline on every metric",
-    trail_prob: "<0.1%", oos: "7 losing days out of 79 (baseline: 10)",
-    sim_ret_mo_num: 28.23, sim_dd_pct_num: 1.59, sim_dd_usd_num: 795,
+    label: "Smart filter v2 (ATR + vol-ratio + adaptive stops)",
+    target_label: "18pt target. Skip quiet days, skip 'calm-before-storm', widen stops in trend",
+    sim_ret: "+28.65%", sim_dd: "$795 (1.59%)",
+    sim_wr_rr: "39.2% / 2.18", sim_trades_mo: "~2,530",
+    mc_ret: "+28.65%", mc_range: "beats baseline both halves OOS",
+    trail_prob: "<0.1%", oos: "train DD 1.58→1.44%, val DD 1.63→1.32%",
+    sim_ret_mo_num: 28.65, sim_dd_pct_num: 1.59, sim_dd_usd_num: 795,
   },
 };
 

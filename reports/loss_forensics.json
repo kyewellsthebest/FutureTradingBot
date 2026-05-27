@@ -1,0 +1,339 @@
+{
+  "overall_loss_rate": 0.6267508926119199,
+  "buckets": {
+    "atr14": [
+      {
+        "bucket": "<2",
+        "n": 7,
+        "loss_rate": 0.429,
+        "avg_pnl": 4.161,
+        "total_pnl": 29.13
+      },
+      {
+        "bucket": "2-3",
+        "n": 125,
+        "loss_rate": 0.584,
+        "avg_pnl": -1.4,
+        "total_pnl": -174.95
+      },
+      {
+        "bucket": "3-4",
+        "n": 388,
+        "loss_rate": 0.541,
+        "avg_pnl": -0.167,
+        "total_pnl": -64.61
+      },
+      {
+        "bucket": "4-5",
+        "n": 613,
+        "loss_rate": 0.594,
+        "avg_pnl": 0.311,
+        "total_pnl": 190.41
+      },
+      {
+        "bucket": "5-7",
+        "n": 1233,
+        "loss_rate": 0.614,
+        "avg_pnl": 2.165,
+        "total_pnl": 2669.69
+      },
+      {
+        "bucket": ">7",
+        "n": 4916,
+        "loss_rate": 0.642,
+        "avg_pnl": 6.608,
+        "total_pnl": 32487.11
+      }
+    ],
+    "atr60": [
+      {
+        "bucket": "<2",
+        "n": 9,
+        "loss_rate": 0.556,
+        "avg_pnl": -0.242,
+        "total_pnl": -2.18
+      },
+      {
+        "bucket": "2-3",
+        "n": 86,
+        "loss_rate": 0.465,
+        "avg_pnl": 1.758,
+        "total_pnl": 151.22
+      },
+      {
+        "bucket": "3-4",
+        "n": 361,
+        "loss_rate": 0.568,
+        "avg_pnl": -1.033,
+        "total_pnl": -372.75
+      },
+      {
+        "bucket": "4-5",
+        "n": 581,
+        "loss_rate": 0.559,
+        "avg_pnl": 1.923,
+        "total_pnl": 1117.27
+      },
+      {
+        "bucket": "5-7",
+        "n": 1339,
+        "loss_rate": 0.63,
+        "avg_pnl": 1.484,
+        "total_pnl": 1987.0
+      },
+      {
+        "bucket": ">7",
+        "n": 4906,
+        "loss_rate": 0.641,
+        "avg_pnl": 6.575,
+        "total_pnl": 32256.22
+      }
+    ],
+    "ts_4h": [
+      {
+        "bucket": "<0.3",
+        "n": 2167,
+        "loss_rate": 0.644,
+        "avg_pnl": 3.588,
+        "total_pnl": 7775.6
+      },
+      {
+        "bucket": "0.3-0.5",
+        "n": 1634,
+        "loss_rate": 0.628,
+        "avg_pnl": 4.67,
+        "total_pnl": 7630.29
+      },
+      {
+        "bucket": "0.5-0.7",
+        "n": 1806,
+        "loss_rate": 0.626,
+        "avg_pnl": 4.455,
+        "total_pnl": 8046.4
+      },
+      {
+        "bucket": "0.7-0.85",
+        "n": 1159,
+        "loss_rate": 0.592,
+        "avg_pnl": 8.228,
+        "total_pnl": 9535.99
+      },
+      {
+        "bucket": ">0.85",
+        "n": 516,
+        "loss_rate": 0.634,
+        "avg_pnl": 4.164,
+        "total_pnl": 2148.5
+      }
+    ],
+    "ts_1h": [
+      {
+        "bucket": "<0.3",
+        "n": 2337,
+        "loss_rate": 0.641,
+        "avg_pnl": 3.387,
+        "total_pnl": 7916.56
+      },
+      {
+        "bucket": "0.3-0.5",
+        "n": 1726,
+        "loss_rate": 0.636,
+        "avg_pnl": 4.116,
+        "total_pnl": 7104.28
+      },
+      {
+        "bucket": "0.5-0.7",
+        "n": 1739,
+        "loss_rate": 0.621,
+        "avg_pnl": 5.462,
+        "total_pnl": 9497.78
+      },
+      {
+        "bucket": "0.7-0.85",
+        "n": 1109,
+        "loss_rate": 0.614,
+        "avg_pnl": 6.024,
+        "total_pnl": 6680.4
+      },
+      {
+        "bucket": ">0.85",
+        "n": 371,
+        "loss_rate": 0.561,
+        "avg_pnl": 10.614,
+        "total_pnl": 3937.76
+      }
+    ],
+    "vol_ratio_5_60": [
+      {
+        "bucket": "<0.5",
+        "n": 92,
+        "loss_rate": 0.696,
+        "avg_pnl": -4.688,
+        "total_pnl": -431.34
+      },
+      {
+        "bucket": "0.5-1",
+        "n": 3848,
+        "loss_rate": 0.627,
+        "avg_pnl": 5.177,
+        "total_pnl": 19920.85
+      },
+      {
+        "bucket": "1-1.5",
+        "n": 2604,
+        "loss_rate": 0.623,
+        "avg_pnl": 4.351,
+        "total_pnl": 11330.5
+      },
+      {
+        "bucket": "1.5-2",
+        "n": 498,
+        "loss_rate": 0.637,
+        "avg_pnl": 5.111,
+        "total_pnl": 2545.24
+      },
+      {
+        "bucket": ">2",
+        "n": 240,
+        "loss_rate": 0.621,
+        "avg_pnl": 7.381,
+        "total_pnl": 1771.53
+      }
+    ],
+    "body_pct_30": [
+      {
+        "bucket": "<0.3",
+        "n": 1,
+        "loss_rate": 0.0,
+        "avg_pnl": 70.52,
+        "total_pnl": 70.52
+      },
+      {
+        "bucket": "0.3-0.45",
+        "n": 1014,
+        "loss_rate": 0.645,
+        "avg_pnl": 4.53,
+        "total_pnl": 4593.26
+      },
+      {
+        "bucket": "0.45-0.55",
+        "n": 4232,
+        "loss_rate": 0.62,
+        "avg_pnl": 5.648,
+        "total_pnl": 23904.01
+      },
+      {
+        "bucket": "0.55-0.65",
+        "n": 1803,
+        "loss_rate": 0.633,
+        "avg_pnl": 2.935,
+        "total_pnl": 5292.42
+      },
+      {
+        "bucket": ">0.65",
+        "n": 232,
+        "loss_rate": 0.629,
+        "avg_pnl": 5.502,
+        "total_pnl": 1276.57
+      }
+    ],
+    "vol_spike": [
+      {
+        "bucket": "<0.5",
+        "n": 1110,
+        "loss_rate": 0.639,
+        "avg_pnl": 2.835,
+        "total_pnl": 3146.98
+      },
+      {
+        "bucket": "0.5-1",
+        "n": 3424,
+        "loss_rate": 0.643,
+        "avg_pnl": 4.026,
+        "total_pnl": 13784.98
+      },
+      {
+        "bucket": "1-2",
+        "n": 2088,
+        "loss_rate": 0.604,
+        "avg_pnl": 7.008,
+        "total_pnl": 14631.81
+      },
+      {
+        "bucket": "2-5",
+        "n": 591,
+        "loss_rate": 0.589,
+        "avg_pnl": 5.748,
+        "total_pnl": 3397.05
+      },
+      {
+        "bucket": ">5",
+        "n": 69,
+        "loss_rate": 0.667,
+        "avg_pnl": 2.55,
+        "total_pnl": 175.96
+      }
+    ],
+    "hour_ny": [
+      {
+        "bucket": "0-5",
+        "n": 1582,
+        "loss_rate": 0.61,
+        "avg_pnl": 4.1,
+        "total_pnl": 6486.98
+      },
+      {
+        "bucket": "6-9",
+        "n": 1362,
+        "loss_rate": 0.64,
+        "avg_pnl": 4.006,
+        "total_pnl": 5455.51
+      },
+      {
+        "bucket": "10-12",
+        "n": 1426,
+        "loss_rate": 0.638,
+        "avg_pnl": 7.243,
+        "total_pnl": 10327.96
+      },
+      {
+        "bucket": "13-15",
+        "n": 1125,
+        "loss_rate": 0.63,
+        "avg_pnl": 7.545,
+        "total_pnl": 8487.7
+      },
+      {
+        "bucket": "16-18",
+        "n": 554,
+        "loss_rate": 0.643,
+        "avg_pnl": 0.462,
+        "total_pnl": 256.01
+      },
+      {
+        "bucket": "19-23",
+        "n": 1233,
+        "loss_rate": 0.61,
+        "avg_pnl": 3.344,
+        "total_pnl": 4122.62
+      }
+    ]
+  },
+  "trend_alignment": {
+    "with_trend": {
+      "n": 3046,
+      "loss_rate": 0.6099803020354564,
+      "total_pnl": 20099.619999999995
+    },
+    "counter_trend": {
+      "n": 2487,
+      "loss_rate": 0.6421391234418978,
+      "total_pnl": 11156.549999999996
+    },
+    "neutral": {
+      "n": 1749,
+      "loss_rate": 0.6340766152086906,
+      "total_pnl": 3880.609999999997
+    }
+  }
+}
