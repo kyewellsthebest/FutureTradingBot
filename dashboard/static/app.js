@@ -64,6 +64,13 @@ function renderAccountStrategyDisplay() {
   SIM_BASELINE.ret_mo = s.sim_ret_mo_num;
   SIM_BASELINE.dd_pct = s.sim_dd_pct_num;
   SIM_BASELINE.dd_usd = s.sim_dd_usd_num;
+  // CRITICAL: keep the download links pointing at the current account.
+  // Static <a href="/api/export/day"> would always fetch account 1 because
+  // the server's before_request hook defaults missing ?account to "1".
+  document.querySelectorAll(".js-export").forEach(a => {
+    const period = a.dataset.period;
+    a.href = `/api/export/${period}?account=${encodeURIComponent(currentAccount)}`;
+  });
 }
 
 function setAccount(id) {
