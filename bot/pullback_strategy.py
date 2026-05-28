@@ -597,6 +597,14 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # 5. FIRE armed setups
     if in_cooldown:
         return None
+    # Auto daily-loss limit -- self-imposed DLL well below Lucid's $1,200
+    # so a bad regime can't blow the account before the user can react.
+    # Writes the same pause flag the manual button uses, with a different
+    # reason tag, and an ny_date stamp so it auto-clears on the next day.
+    try:
+        _check_auto_daily_loss(lucid, now)
+    except Exception as e:
+        logger.debug(f"auto-DLL check skipped: {e!r}")
     # Manual pause gate -- user pressed the Pause button on the dashboard.
     # Blocks new entries only; the active trade (if any) was already managed
     # in step 1 above and runs to its stop/target normally.
@@ -678,6 +686,73 @@ def _get_manual_pause_state() -> dict:
         return get_pause_state()
     except Exception:
         return {"paused": False}
+
+
+def _auto_dll_limit() -> float:
+    """Self-imposed daily loss limit (positive number = max $ allowed loss).
+    Tunable via env var FIB_AUTO_DLL. Default 700.0 = ~58% of Lucid's $1,200
+    DLL, leaves a $500 buffer for one more bad fill. Set to 0 to disable."""
+    import os as _os
+    try:
+        return float(_os.environ.get("FIB_AUTO_DLL", "700.0"))
+    except Exception:
+        return 700.0
+
+
+def _check_auto_daily_loss(lucid, now: datetime) -> None:
+    """Run every tick. Sets / clears the auto-DLL pause flag based on
+    today's realized P&L and the NY-day calendar. Reuses the manual-pause
+    file as the single source of truth: when today_pnl breaches the limit
+    we write the pause file with reason='auto_daily_loss_limit' and an
+    ny_date stamp. The next NY day rolls the auto-pause off; manual pauses
+    (reason=='user_manual') are NEVER auto-cleared."""
+    try:
+        from bot.account_ctx import get_pause_state, pause_file
+        from bot.lucid_account import _ny_date_iso
+    except Exception:
+        return
+    limit = _auto_dll_limit()
+    if limit <= 0:
+        return  # feature disabled
+    today_pnl = float(getattr(lucid, "today_pnl", 0.0) or 0.0)
+    ny_today = _ny_date_iso(now)
+    pstate = get_pause_state()
+    paused = bool(pstate.get("paused"))
+    reason = pstate.get("reason", "")
+
+    # 1) Auto-clear yesterday's auto-DLL pause when the NY day rolls.
+    if paused and reason == "auto_daily_loss_limit":
+        pause_day = pstate.get("ny_date")
+        if pause_day and pause_day != ny_today:
+            try:
+                pause_file().unlink()
+                logger.warning(f"[AUTO-DLL] NY day rolled {pause_day} -> {ny_today} -- clearing auto-pause")
+            except Exception:
+                pass
+            paused = False
+
+    # 2) Trip the auto-pause when today's loss breaches the threshold.
+    #    Don't overwrite a manual pause -- user's intent wins.
+    if not paused and today_pnl <= -limit:
+        try:
+            import json as _json
+            from datetime import timezone as _tz
+            payload = {
+                "paused": True,
+                "since": now.astimezone(_tz.utc).isoformat() if now.tzinfo else
+                         now.replace(tzinfo=_tz.utc).isoformat(),
+                "reason": "auto_daily_loss_limit",
+                "ny_date": ny_today,
+                "today_pnl_at_trip": round(today_pnl, 2),
+                "limit": round(limit, 2),
+            }
+            p = pause_file()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(_json.dumps(payload))
+            logger.warning(f"[AUTO-DLL] today P&L ${today_pnl:+.2f} <= -${limit:.2f} -- "
+                           f"auto-pausing until NY day {ny_today} rolls")
+        except Exception as e:
+            logger.warning(f"[AUTO-DLL] failed to write pause file: {e!r}")
 
 
 # ============================================================================
