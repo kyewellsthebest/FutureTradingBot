@@ -235,6 +235,48 @@ def lifetime_stats() -> dict:
     """
     with _conn() as conn:
         today_row = conn.execute(today_sql).fetchone()
+
+    # Compute worst single-day intra-day drawdown across all NY days
+    # (peak-to-trough within one Lucid trading day). This is the
+    # "daily max DD" stat -- distinct from lifetime DD which spans
+    # the whole history.
+    daily_dd_sql = """
+        SELECT date(exit_time, '-4 hours') AS ny_date,
+               pnl, exit_time
+        FROM trades
+        WHERE exit_time IS NOT NULL AND pnl IS NOT NULL
+        ORDER BY exit_time ASC
+    """
+    worst_daily_dd = 0.0
+    today_running_dd = 0.0
+    with _conn() as conn:
+        all_rows = conn.execute(daily_dd_sql).fetchall()
+    current_ny = None
+    cum = 0.0; peak = 0.0; max_intraday_dd = 0.0
+    today_str = None
+    if all_rows:
+        # Need today's NY date for the today_dd computation
+        today_str_sql = "SELECT date('now', '-4 hours') AS d"
+        with _conn() as conn:
+            today_str = conn.execute(today_str_sql).fetchone()["d"]
+    for r in all_rows:
+        nd = r["ny_date"]
+        if nd != current_ny:
+            # Day boundary -- record the worst intra-day DD and reset
+            if max_intraday_dd > worst_daily_dd:
+                worst_daily_dd = max_intraday_dd
+            current_ny = nd
+            cum = 0.0; peak = 0.0; max_intraday_dd = 0.0
+        cum += float(r["pnl"])
+        if cum > peak: peak = cum
+        dd = peak - cum
+        if dd > max_intraday_dd: max_intraday_dd = dd
+        if today_str and nd == today_str:
+            today_running_dd = max(today_running_dd, dd)
+    # Final day's max
+    if max_intraday_dd > worst_daily_dd:
+        worst_daily_dd = max_intraday_dd
+
     return {
         "n_trades": n,
         "wins": wins,
@@ -243,6 +285,8 @@ def lifetime_stats() -> dict:
         "avg_hold_s": round(float(row["avg_hold_s"]), 1),
         "today_pnl": round(float(today_row["today_pnl"]) if today_row else 0.0, 2),
         "today_trades": int(today_row["n"]) if today_row else 0,
+        "max_daily_dd": round(worst_daily_dd, 0),    # worst peak-to-trough within a single NY day
+        "today_dd": round(today_running_dd, 0),      # current NY-day DD so far
     }
 
 

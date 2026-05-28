@@ -372,7 +372,7 @@ html, body {
 .lifetime-summary { padding: 16px 14px; margin-bottom: 14px; }
 .lifetime-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 14px;
   align-items: end;
 }
