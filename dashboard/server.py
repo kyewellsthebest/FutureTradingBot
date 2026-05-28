@@ -69,6 +69,35 @@ def api_accounts():
     return jsonify({"accounts": configured})
 
 
+# --- Manual pause/resume ---------------------------------------------------
+# Lets the user pause new entries on any account from the dashboard. The
+# pause flag is a small JSON file in the account's data dir, read by the
+# bot every tick (bot/pullback_strategy.py). Survives bot restarts. Does
+# NOT close any active trade -- only blocks NEW entries.
+@app.route("/api/pause_status")
+def api_pause_status():
+    from bot.account_ctx import get_pause_state, get_account
+    return jsonify({"account": get_account(), **get_pause_state()})
+
+
+@app.route("/api/pause", methods=["POST"])
+def api_pause():
+    from bot.account_ctx import set_paused, get_account
+    payload = request.get_json(silent=True) or {}
+    reason = payload.get("reason") or request.args.get("reason") or "user_manual"
+    result = set_paused(True, reason=reason)
+    logger.warning(f"[MANUAL PAUSE] account={get_account()} reason={reason}")
+    return jsonify({"ok": True, "account": get_account(), **result})
+
+
+@app.route("/api/resume", methods=["POST"])
+def api_resume():
+    from bot.account_ctx import set_paused, get_account
+    result = set_paused(False)
+    logger.warning(f"[MANUAL RESUME] account={get_account()}")
+    return jsonify({"ok": True, "account": get_account(), **result})
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------

@@ -9,7 +9,9 @@ Backward compatibility: if no account is set, falls back to "1" so
 existing single-account deployments keep working.
 """
 from __future__ import annotations
+import json
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 
 _local = threading.local()
@@ -126,3 +128,58 @@ def get_strategy_params(account_id: str | None = None) -> dict:
     explicitly listed."""
     aid = account_id or get_account()
     return dict(_DEFAULT_PARAMS.get(aid, _DEFAULT_PARAMS["2"]))
+
+
+# ---------------------------------------------------------------------------
+# Manual pause flag -- user can pause/resume any account from the dashboard
+# to skip suspected bad regimes (anticipated pumps/dumps, or to break out of
+# a hot losing streak). Persisted as a tiny JSON file in the account dir so
+# the pause state survives Railway restarts and is read by the bot every
+# tick without any IPC. Active trades are NOT closed -- pause only blocks
+# NEW entries (decision: panic-closing mid-trade could be worse than letting
+# it play out, and it's reversible if the user changes their mind).
+# ---------------------------------------------------------------------------
+def pause_file() -> Path:
+    return data_dir() / "manual_pause.json"
+
+
+def is_paused() -> bool:
+    try:
+        p = pause_file()
+        if not p.exists():
+            return False
+        return bool(json.loads(p.read_text() or "{}").get("paused"))
+    except Exception:
+        return False
+
+
+def get_pause_state() -> dict:
+    try:
+        p = pause_file()
+        if not p.exists():
+            return {"paused": False}
+        data = json.loads(p.read_text() or "{}")
+        if not isinstance(data, dict):
+            return {"paused": False}
+        return data
+    except Exception:
+        return {"paused": False}
+
+
+def set_paused(paused: bool, reason: str = "user_manual") -> dict:
+    p = pause_file()
+    if paused:
+        payload = {
+            "paused": True,
+            "since": datetime.now(timezone.utc).isoformat(),
+            "reason": reason,
+        }
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(payload))
+        return payload
+    if p.exists():
+        try:
+            p.unlink()
+        except Exception:
+            pass
+    return {"paused": False}

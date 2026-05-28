@@ -445,6 +445,46 @@ html, body {
   font-family: 'SF Mono', Menlo, monospace;
 }
 
+/* PAUSE / RESUME BUTTON ---------------------------------------- */
+.btn-pause {
+  background: rgba(255, 182, 72, 0.10);
+  color: var(--amber);
+  border: 1px solid rgba(255, 182, 72, 0.35);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  margin-left: 4px;
+}
+.btn-pause:hover { background: rgba(255, 182, 72, 0.20); }
+.btn-pause[data-paused="1"] {
+  background: rgba(34, 211, 154, 0.12);
+  color: var(--green);
+  border-color: rgba(34, 211, 154, 0.40);
+}
+.btn-pause[data-paused="1"]:hover { background: rgba(34, 211, 154, 0.22); }
+.btn-pause:disabled { opacity: 0.55; cursor: wait; }
+
+.badge-paused {
+  background: rgba(255, 84, 112, 0.18);
+  color: var(--red);
+  border: 1px solid rgba(255, 84, 112, 0.42);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  animation: pulse-paused 2.2s ease-in-out infinite;
+}
+@keyframes pulse-paused {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
 /* PENDING SETUPS LIST ------------------------------------------ */
 .pending-list {
   margin-top: 10px;

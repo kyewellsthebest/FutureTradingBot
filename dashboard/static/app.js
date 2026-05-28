@@ -85,6 +85,8 @@ function setAccount(id) {
   poll(); pollCandles(); pollTrades();
   renderAccountSwitcher();
   renderAccountStrategyDisplay();
+  // Pause state is per-account, so re-fetch when switching.
+  pollPauseStatus(true);
 }
 async function loadAccounts() {
   try {
@@ -133,7 +135,80 @@ document.addEventListener("DOMContentLoaded", () => {
   renderAccountStrategyDisplay();  // populate Strategy tab + sim baseline for current account
   loadAccounts();
   setInterval(loadAccounts, 60_000);  // refresh in case ACCOUNTS env adds new ones
+  _wirePauseButton();
+  pollPauseStatus(true);
+  setInterval(pollPauseStatus, 5000);
 });
+
+// ---- Pause / Resume ------------------------------------------------------
+// User-controlled kill switch for new entries on the active account. Lets
+// you skip a hot losing streak or sidestep an expected pump/dump without
+// blowing the account. Active trade (if any) is NOT closed -- it runs to
+// its existing stop or target. Pause state survives bot restarts (stored as
+// a flag file in the account's data dir).
+let _pauseBusy = false;
+function _renderPauseBtn(paused, sinceIso) {
+  const btn = document.getElementById("btn-pause");
+  const badge = document.getElementById("badge-paused");
+  if (!btn) return;
+  btn.dataset.paused = paused ? "1" : "0";
+  btn.textContent = paused ? "▶ Resume" : "⏸ Pause";
+  if (badge) {
+    badge.hidden = !paused;
+    if (paused && sinceIso) {
+      try {
+        const d = new Date(sinceIso);
+        badge.title = "Paused since " + d.toLocaleString();
+      } catch (e) {}
+    }
+  }
+}
+async function pollPauseStatus(force) {
+  try {
+    const r = await fetch(af("/api/pause_status"));
+    if (!r.ok) return;
+    const j = await r.json();
+    _renderPauseBtn(!!j.paused, j.since);
+  } catch (e) {}
+}
+async function _togglePause() {
+  if (_pauseBusy) return;
+  const btn = document.getElementById("btn-pause");
+  if (!btn) return;
+  const isPaused = btn.dataset.paused === "1";
+  // Pausing is silent; resuming during a losing streak is the dangerous one --
+  // confirm so the user doesn't accidentally re-arm the bot mid-tantrum.
+  if (isPaused && !confirm("Resume new entries on this account?")) return;
+  _pauseBusy = true;
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = isPaused ? "Resuming…" : "Pausing…";
+  try {
+    const url = af(isPaused ? "/api/resume" : "/api/pause");
+    const r = await fetch(url, { method: "POST",
+                                 headers: { "Content-Type": "application/json" },
+                                 body: JSON.stringify({ reason: "user_manual" }) });
+    if (r.ok) {
+      const j = await r.json();
+      _renderPauseBtn(!!j.paused, j.since);
+    } else {
+      btn.textContent = prevLabel;
+      alert("Pause/resume failed: " + r.status);
+    }
+  } catch (e) {
+    btn.textContent = prevLabel;
+    alert("Pause/resume error: " + e);
+  } finally {
+    _pauseBusy = false;
+    btn.disabled = false;
+  }
+}
+function _wirePauseButton() {
+  const btn = document.getElementById("btn-pause");
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", _togglePause);
+}
 
 // ---- Tab routing ---------------------------------------------------------
 function activateTab(name) {

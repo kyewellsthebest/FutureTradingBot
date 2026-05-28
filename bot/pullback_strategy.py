@@ -597,6 +597,19 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # 5. FIRE armed setups
     if in_cooldown:
         return None
+    # Manual pause gate -- user pressed the Pause button on the dashboard.
+    # Blocks new entries only; the active trade (if any) was already managed
+    # in step 1 above and runs to its stop/target normally.
+    try:
+        from bot.account_ctx import is_paused as _is_manually_paused
+        if _is_manually_paused():
+            for s in state.pending_setups:
+                if not s.used:
+                    s.last_block_reason = "manual_pause"
+                    s.last_block_at = now
+            return None
+    except Exception:
+        pass
     # Post-streak pause: if active, block entries until expiry
     if state.pause_until_ts is not None and now < state.pause_until_ts:
         for s in state.pending_setups:
@@ -658,6 +671,15 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     return None
 
 
+def _get_manual_pause_state() -> dict:
+    """Safe wrapper -- never let a snapshot read crash the bot loop."""
+    try:
+        from bot.account_ctx import get_pause_state
+        return get_pause_state()
+    except Exception:
+        return {"paused": False}
+
+
 # ============================================================================
 # Snapshot (for dashboard)
 # ============================================================================
@@ -685,6 +707,7 @@ def snapshot(state: FibStrategyState,
             "tripped": state.circuit_breaker_tripped,
             "reason": state.circuit_breaker_reason,
         },
+        "manual_pause": _get_manual_pause_state(),
         "active_trade": None,
         "pending_setups": [],
     }
