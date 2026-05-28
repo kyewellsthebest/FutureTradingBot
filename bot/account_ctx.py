@@ -62,9 +62,9 @@ def list_known_accounts() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Per-account strategy params -- account 1 stays on the original target=12
-# config (preserves the existing $1.3k+ live track record); account 2 runs
-# the upgraded target=18 config so the user can A/B compare live.
+# Per-account strategy params. Currently only the legacy account 1 is
+# active -- accounts 2 and 3 (the target=18 upgrade and filtered variant)
+# were removed by user request.
 # ---------------------------------------------------------------------------
 _DEFAULT_PARAMS = {
     # ACCOUNT 1 -- pre-upgrade baseline (deployed since the bot first went live)
@@ -75,59 +75,14 @@ _DEFAULT_PARAMS = {
         "STOP_PTS":           6.0,
         "TARGET_PTS":         12.0,   # original target
     },
-    # ACCOUNT 2 -- upgraded target=18 config (from strategy_bakeoff_tick.py)
-    # validated +27.04%/mo median Monte Carlo, OOS-positive on both halves.
-    "2": {
-        "IMPULSE_PTS":        5.0,
-        "IMPULSE_WINDOW_BARS": 4,
-        "PULLBACK_PCT":       0.618,
-        "STOP_PTS":           6.0,
-        "TARGET_PTS":         18.0,   # wider target -- $72 winners vs $48
-    },
-    # ACCOUNT 3 -- target=18 + multi-layer smart filter:
-    #   (a) skip new entries when 14-bar ATR < 4 pt (low-vol drift days)
-    #   (b) skip new entries when 5-bar ATR / 60-bar ATR < 0.5
-    #       (the "calm before the storm" zone: 69.6% loss rate, NET
-    #        negative P&L in the loss forensics analysis)
-    #   (c) when last 4h net move >= 80 pt = "strong trend" detected,
-    #       widen counter-trend stops from 6pt -> 10pt so trades survive
-    #       intra-trend whipsaws and many hit target.
-    #
-    # Validated on the 25M-tick dataset:
-    #   Baseline target=18: +27.06%/mo, 1.75% DD, -$384 worst day
-    #   Account 3 v1 (ATR+adaptive): +28.23%/mo, 1.59% DD, -$338 worst day
-    #   Account 3 v2 (this -- adds vol_ratio): +28.65%/mo, 1.59% DD
-    # OOS split-half on v2: train DD 1.58 -> 1.44%, val DD 1.63 -> 1.32%
-    # Both halves improve. Not overfit.
-    "3": {
-        "IMPULSE_PTS":        5.0,
-        "IMPULSE_WINDOW_BARS": 4,
-        "PULLBACK_PCT":       0.618,
-        "STOP_PTS":           6.0,
-        "TARGET_PTS":         18.0,
-        "MIN_ATR":            4.0,
-        "MIN_VOL_RATIO":      0.5,
-        "STRONG_TREND_LOOKBACK_BARS": 240,
-        "STRONG_TREND_THRESHOLD_PTS":  80.0,
-        "STOP_PTS_COUNTER_TREND":     10.0,
-        # Streak circuit-breaker: after 4 consecutive losses, pause new
-        # entries for 60 minutes. Backtest impact: -6%/mo return BUT
-        # 68% reduction in 10+ losing streaks (18 -> 8 over 79 days) and
-        # worst single-day loss reduced from -$338 to -$258. Designed
-        # to protect against extended bad regimes pushing toward the
-        # Lucid trail floor.
-        "POST_STREAK_LOSSES":     4,
-        "POST_STREAK_PAUSE_MINS": 60,
-    },
 }
 
 
 def get_strategy_params(account_id: str | None = None) -> dict:
     """Return the strategy parameter dict for an account. Falls back to
-    account "2" defaults (the newest config) for any future account IDs not
-    explicitly listed."""
+    account 1 (the only live config) for any unknown account IDs."""
     aid = account_id or get_account()
-    return dict(_DEFAULT_PARAMS.get(aid, _DEFAULT_PARAMS["2"]))
+    return dict(_DEFAULT_PARAMS.get(aid, _DEFAULT_PARAMS["1"]))
 
 
 # ---------------------------------------------------------------------------

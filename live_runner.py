@@ -144,13 +144,10 @@ def main() -> int:
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
     t.start()
     # Parse ACCOUNTS env var: comma-separated list of account IDs to run.
-    # Default "1,2" -- user explicitly asked for the "Futures Trading Bot 2"
-    # account in addition to the existing one. Override via ACCOUNTS env if
-    # you want a different set.
-    # Default "1,2,3" -- A/B/C: legacy target=12, upgrade target=18,
-    # filtered target=18+ATR>=4 (lowest DD config). User can override
-    # via ACCOUNTS env to disable any of them.
-    accounts = [a.strip() for a in os.environ.get("ACCOUNTS", "1,2,3").split(",") if a.strip()]
+    # Default is single-account ("1") -- the original legacy account with
+    # target=12. Accounts 2/3 (the target=18 upgrade and the filtered
+    # variant) were removed; override via ACCOUNTS env to revive them.
+    accounts = [a.strip() for a in os.environ.get("ACCOUNTS", "1").split(",") if a.strip()]
     if len(accounts) == 1:
         # Single-account mode: run on the main thread so SIGINT/SIGTERM
         # handlers install correctly (only main thread can install them).

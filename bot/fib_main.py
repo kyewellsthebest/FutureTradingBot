@@ -367,8 +367,8 @@ class FibRuntime:
         # instead of 5-min k=10 (~50 min). Same-timeframe trend reacts
         # faster than the older 5-min variant and dropped PF 1.26 -> 1.43
         # in real-data backtest.
-        # Per-account strategy params (account 1 = target=12 legacy,
-        # account 2 = target=18 upgrade -- see bot/account_ctx.py).
+        # Per-account strategy params (account 1 = target=12 legacy --
+        # see bot/account_ctx.py). Accounts 2/3 were removed.
         from bot.account_ctx import get_strategy_params
         record = on_new_1m_bar(self.state, runtime_lucid,
                                self._bars_1m, last_1m, now,

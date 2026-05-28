@@ -65,7 +65,7 @@ def api_accounts():
     once a config is removed, the account should disappear from the
     dropdown even if its data dir still exists."""
     import os as _os
-    configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1,2,3").split(",") if a.strip()]
+    configured = [a.strip() for a in _os.environ.get("ACCOUNTS", "1").split(",") if a.strip()]
     return jsonify({"accounts": configured})
 
 

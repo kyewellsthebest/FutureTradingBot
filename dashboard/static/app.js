@@ -15,9 +15,8 @@ function af(url) {
   const sep = url.includes("?") ? "&" : "?";
   return url + sep + "account=" + encodeURIComponent(currentAccount);
 }
-// Per-account strategy / sim baseline display values. Mirrors
-// bot/account_ctx.py _DEFAULT_PARAMS + the values reported by the
-// strategy_bakeoff_tick + Monte Carlo runs for each config.
+// Per-account strategy / sim baseline display values. Only the legacy
+// account 1 is live; accounts 2/3 were removed by user request.
 const ACCOUNT_STRATEGY = {
   "1": {
     label: "Original (target=12)",
@@ -28,28 +27,10 @@ const ACCOUNT_STRATEGY = {
     trail_prob: "0.1%", oos: "+12.59% / +30.13% (both beat baseline)",
     sim_ret_mo_num: 21.19, sim_dd_pct_num: 1.66, sim_dd_usd_num: 828,
   },
-  "2": {
-    label: "Upgraded (target=18)",
-    target_label: "18 NQ pts from entry (3.0 RR planned, 2.19 realised)",
-    sim_ret: "+27.04%", sim_dd: "$875 (1.75%)",
-    sim_wr_rr: "37.3% / 2.19", sim_trades_mo: "~2,770",
-    mc_ret: "+27.04%", mc_range: "+22.67% to +31.76%",
-    trail_prob: "0.2%", oos: "+18.01% / +36.18% (wins both halves)",
-    sim_ret_mo_num: 27.04, sim_dd_pct_num: 1.75, sim_dd_usd_num: 875,
-  },
-  "3": {
-    label: "Smart filter v3 (filters + adaptive stops + streak breaker)",
-    target_label: "18pt target. Skips quiet+exhaustion zones; widens stops in trend; 60-min pause after 4 losses in a row",
-    sim_ret: "+22.75%", sim_dd: "$670 (1.34%)",
-    sim_wr_rr: "40.4% / 2.18", sim_trades_mo: "~2,000",
-    mc_ret: "+22.75%", mc_range: "lower DD + 68% fewer 10+ streaks vs baseline",
-    trail_prob: "<0.05%", oos: "max DD 1.34% — best protection of any config tested",
-    sim_ret_mo_num: 22.75, sim_dd_pct_num: 1.34, sim_dd_usd_num: 670,
-  },
 };
 
 function renderAccountStrategyDisplay() {
-  const s = ACCOUNT_STRATEGY[currentAccount] || ACCOUNT_STRATEGY["2"];
+  const s = ACCOUNT_STRATEGY[currentAccount] || ACCOUNT_STRATEGY["1"];
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set("strat-target",            s.target_label);
   set("strat-baseline-ret",      s.sim_ret);
