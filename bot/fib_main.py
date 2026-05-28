@@ -141,14 +141,36 @@ def _synth_1min_from_5min(bars_5m: pd.DataFrame) -> pd.DataFrame:
     return df.set_index("ts")
 
 
-def _build_last_1m_from_price(monitor_snap, last_5m_close: float) -> pd.Series:
-    """Synthesize a 1-min bar from the price-monitor's accumulated tick
-    high/low. Used between full 1-min bar refreshes for tight exit timing."""
-    high = monitor_snap.high if monitor_snap and monitor_snap.high else last_5m_close
-    low = monitor_snap.low if monitor_snap and monitor_snap.low else last_5m_close
-    price = monitor_snap.price if monitor_snap else last_5m_close
-    return pd.Series({"open": price, "high": high, "low": low,
-                      "close": price, "volume": 1})
+def _build_last_1m_from_price(monitor_snap, fallback_bar: pd.Series) -> pd.Series:
+    """Synthesize a 1-min bar for live fill detection. When the PriceMonitor
+    has fresh tick data, use its accumulated high/low. When PriceMonitor is
+    dead (Polygon latest_quote denied + CNBC poller dead + yfinance blocked),
+    fall back to the LATEST 1-min bar (real Polygon data) instead of a stale
+    5-min close.
+
+    Pre-fix behaviour: when PriceMonitor failed, this returned a synthetic
+    bar with high=low=close=last_5m_close (often 5-15min stale). The
+    pullback strategy's is_filled() checks bar.high >= short_entry; with a
+    stale low value the SHORT fills NEVER triggered even when live price
+    had crossed the entry. Reported by user when ~5 SHORT setups sat at
+    entries below current price for an hour without firing.
+    """
+    if monitor_snap is not None and monitor_snap.high and monitor_snap.low:
+        return pd.Series({
+            "open":  monitor_snap.price,
+            "high":  monitor_snap.high,
+            "low":   monitor_snap.low,
+            "close": monitor_snap.price,
+            "volume": 1,
+        })
+    # Fallback: use the most recent real 1-min bar's full OHLC.
+    return pd.Series({
+        "open":  float(fallback_bar["open"]),
+        "high":  float(fallback_bar["high"]),
+        "low":   float(fallback_bar["low"]),
+        "close": float(fallback_bar["close"]),
+        "volume": float(fallback_bar.get("volume", 1)),
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -329,8 +351,11 @@ class FibRuntime:
         # Synthesize the live 1-min bar from accumulated tick high/low.
         # Used for exit-detection precision (tight when in-trade) and to
         # arm/invalidate pending setups against very recent price.
-        last_5m_close = float(self._bars_5m["close"].iloc[-1])
-        last_1m = _build_last_1m_from_price(snap, last_5m_close)
+        # Pass the latest 1-min bar as fallback so when PriceMonitor is
+        # dead we still have realistic high/low/close instead of a stale
+        # 5-min close that broke is_filled() detection.
+        fallback_bar = self._bars_1m.iloc[-1]
+        last_1m = _build_last_1m_from_price(snap, fallback_bar)
 
         self.bars_processed += 1
         had_trade_before = self.state.active_trade is not None
