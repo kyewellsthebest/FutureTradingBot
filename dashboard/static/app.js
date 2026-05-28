@@ -351,7 +351,31 @@ function renderLive(d) {
   }
 
   // pending setups
-  setText("live-pending-n", fib.pending_setups ?? 0);
+  // pending_setups is an ARRAY of setup dicts. Previously this just dumped
+  // [object Object] because setText() coerces with toString(). Fix: show
+  // the count, and render details for each setup in #live-pending-list.
+  const pending = Array.isArray(fib.pending_setups) ? fib.pending_setups : [];
+  setText("live-pending-n", pending.length);
+  const listEl = document.getElementById("live-pending-list");
+  if (listEl) {
+    if (!pending.length) {
+      listEl.innerHTML = "";
+    } else {
+      listEl.innerHTML = pending.map(s => {
+        const side = s.side || "?";
+        const entry = (s.level50 ?? s.pullback_entry ?? 0).toFixed(2);
+        const stop  = (s.stop_px ?? 0).toFixed(2);
+        const tgt   = (s.target_px ?? 0).toFixed(2);
+        const cls   = side === "LONG" ? "side-long" : "side-short";
+        const block = s.last_block_reason ? ` <span class="muted">· ${s.last_block_reason}</span>` : "";
+        const armed = s.entry_armed ? ' <span class="pos">· armed</span>' : "";
+        return `<div class="pending-row"><span class="${cls}">${side}</span>
+          <span class="muted">entry</span> ${entry}
+          <span class="muted">stop</span> ${stop}
+          <span class="muted">tgt</span> ${tgt}${armed}${block}</div>`;
+      }).join("");
+    }
+  }
 
   // microscalp gauge
   const ratio = fib.microscalp_ratio_30d ?? 0;

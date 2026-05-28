@@ -444,3 +444,22 @@ html, body {
   color: var(--text-mute);
   font-family: 'SF Mono', Menlo, monospace;
 }
+
+/* PENDING SETUPS LIST ------------------------------------------ */
+.pending-list {
+  margin-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 8px;
+  font-size: 11px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.pending-row {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  white-space: nowrap;
+}
+.pending-row:last-child { border-bottom: none; }
+.pending-row .side-long  { color: var(--green); font-weight: 700; }
+.pending-row .side-short { color: var(--red); font-weight: 700; }
