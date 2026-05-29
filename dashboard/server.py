@@ -1144,6 +1144,381 @@ def api_funded_accounts():
     })
 
 
+# ===========================================================================
+# Downloads -- one endpoint, many kinds. Sets Content-Disposition so the
+# browser downloads the file rather than displaying it. Designed so the
+# user can `curl -O` or click a button on the dashboard and get the same
+# artifact. The "bundle" kind is the all-in-one diagnostic that pulls
+# every other kind together into one JSON.
+# ===========================================================================
+def _build_health_payload(include_verify: bool = False):
+    """The 'I want to know what the bot is doing right now' payload."""
+    from bot.account_ctx import data_dir as _acct_dir, get_account
+    base = _acct_dir()
+    payload = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "account": get_account(),
+        "snapshot": {},
+        "lucid": {},
+        "active_trade": None,
+        "pending_setups": [],
+        "files": {},
+        "files_age_s": {},
+    }
+    # In-memory snapshot
+    try:
+        snap = persistence.load_dashboard()
+        payload["snapshot"] = {
+            "ts": snap.get("ts"),
+            "cycle": snap.get("cycle"),
+            "bars_processed": snap.get("bars_processed"),
+            "bars_1m_source": snap.get("bars_1m_source"),
+            "signals_fired": snap.get("signals_fired"),
+            "signals_blocked": snap.get("signals_blocked"),
+            "last_error": snap.get("last_error"),
+            "mode": snap.get("mode"),
+            "price_ts": snap.get("price_ts"),
+            "price": snap.get("price"),
+            "htf_trend": snap.get("htf_trend"),
+        }
+        payload["active_trade"] = (snap.get("fib") or {}).get("active_trade")
+        payload["pending_setups"] = (snap.get("fib") or {}).get("pending_setups", [])
+        payload["lifetime_stats"] = snap.get("lifetime_stats")
+    except Exception as e:
+        payload["snapshot_error"] = repr(e)
+    # Lucid state
+    try:
+        lp = base / "lucid_account.json"
+        if lp.exists():
+            payload["lucid"] = json.loads(lp.read_text())
+    except Exception as e:
+        payload["lucid_error"] = repr(e)
+    # File ages (key signal for "is bot alive")
+    for fname in ["dashboard_data.json", "lucid_account.json",
+                   "paper_trades.db", "live_bars.json",
+                   "bot_heartbeat.txt", "bot_crash.txt",
+                   "manual_pause.json"]:
+        p = base / fname
+        if p.exists():
+            st = p.stat()
+            age = datetime.now(timezone.utc).timestamp() - st.st_mtime
+            payload["files"][fname] = {
+                "exists": True, "size": st.st_size,
+                "age_s": round(age, 1),
+                "mtime": datetime.fromtimestamp(st.st_mtime,
+                                                  tz=timezone.utc).isoformat(),
+            }
+        else:
+            payload["files"][fname] = {"exists": False}
+    # Pause status
+    try:
+        from bot.account_ctx import get_pause_state
+        payload["pause_state"] = get_pause_state()
+    except Exception:
+        payload["pause_state"] = None
+    if include_verify:
+        try:
+            with app.test_request_context(f"/api/admin/verify_today?account={get_account()}"):
+                resp = api_admin_verify_today()
+                if isinstance(resp, tuple):
+                    body = resp[0].get_json() if hasattr(resp[0], "get_json") else None
+                else:
+                    body = resp.get_json() if hasattr(resp, "get_json") else None
+                payload["verification"] = body
+        except Exception as e:
+            payload["verification_error"] = repr(e)
+    return payload
+
+
+def _build_config_payload():
+    """Strategy params + risk gate config + sanitized env vars."""
+    import os as _os
+    from bot.account_ctx import get_strategy_params, get_account, _DEFAULT_PARAMS
+    out = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "account": get_account(),
+        "strategy_params": get_strategy_params(),
+        "all_account_params": _DEFAULT_PARAMS,
+        "risk_settings": {
+            "FIB_AUTO_DLL": _os.environ.get("FIB_AUTO_DLL", "700.0"),
+            "default_cooldown_secs": 60,
+            "default_max_hold_secs": 600,
+            "default_max_wait_secs": 300,
+            "min_target_hold_secs": 10,
+        },
+        "env": {
+            "BOT_VERSION":     _os.environ.get("BOT_VERSION", ""),
+            "BOT_SHADOW_MODE": _os.environ.get("BOT_SHADOW_MODE", "1"),
+            "POLYGON_API":     "set" if _os.environ.get("POLYGON_API") else "missing",
+            "ACCOUNTS":        _os.environ.get("ACCOUNTS", "1"),
+            "FIB_AUTO_DLL":    _os.environ.get("FIB_AUTO_DLL", "(default)"),
+            # NEVER include actual secret values
+        },
+        "tradovate": {
+            "TRADOVATE_LIVE": _os.environ.get("TRADOVATE_LIVE", "false"),
+            "credentials_set": all(_os.environ.get(k) for k in
+                                    ("TRADOVATE_USERNAME","TRADOVATE_PASSWORD")),
+        },
+    }
+    return out
+
+
+def _build_code_state_payload():
+    """Git SHA + hash of every Python file in bot/ and engine/ so I can
+    tell if anyone manually edited live code, and identify regressions."""
+    import hashlib
+    import subprocess
+    out = {"ts": datetime.now(timezone.utc).isoformat(),
+            "git_sha": None, "git_dirty": None, "branch": None,
+            "files": {}, "python_version": None}
+    try:
+        out["git_sha"] = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=str(ROOT.parent),
+            stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        pass
+    try:
+        out["branch"] = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(ROOT.parent),
+            stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        pass
+    try:
+        st = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=str(ROOT.parent),
+            stderr=subprocess.DEVNULL).decode().strip()
+        out["git_dirty"] = bool(st)
+        out["git_dirty_files"] = [line[3:] for line in st.split("\n") if line]
+    except Exception:
+        pass
+    import sys as _sys
+    out["python_version"] = _sys.version
+    # Hash each .py file in production paths
+    for sub in ("bot", "engine", "dashboard"):
+        base = ROOT.parent / sub
+        if not base.exists():
+            continue
+        for p in sorted(base.rglob("*.py")):
+            try:
+                h = hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+                rel = str(p.relative_to(ROOT.parent))
+                out["files"][rel] = {"sha256_16": h, "size": p.stat().st_size}
+            except Exception:
+                pass
+    return out
+
+
+def _build_trades_csv():
+    """All trades since reset cutoff, as CSV. Suitable for spreadsheet."""
+    import csv
+    import io
+    rows = _filter_trades_since_reset(persistence.load_trades(limit=100_000,
+                                                              only_closed=True))
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=[
+        "entry_time", "exit_time", "side", "qty",
+        "entry_px", "stop_px", "target_px", "exit_px",
+        "exit_reason", "pnl", "commission", "signal_name",
+        "ml_decision", "vol_regime", "daily_bias", "rr",
+    ])
+    writer.writeheader()
+    for r in rows:
+        writer.writerow({k: r.get(k, "") for k in writer.fieldnames})
+    return buf.getvalue()
+
+
+def _build_equity_csv():
+    """Cumulative equity curve as CSV. Each row = one trade exit, with
+    running P&L. Easy to import into Excel/Google Sheets."""
+    import csv
+    import io
+    rows = sorted(_filter_trades_since_reset(persistence.load_trades(
+        limit=100_000, only_closed=True)),
+                  key=lambda r: r.get("exit_time") or "")
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["exit_time", "pnl", "cum_pnl", "side", "exit_reason"])
+    cum = 0.0
+    for r in rows:
+        pnl = float(r.get("pnl") or 0)
+        cum += pnl
+        writer.writerow([r.get("exit_time"), pnl, round(cum, 2),
+                          r.get("side"), r.get("exit_reason")])
+    return buf.getvalue()
+
+
+def _build_daily_csv():
+    """Per-NY-day P&L breakdown as CSV. Critical for funded-account
+    consistency analysis."""
+    import csv
+    import io
+    from collections import defaultdict
+    rows = _filter_trades_since_reset(persistence.load_trades(
+        limit=100_000, only_closed=True))
+    by_day = defaultdict(lambda: {"n":0, "pnl":0.0, "wins":0,
+                                    "peak_run":0.0, "trough_run":0.0})
+    for r in sorted(rows, key=lambda x: x.get("exit_time") or ""):
+        et_str = r.get("exit_time")
+        if not et_str:
+            continue
+        try:
+            ts = pd.Timestamp(et_str)
+            ts = ts.tz_convert("UTC") if ts.tz is not None else ts.tz_localize("UTC")
+            # NY date: 16:00 ET rollover
+            from research.signal_filters import NY_TZ
+            ny_date = ts.tz_convert(NY_TZ).date().isoformat()
+        except Exception:
+            continue
+        d = by_day[ny_date]
+        pnl = float(r.get("pnl") or 0)
+        d["n"] += 1
+        d["pnl"] += pnl
+        if pnl > 0: d["wins"] += 1
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["ny_date", "n_trades", "wins", "win_rate", "pnl"])
+    for day in sorted(by_day):
+        d = by_day[day]
+        wr = (d["wins"] / d["n"] * 100) if d["n"] else 0
+        writer.writerow([day, d["n"], d["wins"], f"{wr:.1f}%", round(d["pnl"], 2)])
+    return buf.getvalue()
+
+
+def _build_decisions_payload():
+    """Recent block reasons + signal stats. The 'why isn't it trading?'
+    debugging payload."""
+    from bot.account_ctx import data_dir as _acct_dir, get_account
+    out = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "account": get_account(),
+        "counters": {},
+        "pending_setups": [],
+        "last_block_reasons": [],
+    }
+    try:
+        snap = persistence.load_dashboard()
+        out["counters"] = {
+            "signals_fired":   snap.get("signals_fired"),
+            "signals_blocked": snap.get("signals_blocked"),
+            "cycle":           snap.get("cycle"),
+            "bars_processed":  snap.get("bars_processed"),
+        }
+        fib = snap.get("fib") or {}
+        out["pending_setups"] = fib.get("pending_setups", [])
+        # Collate unique block reasons across pending setups
+        reasons = {}
+        for s in fib.get("pending_setups", []):
+            r = s.get("last_block_reason")
+            if r:
+                reasons[r] = reasons.get(r, 0) + 1
+        out["last_block_reasons"] = [{"reason": k, "count": v}
+                                       for k, v in reasons.items()]
+        out["circuit_breaker"] = fib.get("circuit_breaker")
+        out["manual_pause"]    = fib.get("manual_pause")
+    except Exception as e:
+        out["error"] = repr(e)
+    return out
+
+
+@app.route("/api/download/<kind>")
+def api_download(kind: str):
+    """Unified download endpoint. Returns the requested kind with a
+    Content-Disposition header so browsers save instead of display."""
+    from bot.account_ctx import data_dir as _acct_dir, get_account
+    from flask import Response, send_file
+
+    aid = get_account()
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    base_name = f"hftbot_acct{aid}_{ts}"
+
+    def _json_resp(payload, filename):
+        body = json.dumps(payload, indent=2, default=str)
+        return Response(
+            body,
+            mimetype="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    def _text_resp(body, filename, mime="text/plain"):
+        return Response(
+            body,
+            mimetype=mime,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    if kind == "bundle":
+        include_verify = (request.args.get("verify", "1") == "1")
+        payload = {
+            "kind": "diagnostic_bundle",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "health": _build_health_payload(include_verify=include_verify),
+            "config": _build_config_payload(),
+            "code_state": _build_code_state_payload(),
+            "decisions": _build_decisions_payload(),
+        }
+        # Trim very large entries to keep file manageable
+        try:
+            rows = _filter_trades_since_reset(persistence.load_trades(limit=200))[:100]
+            payload["recent_trades"] = rows
+        except Exception as e:
+            payload["recent_trades_error"] = repr(e)
+        return _json_resp(payload, f"{base_name}_bundle.json")
+
+    if kind == "health":
+        return _json_resp(_build_health_payload(), f"{base_name}_health.json")
+    if kind == "diag":
+        # Reuse the existing diag endpoint
+        with app.test_request_context(f"/api/diag?account={aid}"):
+            diag = api_diag()
+            body = diag.get_json() if hasattr(diag, "get_json") else diag
+        return _json_resp(body, f"{base_name}_diag.json")
+    if kind == "crash":
+        cp = _acct_dir() / "bot_crash.txt"
+        if not cp.exists():
+            return _text_resp("(no crash trace found)\n",
+                                 f"{base_name}_crash.txt")
+        return _text_resp(cp.read_text(), f"{base_name}_crash.txt")
+    if kind == "decisions":
+        return _json_resp(_build_decisions_payload(),
+                            f"{base_name}_decisions.json")
+
+    if kind == "trades.csv":
+        return _text_resp(_build_trades_csv(),
+                            f"{base_name}_trades.csv", mime="text/csv")
+    if kind == "equity.csv":
+        return _text_resp(_build_equity_csv(),
+                            f"{base_name}_equity.csv", mime="text/csv")
+    if kind == "daily.csv":
+        return _text_resp(_build_daily_csv(),
+                            f"{base_name}_daily.csv", mime="text/csv")
+
+    if kind == "config":
+        return _json_resp(_build_config_payload(), f"{base_name}_config.json")
+    if kind == "code_state":
+        return _json_resp(_build_code_state_payload(),
+                            f"{base_name}_code_state.json")
+    if kind == "lucid":
+        lp = _acct_dir() / "lucid_account.json"
+        if lp.exists():
+            try:
+                data = json.loads(lp.read_text())
+            except Exception as e:
+                data = {"error": repr(e)}
+        else:
+            data = {"error": "lucid_account.json missing"}
+        return _json_resp(data, f"{base_name}_lucid.json")
+    if kind == "verify":
+        with app.test_request_context(f"/api/admin/verify_today?account={aid}"):
+            resp = api_admin_verify_today()
+            if isinstance(resp, tuple):
+                body = resp[0].get_json() if hasattr(resp[0], "get_json") else None
+            else:
+                body = resp.get_json() if hasattr(resp, "get_json") else None
+        return _json_resp(body, f"{base_name}_verify.json")
+
+    return jsonify({"ok": False, "error": f"unknown download kind: {kind}"}), 400
+
+
 @app.route("/api/admin/verify_today", methods=["GET", "POST"])
 def api_admin_verify_today():
     """Per-trade audit: for every trade closed today, fetch real Polygon

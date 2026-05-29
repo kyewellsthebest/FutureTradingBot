@@ -61,6 +61,7 @@
     <button class="tab" data-tab="performance">Performance</button>
     <button class="tab" data-tab="funded">Funded</button>
     <button class="tab" data-tab="trades">Trades</button>
+    <button class="tab" data-tab="downloads">Downloads</button>
   </nav>
 
   <main class="content">
@@ -250,18 +251,10 @@
       </div>
       <div class="export-bar admin-bar">
         <span class="export-label">Admin:</span>
-        <button class="btn-verify" id="btn-verify-today"
-                title="Audit today's trades against real Polygon 1-min bars.">
-          🔍 Verify today
-        </button>
         <button class="btn-reset" id="btn-reset-account"
                 title="Wipe trade history, balance and pause state. Restarts at $50,000.">
           ⚠ Reset account
         </button>
-      </div>
-      <div class="card admin-result" id="verify-result" hidden>
-        <div class="card-header">Polygon verification</div>
-        <div class="card-body" id="verify-result-body"></div>
       </div>
       <div class="export-bar">
         <span class="export-label">Download report:</span>
@@ -355,6 +348,107 @@
             </tr></thead>
             <tbody><tr><td colspan="8" class="muted">No trades yet.</td></tr></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOWNLOADS -------------------------------------------------- -->
+    <section class="tabpane" id="pane-downloads">
+      <div class="card dl-hero">
+        <div class="card-header">⚡ Send Claude everything</div>
+        <div class="card-body">
+          <p class="muted dl-help">
+            If the bot is misbehaving and you want me to debug it, download
+            this ONE file and paste it into our chat. It bundles bot health,
+            recent trades, current config, decision log, environment, and
+            (optionally) Polygon verification. It's the single artifact I
+            need to understand what's happening.
+          </p>
+          <button class="btn-dl btn-dl-primary" data-dl="bundle" data-ext="json">
+            ⬇ Full diagnostic bundle (JSON)
+          </button>
+          <label class="dl-checkbox">
+            <input type="checkbox" id="dl-include-verify" checked />
+            include Polygon verification (slower; ~5s)
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header">🩺 Bot health</div>
+          <div class="card-body dl-list">
+            <button class="btn-dl" data-dl="health" data-ext="json">
+              ⬇ Health snapshot
+            </button>
+            <button class="btn-dl" data-dl="diag" data-ext="json">
+              ⬇ Diag report (file ages, last error, verdict)
+            </button>
+            <button class="btn-dl" data-dl="crash" data-ext="txt">
+              ⬇ Crash trace (if any)
+            </button>
+            <button class="btn-dl" data-dl="decisions" data-ext="json">
+              ⬇ Recent decisions + denials
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">📈 Performance</div>
+          <div class="card-body dl-list">
+            <button class="btn-dl" data-dl="trades.csv" data-ext="csv">
+              ⬇ All trades (CSV)
+            </button>
+            <button class="btn-dl" data-dl="trades.html" data-ext="html"
+                    data-direct="/api/export/all">
+              ⬇ All trades (HTML report)
+            </button>
+            <button class="btn-dl" data-dl="equity.csv" data-ext="csv">
+              ⬇ Equity curve (CSV)
+            </button>
+            <button class="btn-dl" data-dl="daily.csv" data-ext="csv">
+              ⬇ Daily P&L breakdown (CSV)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header">⚙ Strategy & config</div>
+          <div class="card-body dl-list">
+            <button class="btn-dl" data-dl="config" data-ext="json">
+              ⬇ Active config (strategy + risk + env)
+            </button>
+            <button class="btn-dl" data-dl="code_state" data-ext="json">
+              ⬇ Code state (git SHA, file hashes)
+            </button>
+            <button class="btn-dl" data-dl="lucid" data-ext="json">
+              ⬇ Lucid account state
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">🔍 Polygon verification</div>
+          <div class="card-body dl-list">
+            <p class="muted dl-help-small">
+              Audits each of today's trades against real 1-min Polygon bars.
+              Confirms the bot fired on real impulses, the entry levels were
+              actually touched, and the stop/target reasons match what the
+              market did. Use this whenever live P&L looks off.
+            </p>
+            <button class="btn-dl" data-dl="verify" data-ext="json">
+              ⬇ Run verification + download result
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Last download</div>
+        <div class="card-body" id="dl-status">
+          <div class="muted">No downloads yet.</div>
         </div>
       </div>
     </section>

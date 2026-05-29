@@ -469,33 +469,76 @@ html, body {
 .btn-pause[data-paused="1"]:hover { background: rgba(34, 211, 154, 0.22); }
 .btn-pause:disabled { opacity: 0.55; cursor: wait; }
 
-.btn-verify {
-  background: rgba(86, 212, 255, 0.10);
-  color: var(--cyan);
-  border: 1px solid rgba(86, 212, 255, 0.40);
-  padding: 5px 14px;
-  border-radius: 6px;
+/* DOWNLOADS TAB ------------------------------------------------- */
+.dl-hero {
+  border: 1px solid rgba(86, 212, 255, 0.30);
+  background: linear-gradient(135deg, rgba(86, 212, 255, 0.04), rgba(149, 128, 255, 0.03));
+}
+.dl-help {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px 0;
+}
+.dl-help-small {
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  line-height: 1.45;
+  margin: 0 0 10px 0;
+  color: var(--text-soft);
+}
+.dl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.dl-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 14px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.dl-checkbox input { accent-color: var(--cyan); }
+
+.btn-dl {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s;
-  margin-right: 6px;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
 }
-.btn-verify:hover { background: rgba(86, 212, 255, 0.22); }
-.btn-verify:disabled { opacity: 0.55; cursor: wait; }
-.admin-result { margin-top: 8px; }
-.admin-result .verify-trade {
-  padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px; font-family: 'SF Mono', Menlo, monospace;
+.btn-dl:hover {
+  background: rgba(86, 212, 255, 0.08);
+  border-color: rgba(86, 212, 255, 0.35);
 }
-.admin-result .verify-trade:first-child { border-top: 0; }
-.admin-result .verdict-ok    { color: var(--green); font-weight: 700; }
-.admin-result .verdict-bad   { color: var(--red);   font-weight: 700; }
-.admin-result .verify-summary {
+.btn-dl:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.btn-dl-primary {
+  background: rgba(86, 212, 255, 0.15);
+  color: var(--cyan);
+  border-color: rgba(86, 212, 255, 0.55);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 18px;
+}
+.btn-dl-primary:hover {
+  background: rgba(86, 212, 255, 0.28);
+}
+#dl-status code {
   font-family: 'SF Mono', Menlo, monospace;
-  font-size: 13px; padding: 6px 0 10px;
+  font-size: 12px;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 .btn-reset {

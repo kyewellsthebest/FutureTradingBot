@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
   pollPauseStatus(true);
   setInterval(pollPauseStatus, 5000);
   _wireResetButton();
+  _wireDownloadButtons();
 });
 
 // ---- Admin: Reset account ------------------------------------------------
@@ -166,85 +167,76 @@ function _wireResetButton() {
   if (!btn || btn.dataset.bound) return;
   btn.dataset.bound = "1";
   btn.addEventListener("click", _doResetAccount);
-  const vbtn = document.getElementById("btn-verify-today");
-  if (vbtn && !vbtn.dataset.bound) {
-    vbtn.dataset.bound = "1";
-    vbtn.addEventListener("click", _doVerifyToday);
-  }
 }
 
-async function _doVerifyToday() {
-  const btn = document.getElementById("btn-verify-today");
-  const card = document.getElementById("verify-result");
-  const body = document.getElementById("verify-result-body");
-  if (!btn || !card || !body) return;
+// ---- Downloads tab ----------------------------------------------------------
+function _wireDownloadButtons() {
+  document.querySelectorAll(".btn-dl").forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", () => _doDownload(btn));
+  });
+}
+
+function _statusEl(message, status) {
+  const el = document.getElementById("dl-status");
+  if (!el) return;
+  const cls = status === "ok"   ? "pos"
+            : status === "bad"  ? "neg"
+            :                     "muted";
+  el.innerHTML = `<div class="${cls}">${message}</div>`;
+}
+
+async function _doDownload(btn) {
+  const kind = btn.dataset.dl;
+  const ext  = btn.dataset.ext || "json";
+  const directUrl = btn.dataset.direct;   // for endpoints that already exist
+  if (!kind) return;
+  const original = btn.textContent;
   btn.disabled = true;
-  const prev = btn.textContent;
-  btn.textContent = "Fetching Polygon…";
-  card.hidden = false;
-  body.innerHTML = '<div class="muted">Fetching today\'s 1-min bars from Polygon and replaying every trade…</div>';
+  btn.textContent = "Preparing…";
+  _statusEl(`Preparing ${kind} (.${ext})…`, "muted");
   try {
-    const r = await fetch(af("/api/admin/verify_today"));
-    const j = await r.json();
-    btn.textContent = prev;
-    btn.disabled = false;
-    if (!j.ok) {
-      body.innerHTML = '<div class="neg">Verify failed: ' +
-        (j.error || r.status) + '</div>';
-      return;
-    }
-    if (!j.trades || j.trades.length === 0) {
-      body.innerHTML = '<div class="muted">' + (j.msg || "No trades to verify yet.") + '</div>';
-      return;
-    }
-    const s = j.summary || {};
-    const srcNote = s.bot_data_source
-      ? ` &middot; bot data: <b>${s.bot_data_source}</b>` : '';
-    let html = '<div class="verify-summary">' +
-               `<b>${j.n_trades}</b> trades since <b>${j.since.slice(0,16).replace("T"," ")}</b> &middot; ` +
-               `<span class="verdict-ok">${s.verified||0} confirmed</span> &middot; ` +
-               `<span class="verdict-bad">${s.mismatched||0} mismatched</span>` +
-               (s.polygon_missing ? ` &middot; ${s.polygon_missing} no-coverage` : '') +
-               srcNote +
-               '</div>';
-    for (const t of j.trades) {
-      const v = t.polygon || {};
-      const verdictClass = t.verdict === "OK" ? "verdict-ok" : "verdict-bad";
-      const verdictText  = t.verdict || "—";
-      html += '<div class="verify-trade">';
-      html += `<div><span class="${verdictClass}">${verdictText}</span> &middot; ` +
-              `${t.entry_ts.slice(11,19)} ${t.side} ` +
-              `entry ${t.bot_entry_px} → exit ${t.bot_exit_px} ` +
-              `(${t.bot_exit_reason}) <b>$${t.bot_pnl}</b></div>`;
-      if (t.note) {
-        html += `<div class="muted">${t.note}</div>`;
-      } else if (v.matched_signal) {
-        const m = v.matched_signal;
-        const kInfo = (m.k_back !== undefined) ? ` (k=${m.k_back})` : '';
-        html += `<div class="muted">` +
-                `signal at ${m.sig_close_ts.slice(11,16)}${kInfo}: ${m.impulse_pts}pt ${m.impulse_side} → expected entry ${m.expected_entry} ✓ · ` +
-                `touched ✓ · stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
-                `</div>`;
-      } else if (v.closest_signal) {
-        const c = v.closest_signal;
-        const kInfo = (c.k_back !== undefined) ? ` (k=${c.k_back})` : '';
-        html += `<div class="muted">` +
-                `no matching signal in last 7 min · closest: ${c.sig_close_ts.slice(11,16)}${kInfo} ${c.impulse_pts}pt ` +
-                `${c.impulse_side||''} ${c.expected_entry?'→ entry '+c.expected_entry:''} · fail=<b>${c.fail||'?'}</b><br/>` +
-                `bar touched entry ${v.bar_touched_entry?'✓':'✗'} · ` +
-                `stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
-                `</div>`;
-      } else {
-        html += `<div class="muted">no signal candidates found in last 5 min · ` +
-                `touched ${v.bar_touched_entry?'✓':'✗'}</div>`;
+    let url;
+    if (directUrl) {
+      url = af(directUrl);
+    } else {
+      let q = "";
+      if (kind === "bundle") {
+        const cb = document.getElementById("dl-include-verify");
+        const includeVerify = cb && cb.checked ? "1" : "0";
+        q = `?verify=${includeVerify}`;
       }
-      html += '</div>';
+      url = af(`/api/download/${kind}${q}`);
     }
-    body.innerHTML = html;
+    const r = await fetch(url, { method: "GET" });
+    if (!r.ok) {
+      const text = await r.text();
+      _statusEl(`Failed (${r.status}): ${text.slice(0,200)}`, "bad");
+      return;
+    }
+    // Extract filename from Content-Disposition if present
+    const cd = r.headers.get("Content-Disposition") || "";
+    const match = cd.match(/filename="([^"]+)"/);
+    const filename = match
+      ? match[1]
+      : `hftbot_${kind.replace(/\./g,"_")}_${Date.now()}.${ext}`;
+    const blob = await r.blob();
+    // Trigger a save dialog
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    const sizeKb = (blob.size / 1024).toFixed(1);
+    _statusEl(`✅ Downloaded <code>${filename}</code> (${sizeKb} KB)`, "ok");
   } catch (e) {
-    btn.textContent = prev;
+    _statusEl(`Error: ${e}`, "bad");
+  } finally {
+    btn.textContent = original;
     btn.disabled = false;
-    body.innerHTML = '<div class="neg">Verify error: ' + e + '</div>';
   }
 }
 
