@@ -169,6 +169,29 @@ function _wireResetButton() {
   btn.addEventListener("click", _doResetAccount);
 }
 
+// ---- Shadow engine summary (refreshed by main poll) -----------------------
+function renderShadowSummary(data) {
+  const el = document.getElementById("shadow-summary");
+  if (!el) return;
+  const s = data && data.shadow_engine;
+  if (!s || !s.enabled) {
+    el.innerHTML = '<div class="muted">Shadow engine not running (will appear once Railway redeploys).</div>';
+    return;
+  }
+  const sign = (n) => (n >= 0 ? "+" : "");
+  const liveTrades = (data && data.lifetime_stats && data.lifetime_stats.n_trades) || 0;
+  const livePnl    = (data && data.lifetime_stats && data.lifetime_stats.total_pnl) || 0;
+  el.innerHTML = `
+    <div class="kv-row"><span>Engine trades</span><b>${s.trades_closed}</b></div>
+    <div class="kv-row"><span>Engine win rate</span><b>${s.win_rate.toFixed(1)}%</b></div>
+    <div class="kv-row"><span>Engine P&L</span><b class="${s.total_pnl_usd>=0?'pos':'neg'}">$${sign(s.total_pnl_usd)}${s.total_pnl_usd.toFixed(2)}</b></div>
+    <div class="kv-row"><span>Live trades</span><b>${liveTrades}</b></div>
+    <div class="kv-row"><span>Live P&L</span><b class="${livePnl>=0?'pos':'neg'}">$${sign(livePnl)}${livePnl.toFixed(2)}</b></div>
+    <div class="kv-row"><span>Engine cycles</span><b>${s.cycles_processed}</b></div>
+    ${s.errors>0 ? `<div class="kv-row"><span>Engine errors</span><b class="neg">${s.errors}</b></div>` : ''}
+  `;
+}
+
 // ---- Downloads tab ----------------------------------------------------------
 function _wireDownloadButtons() {
   document.querySelectorAll(".btn-dl").forEach(btn => {
@@ -595,6 +618,9 @@ function renderLive(d) {
 
   // Sim baseline drift monitor — annualise from all completed trades
   renderDriftMonitor(d);
+
+  // Shadow engine summary (Downloads tab)
+  renderShadowSummary(d);
 }
 
 // Server-side process-alive check. Independent of d.ts because the bot

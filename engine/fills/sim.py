@@ -83,9 +83,22 @@ class SimFillParams:
 class SimFillModel(FillModel):
     """Stochastic fill simulator. State per submitted order = the random
     state, so two FillModel instances with the same seed will produce
-    the same outcomes on the same inputs."""
+    the same outcomes on the same inputs.
+
+    If a calibration file exists at engine/calibration/params.json,
+    SimFillModel uses those params by default. Pass params= explicitly
+    to override (e.g. for the 3-way backtest comparison)."""
 
     def __init__(self, params: Optional[SimFillParams] = None):
+        if params is None:
+            # Lazy import to avoid circular dep
+            try:
+                from pathlib import Path
+                from engine.calibration.fill_calibrator import load_calibration
+                cal_path = Path(__file__).resolve().parents[1] / "calibration" / "params.json"
+                params = load_calibration(cal_path)
+            except Exception:
+                params = None
         self.p = params or SimFillParams()
         self.rng = np.random.default_rng(self.p.seed)
 

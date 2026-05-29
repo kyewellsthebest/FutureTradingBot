@@ -426,9 +426,35 @@
             <button class="btn-dl" data-dl="lucid" data-ext="json">
               ⬇ Lucid account state
             </button>
+            <button class="btn-dl" data-dl="tradovate" data-ext="json">
+              ⬇ Tradovate adapter status
+            </button>
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-header">🌓 Shadow engine</div>
+          <div class="card-body dl-list">
+            <p class="muted dl-help-small">
+              The new engine.runtime.Runtime runs in PARALLEL with the live
+              bot on the same bars. Pure observer; doesn't touch live state.
+              Compare what it WOULD have done vs what the live bot DID, to
+              verify the engine matches before any migration.
+            </p>
+            <div class="kv-list" id="shadow-summary">
+              <div class="muted">No shadow data yet (engine warming up).</div>
+            </div>
+            <button class="btn-dl" data-dl="shadow" data-ext="json">
+              ⬇ Shadow engine state (full)
+            </button>
+            <button class="btn-dl btn-dl-primary" data-dl="shadow_vs_live" data-ext="json">
+              ⬇ Shadow vs Live comparison
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
         <div class="card">
           <div class="card-header">🔍 Polygon verification</div>
           <div class="card-body dl-list">

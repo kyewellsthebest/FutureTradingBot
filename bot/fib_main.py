@@ -214,6 +214,20 @@ class FibRuntime:
         self.cycle = 0
         self._running = True
         self.last_error: Optional[str] = None
+        # Shadow engine: runs the new engine.runtime.Runtime in parallel on
+        # the same bars. Zero influence on live trading; produces an
+        # artifact we can diff against the live bot to verify equivalence.
+        # Disabled if engine package can't be imported (graceful fallback).
+        try:
+            from bot.shadow_engine import ShadowEngine
+            self.shadow = ShadowEngine(
+                account_id=account_id,
+                starting_balance=float(getattr(self.account.state, "starting_balance",
+                                                 50000.0)),
+            )
+        except Exception as e:
+            self.last_error = f"shadow_engine init failed: {e!r}"
+            self.shadow = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -431,6 +445,22 @@ class FibRuntime:
             self._on_trade_close(record, now)
             self.recent_trades.appendleft(record)
 
+        # ---- SHADOW ENGINE -----------------------------------------------
+        # Run the new engine.runtime.Runtime in parallel on the same bar.
+        # Pure observer; doesn't touch live state. Lets us verify the engine
+        # produces equivalent decisions before any migration.
+        if self.shadow is not None:
+            try:
+                from bot.lucid_account import _ny_date_iso
+                ny = _ny_date_iso(now)
+                self.shadow.on_new_closed_bar(self._bars_1m, now, ny)
+                # Persist every 10 cycles to keep disk writes light
+                if self.cycle % 10 == 0:
+                    from bot.account_ctx import data_dir as _acct_dir
+                    self.shadow.persist(_acct_dir() / "shadow_engine.json")
+            except Exception as e:
+                logger.debug(f"shadow tick failed: {e!r}")
+
     # ---- trade lifecycle hooks ----------------------------------------
     def _on_trade_open(self, trade, now: datetime) -> None:
         # Always route through the paper account so balance + DB persist
@@ -495,6 +525,7 @@ class FibRuntime:
             except Exception as e:
                 logger.debug(f"lifetime_stats failed: {e}")
                 lifetime = None
+            shadow_snap = self.shadow.snapshot() if self.shadow else {"enabled": False}
             blob = {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "shadow" if SHADOW_MODE else "live",
@@ -509,6 +540,7 @@ class FibRuntime:
                 "price": current_price,
                 "price_ts": latest.ts.isoformat() if latest and latest.ts else None,
                 "fib": fib_snap,
+                "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,
                 "funded_accounts": funded_snap,
                 "recent_trades": [

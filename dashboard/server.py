@@ -1507,6 +1507,40 @@ def api_download(kind: str):
         else:
             data = {"error": "lucid_account.json missing"}
         return _json_resp(data, f"{base_name}_lucid.json")
+    if kind == "shadow":
+        sp = _acct_dir() / "shadow_engine.json"
+        if sp.exists():
+            try:
+                data = json.loads(sp.read_text())
+            except Exception as e:
+                data = {"error": repr(e)}
+        else:
+            data = {"error": "shadow_engine.json missing (bot not running engine yet)"}
+        return _json_resp(data, f"{base_name}_shadow_engine.json")
+    if kind == "shadow_vs_live":
+        # The single most useful download: side-by-side live trades and
+        # engine trades for the same time period. The compare for me to
+        # quickly verify they agree.
+        sp = _acct_dir() / "shadow_engine.json"
+        live_rows = _filter_trades_since_reset(persistence.load_trades(limit=10_000))
+        try:
+            shadow = json.loads(sp.read_text()) if sp.exists() else None
+        except Exception as e:
+            shadow = {"error": repr(e)}
+        payload = {
+            "kind": "shadow_vs_live_comparison",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "live_trades": live_rows,
+            "shadow": shadow,
+        }
+        return _json_resp(payload, f"{base_name}_shadow_vs_live.json")
+    if kind == "tradovate":
+        try:
+            from engine.brokers.tradovate import tradovate_status
+            data = tradovate_status()
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_tradovate.json")
     if kind == "verify":
         with app.test_request_context(f"/api/admin/verify_today?account={aid}"):
             resp = api_admin_verify_today()
