@@ -1181,6 +1181,7 @@ def _build_health_payload(include_verify: bool = False):
             "price": snap.get("price"),
             "htf_trend": snap.get("htf_trend"),
         }
+        payload["shadow_engine"] = snap.get("shadow_engine")
         payload["active_trade"] = (snap.get("fib") or {}).get("active_trade")
         payload["pending_setups"] = (snap.get("fib") or {}).get("pending_setups", [])
         payload["lifetime_stats"] = snap.get("lifetime_stats")
