@@ -198,16 +198,19 @@ async function _doVerifyToday() {
       return;
     }
     const s = j.summary || {};
+    const srcNote = s.bot_data_source
+      ? ` &middot; bot data: <b>${s.bot_data_source}</b>` : '';
     let html = '<div class="verify-summary">' +
                `<b>${j.n_trades}</b> trades since <b>${j.since.slice(0,16).replace("T"," ")}</b> &middot; ` +
                `<span class="verdict-ok">${s.verified||0} confirmed</span> &middot; ` +
                `<span class="verdict-bad">${s.mismatched||0} mismatched</span>` +
                (s.polygon_missing ? ` &middot; ${s.polygon_missing} no-coverage` : '') +
+               srcNote +
                '</div>';
     for (const t of j.trades) {
       const v = t.polygon || {};
       const verdictClass = t.verdict === "OK" ? "verdict-ok" : "verdict-bad";
-      const verdictText  = t.verdict || (t.note ? "?" : "—");
+      const verdictText  = t.verdict || "—";
       html += '<div class="verify-trade">';
       html += `<div><span class="${verdictClass}">${verdictText}</span> &middot; ` +
               `${t.entry_ts.slice(11,19)} ${t.side} ` +
@@ -215,13 +218,23 @@ async function _doVerifyToday() {
               `(${t.bot_exit_reason}) <b>$${t.bot_pnl}</b></div>`;
       if (t.note) {
         html += `<div class="muted">${t.note}</div>`;
-      } else if (v.impulse_present !== undefined) {
+      } else if (v.matched_signal) {
+        const m = v.matched_signal;
         html += `<div class="muted">` +
-                `impulse ${v.impulse_pts}pt ${v.impulse_dir} ${v.impulse_present?'✓':'✗'} · ` +
-                `expected entry ${v.expected_entry} (match ${v.entry_price_match?'✓':'✗'}) · ` +
-                `bar touched ${v.bar_touched_entry?'✓':'✗'} · ` +
+                `signal at ${m.sig_close_ts.slice(11,16)}: ${m.impulse_pts}pt ${m.impulse_side} → expected entry ${m.expected_entry} ✓ · ` +
+                `touched ✓ · stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
+                `</div>`;
+      } else if (v.closest_signal) {
+        const c = v.closest_signal;
+        html += `<div class="muted">` +
+                `no matching signal in last 5 min · closest: ${c.sig_close_ts.slice(11,16)} ${c.impulse_pts}pt ` +
+                `${c.impulse_side||''} ${c.expected_entry?'→ entry '+c.expected_entry:''} · fail=<b>${c.fail||'?'}</b><br/>` +
+                `bar touched entry ${v.bar_touched_entry?'✓':'✗'} · ` +
                 `stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
                 `</div>`;
+      } else {
+        html += `<div class="muted">no signal candidates found in last 5 min · ` +
+                `touched ${v.bar_touched_entry?'✓':'✗'}</div>`;
       }
       html += '</div>';
     }

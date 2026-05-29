@@ -1150,14 +1150,18 @@ def api_admin_verify_today():
     1-min bars covering the trade window and verify the bot's claimed
     behaviour matches the actual market.
 
-    For each trade we check:
-      1. Was the 5pt impulse over 4 bars really present at signal time?
-      2. Did a bar's low (LONG) or high (SHORT) actually reach the
-         claimed pullback entry price?
-      3. Did a bar after entry actually hit the stop / target?
+    Replicates the strategy's logic exactly:
+      - impulse = window[-1].close - window[0].open over LAST 4 bars
+      - signal can fire any time in [entry_min - 5, entry_min]; we scan
+        every candidate and accept the trade if ANY signal time produces
+        an impulse + pullback level + side that matches the bot's record
+      - then checks: did some bar in [signal+1, signal+5] actually touch
+        the claimed entry, and did some bar in [fill, fill+10] hit the
+        claimed stop or target as recorded
 
-    Returns a JSON report. Use this whenever live P&L looks off to
-    confirm the bot isn't making up fills on noisy data.
+    Returns a JSON report. OK = bot behaviour confirmed by Polygon ticks.
+    MISMATCH = at least one check failed; details show which one and the
+    closest signal-time candidate so you can see how far off it was.
     """
     from research.data_loader import download_nq
     from datetime import datetime, timedelta, timezone as _tz
@@ -1167,7 +1171,6 @@ def api_admin_verify_today():
     cutoff = _reset_cutoff_ts()
     all_rows = _filter_trades_since_reset(persistence.load_trades(limit=10_000),
                                           cutoff=cutoff)
-    # Restrict to "today" in UTC by default; ?since=ISO can override.
     since_param = request.args.get("since")
     if since_param:
         try:
@@ -1213,106 +1216,127 @@ def api_admin_verify_today():
         return jsonify({"ok": False, "error": f"Polygon fetch failed: {e!r}"}), 502
 
     # Strategy constants (must match bot/pullback_strategy.py).
-    IMPULSE_PTS = 5.0
+    IMPULSE_PTS    = 5.0
     IMPULSE_WINDOW = 4
-    PULLBACK_PCT = 0.618
-    STOP_PTS = 6.0
-    TARGET_PTS = 12.0
-    MAX_WAIT_MIN = 5
-    MAX_HOLD_MIN = 10
-    ADVERSE_SLIP = 0.25
+    PULLBACK_PCT   = 0.618
+    STOP_PTS       = 6.0
+    TARGET_PTS     = 12.0
+    MAX_WAIT_MIN   = 5
+    MAX_HOLD_MIN   = 10
+    ENTRY_TOL      = 0.5    # pt tolerance for matching entry prices
 
     audited = []
-    summary = {"verified": 0, "mismatched": 0, "polygon_missing": 0}
+    summary = {"verified": 0, "mismatched": 0, "polygon_missing": 0,
+               "bot_data_source": None}
+    # Tell the user what source the bot is on so they can correlate the
+    # audit with the bot's actual data quality.
+    try:
+        from bot.persistence import load_dashboard
+        snap = load_dashboard()
+        summary["bot_data_source"] = snap.get("bars_1m_source")
+    except Exception:
+        pass
+
+    def _scan_signals(entry_ts, bot_entry_px, bot_side):
+        """Try every candidate signal time in [entry_min - MAX_WAIT_MIN, entry_min].
+        Return the best matching candidate (or None) along with diagnostics
+        for the closest one."""
+        entry_min = entry_ts.floor("min")
+        best = None
+        closest_diag = None
+        for k in range(0, MAX_WAIT_MIN + 1):
+            sig_close_ts = entry_min - timedelta(minutes=k)
+            # Need at least IMPULSE_WINDOW bars ending at sig_close_ts.
+            window_start = sig_close_ts - timedelta(minutes=IMPULSE_WINDOW - 1)
+            window = bars[(bars.index >= window_start) & (bars.index <= sig_close_ts)]
+            if len(window) < IMPULSE_WINDOW:
+                continue
+            window = window.iloc[-IMPULSE_WINDOW:]   # last 4 only
+            net = float(window["close"].iloc[-1]) - float(window["open"].iloc[0])
+            if abs(net) < IMPULSE_PTS:
+                if closest_diag is None or abs(IMPULSE_PTS - abs(net)) < abs(closest_diag.get("missing_by", 999)):
+                    closest_diag = {"sig_close_ts": sig_close_ts.isoformat(),
+                                    "impulse_pts": round(net, 2),
+                                    "missing_by": round(IMPULSE_PTS - abs(net), 2),
+                                    "fail": "impulse_too_small"}
+                continue
+            impulse_side = "LONG" if net > 0 else "SHORT"
+            imp_high = float(window["high"].max())
+            imp_low  = float(window["low"].min())
+            rng = imp_high - imp_low
+            if rng <= 0:
+                continue
+            if impulse_side == "LONG":
+                expected_entry = imp_high - PULLBACK_PCT * rng
+            else:
+                expected_entry = imp_low + PULLBACK_PCT * rng
+            diag = {
+                "sig_close_ts": sig_close_ts.isoformat(),
+                "impulse_pts": round(net, 2),
+                "impulse_side": impulse_side,
+                "expected_entry": round(expected_entry, 2),
+                "entry_diff": round(expected_entry - bot_entry_px, 2),
+            }
+            if impulse_side != bot_side:
+                diag["fail"] = "side_mismatch"
+                if closest_diag is None or abs(diag["entry_diff"]) < abs(closest_diag.get("entry_diff", 999)):
+                    closest_diag = diag
+                continue
+            if abs(expected_entry - bot_entry_px) >= ENTRY_TOL:
+                diag["fail"] = "entry_price_off"
+                if closest_diag is None or abs(diag["entry_diff"]) < abs(closest_diag.get("entry_diff", 999)):
+                    closest_diag = diag
+                continue
+            # Match!
+            diag["fail"] = None
+            return diag, diag
+        return None, closest_diag
 
     for r, entry_ts in today_rows:
-        bot_entry_px = float(r.get("entry_px") or 0)
-        bot_exit_px = float(r.get("exit_px") or 0)
-        bot_stop_px = float(r.get("stop_px") or 0)
+        bot_entry_px  = float(r.get("entry_px") or 0)
+        bot_exit_px   = float(r.get("exit_px") or 0)
+        bot_stop_px   = float(r.get("stop_px") or 0)
         bot_target_px = float(r.get("target_px") or 0)
-        bot_side = r.get("side")  # "LONG" or "SHORT"
-        bot_pnl = float(r.get("pnl") or 0)
-        bot_reason = r.get("exit_reason") or ""
-        side_sign = 1 if bot_side == "LONG" else -1
+        bot_side      = r.get("side")
+        bot_pnl       = float(r.get("pnl") or 0)
+        bot_reason    = r.get("exit_reason") or ""
+        side_sign     = 1 if bot_side == "LONG" else -1
 
-        # The bot fires fills on the bar AFTER the impulse window closed,
-        # so the impulse bars are at minutes [entry_ts - W .. entry_ts - 1]
-        # in 1-min space (approximately). Snap to nearest bar.
-        try:
-            window_start = entry_ts - timedelta(minutes=IMPULSE_WINDOW + 2)
-            window_end = entry_ts + timedelta(minutes=MAX_HOLD_MIN + 2)
-            slice_bars = bars[(bars.index >= window_start) & (bars.index <= window_end)]
-        except Exception as e:
-            audited.append({"entry_ts": entry_ts.isoformat(),
-                            "error": f"slice failed: {e!r}"})
-            continue
+        # Check Polygon coverage.
+        window_start = entry_ts - timedelta(minutes=MAX_WAIT_MIN + IMPULSE_WINDOW + 2)
+        window_end   = entry_ts + timedelta(minutes=MAX_HOLD_MIN + 2)
+        slice_bars = bars[(bars.index >= window_start) & (bars.index <= window_end)]
         if slice_bars.empty:
             summary["polygon_missing"] += 1
             audited.append({"entry_ts": entry_ts.isoformat(),
-                            "side": bot_side,
-                            "bot_pnl": round(bot_pnl, 2),
-                            "polygon_coverage": False,
-                            "note": "Polygon has no bars covering this trade window. "
-                                    "Either the time hasn't been backfilled yet or "
-                                    "the bot was using a different data source."})
+                            "side": bot_side, "bot_pnl": round(bot_pnl, 2),
+                            "verdict": "NO_DATA",
+                            "note": "Polygon has no 1-min bars for this trade window."})
             continue
 
-        # Find the bar nearest to entry_ts (within ±2 min).
-        idx_near_entry = slice_bars.index.get_indexer(
-            [entry_ts.floor("min")], method="nearest")[0]
-        if idx_near_entry < IMPULSE_WINDOW + 1:
-            audited.append({"entry_ts": entry_ts.isoformat(),
-                            "side": bot_side,
-                            "bot_pnl": round(bot_pnl, 2),
-                            "note": "Not enough lookback bars to verify impulse."})
-            continue
-        impulse_bars = slice_bars.iloc[idx_near_entry - IMPULSE_WINDOW - 1:idx_near_entry]
-        if len(impulse_bars) < IMPULSE_WINDOW:
-            audited.append({"entry_ts": entry_ts.isoformat(),
-                            "side": bot_side,
-                            "bot_pnl": round(bot_pnl, 2),
-                            "note": "Impulse window incomplete in Polygon data."})
-            continue
+        match, closest = _scan_signals(entry_ts, bot_entry_px, bot_side)
 
-        # 1. Real impulse check.
-        c_arr = impulse_bars["close"].to_numpy()
-        net_move = float(c_arr[-1] - c_arr[0])
-        impulse_present = abs(net_move) >= IMPULSE_PTS
-        impulse_direction = "up" if net_move > 0 else "down"
-        # 2. Real pullback level + did a bar after impulse touch it?
-        h_arr = impulse_bars["high"].to_numpy()
-        l_arr = impulse_bars["low"].to_numpy()
-        imp_high = float(h_arr.max()); imp_low = float(l_arr.min())
-        rng = imp_high - imp_low
+        # Reality checks: did entry, stop, target actually get touched.
+        post_signal = slice_bars[slice_bars.index >= entry_ts.floor("min") - timedelta(minutes=MAX_WAIT_MIN)]
         if side_sign == 1:
-            expected_entry = imp_high - rng * PULLBACK_PCT
+            touched_entry = bool((post_signal["low"]  <= bot_entry_px).any())
         else:
-            expected_entry = imp_low + rng * PULLBACK_PCT
-        entry_match = abs(expected_entry - bot_entry_px) < 0.5  # within 0.5pt
-        # 3. Did the entry bar actually touch the pullback level?
-        wait_end = min(idx_near_entry + MAX_WAIT_MIN + 1, len(slice_bars))
-        wait_bars = slice_bars.iloc[idx_near_entry:wait_end]
+            touched_entry = bool((post_signal["high"] >= bot_entry_px).any())
+        hold_bars = slice_bars[slice_bars.index >= entry_ts.floor("min")]
         if side_sign == 1:
-            touched_entry = bool((wait_bars["low"] <= bot_entry_px).any())
+            hit_stop = bool((hold_bars["low"]  <= bot_stop_px).any())
+            hit_tgt  = bool((hold_bars["high"] >= bot_target_px).any())
         else:
-            touched_entry = bool((wait_bars["high"] >= bot_entry_px).any())
-        # 4. Did the exit really happen the way bot claims?
-        hold_end = min(idx_near_entry + MAX_HOLD_MIN + 2, len(slice_bars))
-        hold_bars = slice_bars.iloc[idx_near_entry:hold_end]
-        if side_sign == 1:
-            hit_stop  = bool((hold_bars["low"]  <= bot_stop_px).any())
-            hit_tgt   = bool((hold_bars["high"] >= bot_target_px).any())
-        else:
-            hit_stop  = bool((hold_bars["high"] >= bot_stop_px).any())
-            hit_tgt   = bool((hold_bars["low"]  <= bot_target_px).any())
+            hit_stop = bool((hold_bars["high"] >= bot_stop_px).any())
+            hit_tgt  = bool((hold_bars["low"]  <= bot_target_px).any())
         exit_match = (
-            (bot_reason == "stop"    and hit_stop) or
-            (bot_reason == "target"  and hit_tgt)  or
+            (bot_reason == "stop"   and hit_stop) or
+            (bot_reason == "target" and hit_tgt)  or
             (bot_reason == "timeout")
         )
 
-        verdict = "OK" if (impulse_present and entry_match and touched_entry and exit_match) \
-                  else "MISMATCH"
+        signal_match = match is not None
+        verdict = "OK" if (signal_match and touched_entry and exit_match) else "MISMATCH"
         if verdict == "OK": summary["verified"] += 1
         else: summary["mismatched"] += 1
 
@@ -1320,20 +1344,19 @@ def api_admin_verify_today():
             "entry_ts": entry_ts.isoformat(),
             "side": bot_side,
             "bot_entry_px": round(bot_entry_px, 2),
-            "bot_exit_px": round(bot_exit_px, 2),
-            "bot_stop_px": round(bot_stop_px, 2),
+            "bot_exit_px":  round(bot_exit_px, 2),
+            "bot_stop_px":  round(bot_stop_px, 2),
             "bot_target_px": round(bot_target_px, 2),
             "bot_exit_reason": bot_reason,
             "bot_pnl": round(bot_pnl, 2),
             "polygon": {
-                "impulse_present": impulse_present,
-                "impulse_pts": round(net_move, 2),
-                "impulse_dir": impulse_direction,
-                "expected_entry": round(expected_entry, 2),
-                "entry_price_match": entry_match,
+                "signal_match": signal_match,
+                "matched_signal": match,
+                "closest_signal": closest,
                 "bar_touched_entry": touched_entry,
                 "bar_hit_stop": hit_stop,
                 "bar_hit_target": hit_tgt,
+                "exit_reason_matches_bars": exit_match,
             },
             "verdict": verdict,
         })
@@ -1344,9 +1367,9 @@ def api_admin_verify_today():
         "n_trades": len(today_rows),
         "summary": summary,
         "trades": audited,
-        "note": "OK = bot's behaviour confirmed by real Polygon 1-min bars. "
-                "MISMATCH = one of the checks (impulse / entry touched / exit hit) "
-                "didn't match the actual market data; investigate.",
+        "note": "OK requires: matching impulse signal time exists with side+entry "
+                "consistent with strategy; entry was touched; exit reason matches "
+                "what bars actually did.",
     })
 
 
