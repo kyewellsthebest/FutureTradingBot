@@ -1144,6 +1144,212 @@ def api_funded_accounts():
     })
 
 
+@app.route("/api/admin/verify_today", methods=["GET", "POST"])
+def api_admin_verify_today():
+    """Per-trade audit: for every trade closed today, fetch real Polygon
+    1-min bars covering the trade window and verify the bot's claimed
+    behaviour matches the actual market.
+
+    For each trade we check:
+      1. Was the 5pt impulse over 4 bars really present at signal time?
+      2. Did a bar's low (LONG) or high (SHORT) actually reach the
+         claimed pullback entry price?
+      3. Did a bar after entry actually hit the stop / target?
+
+    Returns a JSON report. Use this whenever live P&L looks off to
+    confirm the bot isn't making up fills on noisy data.
+    """
+    from research.data_loader import download_nq
+    from datetime import datetime, timedelta, timezone as _tz
+    import pandas as _pd
+
+    # Pull today's closed trades (NY day, post-reset).
+    cutoff = _reset_cutoff_ts()
+    all_rows = _filter_trades_since_reset(persistence.load_trades(limit=10_000),
+                                          cutoff=cutoff)
+    # Restrict to "today" in UTC by default; ?since=ISO can override.
+    since_param = request.args.get("since")
+    if since_param:
+        try:
+            since_ts = _pd.Timestamp(since_param)
+            since_ts = since_ts.tz_convert("UTC") if since_ts.tz is not None \
+                       else since_ts.tz_localize("UTC")
+        except Exception:
+            return jsonify({"ok": False, "error": f"bad since: {since_param}"}), 400
+    else:
+        since_ts = _pd.Timestamp.now(tz="UTC").normalize()
+    today_rows = []
+    for r in all_rows:
+        et = r.get("entry_time"); xt = r.get("exit_time")
+        if not et or not xt:
+            continue
+        try:
+            ets = _pd.Timestamp(et)
+            ets = ets.tz_convert("UTC") if ets.tz is not None else ets.tz_localize("UTC")
+            if ets < since_ts:
+                continue
+            today_rows.append((r, ets))
+        except Exception:
+            continue
+
+    if not today_rows:
+        return jsonify({
+            "ok": True,
+            "since": since_ts.isoformat(),
+            "n_trades": 0,
+            "msg": "No trades to verify in this window.",
+        })
+
+    # Fetch today's Polygon 1-min bars (force refresh to bypass cache).
+    try:
+        bars = download_nq("1min", force_refresh=True)
+        if bars is None or bars.empty:
+            return jsonify({"ok": False, "error": "Polygon returned no 1-min data"}), 502
+        if bars.index.tz is None:
+            bars.index = bars.index.tz_localize("UTC")
+        else:
+            bars.index = bars.index.tz_convert("UTC")
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Polygon fetch failed: {e!r}"}), 502
+
+    # Strategy constants (must match bot/pullback_strategy.py).
+    IMPULSE_PTS = 5.0
+    IMPULSE_WINDOW = 4
+    PULLBACK_PCT = 0.618
+    STOP_PTS = 6.0
+    TARGET_PTS = 12.0
+    MAX_WAIT_MIN = 5
+    MAX_HOLD_MIN = 10
+    ADVERSE_SLIP = 0.25
+
+    audited = []
+    summary = {"verified": 0, "mismatched": 0, "polygon_missing": 0}
+
+    for r, entry_ts in today_rows:
+        bot_entry_px = float(r.get("entry_px") or 0)
+        bot_exit_px = float(r.get("exit_px") or 0)
+        bot_stop_px = float(r.get("stop_px") or 0)
+        bot_target_px = float(r.get("target_px") or 0)
+        bot_side = r.get("side")  # "LONG" or "SHORT"
+        bot_pnl = float(r.get("pnl") or 0)
+        bot_reason = r.get("exit_reason") or ""
+        side_sign = 1 if bot_side == "LONG" else -1
+
+        # The bot fires fills on the bar AFTER the impulse window closed,
+        # so the impulse bars are at minutes [entry_ts - W .. entry_ts - 1]
+        # in 1-min space (approximately). Snap to nearest bar.
+        try:
+            window_start = entry_ts - timedelta(minutes=IMPULSE_WINDOW + 2)
+            window_end = entry_ts + timedelta(minutes=MAX_HOLD_MIN + 2)
+            slice_bars = bars[(bars.index >= window_start) & (bars.index <= window_end)]
+        except Exception as e:
+            audited.append({"entry_ts": entry_ts.isoformat(),
+                            "error": f"slice failed: {e!r}"})
+            continue
+        if slice_bars.empty:
+            summary["polygon_missing"] += 1
+            audited.append({"entry_ts": entry_ts.isoformat(),
+                            "side": bot_side,
+                            "bot_pnl": round(bot_pnl, 2),
+                            "polygon_coverage": False,
+                            "note": "Polygon has no bars covering this trade window. "
+                                    "Either the time hasn't been backfilled yet or "
+                                    "the bot was using a different data source."})
+            continue
+
+        # Find the bar nearest to entry_ts (within ±2 min).
+        idx_near_entry = slice_bars.index.get_indexer(
+            [entry_ts.floor("min")], method="nearest")[0]
+        if idx_near_entry < IMPULSE_WINDOW + 1:
+            audited.append({"entry_ts": entry_ts.isoformat(),
+                            "side": bot_side,
+                            "bot_pnl": round(bot_pnl, 2),
+                            "note": "Not enough lookback bars to verify impulse."})
+            continue
+        impulse_bars = slice_bars.iloc[idx_near_entry - IMPULSE_WINDOW - 1:idx_near_entry]
+        if len(impulse_bars) < IMPULSE_WINDOW:
+            audited.append({"entry_ts": entry_ts.isoformat(),
+                            "side": bot_side,
+                            "bot_pnl": round(bot_pnl, 2),
+                            "note": "Impulse window incomplete in Polygon data."})
+            continue
+
+        # 1. Real impulse check.
+        c_arr = impulse_bars["close"].to_numpy()
+        net_move = float(c_arr[-1] - c_arr[0])
+        impulse_present = abs(net_move) >= IMPULSE_PTS
+        impulse_direction = "up" if net_move > 0 else "down"
+        # 2. Real pullback level + did a bar after impulse touch it?
+        h_arr = impulse_bars["high"].to_numpy()
+        l_arr = impulse_bars["low"].to_numpy()
+        imp_high = float(h_arr.max()); imp_low = float(l_arr.min())
+        rng = imp_high - imp_low
+        if side_sign == 1:
+            expected_entry = imp_high - rng * PULLBACK_PCT
+        else:
+            expected_entry = imp_low + rng * PULLBACK_PCT
+        entry_match = abs(expected_entry - bot_entry_px) < 0.5  # within 0.5pt
+        # 3. Did the entry bar actually touch the pullback level?
+        wait_end = min(idx_near_entry + MAX_WAIT_MIN + 1, len(slice_bars))
+        wait_bars = slice_bars.iloc[idx_near_entry:wait_end]
+        if side_sign == 1:
+            touched_entry = bool((wait_bars["low"] <= bot_entry_px).any())
+        else:
+            touched_entry = bool((wait_bars["high"] >= bot_entry_px).any())
+        # 4. Did the exit really happen the way bot claims?
+        hold_end = min(idx_near_entry + MAX_HOLD_MIN + 2, len(slice_bars))
+        hold_bars = slice_bars.iloc[idx_near_entry:hold_end]
+        if side_sign == 1:
+            hit_stop  = bool((hold_bars["low"]  <= bot_stop_px).any())
+            hit_tgt   = bool((hold_bars["high"] >= bot_target_px).any())
+        else:
+            hit_stop  = bool((hold_bars["high"] >= bot_stop_px).any())
+            hit_tgt   = bool((hold_bars["low"]  <= bot_target_px).any())
+        exit_match = (
+            (bot_reason == "stop"    and hit_stop) or
+            (bot_reason == "target"  and hit_tgt)  or
+            (bot_reason == "timeout")
+        )
+
+        verdict = "OK" if (impulse_present and entry_match and touched_entry and exit_match) \
+                  else "MISMATCH"
+        if verdict == "OK": summary["verified"] += 1
+        else: summary["mismatched"] += 1
+
+        audited.append({
+            "entry_ts": entry_ts.isoformat(),
+            "side": bot_side,
+            "bot_entry_px": round(bot_entry_px, 2),
+            "bot_exit_px": round(bot_exit_px, 2),
+            "bot_stop_px": round(bot_stop_px, 2),
+            "bot_target_px": round(bot_target_px, 2),
+            "bot_exit_reason": bot_reason,
+            "bot_pnl": round(bot_pnl, 2),
+            "polygon": {
+                "impulse_present": impulse_present,
+                "impulse_pts": round(net_move, 2),
+                "impulse_dir": impulse_direction,
+                "expected_entry": round(expected_entry, 2),
+                "entry_price_match": entry_match,
+                "bar_touched_entry": touched_entry,
+                "bar_hit_stop": hit_stop,
+                "bar_hit_target": hit_tgt,
+            },
+            "verdict": verdict,
+        })
+
+    return jsonify({
+        "ok": True,
+        "since": since_ts.isoformat(),
+        "n_trades": len(today_rows),
+        "summary": summary,
+        "trades": audited,
+        "note": "OK = bot's behaviour confirmed by real Polygon 1-min bars. "
+                "MISMATCH = one of the checks (impulse / entry touched / exit hit) "
+                "didn't match the actual market data; investigate.",
+    })
+
+
 @app.route("/api/admin/roll_day", methods=["GET", "POST"])
 def api_admin_roll_day():
     """Force the lucid_state.json today_pnl into cum_pnl_closed_days and

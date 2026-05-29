@@ -166,6 +166,71 @@ function _wireResetButton() {
   if (!btn || btn.dataset.bound) return;
   btn.dataset.bound = "1";
   btn.addEventListener("click", _doResetAccount);
+  const vbtn = document.getElementById("btn-verify-today");
+  if (vbtn && !vbtn.dataset.bound) {
+    vbtn.dataset.bound = "1";
+    vbtn.addEventListener("click", _doVerifyToday);
+  }
+}
+
+async function _doVerifyToday() {
+  const btn = document.getElementById("btn-verify-today");
+  const card = document.getElementById("verify-result");
+  const body = document.getElementById("verify-result-body");
+  if (!btn || !card || !body) return;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = "Fetching Polygon…";
+  card.hidden = false;
+  body.innerHTML = '<div class="muted">Fetching today\'s 1-min bars from Polygon and replaying every trade…</div>';
+  try {
+    const r = await fetch(af("/api/admin/verify_today"));
+    const j = await r.json();
+    btn.textContent = prev;
+    btn.disabled = false;
+    if (!j.ok) {
+      body.innerHTML = '<div class="neg">Verify failed: ' +
+        (j.error || r.status) + '</div>';
+      return;
+    }
+    if (!j.trades || j.trades.length === 0) {
+      body.innerHTML = '<div class="muted">' + (j.msg || "No trades to verify yet.") + '</div>';
+      return;
+    }
+    const s = j.summary || {};
+    let html = '<div class="verify-summary">' +
+               `<b>${j.n_trades}</b> trades since <b>${j.since.slice(0,16).replace("T"," ")}</b> &middot; ` +
+               `<span class="verdict-ok">${s.verified||0} confirmed</span> &middot; ` +
+               `<span class="verdict-bad">${s.mismatched||0} mismatched</span>` +
+               (s.polygon_missing ? ` &middot; ${s.polygon_missing} no-coverage` : '') +
+               '</div>';
+    for (const t of j.trades) {
+      const v = t.polygon || {};
+      const verdictClass = t.verdict === "OK" ? "verdict-ok" : "verdict-bad";
+      const verdictText  = t.verdict || (t.note ? "?" : "—");
+      html += '<div class="verify-trade">';
+      html += `<div><span class="${verdictClass}">${verdictText}</span> &middot; ` +
+              `${t.entry_ts.slice(11,19)} ${t.side} ` +
+              `entry ${t.bot_entry_px} → exit ${t.bot_exit_px} ` +
+              `(${t.bot_exit_reason}) <b>$${t.bot_pnl}</b></div>`;
+      if (t.note) {
+        html += `<div class="muted">${t.note}</div>`;
+      } else if (v.impulse_present !== undefined) {
+        html += `<div class="muted">` +
+                `impulse ${v.impulse_pts}pt ${v.impulse_dir} ${v.impulse_present?'✓':'✗'} · ` +
+                `expected entry ${v.expected_entry} (match ${v.entry_price_match?'✓':'✗'}) · ` +
+                `bar touched ${v.bar_touched_entry?'✓':'✗'} · ` +
+                `stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
+                `</div>`;
+      }
+      html += '</div>';
+    }
+    body.innerHTML = html;
+  } catch (e) {
+    btn.textContent = prev;
+    btn.disabled = false;
+    body.innerHTML = '<div class="neg">Verify error: ' + e + '</div>';
+  }
 }
 
 // ---- Pause / Resume ------------------------------------------------------

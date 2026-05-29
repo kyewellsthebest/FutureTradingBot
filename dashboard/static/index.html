@@ -250,10 +250,18 @@
       </div>
       <div class="export-bar admin-bar">
         <span class="export-label">Admin:</span>
+        <button class="btn-verify" id="btn-verify-today"
+                title="Audit today's trades against real Polygon 1-min bars.">
+          🔍 Verify today
+        </button>
         <button class="btn-reset" id="btn-reset-account"
                 title="Wipe trade history, balance and pause state. Restarts at $50,000.">
           ⚠ Reset account
         </button>
+      </div>
+      <div class="card admin-result" id="verify-result" hidden>
+        <div class="card-header">Polygon verification</div>
+        <div class="card-body" id="verify-result-body"></div>
       </div>
       <div class="export-bar">
         <span class="export-label">Download report:</span>
