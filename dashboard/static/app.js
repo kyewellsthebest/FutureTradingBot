@@ -220,14 +220,16 @@ async function _doVerifyToday() {
         html += `<div class="muted">${t.note}</div>`;
       } else if (v.matched_signal) {
         const m = v.matched_signal;
+        const kInfo = (m.k_back !== undefined) ? ` (k=${m.k_back})` : '';
         html += `<div class="muted">` +
-                `signal at ${m.sig_close_ts.slice(11,16)}: ${m.impulse_pts}pt ${m.impulse_side} → expected entry ${m.expected_entry} ✓ · ` +
+                `signal at ${m.sig_close_ts.slice(11,16)}${kInfo}: ${m.impulse_pts}pt ${m.impulse_side} → expected entry ${m.expected_entry} ✓ · ` +
                 `touched ✓ · stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +
                 `</div>`;
       } else if (v.closest_signal) {
         const c = v.closest_signal;
+        const kInfo = (c.k_back !== undefined) ? ` (k=${c.k_back})` : '';
         html += `<div class="muted">` +
-                `no matching signal in last 5 min · closest: ${c.sig_close_ts.slice(11,16)} ${c.impulse_pts}pt ` +
+                `no matching signal in last 7 min · closest: ${c.sig_close_ts.slice(11,16)}${kInfo} ${c.impulse_pts}pt ` +
                 `${c.impulse_side||''} ${c.expected_entry?'→ entry '+c.expected_entry:''} · fail=<b>${c.fail||'?'}</b><br/>` +
                 `bar touched entry ${v.bar_touched_entry?'✓':'✗'} · ` +
                 `stop ${v.bar_hit_stop?'hit':'no'} · target ${v.bar_hit_target?'hit':'no'}` +

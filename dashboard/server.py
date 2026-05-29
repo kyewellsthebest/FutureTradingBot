@@ -1238,24 +1238,43 @@ def api_admin_verify_today():
         pass
 
     def _scan_signals(entry_ts, bot_entry_px, bot_side):
-        """Try every candidate signal time in [entry_min - MAX_WAIT_MIN, entry_min].
+        """Try every candidate signal time in [entry_min - MAX_WAIT_MIN - 2, entry_min].
         Return the best matching candidate (or None) along with diagnostics
-        for the closest one."""
+        for the closest one.
+
+        Bar timestamp convention: Polygon bars are indexed at the START of
+        the minute. Bar at index T represents the minute [T, T+1) and
+        closes at T+1. So when the bot's _bars_1m has its latest bar at
+        index N, that bar closed at N+1, and the impulse window the
+        strategy used was bars at indices [N-3, N-2, N-1, N].
+
+        For a fill at wall clock W (entry_ts), the bot's _bars_1m latest
+        bar could be at any index N in [floor(W) - 7, floor(W)] -- we
+        widen the scan to handle both "polygon returns only closed bars"
+        (N = floor(W) - 1) and "polygon returns in-progress bar"
+        (N = floor(W)) cases, plus up to 5min of wait + a couple minutes
+        of cache staleness.
+        """
         entry_min = entry_ts.floor("min")
-        best = None
+        best_match = None
         closest_diag = None
-        for k in range(0, MAX_WAIT_MIN + 1):
-            sig_close_ts = entry_min - timedelta(minutes=k)
-            # Need at least IMPULSE_WINDOW bars ending at sig_close_ts.
-            window_start = sig_close_ts - timedelta(minutes=IMPULSE_WINDOW - 1)
-            window = bars[(bars.index >= window_start) & (bars.index <= sig_close_ts)]
+        # k = 0: latest impulse bar at index entry_min (in-progress / just-closed)
+        # k = 1: latest impulse bar at index entry_min - 1 (canonical case)
+        # ... up to k = 7 to cover MAX_WAIT_MIN + cache slack
+        for k in range(0, MAX_WAIT_MIN + 3):
+            latest_bar_idx = entry_min - timedelta(minutes=k)
+            earliest_bar_idx = latest_bar_idx - timedelta(minutes=IMPULSE_WINDOW - 1)
+            window = bars[(bars.index >= earliest_bar_idx) & (bars.index <= latest_bar_idx)]
             if len(window) < IMPULSE_WINDOW:
                 continue
             window = window.iloc[-IMPULSE_WINDOW:]   # last 4 only
             net = float(window["close"].iloc[-1]) - float(window["open"].iloc[0])
+            sig_close_ts = latest_bar_idx + timedelta(minutes=1)  # bar's close time
             if abs(net) < IMPULSE_PTS:
                 if closest_diag is None or abs(IMPULSE_PTS - abs(net)) < abs(closest_diag.get("missing_by", 999)):
                     closest_diag = {"sig_close_ts": sig_close_ts.isoformat(),
+                                    "latest_bar_idx": latest_bar_idx.isoformat(),
+                                    "k_back": k,
                                     "impulse_pts": round(net, 2),
                                     "missing_by": round(IMPULSE_PTS - abs(net), 2),
                                     "fail": "impulse_too_small"}
@@ -1272,6 +1291,8 @@ def api_admin_verify_today():
                 expected_entry = imp_low + PULLBACK_PCT * rng
             diag = {
                 "sig_close_ts": sig_close_ts.isoformat(),
+                "latest_bar_idx": latest_bar_idx.isoformat(),
+                "k_back": k,
                 "impulse_pts": round(net, 2),
                 "impulse_side": impulse_side,
                 "expected_entry": round(expected_entry, 2),
