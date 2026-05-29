@@ -557,7 +557,7 @@ def api_trade_markers():
     MARKER_TTL_SECONDS = 3600  # 1 hour
     now_s = int(pd.Timestamp.now(tz="UTC").timestamp())
     cutoff = now_s - MARKER_TTL_SECONDS
-    trades = persistence.load_trades(limit=100)
+    trades = _filter_trades_since_reset(persistence.load_trades(limit=2000))[:100]
     out = []
     for t in trades:
         try:
@@ -797,9 +797,55 @@ def api_strategy_detail(name):
     return jsonify(info)
 
 
+def _reset_cutoff_ts():
+    """Returns the lucid_account.started_at as a pandas Timestamp in UTC,
+    or None if not available. Trades older than this cutoff are filtered
+    out of every dashboard endpoint so a partial DB wipe can't leak old
+    rows into the UI after a reset."""
+    try:
+        from bot.account_ctx import data_dir as _acct_dir
+        lp = _acct_dir() / "lucid_account.json"
+        if not lp.exists():
+            return None
+        ls = json.loads(lp.read_text())
+        sa = ls.get("started_at")
+        if not sa:
+            return None
+        t = pd.Timestamp(sa)
+        return t.tz_convert("UTC") if t.tz is not None else t.tz_localize("UTC")
+    except Exception as e:
+        logger.warning(f"reset cutoff parse failed: {e}")
+        return None
+
+
+def _filter_trades_since_reset(rows, cutoff=None):
+    """Drop trade dicts whose entry_time is before the reset cutoff. Safe
+    to call with cutoff=None (returns rows unchanged)."""
+    if cutoff is None:
+        cutoff = _reset_cutoff_ts()
+    if cutoff is None:
+        return rows
+    out = []
+    for r in rows:
+        et = r.get("entry_time")
+        if not et:
+            continue
+        try:
+            ets = pd.Timestamp(et)
+            ets = ets.tz_convert("UTC") if ets.tz is not None else ets.tz_localize("UTC")
+            if ets < cutoff:
+                continue
+        except Exception:
+            continue
+        out.append(r)
+    return out
+
+
 @app.route("/api/trades")
 def api_trades():
-    return jsonify(persistence.load_trades(limit=200))
+    # Load extra so the post-cutoff filter still has at least 200 rows.
+    rows = persistence.load_trades(limit=2000)
+    return jsonify(_filter_trades_since_reset(rows)[:200])
 
 
 @app.route("/api/all_trades")
@@ -872,8 +918,11 @@ def api_all_trades():
 
 @app.route("/api/last_trades")
 def api_last_trades():
-    """Last 100 trades for the live dashboard table + chart."""
-    return jsonify(persistence.load_trades(limit=100))
+    """Last 100 trades for the live dashboard table + chart. Filtered to
+    trades after the most recent reset so the Trades tab never shows
+    pre-reset history."""
+    rows = persistence.load_trades(limit=2000)
+    return jsonify(_filter_trades_since_reset(rows)[:100])
 
 
 @app.route("/api/export/<period>")
@@ -1155,7 +1204,18 @@ def api_admin_reset_all():
 
     from bot.account_ctx import data_dir, _LEGACY_DATA
     base = data_dir()
-    # Files to delete from the active account's dir.
+    # First, wipe trade rows via the persistence helper. Does DELETE+VACUUM
+    # (safe under concurrent bot writes) rather than relying on file unlink,
+    # which is unreliable while the bot may hold the DB open. Falls back to
+    # unlink internally if DELETE fails.
+    rows_wiped = 0
+    try:
+        rows_wiped = persistence.wipe_all_trades()
+    except Exception as e:
+        logger.warning(f"reset_all: wipe_all_trades failed: {e!r}")
+    # Files to delete from the active account's dir. Note paper_trades.db
+    # is still listed for the case where the bot is dead and we can't
+    # rely on the persistence wipe -- unlink as a belt-and-braces.
     targets = [
         "paper_trades.db",
         "lucid_account.json",        # current name
@@ -1202,6 +1262,7 @@ def api_admin_reset_all():
         "ok": True,
         "msg": "Account reset. Bot will wipe in-memory state on next tick.",
         "account": data_dir().name,
+        "rows_wiped": rows_wiped,
         "deleted": deleted,
         "errors": errors,
         "next_steps": [

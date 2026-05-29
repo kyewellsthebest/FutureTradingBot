@@ -201,19 +201,12 @@ class LucidAccount(PaperAccount):
         self._save_lucid()
         # Paper account → fresh
         self._reset_paper_account()
-        # Trades DB → wiped (best-effort)
+        # Trades DB → wiped via persistence helper (handles concurrent
+        # bot writes by using DELETE+VACUUM rather than file unlink, and
+        # falls back to file removal if that fails).
         try:
-            import sqlite3
-            db_path = _lucid_state_path().parent / "paper_trades.db"
-            if db_path.exists():
-                con = sqlite3.connect(db_path)
-                cur = con.cursor()
-                for (name,) in cur.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"):
-                    cur.execute(f"DELETE FROM {name}")
-                con.commit()
-                con.close()
-                logger.warning("=== trades DB cleared ===")
+            n = persistence.wipe_all_trades()
+            logger.warning(f"=== trades DB cleared ({n} rows deleted) ===")
         except Exception as e:
             logger.warning(f"trades DB wipe failed (non-fatal): {e}")
         # Dashboard JSON cache → deleted (regenerated on next snapshot in ~60s)

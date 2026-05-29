@@ -110,6 +110,45 @@ CREATE INDEX IF NOT EXISTS idx_trades_signal ON trades (signal_name);
 """
 
 
+def wipe_all_trades() -> int:
+    """Robust DB wipe used by reset paths. Returns rows-deleted count.
+
+    Why not just unlink the file: the bot may hold the DB open in another
+    thread, which on some filesystems causes unlink to silently fail or
+    succeed-then-zombie. DELETE+VACUUM is safe under concurrent connections
+    and guaranteed to leave the table empty even if the file lives on.
+    """
+    n = 0
+    try:
+        with _conn() as conn:
+            row = conn.execute("SELECT COUNT(*) FROM trades").fetchone()
+            n = int(row[0]) if row else 0
+            conn.execute("DELETE FROM trades")
+            conn.commit()
+            # Reclaim space + reset AUTOINCREMENT so new trades start from id 1.
+            try:
+                conn.execute("DELETE FROM sqlite_sequence WHERE name='trades'")
+                conn.commit()
+            except Exception:
+                pass
+        # VACUUM must run outside a transaction.
+        try:
+            v = sqlite3.connect(str(_trades_db_path()))
+            v.execute("VACUUM")
+            v.close()
+        except Exception:
+            pass
+    except Exception:
+        # Last-ditch: just nuke the file. The next _conn() will recreate it.
+        try:
+            p = _trades_db_path()
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+    return n
+
+
 def _conn() -> sqlite3.Connection:
     _trades_db_path().parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(_trades_db_path()))
