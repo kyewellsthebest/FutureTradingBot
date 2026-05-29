@@ -1134,6 +1134,72 @@ def api_admin_roll_day():
                                   "n_trading_days": s["n_trading_days"]}})
 
 
+@app.route("/api/admin/reset_all", methods=["POST"])
+def api_admin_reset_all():
+    """NUCLEAR RESET. Wipes paper trade history, Lucid balance state, pause
+    flag, snapshots, signal events -- everything that accumulates per-account
+    runtime state. Also deletes orphan account_2/account_3 directories on
+    the persistent volume.
+
+    Requires ?confirm=YES guard so it can't trigger accidentally. After this
+    runs, the bot starts a NEW Lucid account at $50,000 with zero trade
+    history on its next cycle.
+    """
+    import shutil
+    if request.args.get("confirm") != "YES":
+        return jsonify({
+            "ok": False,
+            "error": "confirmation required",
+            "hint": "POST /api/admin/reset_all?confirm=YES",
+        }), 400
+
+    from bot.account_ctx import data_dir, _LEGACY_DATA
+    base = data_dir()
+    # Files to delete from the active account's dir.
+    targets = [
+        "paper_trades.db",
+        "lucid_account.json",        # current name
+        "lucid_state.json",          # legacy name (may also exist)
+        "dashboard_data.json",
+        "manual_pause.json",
+        "signal_events.json",
+        "live_bars.json",
+        "bot_heartbeat.txt",
+        "bot_crash.txt",
+        "kelly_state.json",
+    ]
+    deleted = []
+    errors = []
+    for name in targets:
+        p = base / name
+        if p.exists():
+            try:
+                p.unlink()
+                deleted.append(str(p))
+            except Exception as e:
+                errors.append(f"{p}: {e!r}")
+    # Nuke orphan account_2/3 dirs on the persistent volume.
+    for aid in ("2", "3"):
+        d = _LEGACY_DATA / f"account_{aid}"
+        if d.exists() and d.is_dir():
+            try:
+                shutil.rmtree(d)
+                deleted.append(str(d) + "/ (entire dir)")
+            except Exception as e:
+                errors.append(f"{d}: {e!r}")
+    return jsonify({
+        "ok": True,
+        "msg": "Account reset. Next bot cycle starts fresh at $50,000.",
+        "account": data_dir().name,
+        "deleted": deleted,
+        "errors": errors,
+        "next_steps": [
+            "Bot will recreate lucid_account.json with starting balance on next cycle",
+            "If the bot is currently running, restart the deploy so the in-memory state matches",
+        ],
+    })
+
+
 # ---------------------------------------------------------------------------
 # v11 endpoints (NQ-ES stat-arb)
 # ---------------------------------------------------------------------------
