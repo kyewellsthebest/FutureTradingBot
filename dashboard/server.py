@@ -1187,15 +1187,26 @@ def api_admin_reset_all():
                 deleted.append(str(d) + "/ (entire dir)")
             except Exception as e:
                 errors.append(f"{d}: {e!r}")
+    # Drop a flag file so the running bot's _tick loop picks up the reset
+    # on its next cycle (within ~1 sec when flat, ~10 sec when in a trade)
+    # and wipes its in-memory state too. Without this, the bot would keep
+    # writing its stale in-memory state right back to disk.
+    try:
+        flag = base / "reset_pending.flag"
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.write_text(datetime.now(timezone.utc).isoformat())
+        deleted.append(str(flag) + " (created, bot will consume)")
+    except Exception as e:
+        errors.append(f"reset_pending.flag: {e!r}")
     return jsonify({
         "ok": True,
-        "msg": "Account reset. Next bot cycle starts fresh at $50,000.",
+        "msg": "Account reset. Bot will wipe in-memory state on next tick.",
         "account": data_dir().name,
         "deleted": deleted,
         "errors": errors,
         "next_steps": [
-            "Bot will recreate lucid_account.json with starting balance on next cycle",
-            "If the bot is currently running, restart the deploy so the in-memory state matches",
+            "Reload the dashboard in ~5-10s to see the fresh $50k balance",
+            "If the bot is not running, redeploy on Railway",
         ],
     })
 

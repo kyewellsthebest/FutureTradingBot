@@ -330,6 +330,28 @@ class FibRuntime:
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
+        # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
+        # a flag file; we honour it here so the in-memory state matches the
+        # wiped disk state without requiring a redeploy. Idempotent: the
+        # flag is consumed on processing.
+        try:
+            from bot.account_ctx import data_dir as _acct_dir
+            _reset_flag = _acct_dir() / "reset_pending.flag"
+            if _reset_flag.exists():
+                logger.warning("=== runtime reset flag detected — wiping in-memory state ===")
+                try:
+                    self.account._hard_reset_all()
+                except Exception as e:
+                    logger.warning(f"hard_reset_all failed during runtime reset: {e!r}")
+                # Re-init strategy state (clear pending setups + any active trade).
+                self.state = FibStrategyState()
+                try:
+                    _reset_flag.unlink()
+                except Exception:
+                    pass
+                logger.warning("=== runtime reset complete -- account at $50k, history wiped ===")
+        except Exception as e:
+            logger.debug(f"reset-flag check skipped: {e!r}")
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 

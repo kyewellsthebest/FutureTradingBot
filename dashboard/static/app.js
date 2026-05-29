@@ -119,7 +119,54 @@ document.addEventListener("DOMContentLoaded", () => {
   _wirePauseButton();
   pollPauseStatus(true);
   setInterval(pollPauseStatus, 5000);
+  _wireResetButton();
 });
+
+// ---- Admin: Reset account ------------------------------------------------
+async function _doResetAccount() {
+  const btn = document.getElementById("btn-reset-account");
+  if (!btn) return;
+  const msg = "RESET THIS ACCOUNT?\n\n" +
+              "This deletes ALL trade history, balance state, snapshots, " +
+              "and pause flags for the currently selected account, and " +
+              "removes any orphan account_2/3 data directories.\n\n" +
+              "Next bot cycle will start fresh at $50,000.\n\n" +
+              "There is no undo.";
+  if (!confirm(msg)) return;
+  if (!confirm("Are you absolutely sure? Click OK to reset.")) return;
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = "Resetting…";
+  try {
+    const r = await fetch(af("/api/admin/reset_all?confirm=YES"), { method: "POST" });
+    const j = await r.json();
+    if (r.ok && j.ok) {
+      alert("Account reset.\n\nFiles deleted: " + (j.deleted || []).length +
+            "\n\nThe bot will recreate a fresh $50k account on its next cycle. " +
+            "Reloading the dashboard now.");
+      // Wipe local caches and reload.
+      try {
+        state = { data: null, candles: null, trades: null };
+        _allTradesCache = { trades: null, ts: 0 };
+      } catch (e) {}
+      window.location.reload();
+    } else {
+      btn.textContent = prev;
+      btn.disabled = false;
+      alert("Reset failed: " + (j.error || r.status));
+    }
+  } catch (e) {
+    btn.textContent = prev;
+    btn.disabled = false;
+    alert("Reset error: " + e);
+  }
+}
+function _wireResetButton() {
+  const btn = document.getElementById("btn-reset-account");
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", _doResetAccount);
+}
 
 // ---- Pause / Resume ------------------------------------------------------
 // User-controlled kill switch for new entries on the active account. Lets

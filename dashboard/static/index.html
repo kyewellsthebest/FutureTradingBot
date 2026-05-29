@@ -248,6 +248,13 @@
         <button class="btn-period" data-period="month">Month</button>
         <button class="btn-period" data-period="all">All</button>
       </div>
+      <div class="export-bar admin-bar">
+        <span class="export-label">Admin:</span>
+        <button class="btn-reset" id="btn-reset-account"
+                title="Wipe trade history, balance and pause state. Restarts at $50,000.">
+          ⚠ Reset account
+        </button>
+      </div>
       <div class="export-bar">
         <span class="export-label">Download report:</span>
         <a class="btn-export js-export" data-period="day" href="/api/export/day" download>Daily</a>
