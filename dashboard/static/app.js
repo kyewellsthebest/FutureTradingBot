@@ -371,6 +371,53 @@ const fmtHold = (s) => {
 const setText = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
 const setClass = (id, cls) => { const el = document.getElementById(id); if (el) el.className = cls; };
 
+// Smooth count-up animation. Targets any element with a numeric textContent.
+// Stores the last-set value on the element so subsequent calls animate FROM
+// that value. Reduced-motion users get instant update.
+const _animBudget = 700; // ms per transition
+function animateNumber(id, target, formatter) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (typeof target !== "number" || !isFinite(target)) {
+    if (formatter) el.textContent = formatter(target);
+    return;
+  }
+  const fmt = formatter || (n => String(Math.round(n)));
+  const prefersReduced = window.matchMedia &&
+                          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (prefersReduced) {
+    el.textContent = fmt(target);
+    el._lastNum = target;
+    return;
+  }
+  // Cancel any previous in-flight tween on this element
+  if (el._tweenRaf) cancelAnimationFrame(el._tweenRaf);
+  const from = (typeof el._lastNum === "number") ? el._lastNum : 0;
+  if (Math.abs(target - from) < 0.005) {
+    el.textContent = fmt(target);
+    el._lastNum = target;
+    return;
+  }
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / _animBudget);
+    // ease-out cubic
+    const eased = 1 - Math.pow(1 - t, 3);
+    const v = from + (target - from) * eased;
+    el.textContent = fmt(v);
+    if (t < 1) {
+      el._tweenRaf = requestAnimationFrame(step);
+    } else {
+      el._lastNum = target;
+      el._tweenRaf = null;
+    }
+  }
+  el._tweenRaf = requestAnimationFrame(step);
+}
+// Convenience: animate USD with the existing formatter
+const animateUsd = (id, n) => animateNumber(id, n, fmtUsd);
+const animatePct = (id, n, d=1) => animateNumber(id, n, (v) => fmtPct(v, d));
+
 // ---- Polling -------------------------------------------------------------
 async function poll() {
   try {
@@ -458,10 +505,15 @@ async function pollPriceOnly() {
 
 // ---- TOPBAR + LIVE ------------------------------------------------------
 function renderTopbar(d) {
-  setText("kpi-price", d.price ? d.price.toFixed(2) : "—");
+  // NQ price: animate smoothly between ticks
+  if (typeof d.price === "number") {
+    animateNumber("kpi-price", d.price, (n) => n.toFixed(2));
+  } else {
+    setText("kpi-price", "—");
+  }
   const acc = d.lucid_account || {};
   const bal = acc.balance ?? 50000;
-  setText("kpi-balance", fmtUsdPlain(bal));
+  animateNumber("kpi-balance", bal, fmtUsdPlain);
   // Today's P&L and trade count -- computed from the FULL trades cache
   // using BROWSER LOCAL date (not server NY date). User is in AEST, so
   // their "today" is the AEST calendar day. NY-date filter was missing
@@ -472,9 +524,11 @@ function renderTopbar(d) {
   const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
   const today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
   const todayEl = document.getElementById("kpi-today");
-  todayEl.textContent = fmtUsd(today);
-  todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
-  setText("kpi-trades-today", todayTrades.length);
+  if (todayEl) {
+    todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
+  }
+  animateNumber("kpi-today", today, fmtUsd);
+  animateNumber("kpi-trades-today", todayTrades.length, (n) => String(Math.round(n)));
   // Background-refresh the cache so kpi numbers stay live even if the
   // user never opens the Performance tab.
   if (Date.now() - _allTradesCache.ts > 30_000) {
@@ -1015,18 +1069,19 @@ function _renderLifetimeSummary(trades) {
   // Lifetime drawdown computed from the trade equity curve
   let cum = 0, peak = 0, maxDd = 0;
   for (const p of pnls) { cum += p; if (cum > peak) peak = cum; if (peak - cum > maxDd) maxDd = peak - cum; }
-  pnlEl.textContent = fmtUsd(total);
   pnlEl.className = "lifetime-value " + (total > 0 ? "pos" : total < 0 ? "neg" : "");
-  el("lifetime-trades").textContent = trades.length.toLocaleString();
-  el("lifetime-wr").textContent = (wins / trades.length * 100).toFixed(1) + "%";
-  el("lifetime-dd").textContent = "-$" + maxDd.toFixed(0);
+  animateNumber("lifetime-pnl", total, fmtUsd);
+  animateNumber("lifetime-trades", trades.length, (n) => Math.round(n).toLocaleString());
+  animateNumber("lifetime-wr", wins / trades.length * 100, (n) => n.toFixed(1) + "%");
+  animateNumber("lifetime-dd", maxDd, (n) => "-$" + Math.round(n).toLocaleString());
   // Daily DD stats come from the server (NY-date bucketed). Both refer
   // to intra-day peak-to-trough P&L, which is what Lucid effectively
   // monitors via the Daily Loss Limit.
   const ddEl = el("lifetime-daily-dd");
   if (ddEl) {
-    ddEl.textContent = dailyDd > 0 ? "-$" + dailyDd.toFixed(0) : "$0";
     ddEl.className = "lifetime-value " + (dailyDd > 0 ? "neg" : "");
+    animateNumber("lifetime-daily-dd", dailyDd,
+                   (n) => n > 0 ? ("-$" + Math.round(n).toLocaleString()) : "$0");
   }
   const tdEl = el("lifetime-today-dd");
   if (tdEl) {
@@ -1153,8 +1208,9 @@ function drawEquityCurve(trades) {
   ctx.fillText("$50k start", padX + 4, y50k - 4);
   // line
   const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, "rgba(34,211,154,0.4)");
-  gradient.addColorStop(1, "rgba(34,211,154,0.02)");
+  gradient.addColorStop(0, "rgba(34,211,154,0.55)");
+  gradient.addColorStop(0.5, "rgba(34,211,154,0.18)");
+  gradient.addColorStop(1, "rgba(34,211,154,0.0)");
   const xy = points.map((p, i) => ({
     p,
     x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
@@ -1165,10 +1221,19 @@ function drawEquityCurve(trades) {
   // fill under
   ctx.lineTo(w - padX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
   ctx.fillStyle = gradient; ctx.fill();
-  // line on top
+  // Glowing line on top -- two stroke passes for the bloom effect
   ctx.beginPath();
   xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  ctx.strokeStyle = "#22d39a"; ctx.lineWidth = 2; ctx.stroke();
+  // Outer glow pass: wide, semi-transparent
+  ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
+  ctx.stroke();
+  // Inner sharp pass: thin, bright
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
+  ctx.stroke();
   // hit regions: 6px radius at every point
   xy.forEach(({p, x, y}, i) => {
     const pnl = p.v - 50000;
@@ -1220,14 +1285,21 @@ function drawMonthlyPnl(trades) {
   ctx.strokeStyle = "rgba(255,255,255,0.1)";
   const yZero = h / 2;
   ctx.beginPath(); ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
-  // bars
+  // glowing bars
   keys.forEach((k, i) => {
     const v = months[k].pnl;
     const x = padX + i * bw + 2;
     const bh = (Math.abs(v) / maxV) * (h / 2 - padY);
-    ctx.fillStyle = v >= 0 ? "#22d39a" : "#ff5470";
+    const color = v >= 0 ? "#22d39a" : "#ff5470";
     const by = v >= 0 ? yZero - bh : yZero;
+    // glow
+    ctx.shadowColor = color; ctx.shadowBlur = 14;
+    ctx.fillStyle = color;
     ctx.fillRect(x, by, bw - 4, bh);
+    ctx.shadowBlur = 0;
+    // bright top edge for that "neon" look
+    ctx.fillStyle = v >= 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)";
+    ctx.fillRect(x, v >= 0 ? by : by + bh - 1, bw - 4, 1);
     // hit region for this month
     const wr = (v >= 0 ? months[k].wins : months[k].losses);
     const winRate = months[k].n ? months[k].wins / months[k].n : 0;
@@ -1285,10 +1357,16 @@ function drawHoldHistogram(trades) {
   buckets.forEach((b, i) => {
     const x = padX + i * bw + 4;
     const bh = (b.c / maxC) * (h - 2 * padY);
-    // bar
+    // glowing bar
     const isMicro = b.label === "≤10s";
-    ctx.fillStyle = isMicro ? "#ffb648" : "#56d4ff";
+    const color = isMicro ? "#ffb648" : "#56d4ff";
+    ctx.shadowColor = color; ctx.shadowBlur = 12;
+    ctx.fillStyle = color;
     ctx.fillRect(x, h - padY - bh, bw - 8, bh);
+    ctx.shadowBlur = 0;
+    // bright top edge
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.fillRect(x, h - padY - bh, bw - 8, 1);
     // count above bar
     ctx.fillStyle = "#a4b1c7"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
     if (b.c > 0) ctx.fillText(b.c, x + (bw - 8) / 2, h - padY - bh - 4);
@@ -1340,8 +1418,14 @@ function drawWinLossHistogram(trades) {
   lanes.forEach((lane, i) => {
     const x = padX + i * bw + 20;
     const bh = (Math.abs(lane.total) / maxV) * (h - 2 * padY);
+    // glowing bar
+    ctx.shadowColor = lane.color; ctx.shadowBlur = 16;
     ctx.fillStyle = lane.color;
     ctx.fillRect(x, h - padY - bh, bw - 40, bh);
+    ctx.shadowBlur = 0;
+    // bright top edge
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillRect(x, h - padY - bh, bw - 40, 1);
     ctx.fillStyle = lane.color; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText(fmtUsd(lane.total), x + (bw - 40) / 2, h - padY - bh - 6);
     ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
