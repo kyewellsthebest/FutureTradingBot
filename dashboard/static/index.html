@@ -415,6 +415,25 @@
 
       <div class="grid grid-2">
         <div class="card">
+          <div class="card-header">📅 Market context</div>
+          <div class="card-body dl-list">
+            <p class="muted dl-help-small">
+              Live macro/structure context the bot uses for decisions.
+              Snapshots refreshed at request time.
+            </p>
+            <button class="btn-dl" data-dl="calendar" data-ext="json">
+              ⬇ Economic calendar (high-impact USD events)
+            </button>
+            <button class="btn-dl" data-dl="cross_market" data-ext="json">
+              ⬇ Cross-market (VIX / ES / SPY / DXY) + alignment scores
+            </button>
+            <button class="btn-dl" data-dl="structure" data-ext="json">
+              ⬇ Session structure (PDH/PDL/POC/VAH/VAL/OR/VWAP)
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header">⚙ Strategy & config</div>
           <div class="card-body dl-list">
             <button class="btn-dl" data-dl="config" data-ext="json">

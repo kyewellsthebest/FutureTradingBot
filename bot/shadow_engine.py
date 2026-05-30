@@ -50,9 +50,18 @@ def _jsonable(obj):
 
 class ShadowEngine:
     """Wraps a Runtime; runs it on the same 1-min bars the live bot sees,
-    persists everything for offline comparison."""
+    persists everything for offline comparison.
 
-    def __init__(self, account_id: str = "1", starting_balance: float = 50_000.0):
+    NEW (Phase 1-2 upgrade): the shadow engine ALSO consumes economic
+    calendar + cross-market + session-structure context. Its risk engine
+    has the real NewsBlackoutGate, MacroAlignmentSizerGate, and
+    VolatilityAdaptiveSizerGate wired in, so its decisions reflect what
+    a fully-context-aware bot would do. Compare to live's basic decisions
+    to see which trades the engine would have skipped or downsized.
+    """
+
+    def __init__(self, account_id: str = "1", starting_balance: float = 50_000.0,
+                 economic_calendar=None, cross_market_feed=None):
         # Lazy-import the engine so an import error in the engine package
         # never crashes the live bot.
         try:
@@ -61,13 +70,15 @@ class ShadowEngine:
             from engine.risk.engine import RiskEngine
             from engine.risk.gates import (
                 AccountState, ActiveLockoutGate, CooldownGate,
-                DailyLossLimitGate, MaxTradesPerDayGate, NewsBlackoutGate,
+                DailyLossLimitGate, MacroAlignmentSizerGate,
+                MaxTradesPerDayGate, NewsBlackoutGate,
                 TradingWindowGate, TrailDistanceSizerGate, TrailFloorBufferGate,
-                ConsecutiveLossesGate,
+                ConsecutiveLossesGate, VolatilityAdaptiveSizerGate,
             )
             from engine.runtime import Runtime
             from engine.strategies.pullback import PullbackImpulse
             from bot.account_ctx import get_strategy_params
+            from engine.structure.session import compute_session_structure
         except Exception as e:
             logger.warning(f"shadow engine disabled (import failed): {e!r}")
             self.enabled = False
@@ -76,6 +87,9 @@ class ShadowEngine:
         self.enabled = True
         self.account_id = account_id
         self._build_market_context = build_market_context
+        self._compute_session_structure = compute_session_structure
+        self._economic_calendar = economic_calendar
+        self._cross_market = cross_market_feed
         self.account_state = AccountState(
             balance=starting_balance,
             starting_balance=starting_balance,
@@ -84,24 +98,33 @@ class ShadowEngine:
             today_trades=0,
             consecutive_losses=0,
         )
+        # Risk engine now uses REAL NewsBlackout (wired to calendar) +
+        # macro alignment sizer + vol-adaptive sizer.
+        gates = [
+            ActiveLockoutGate(),
+            DailyLossLimitGate(limit_usd=700.0),
+            TrailFloorBufferGate(min_buffer_usd=800.0),
+            ConsecutiveLossesGate(max_losses=4, pause_minutes=60),
+            NewsBlackoutGate(enabled=True, calendar=economic_calendar,
+                              pre_event_minutes=15, post_event_minutes=30),
+            MaxTradesPerDayGate(max_trades=80),
+            CooldownGate(seconds=60),
+            TradingWindowGate(disabled_windows=[(7, 13)]),
+            VolatilityAdaptiveSizerGate(default_qty=2),
+            MacroAlignmentSizerGate(default_qty=2),
+            TrailDistanceSizerGate(),
+        ]
         self.runtime = Runtime(
             strategy=PullbackImpulse(),
             fill_model=SimFillModel(SimFillParams(seed=42)),
-            risk_engine=RiskEngine([
-                ActiveLockoutGate(),
-                DailyLossLimitGate(limit_usd=700.0),
-                TrailFloorBufferGate(min_buffer_usd=800.0),
-                ConsecutiveLossesGate(max_losses=4, pause_minutes=60),
-                MaxTradesPerDayGate(max_trades=80),
-                CooldownGate(seconds=60),
-                TradingWindowGate(disabled_windows=[(7, 13)]),
-                NewsBlackoutGate(enabled=False),
-                TrailDistanceSizerGate(),
-            ]),
+            risk_engine=RiskEngine(gates),
             account=self.account_state,
             strategy_params=get_strategy_params(account_id),
             default_qty=2,
         )
+        # Cache session structure intra-tick
+        self._cached_structure = None
+        self._structure_computed_at = None
         # Track which bar timestamp we last processed (so we don't double-run
         # on the same closed bar across multiple ticks).
         self._last_processed_bar_ts: Optional[datetime] = None
@@ -136,6 +159,28 @@ class ShadowEngine:
             # Build market context and drive the engine on the latest bar
             bar = bars_1m.iloc[-1]
             ctx = self._build_market_context(bars_1m, now)
+            # Attach extended context (macro, structure, news). All optional.
+            if self._cross_market is not None:
+                try:
+                    ctx.macro = self._cross_market.snapshot()
+                except Exception:
+                    pass
+            try:
+                # Session structure -- refresh at most every 60s
+                if (self._cached_structure is None or
+                        self._structure_computed_at is None or
+                        (now - self._structure_computed_at).total_seconds() > 60):
+                    self._cached_structure = self._compute_session_structure(bars_1m, now)
+                    self._structure_computed_at = now
+                ctx.structure = self._cached_structure
+            except Exception:
+                pass
+            if self._economic_calendar is not None:
+                try:
+                    ctx.next_news_event = \
+                        self._economic_calendar.next_event_within(now, minutes=120)
+                except Exception:
+                    pass
             self.runtime.on_bar(bar, bars_1m, now, ctx)
             # Track trail floor like live does
             if self.account_state.balance - 2000 > self.account_state.trail_floor:

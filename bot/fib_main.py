@@ -218,16 +218,49 @@ class FibRuntime:
         # the same bars. Zero influence on live trading; produces an
         # artifact we can diff against the live bot to verify equivalence.
         # Disabled if engine package can't be imported (graceful fallback).
+        # External context first -- so we can pass them to the shadow engine.
+        try:
+            from engine.data_sources.economic_calendar import EconomicCalendar
+            from bot.account_ctx import data_dir as _acct_dir
+            self.economic_calendar = EconomicCalendar(cache_dir=_acct_dir())
+            self.economic_calendar.refresh()
+        except Exception as e:
+            self.last_error = f"economic_calendar init failed: {e!r}"
+            self.economic_calendar = None
+        try:
+            from engine.data_sources.cross_market import CrossMarketFeed
+            self.cross_market = CrossMarketFeed()
+        except Exception as e:
+            self.last_error = f"cross_market init failed: {e!r}"
+            self.cross_market = None
+        # Shadow engine -- gets the calendar + cross-market for context-aware
+        # risk decisions
         try:
             from bot.shadow_engine import ShadowEngine
             self.shadow = ShadowEngine(
                 account_id=account_id,
                 starting_balance=float(getattr(self.account.state, "starting_balance",
                                                  50000.0)),
+                economic_calendar=self.economic_calendar,
+                cross_market_feed=self.cross_market,
             )
         except Exception as e:
             self.last_error = f"shadow_engine init failed: {e!r}"
             self.shadow = None
+        # Cache structure for the current session; recomputed when new bars
+        # arrive (every 60s). Avoids re-running POC histogram every cycle.
+        self._cached_structure = None
+        self._structure_computed_at: Optional[datetime] = None
+        # One-shot DB schema migration for v2 feature columns
+        try:
+            from bot import persistence
+            added = persistence.migrate_v2_feature_columns()
+            if added:
+                logger.warning(f"trades DB: added {added} v2 feature columns")
+        except Exception as e:
+            logger.warning(f"v2 schema migration failed: {e!r}")
+        # Track open-trade-id so we can update execution stats on close
+        self._open_trade_id: Optional[int] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -484,6 +517,12 @@ class FibRuntime:
                 adverse_slip_pts=ADVERSE_SLIP_PTS,
                 commission_per_mnq_rt=COMM_PER_MNQ_RT,
             )
+            # Capture the trade row id so we can update its features +
+            # execution stats on close.
+            op = self.account.state.open_position
+            self._open_trade_id = getattr(op, "db_id", None) if op else None
+            # Persist the v2 feature snapshot (best-effort).
+            self._persist_open_features(trade, now)
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
@@ -491,6 +530,95 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
+
+    def _persist_open_features(self, trade, now: datetime) -> None:
+        """Build the rich feature snapshot for THIS trade and UPDATE the
+        trade row with the v2 feature columns. Best-effort; failures are
+        logged but don't affect trading."""
+        if self._open_trade_id is None:
+            return
+        try:
+            features = self._build_current_features(trade, now)
+            if not features:
+                return
+            from bot import persistence
+            # Build UPDATE statement from non-None feature fields
+            updates, params = [], []
+            for k, v in features.items():
+                if v is not None and k not in ("signal_name", "side", "entry_time",
+                                                "entry_px", "stop_px", "target_px",
+                                                "qty"):
+                    updates.append(f"{k} = ?")
+                    params.append(v)
+            if not updates:
+                return
+            params.append(self._open_trade_id)
+            import sqlite3 as _sql
+            db_path = persistence._trades_db_path()
+            with _sql.connect(str(db_path)) as conn:
+                conn.execute(
+                    f"UPDATE trades SET {', '.join(updates)} WHERE id = ?",
+                    tuple(params))
+        except Exception as e:
+            logger.debug(f"v2 feature persist failed (non-fatal): {e!r}")
+
+    def _build_current_features(self, trade, now: datetime) -> dict:
+        """Snapshot of current market context as feature dict. Uses the
+        same MarketContext machinery the shadow engine uses."""
+        try:
+            from engine.market_context import build_market_context
+            from engine.features import build_trade_feature_snapshot
+        except Exception:
+            return {}
+        if self._bars_1m is None or self._bars_1m.empty:
+            return {}
+        try:
+            ctx = build_market_context(self._bars_1m, now)
+        except Exception:
+            return {}
+        # Attach extended context (macro, structure, news)
+        if self.cross_market is not None:
+            try:
+                ctx.macro = self.cross_market.snapshot()
+            except Exception:
+                pass
+        try:
+            struct = self._get_current_structure(now)
+            if struct is not None:
+                ctx.structure = struct
+        except Exception:
+            pass
+        if self.economic_calendar is not None:
+            try:
+                ctx.next_news_event = \
+                    self.economic_calendar.next_event_within(now, minutes=120)
+            except Exception:
+                pass
+        # The trade object from bot/pullback_strategy has attribute names
+        # that differ slightly from engine.types.Setup. Build a tiny
+        # adapter so feature builder works on both.
+        adapter = _SetupAdapter(trade)
+        try:
+            return build_trade_feature_snapshot(
+                adapter, ctx, qty=trade.n_mnq, entry_ts=now)
+        except Exception:
+            return {}
+
+    def _get_current_structure(self, now: datetime):
+        """Cached session structure (refresh every 60s)."""
+        if (self._cached_structure is not None and
+                self._structure_computed_at is not None and
+                (now - self._structure_computed_at).total_seconds() < 60):
+            return self._cached_structure
+        try:
+            from engine.structure.session import compute_session_structure
+            if self._bars_1m is None or self._bars_1m.empty:
+                return None
+            self._cached_structure = compute_session_structure(self._bars_1m, now)
+            self._structure_computed_at = now
+            return self._cached_structure
+        except Exception:
+            return None
 
     def _on_trade_close(self, record: dict, now: datetime) -> None:
         # Always close through the paper account so balance updates and
@@ -506,6 +634,51 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
+        # Persist v2 execution stats: slippage, MAE/MFE if available
+        try:
+            from bot import persistence
+            if self._open_trade_id is not None:
+                # Slippage on stops = adverse_slip_pts * sign; on targets = 0
+                slip = ADVERSE_SLIP_PTS if record["exit_reason"] == "stop" else 0.0
+                persistence.update_trade_execution_stats(
+                    trade_id=self._open_trade_id,
+                    slippage_pts=slip,
+                    # MAE/MFE not tracked in legacy strategy; placeholder 0
+                    mae_pts=0.0, mfe_pts=0.0,
+                )
+        except Exception as e:
+            logger.debug(f"v2 execution stats persist failed: {e!r}")
+        finally:
+            self._open_trade_id = None
+
+
+# ---------------------------------------------------------------------------
+# Adapter: bot/pullback_strategy.FibSetup attrs -> engine/types.Setup attrs
+# Lets engine.features.build_trade_feature_snapshot work on both shapes.
+# ---------------------------------------------------------------------------
+class _SetupAdapter:
+    def __init__(self, trade):
+        self._t = trade
+        s = getattr(trade, "setup", trade)
+        self.side = trade.side
+        self.entry_price = getattr(trade, "entry_px", None) or \
+                            getattr(s, "pullback_entry", None)
+        self.stop_price  = getattr(trade, "stop_px", None) or \
+                            getattr(s, "stop_px_val", None)
+        self.target_price = getattr(trade, "target_px", None) or \
+                             getattr(s, "target_px_val", None)
+        self.impulse_high = getattr(s, "impulse_high", None) or \
+                             getattr(s, "pivot_high_val", None)
+        self.impulse_low  = getattr(s, "impulse_low", None) or \
+                             getattr(s, "pivot_low_val", None)
+        if self.impulse_high and self.impulse_low:
+            # Pullback strategy doesn't store impulse_pts directly; reconstruct
+            self.impulse_pts = round(self.impulse_high - self.impulse_low, 2) \
+                                * (1 if trade.side == "LONG" else -1)
+        else:
+            self.impulse_pts = None
+        self.strategy_name = "pullback_impulse"
+        self.meta = {}
 
     # ---- dashboard data publish ---------------------------------------
     def _publish_dashboard(self) -> None:

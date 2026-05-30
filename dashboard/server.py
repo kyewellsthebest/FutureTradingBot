@@ -1542,6 +1542,51 @@ def api_download(kind: str):
         except Exception as e:
             data = {"error": repr(e)}
         return _json_resp(data, f"{base_name}_tradovate.json")
+    if kind == "calendar":
+        try:
+            from engine.data_sources.economic_calendar import EconomicCalendar
+            cal = EconomicCalendar(cache_dir=_acct_dir())
+            cal.refresh()
+            from datetime import datetime as _dt, timezone as _tz
+            now = _dt.now(_tz.utc)
+            data = {
+                "status": cal.status(),
+                "upcoming_high_impact_usd_48h": [
+                    e.to_dict() for e in cal.upcoming(now, hours=48, only_blackout=True)
+                ],
+                "all_events_this_week": [e.to_dict() for e in cal.events],
+            }
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_economic_calendar.json")
+    if kind == "cross_market":
+        try:
+            from engine.data_sources.cross_market import CrossMarketFeed
+            feed = CrossMarketFeed()
+            snap = feed.snapshot()
+            data = snap.to_dict()
+            # Also include alignment score for both directions
+            data["alignment_score_LONG"]  = round(snap.alignment_score("LONG"), 3)
+            data["alignment_score_SHORT"] = round(snap.alignment_score("SHORT"), 3)
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_cross_market.json")
+    if kind == "structure":
+        try:
+            from engine.structure.session import compute_session_structure
+            from research.data_loader import download_nq
+            from datetime import datetime as _dt, timezone as _tz
+            bars = download_nq("1min")
+            if bars is None or bars.empty:
+                data = {"error": "no 1-min bars available"}
+            else:
+                if bars.index.tz is None:
+                    bars.index = bars.index.tz_localize("UTC")
+                struct = compute_session_structure(bars, _dt.now(_tz.utc))
+                data = struct.to_dict()
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_session_structure.json")
     if kind == "verify":
         with app.test_request_context(f"/api/admin/verify_today?account={aid}"):
             resp = api_admin_verify_today()
