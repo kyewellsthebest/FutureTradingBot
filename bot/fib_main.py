@@ -663,34 +663,6 @@ class FibRuntime:
             self._open_trade_id = None
 
 
-# ---------------------------------------------------------------------------
-# Adapter: bot/pullback_strategy.FibSetup attrs -> engine/types.Setup attrs
-# Lets engine.features.build_trade_feature_snapshot work on both shapes.
-# ---------------------------------------------------------------------------
-class _SetupAdapter:
-    def __init__(self, trade):
-        self._t = trade
-        s = getattr(trade, "setup", trade)
-        self.side = trade.side
-        self.entry_price = getattr(trade, "entry_px", None) or \
-                            getattr(s, "pullback_entry", None)
-        self.stop_price  = getattr(trade, "stop_px", None) or \
-                            getattr(s, "stop_px_val", None)
-        self.target_price = getattr(trade, "target_px", None) or \
-                             getattr(s, "target_px_val", None)
-        self.impulse_high = getattr(s, "impulse_high", None) or \
-                             getattr(s, "pivot_high_val", None)
-        self.impulse_low  = getattr(s, "impulse_low", None) or \
-                             getattr(s, "pivot_low_val", None)
-        if self.impulse_high and self.impulse_low:
-            # Pullback strategy doesn't store impulse_pts directly; reconstruct
-            self.impulse_pts = round(self.impulse_high - self.impulse_low, 2) \
-                                * (1 if trade.side == "LONG" else -1)
-        else:
-            self.impulse_pts = None
-        self.strategy_name = "pullback_impulse"
-        self.meta = {}
-
     # ---- dashboard data publish ---------------------------------------
     def _publish_dashboard(self) -> None:
         try:
@@ -753,6 +725,37 @@ class _SetupAdapter:
                     f"_publish_dashboard crashed: {e!r}\n\n{_tb.format_exc()}")
             except Exception:
                 pass
+
+
+# ---------------------------------------------------------------------------
+# Adapter: bot/pullback_strategy.FibSetup attrs -> engine/types.Setup attrs
+# Lets engine.features.build_trade_feature_snapshot work on both shapes.
+# Module-level (NOT a FibRuntime method) so it doesn't accidentally end the
+# FibRuntime class definition.
+# ---------------------------------------------------------------------------
+class _SetupAdapter:
+    def __init__(self, trade):
+        self._t = trade
+        s = getattr(trade, "setup", trade)
+        self.side = trade.side
+        self.entry_price = getattr(trade, "entry_px", None) or \
+                            getattr(s, "pullback_entry", None)
+        self.stop_price  = getattr(trade, "stop_px", None) or \
+                            getattr(s, "stop_px_val", None)
+        self.target_price = getattr(trade, "target_px", None) or \
+                             getattr(s, "target_px_val", None)
+        self.impulse_high = getattr(s, "impulse_high", None) or \
+                             getattr(s, "pivot_high_val", None)
+        self.impulse_low  = getattr(s, "impulse_low", None) or \
+                             getattr(s, "pivot_low_val", None)
+        if self.impulse_high and self.impulse_low:
+            # Pullback strategy doesn't store impulse_pts directly; reconstruct
+            self.impulse_pts = round(self.impulse_high - self.impulse_low, 2) \
+                                * (1 if trade.side == "LONG" else -1)
+        else:
+            self.impulse_pts = None
+        self.strategy_name = "pullback_impulse"
+        self.meta = {}
 
 
 def main() -> int:
