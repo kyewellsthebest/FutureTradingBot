@@ -233,6 +233,18 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"cross_market init failed: {e!r}"
             self.cross_market = None
+        # TradersPost broker -- forwards every live trade open/close to the
+        # user's TradersPost webhook so it can route to whichever prop firm
+        # broker they've connected (Lucid/Tradovate, Apex, etc).
+        # SAFETY: default is dry-run (logs the JSON payload but doesn't
+        # actually POST). Requires TRADERSPOST_LIVE=true env var to send
+        # real orders.
+        try:
+            from engine.brokers.traderspost import TradersPostBroker
+            self.traderspost = TradersPostBroker()
+        except Exception as e:
+            self.last_error = f"traderspost init failed: {e!r}"
+            self.traderspost = None
         # Shadow engine -- gets the calendar + cross-market for context-aware
         # risk decisions
         try:
@@ -261,6 +273,8 @@ class FibRuntime:
             logger.warning(f"v2 schema migration failed: {e!r}")
         # Track open-trade-id so we can update execution stats on close
         self._open_trade_id: Optional[int] = None
+        # TradersPost setup ref so close can pair to its open (idempotency)
+        self._open_trade_ref: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -538,6 +552,29 @@ class FibRuntime:
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
                         f"tgt={trade.target_px:.2f}")
+            # Forward to TradersPost as a bracketed order (entry LIMIT +
+            # stop + take-profit). The broker will manage the bracket; we
+            # also send an explicit exit on _on_trade_close as a safety
+            # net to reconcile against TradersPost's idempotent "flat"
+            # action. Wrapped: any TradersPost issue cannot prevent the
+            # bot from continuing to paper-trade.
+            if self.traderspost is not None:
+                try:
+                    setup_ref = (f"acct{self.account_id}_"
+                                  f"{self._open_trade_id or 'noid'}_"
+                                  f"{int(now.timestamp())}")
+                    self.traderspost.submit_open(
+                        side=trade.side, qty=trade.n_mnq,
+                        entry_price=trade.entry_px,
+                        stop_price=trade.stop_px,
+                        target_price=trade.target_px,
+                        setup_id=setup_ref,
+                    )
+                    # Stash the setup_ref so the close call can reuse it
+                    # for idempotency-paired exits.
+                    self._open_trade_ref = setup_ref
+                except Exception as te:
+                    logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
@@ -659,8 +696,27 @@ class FibRuntime:
                 )
         except Exception as e:
             logger.debug(f"v2 execution stats persist failed: {e!r}")
-        finally:
-            self._open_trade_id = None
+        # Forward exit to TradersPost. The broker's bracket order (stop +
+        # take-profit) should already have closed the position when it
+        # triggered, so this "exit/flat" call is normally a no-op on
+        # TradersPost's side -- but it acts as a reconciliation safety
+        # net in case the bracket didn't fire as expected, OR the bot
+        # is closing for a non-bracket reason (timeout, manual flatten,
+        # auto-DLL trigger). action="exit" + sentiment="flat" is
+        # idempotent on the TradersPost side; safe to always send.
+        if self.traderspost is not None:
+            try:
+                self.traderspost.submit_close(
+                    side=record.get("side", "LONG"),
+                    qty=record.get("n_mnq", 1),
+                    reason=record.get("exit_reason", "manual"),
+                    setup_id=getattr(self, "_open_trade_ref", None),
+                )
+            except Exception as te:
+                logger.warning(f"traderspost submit_close failed: {te!r}")
+        # Reset per-trade tracking
+        self._open_trade_id = None
+        self._open_trade_ref = None
 
 
     # ---- dashboard data publish ---------------------------------------

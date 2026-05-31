@@ -1286,6 +1286,11 @@ def _build_config_payload():
             "credentials_set": all(_os.environ.get(k) for k in
                                     ("TRADOVATE_USERNAME","TRADOVATE_PASSWORD")),
         },
+        "traderspost": {
+            "TRADERSPOST_LIVE":        _os.environ.get("TRADERSPOST_LIVE", "false"),
+            "webhook_url_set":         bool(_os.environ.get("TRADERSPOST_WEBHOOK_URL")),
+            "ticker":                  _os.environ.get("TRADERSPOST_TICKER", "MNQ"),
+        },
     }
     return out
 
@@ -1568,6 +1573,13 @@ def api_download(kind: str):
         except Exception as e:
             data = {"error": repr(e)}
         return _json_resp(data, f"{base_name}_tradovate.json")
+    if kind == "traderspost":
+        try:
+            from engine.brokers.traderspost import traderspost_status
+            data = traderspost_status()
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_traderspost.json")
     if kind == "calendar":
         try:
             from engine.data_sources.economic_calendar import EconomicCalendar
