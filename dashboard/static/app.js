@@ -1123,49 +1123,91 @@ function _attachTooltip(canvasId, tooltipId) {
   const tt = document.getElementById(tooltipId);
   if (!c || !tt || c.dataset.ttBound === "1") return;
   c.dataset.ttBound = "1";
-  const handleMove = (ev) => {
+
+  // Marker overlay: vertical ruler + highlight dot at the focus point.
+  // Lazy-create one div per chart, positioned absolutely inside chart-wrap.
+  let marker = c.parentElement.querySelector(".chart-marker");
+  if (!marker) {
+    marker = document.createElement("div");
+    marker.className = "chart-marker";
+    marker.innerHTML = '<div class="chart-marker-line"></div><div class="chart-marker-dot"></div>';
+    marker.style.display = "none";
+    c.parentElement.appendChild(marker);
+  }
+  const markerLine = marker.querySelector(".chart-marker-line");
+  const markerDot  = marker.querySelector(".chart-marker-dot");
+
+  function _coord(ev) {
     const rect = c.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const y = ev.clientY - rect.top;
+    const pt = (ev.touches && ev.touches[0]) || ev;
+    return { x: pt.clientX - rect.left, y: pt.clientY - rect.top, rect };
+  }
+  function _findHit(x, y) {
     const regions = _hitRegions[canvasId] || [];
     let hit = null;
+    // exact rectangular regions first (used by bars)
     for (const r of regions) {
-      if (r.r !== undefined) {
-        const dx = x - r.x, dy = y - r.y;
-        if (dx*dx + dy*dy <= r.r * r.r) { hit = r; break; }
-      } else if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) {
-        hit = r; break;
-      }
+      if (r.r !== undefined) continue;   // skip dot-style for first pass
+      if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) { hit = r; break; }
     }
-    // also catch nearest line-point within 30px on equity curve
-    if (!hit && (_hitRegions[canvasId] || []).length) {
-      let best = null, bd = 30 * 30;
-      for (const r of regions) {
-        if (r.r === undefined) continue;
-        const dx = x - r.x, dy = y - r.y;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < bd) { bd = d2; best = r; }
-      }
-      if (best) hit = best;
+    if (hit) return hit;
+    // Then nearest dot-style region within 40px (used by line charts).
+    // For equity curve we want to snap to whatever point is closest IN X
+    // so the user doesn't have to hit the line precisely.
+    let best = null, bd = Infinity;
+    for (const r of regions) {
+      if (r.r === undefined) continue;
+      const dx = x - r.x;
+      // Prefer x-proximity; allow large y distance
+      const d = Math.abs(dx) + Math.abs(y - r.y) * 0.05;
+      if (d < bd) { bd = d; best = r; }
     }
-    if (hit) {
-      tt.innerHTML = hit.html;
-      tt.classList.add("show");
-      // position to right of cursor unless near edge
-      const ttW = tt.offsetWidth || 160;
-      const ttH = tt.offsetHeight || 60;
-      let tx = x + 12, ty = y - ttH - 8;
-      if (tx + ttW > rect.width) tx = x - ttW - 12;
-      if (ty < 0) ty = y + 12;
-      tt.style.left = tx + "px";
-      tt.style.top = ty + "px";
+    return best;
+  }
+  function _show(ev) {
+    const { x, y, rect } = _coord(ev);
+    const hit = _findHit(x, y);
+    if (!hit) return;
+    tt.innerHTML = hit.html;
+    tt.classList.add("visible");
+    // Position marker (only meaningful for dot-style hits = line charts)
+    if (hit.r !== undefined) {
+      marker.style.display = "block";
+      markerLine.style.left = (hit.x - 0.5) + "px";
+      markerDot.style.left  = (hit.x - 6) + "px";
+      markerDot.style.top   = (hit.y - 6) + "px";
     } else {
-      tt.classList.remove("show");
+      marker.style.display = "none";
     }
-  };
-  c.addEventListener("mousemove", handleMove);
-  c.addEventListener("mouseleave", () => tt.classList.remove("show"));
-  c.addEventListener("click", handleMove);
+    // Position tooltip near the hit point (not the cursor) so it
+    // doesn't jump around on touch devices
+    const anchorX = hit.r !== undefined ? hit.x : (hit.x0 + hit.x1) / 2;
+    const anchorY = hit.r !== undefined ? hit.y : hit.y0;
+    const ttW = tt.offsetWidth || 180;
+    const ttH = tt.offsetHeight || 80;
+    let tx = anchorX + 14, ty = anchorY - ttH - 12;
+    if (tx + ttW > rect.width)  tx = anchorX - ttW - 14;
+    if (ty < 4)                 ty = anchorY + 18;
+    if (tx < 4)                 tx = 4;
+    tt.style.left = tx + "px";
+    tt.style.top  = ty + "px";
+  }
+  function _hide() {
+    tt.classList.remove("visible");
+    marker.style.display = "none";
+  }
+  // Desktop hover
+  c.addEventListener("mousemove", _show);
+  c.addEventListener("mouseleave", _hide);
+  // Tap / touch — sticky behaviour: tap on a point shows it, tap on
+  // empty area or outside the canvas hides it.
+  c.addEventListener("click",     _show);
+  c.addEventListener("touchstart", _show, { passive: true });
+  c.addEventListener("touchmove",  _show, { passive: true });
+  // Tap outside the canvas to dismiss
+  document.addEventListener("click", (ev) => {
+    if (!c.contains(ev.target) && !tt.contains(ev.target)) _hide();
+  });
 }
 
 function _setupCanvas(id) {
@@ -1244,82 +1286,63 @@ function drawEquityCurve(trades) {
     return;
   }
   const sorted = trades.slice();
-  // Build the equity series + a running-peak series for HWM line + drawdown
-  let bal = start, peak = start;
-  const points = [{ v: start, peak: start, t: null, trade: null }];
+  let bal = start;
+  const points = [{ v: start, t: null, trade: null }];
   sorted.forEach(t => {
     bal += (t.pnl_usd || 0);
-    if (bal > peak) peak = bal;
-    points.push({ v: bal, peak, t: t.ts, trade: t });
+    points.push({ v: bal, t: t.ts, trade: t });
   });
   const minV = Math.min(...points.map(p => p.v));
   const maxV = Math.max(...points.map(p => p.v));
-  const range = Math.max(maxV - minV, 1);
-  const padX = 32, padY = 22;
+  // Pad the vertical range slightly so the line never touches the top/bottom
+  const rawRange = Math.max(maxV - minV, 1);
+  const pad = rawRange * 0.08;
+  const yMin = minV - pad, yMax = maxV + pad;
+  const range = yMax - yMin;
+  const padX = 28, padY = 18;
 
   _animateChart("chart-equity", (ctx, w, h, progress) => {
-    const yOf = (v) => h - padY - ((v - minV) / range) * (h - 2 * padY);
-    // Background grid: 4 horizontal lines + $50k baseline
+    const yOf = (v) => h - padY - ((v - yMin) / range) * (h - 2 * padY);
+
+    // ── 1. Faint horizontal grid (5 evenly-spaced lines) ───────────
     ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
-    for (let i = 1; i <= 3; i++) {
-      const y = padY + (i / 4) * (h - 2 * padY);
+    for (let i = 1; i <= 4; i++) {
+      const y = padY + (i / 5) * (h - 2 * padY);
       ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
     }
-    // $50k start dashed reference
-    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1;
-    const y50k = yOf(50000);
-    ctx.beginPath(); ctx.setLineDash([3, 4]);
-    ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("$50k start", padX + 4, y50k - 4);
+    // ── 2. $50k start reference (dashed, faint) — only if in range ─
+    if (50000 >= yMin && 50000 <= yMax) {
+      const y50k = yOf(50000);
+      ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.setLineDash([3, 5]);
+      ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#4a5775"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
+      ctx.fillText("$50k", padX + 4, y50k - 4);
+    }
 
     const xy = points.map((p, i) => ({
       p,
       x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
       y: yOf(p.v),
-      peakY: yOf(p.peak),
     }));
     const visibleCount = Math.max(2, Math.ceil(xy.length * progress));
     const visible = xy.slice(0, visibleCount);
     const lastX = visible[visible.length - 1].x;
 
-    // ─── 1. DRAWDOWN VALLEY SHADING ─────────────────────────────────
-    // Red translucent area between current equity (below) and the HWM
-    // (above), showing the "underwater" portion of every drawdown.
-    const ddGradient = ctx.createLinearGradient(0, 0, 0, h);
-    ddGradient.addColorStop(0, "rgba(248, 113, 113, 0.28)");
-    ddGradient.addColorStop(1, "rgba(248, 113, 113, 0.04)");
-    ctx.beginPath();
-    visible.forEach(({x, peakY}, i) => { if (i === 0) ctx.moveTo(x, peakY); else ctx.lineTo(x, peakY); });
-    for (let i = visible.length - 1; i >= 0; i--) ctx.lineTo(visible[i].x, visible[i].y);
-    ctx.closePath();
-    ctx.fillStyle = ddGradient; ctx.fill();
-
-    // ─── 2. EQUITY AREA (green gradient under the line) ────────────
+    // ── 3. Filled area under the line (green gradient) ─────────────
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, "rgba(34,211,154,0.55)");
-    gradient.addColorStop(0.5, "rgba(34,211,154,0.18)");
-    gradient.addColorStop(1, "rgba(34,211,154,0.0)");
+    gradient.addColorStop(0, "rgba(34, 211, 154, 0.55)");
+    gradient.addColorStop(0.5, "rgba(34, 211, 154, 0.18)");
+    gradient.addColorStop(1, "rgba(34, 211, 154, 0.0)");
     ctx.beginPath();
-    visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    visible.forEach(({ x, y }, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
     ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
     ctx.fillStyle = gradient; ctx.fill();
 
-    // ─── 3. HIGH-WATER-MARK DASHED LINE ────────────────────────────
-    // Step-line tracing each peak.
+    // ── 4. Glowing equity line (double-pass for the bloom) ──────────
     ctx.beginPath();
-    visible.forEach(({x, peakY}, i) => { if (i === 0) ctx.moveTo(x, peakY); else ctx.lineTo(x, peakY); });
-    ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";   // amber
-    ctx.lineWidth = 1.3;
-    ctx.setLineDash([4, 4]);
-    ctx.shadowColor = "rgba(251, 191, 36, 0.5)"; ctx.shadowBlur = 6;
-    ctx.stroke();
-    ctx.shadowBlur = 0; ctx.setLineDash([]);
-
-    // ─── 4. MAIN EQUITY LINE (double-pass glow) ────────────────────
-    ctx.beginPath();
-    visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    visible.forEach(({ x, y }, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
     ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
     ctx.lineWidth = 6;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -1329,33 +1352,12 @@ function drawEquityCurve(trades) {
     ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
     ctx.stroke();
 
-    // ─── 5. TRADE MARKERS (small dots, only when many bars-per-pixel
-    //                       allows -- skip in dense charts to avoid clutter)
-    const pxBetweenTrades = visible.length > 1
-      ? (visible[1].x - visible[0].x) : 99;
-    if (pxBetweenTrades >= 4) {
-      visible.forEach(({p, x, y}, i) => {
-        if (i === 0 || !p.trade) return;
-        const win = (p.trade.pnl_usd || 0) > 0;
-        const r = 2.4;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = win ? "#3df0c2" : "#ff6b85";
-        ctx.shadowColor = win ? "#22d39a" : "#ff5470";
-        ctx.shadowBlur = 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      });
-    }
-
-    // ─── 6. LEADING EDGE PULSE during animation ─────────────────────
+    // ── 5. Leading-edge halo during animation ──────────────────────
     if (progress < 1) {
       const head = visible[visible.length - 1];
-      // Outer halo ring
       ctx.beginPath();
-      ctx.arc(head.x, head.y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(61, 240, 194, 0.18)";
-      ctx.fill();
-      // Inner bright dot
+      ctx.arc(head.x, head.y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(61, 240, 194, 0.18)"; ctx.fill();
       ctx.beginPath();
       ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = "#3df0c2";
@@ -1364,29 +1366,14 @@ function drawEquityCurve(trades) {
       ctx.shadowBlur = 0;
     }
 
-    // ─── 7. ANNOTATIONS (only after animation complete) ─────────────
+    // ── 6. Hit regions (one per trade point, used by tooltip) ─────
     if (progress >= 1) {
-      // Find deepest drawdown point and label it
-      let maxDdIdx = 0, maxDd = 0;
-      xy.forEach((pt, i) => {
-        const dd = pt.p.peak - pt.p.v;
-        if (dd > maxDd) { maxDd = dd; maxDdIdx = i; }
-      });
-      if (maxDd > 0) {
-        const dpt = xy[maxDdIdx];
-        ctx.fillStyle = "rgba(248, 113, 113, 0.85)";
-        ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(`Max DD: ${fmtUsd(-maxDd)}`,
-                     dpt.x, Math.min(h - padY - 4, dpt.y + 12));
-      }
-      // Hit regions
-      xy.forEach(({p, x, y}, i) => {
+      xy.forEach(({ p, x, y }, i) => {
         const pnl = p.v - 50000;
         const pnlClass = pnl >= 0 ? "pos" : "neg";
-        const dd = p.peak - p.v;
         const date = p.t ? new Date(p.t).toLocaleString() : "Start";
         const tradeRow = p.trade
-          ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd||0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd||0)}</span></div>`
+          ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd || 0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd || 0)}</span></div>`
           : "";
         _hitRegions["chart-equity"].push({
           x, y, r: 8,
@@ -1394,8 +1381,7 @@ function drawEquityCurve(trades) {
             <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${date}</span></div>
             <div class="tt-row"><span class="tt-label">Balance</span><span class="tt-value">${fmtUsdPlain(p.v)}</span></div>
             <div class="tt-row"><span class="tt-label">P&L vs start</span><span class="tt-value ${pnlClass}">${fmtUsd(pnl)}</span></div>
-            <div class="tt-row"><span class="tt-label">Peak</span><span class="tt-value">${fmtUsdPlain(p.peak)}</span></div>
-            <div class="tt-row"><span class="tt-label">DD from peak</span><span class="tt-value ${dd > 0 ? 'neg' : ''}">${dd > 0 ? fmtUsd(-dd) : '$0'}</span></div>
+            <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${i}</span></div>
             ${tradeRow}`,
         });
       });
