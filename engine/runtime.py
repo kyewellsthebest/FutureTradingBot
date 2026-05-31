@@ -21,9 +21,10 @@ PUBLIC API:
 from __future__ import annotations
 
 import logging
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Deque, List, Optional
 
 import pandas as pd
 
@@ -86,10 +87,16 @@ class Runtime:
         self.dollars_per_pt = dollars_per_pt
         self.commission_rt = commission_rt
         self.state = RuntimeState()
-        # Audit log -- every decision the runtime made this bar
-        self.decisions: List[dict] = []
-        # Closed trades emitted from this runtime
-        self.closed_trades: List[ClosedTrade] = []
+        # Audit log -- every decision the runtime made this bar. Bounded
+        # deque so a long-running shadow engine doesn't leak memory; the
+        # bundle download still gets the last N which is what matters.
+        self.decisions: Deque[dict] = deque(maxlen=500)
+        # Closed trades emitted from this runtime. Bounded for the same
+        # reason -- after N trades the oldest get evicted. Stats /
+        # snapshots that need totals over the full lifetime track sums
+        # incrementally on the AccountState instead of recomputing from
+        # the trade list.
+        self.closed_trades: Deque[ClosedTrade] = deque(maxlen=1000)
 
     # -----------------------------------------------------------------
     # Per-bar entry point
@@ -305,6 +312,10 @@ class Runtime:
         self.account.balance += pnl_usd
         self.account.today_pnl += pnl_usd
         self.account.today_trades += 1
+        self.account.lifetime_trades += 1
+        self.account.lifetime_pnl += pnl_usd
+        if pnl_usd > 0:
+            self.account.lifetime_wins += 1
         self.account.last_trade_close_ts = exit_fill.ts
         self.account.is_in_trade = False
         if pnl_usd < 0:

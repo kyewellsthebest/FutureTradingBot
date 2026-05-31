@@ -377,6 +377,17 @@ class FibRuntime:
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
+        # Memory hygiene: force a garbage collection every 200 cycles
+        # (~5 minutes). The new engine + cross-market + structure compute
+        # produced an OOM crash on Railway; this gives the GC a regular
+        # opportunity to free the per-tick temporaries (history slices,
+        # decision dicts, yfinance dataframes, etc).
+        if self.cycle % 200 == 0:
+            try:
+                import gc
+                gc.collect()
+            except Exception:
+                pass
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the

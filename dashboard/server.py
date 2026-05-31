@@ -203,6 +203,32 @@ def api_diag():
                                     - lb.stat().st_mtime) < 120
     else:
         out["cnbc_poller_alive"] = False
+    # Memory + process stats -- Railway killed the deploy for OOM, so we
+    # want this visible to catch future leaks before they crash again.
+    try:
+        import os as _os, resource
+        rusage = resource.getrusage(resource.RUSAGE_SELF)
+        # ru_maxrss is in KB on Linux, bytes on macOS
+        ru_max_mb = rusage.ru_maxrss / 1024
+        out["memory"] = {
+            "rss_max_mb": round(ru_max_mb, 1),
+            "user_cpu_s": round(rusage.ru_utime, 1),
+            "sys_cpu_s":  round(rusage.ru_stime, 1),
+        }
+        # Try to read current RSS from /proc/self/status (Linux)
+        try:
+            with open("/proc/self/status") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        kb = int(line.split()[1])
+                        out["memory"]["rss_current_mb"] = round(kb / 1024, 1)
+                    elif line.startswith("VmSize:"):
+                        kb = int(line.split()[1])
+                        out["memory"]["vsize_mb"] = round(kb / 1024, 1)
+        except Exception:
+            pass
+    except Exception as e:
+        out["memory_error"] = repr(e)
     # Top-level interpretation
     snap_age = out["files"]["dashboard_data.json"].get("age_s", 1e9)
     if not out["files"]["dashboard_data.json"]["exists"]:

@@ -30,6 +30,11 @@ class AccountState:
     # Locks are bound to a tag so multiple gates can have independent
     # locks without stepping on each other.
     locks: dict = field(default_factory=dict)   # {tag: lockout_until_ts}
+    # Lifetime aggregates: incremented per-trade so we can cap the
+    # closed_trades deque without losing total stats.
+    lifetime_trades: int = 0
+    lifetime_wins: int = 0
+    lifetime_pnl: float = 0.0
 
 
 # ---------------------------------------------------------------------------

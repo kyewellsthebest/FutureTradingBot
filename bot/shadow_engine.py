@@ -193,13 +193,18 @@ class ShadowEngine:
 
     # -----------------------------------------------------------------
     def snapshot(self) -> dict:
-        """Compact summary for the dashboard. Cheap to call."""
+        """Compact summary for the dashboard. Cheap to call.
+
+        Uses incremental lifetime counters on the AccountState rather than
+        iterating closed_trades -- the trade list is a bounded deque so
+        recomputing from it would only see the last N trades.
+        """
         if not self.enabled:
             return {"enabled": False}
         rt = self.runtime
-        closed = rt.closed_trades
-        wins = sum(1 for t in closed if t.pnl_usd(2.0, 0.74) > 0)
-        total_pnl = sum(t.pnl_usd(2.0, 0.74) for t in closed)
+        acct = rt.account
+        lifetime_trades = acct.lifetime_trades
+        lifetime_wins = acct.lifetime_wins
         return {
             "enabled": True,
             "started_at": self._started_at,
@@ -209,10 +214,10 @@ class ShadowEngine:
                 self._last_processed_bar_ts.isoformat()
                 if self._last_processed_bar_ts else None
             ),
-            "trades_closed": len(closed),
-            "wins": wins,
-            "win_rate": (100 * wins / len(closed)) if closed else 0,
-            "total_pnl_usd": round(total_pnl, 2),
+            "trades_closed": lifetime_trades,
+            "wins": lifetime_wins,
+            "win_rate": (100 * lifetime_wins / lifetime_trades) if lifetime_trades else 0,
+            "total_pnl_usd": round(acct.lifetime_pnl, 2),
             "balance": round(rt.account.balance, 2),
             "today_pnl": round(rt.account.today_pnl, 2),
             "today_trades": rt.account.today_trades,
@@ -252,8 +257,8 @@ class ShadowEngine:
             },
             "stats": self.snapshot(),
             "closed_trades": [_jsonable(t) for t in rt.closed_trades],
-            # Truncate decisions to last 500 to keep file size reasonable
-            "decisions_tail": rt.decisions[-500:],
+            # Decisions is a bounded deque (maxlen=500); convert to list for JSON
+            "decisions_tail": list(rt.decisions),
         }
 
     def persist(self, out_path: Path) -> None:

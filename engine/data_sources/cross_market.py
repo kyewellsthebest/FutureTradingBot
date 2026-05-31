@@ -21,7 +21,11 @@ import pandas as pd
 
 logger = logging.getLogger("cross_market")
 
-CACHE_TTL_SEC = 60
+# 5 min cache. Pre-fix this was 60s -- 5 instruments × 1 fetch/min = 5
+# yfinance calls/min, which leaks memory through curl_cffi sessions and
+# contributed to the OOM crash. VIX/SPY/DXY don't change so fast that
+# we need sub-5min freshness for the macro alignment sizer.
+CACHE_TTL_SEC = 300
 
 
 @dataclass
