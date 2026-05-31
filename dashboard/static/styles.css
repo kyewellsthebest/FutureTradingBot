@@ -986,6 +986,19 @@ img, svg, canvas { max-width: 100%; }
   filter: drop-shadow(0 0 5px rgba(16, 212, 168, 0.30))
           drop-shadow(0 0 16px rgba(248, 113, 113, 0.20));
 }
+#chart-heatmap {
+  filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.25))
+          drop-shadow(0 0 14px rgba(168, 85, 247, 0.15));
+}
+#chart-drawdown {
+  filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.40))
+          drop-shadow(0 0 18px rgba(248, 113, 113, 0.20));
+}
+#chart-hourly {
+  filter: drop-shadow(0 0 5px rgba(168, 85, 247, 0.35))
+          drop-shadow(0 0 16px rgba(6, 182, 212, 0.18));
+}
+.chart-wrap-heatmap { height: 230px; }
 @keyframes chart-fade-in {
   from {
     opacity: 0;

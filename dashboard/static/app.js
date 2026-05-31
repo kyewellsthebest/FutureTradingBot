@@ -342,7 +342,10 @@ function activateTab(name) {
   // lazy init chart when chart tab first shown
   if (name === "chart" && !chart) initChart();
   // re-render performance graphs when performance tab opens
-  if (name === "performance") renderPerformanceGraphs();
+  if (name === "performance") {
+    _resetChartAnimations();   // re-play entrance animations each visit
+    renderPerformanceGraphs();
+  }
 }
 document.querySelectorAll(".tab").forEach(t => {
   t.addEventListener("click", () => activateTab(t.dataset.tab));
@@ -1044,6 +1047,9 @@ function _renderPerfPanels(allTrades) {
   drawMonthlyPnl(filtered);
   drawHoldHistogram(filtered);
   drawWinLossHistogram(filtered);
+  drawDailyHeatmap(filtered);
+  drawDrawdownCurve(filtered);
+  drawHourlyPerformance(filtered);
 }
 
 function _renderLifetimeSummary(trades) {
@@ -1177,89 +1183,156 @@ function _setupCanvas(id) {
   return { ctx, w, h };
 }
 
-function drawEquityCurve(trades) {
-  const r = _setupCanvas("chart-equity"); if (!r) return;
+// Chart entrance animation tracker -- only animate on first render or when
+// the tab is re-entered, NOT on every 5s poll refresh.
+const _chartAnimDone = new Set();
+let _chartRafs = {};  // {canvasId: rafHandle}  -- cancel mid-flight
+
+function _shouldAnimate(canvasId) {
+  if (_chartAnimDone.has(canvasId)) return false;
+  if (window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    _chartAnimDone.add(canvasId);
+    return false;
+  }
+  return true;
+}
+
+// Animate any draw function. drawFn(ctx, w, h, progress) where progress is
+// 0..1, eased. Cancels any in-flight animation on the same canvas.
+function _animateChart(canvasId, drawFn, opts = {}) {
+  const r = _setupCanvas(canvasId);
+  if (!r) return;
   const { ctx, w, h } = r;
+  if (!_shouldAnimate(canvasId)) {
+    drawFn(ctx, w, h, 1);
+    return;
+  }
+  if (_chartRafs[canvasId]) cancelAnimationFrame(_chartRafs[canvasId]);
+  const duration = opts.duration || 850;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);  // ease-out cubic
+    ctx.clearRect(0, 0, w, h);
+    drawFn(ctx, w, h, eased);
+    if (t < 1) {
+      _chartRafs[canvasId] = requestAnimationFrame(step);
+    } else {
+      _chartAnimDone.add(canvasId);
+      _chartRafs[canvasId] = null;
+    }
+  }
+  _chartRafs[canvasId] = requestAnimationFrame(step);
+}
+
+// Force-replay all chart entrance animations next time Performance tab opens
+function _resetChartAnimations() {
+  _chartAnimDone.clear();
+  for (const id in _chartRafs) {
+    if (_chartRafs[id]) cancelAnimationFrame(_chartRafs[id]);
+  }
+  _chartRafs = {};
+}
+
+function drawEquityCurve(trades) {
   const start = 50000;
   _hitRegions["chart-equity"] = [];
   if (!trades.length) {
+    const r = _setupCanvas("chart-equity"); if (!r) return;
+    const { ctx, w, h } = r;
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
   }
-  // /api/all_trades now returns chronologically sorted (oldest first), so
-  // we walk in array order. Legacy: state.data.recent_trades was newest-
-  // first which is why this used to .reverse() -- removing that .reverse()
-  // matters now that the trades come from the new endpoint.
   const sorted = trades.slice();
   let bal = start;
   const points = [{ v: start, t: null, trade: null }];
   sorted.forEach(t => { bal += (t.pnl_usd || 0); points.push({ v: bal, t: t.ts, trade: t }); });
-  const minV = Math.min(...points.map(p => p.v)), maxV = Math.max(...points.map(p => p.v));
+  const minV = Math.min(...points.map(p => p.v));
+  const maxV = Math.max(...points.map(p => p.v));
   const range = Math.max(maxV - minV, 1);
   const padX = 30, padY = 20;
-  // grid line at $50k
-  ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
-  const y50k = h - padY - ((50000 - minV) / range) * (h - 2 * padY);
-  ctx.beginPath(); ctx.setLineDash([3, 4]); ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
-  ctx.fillText("$50k start", padX + 4, y50k - 4);
-  // line
-  const gradient = ctx.createLinearGradient(0, 0, 0, h);
-  gradient.addColorStop(0, "rgba(34,211,154,0.55)");
-  gradient.addColorStop(0.5, "rgba(34,211,154,0.18)");
-  gradient.addColorStop(1, "rgba(34,211,154,0.0)");
-  const xy = points.map((p, i) => ({
-    p,
-    x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
-    y: h - padY - ((p.v - minV) / range) * (h - 2 * padY),
-  }));
-  ctx.beginPath();
-  xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  // fill under
-  ctx.lineTo(w - padX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
-  ctx.fillStyle = gradient; ctx.fill();
-  // Glowing line on top -- two stroke passes for the bloom effect
-  ctx.beginPath();
-  xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  // Outer glow pass: wide, semi-transparent
-  ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
-  ctx.lineWidth = 6;
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
-  ctx.stroke();
-  // Inner sharp pass: thin, bright
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
-  ctx.stroke();
-  // hit regions: 6px radius at every point
-  xy.forEach(({p, x, y}, i) => {
-    const pnl = p.v - 50000;
-    const pnlClass = pnl >= 0 ? "pos" : "neg";
-    const date = p.t ? new Date(p.t).toLocaleString() : "Start";
-    const tradeRow = p.trade
-      ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd||0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd||0)}</span></div>`
-      : "";
-    _hitRegions["chart-equity"].push({
-      x, y, r: 8,
-      html: `
-        <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${date}</span></div>
-        <div class="tt-row"><span class="tt-label">Balance</span><span class="tt-value">${fmtUsdPlain(p.v)}</span></div>
-        <div class="tt-row"><span class="tt-label">P&L vs start</span><span class="tt-value ${pnlClass}">${fmtUsd(pnl)}</span></div>
-        <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${i}</span></div>
-        ${tradeRow}`,
-    });
+
+  _animateChart("chart-equity", (ctx, w, h, progress) => {
+    // grid line at $50k
+    ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
+    const y50k = h - padY - ((50000 - minV) / range) * (h - 2 * padY);
+    ctx.beginPath(); ctx.setLineDash([3, 4]);
+    ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("$50k start", padX + 4, y50k - 4);
+    // points (animated reveal: progress controls how many are drawn)
+    const xy = points.map((p, i) => ({
+      p,
+      x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
+      y: h - padY - ((p.v - minV) / range) * (h - 2 * padY),
+    }));
+    const visibleCount = Math.max(2, Math.ceil(xy.length * progress));
+    const visible = xy.slice(0, visibleCount);
+    // Gradient fill under line
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, "rgba(34,211,154,0.55)");
+    gradient.addColorStop(0.5, "rgba(34,211,154,0.18)");
+    gradient.addColorStop(1, "rgba(34,211,154,0.0)");
+    ctx.beginPath();
+    visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    // fill under (closes to bottom-right of visible region)
+    const lastX = visible[visible.length - 1].x;
+    ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
+    ctx.fillStyle = gradient; ctx.fill();
+    // Glowing line -- two stroke passes
+    ctx.beginPath();
+    visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
+    ctx.stroke();
+    // Leading-edge pulse: bright dot at the current animation head
+    if (progress < 1) {
+      const head = visible[visible.length - 1];
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#3df0c2";
+      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    // Hit regions only after animation complete
+    if (progress >= 1) {
+      xy.forEach(({p, x, y}, i) => {
+        const pnl = p.v - 50000;
+        const pnlClass = pnl >= 0 ? "pos" : "neg";
+        const date = p.t ? new Date(p.t).toLocaleString() : "Start";
+        const tradeRow = p.trade
+          ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd||0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd||0)}</span></div>`
+          : "";
+        _hitRegions["chart-equity"].push({
+          x, y, r: 8,
+          html: `
+            <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${date}</span></div>
+            <div class="tt-row"><span class="tt-label">Balance</span><span class="tt-value">${fmtUsdPlain(p.v)}</span></div>
+            <div class="tt-row"><span class="tt-label">P&L vs start</span><span class="tt-value ${pnlClass}">${fmtUsd(pnl)}</span></div>
+            <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${i}</span></div>
+            ${tradeRow}`,
+        });
+      });
+      _attachTooltip("chart-equity", "tt-equity");
+    }
   });
-  _attachTooltip("chart-equity", "tt-equity");
 }
 
 function drawMonthlyPnl(trades) {
-  const r = _setupCanvas("chart-monthly"); if (!r) return;
-  const { ctx, w, h } = r;
   _hitRegions["chart-monthly"] = [];
   if (!trades.length) {
+    const r = _setupCanvas("chart-monthly"); if (!r) return;
+    const { ctx, w, h } = r;
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
@@ -1278,57 +1351,68 @@ function drawMonthlyPnl(trades) {
   const keys = Object.keys(months).sort();
   const vals = keys.map(k => months[k].pnl);
   if (!vals.length) return;
-  const padX = 30, padY = 20;
   const maxV = Math.max(...vals.map(Math.abs), 1);
-  const bw = (w - 2 * padX) / Math.max(keys.length, 1);
-  // zero line
-  ctx.strokeStyle = "rgba(255,255,255,0.1)";
-  const yZero = h / 2;
-  ctx.beginPath(); ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
-  // glowing bars
-  keys.forEach((k, i) => {
-    const v = months[k].pnl;
-    const x = padX + i * bw + 2;
-    const bh = (Math.abs(v) / maxV) * (h / 2 - padY);
-    const color = v >= 0 ? "#22d39a" : "#ff5470";
-    const by = v >= 0 ? yZero - bh : yZero;
-    // glow
-    ctx.shadowColor = color; ctx.shadowBlur = 14;
-    ctx.fillStyle = color;
-    ctx.fillRect(x, by, bw - 4, bh);
-    ctx.shadowBlur = 0;
-    // bright top edge for that "neon" look
-    ctx.fillStyle = v >= 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)";
-    ctx.fillRect(x, v >= 0 ? by : by + bh - 1, bw - 4, 1);
-    // hit region for this month
-    const wr = (v >= 0 ? months[k].wins : months[k].losses);
-    const winRate = months[k].n ? months[k].wins / months[k].n : 0;
-    _hitRegions["chart-monthly"].push({
-      x0: x, x1: x + bw - 4,
-      y0: Math.min(by, yZero), y1: Math.max(by + bh, yZero),
-      html: `
-        <div class="tt-row"><span class="tt-label">Month</span><span class="tt-value">${k}</span></div>
-        <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${v >= 0 ? 'pos' : 'neg'}">${fmtUsd(v)}</span></div>
-        <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${months[k].n}</span></div>
-        <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${months[k].wins}</span></div>
-        <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${months[k].losses}</span></div>
-        <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${fmtPct(winRate)}</span></div>`,
+
+  _animateChart("chart-monthly", (ctx, w, h, progress) => {
+    const padX = 30, padY = 20;
+    const bw = (w - 2 * padX) / Math.max(keys.length, 1);
+    // zero line
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    const yZero = h / 2;
+    ctx.beginPath(); ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
+    // bars grow from baseline with stagger: each bar starts at i*40ms into the animation
+    keys.forEach((k, i) => {
+      const v = months[k].pnl;
+      const x = padX + i * bw + 2;
+      // Stagger: each bar's progress lags by 5% per index
+      const lag = i / Math.max(keys.length, 1) * 0.4;
+      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
+      const eased = 1 - Math.pow(1 - localT, 3);
+      const fullBh = (Math.abs(v) / maxV) * (h / 2 - padY);
+      const bh = fullBh * eased;
+      const color = v >= 0 ? "#22d39a" : "#ff5470";
+      const by = v >= 0 ? yZero - bh : yZero;
+      ctx.shadowColor = color; ctx.shadowBlur = 14;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, by, bw - 4, bh);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = v >= 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)";
+      if (bh > 0.5) ctx.fillRect(x, v >= 0 ? by : by + bh - 1, bw - 4, 1);
+      if (progress >= 1) {
+        const winRate = months[k].n ? months[k].wins / months[k].n : 0;
+        const fullBy = v >= 0 ? yZero - fullBh : yZero;
+        _hitRegions["chart-monthly"].push({
+          x0: x, x1: x + bw - 4,
+          y0: Math.min(fullBy, yZero), y1: Math.max(fullBy + fullBh, yZero),
+          html: `
+            <div class="tt-row"><span class="tt-label">Month</span><span class="tt-value">${k}</span></div>
+            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${v >= 0 ? 'pos' : 'neg'}">${fmtUsd(v)}</span></div>
+            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${months[k].n}</span></div>
+            <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${months[k].wins}</span></div>
+            <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${months[k].losses}</span></div>
+            <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${fmtPct(winRate)}</span></div>`,
+        });
+      }
     });
+    // x labels (only after animation completes)
+    if (progress >= 0.95) {
+      ctx.globalAlpha = (progress - 0.95) / 0.05;
+      ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+      const step = keys.length > 12 ? Math.ceil(keys.length / 12) : 1;
+      keys.forEach((k, i) => {
+        if (i % step === 0) ctx.fillText(k.slice(2), padX + i * bw + bw / 2, h - 4);
+      });
+      ctx.globalAlpha = 1;
+    }
+    if (progress >= 1) _attachTooltip("chart-monthly", "tt-monthly");
   });
-  // x labels (every other if many)
-  ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-  const step = keys.length > 12 ? Math.ceil(keys.length / 12) : 1;
-  keys.forEach((k, i) => {
-    if (i % step === 0) ctx.fillText(k.slice(2), padX + i * bw + bw / 2, h - 4);
-  });
-  _attachTooltip("chart-monthly", "tt-monthly");
 }
 
 function drawHoldHistogram(trades) {
-  const r = _setupCanvas("chart-holds"); if (!r) return;
-  const { ctx, w, h } = r;
   _hitRegions["chart-holds"] = [];
   if (!trades.length) {
+    const r = _setupCanvas("chart-holds"); if (!r) return;
+    const { ctx, w, h } = r;
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
@@ -1352,55 +1436,64 @@ function drawHoldHistogram(trades) {
     }
   });
   const maxC = Math.max(...buckets.map(b => b.c), 1);
-  const padX = 30, padY = 30;
-  const bw = (w - 2 * padX) / buckets.length;
-  buckets.forEach((b, i) => {
-    const x = padX + i * bw + 4;
-    const bh = (b.c / maxC) * (h - 2 * padY);
-    // glowing bar
-    const isMicro = b.label === "≤10s";
-    const color = isMicro ? "#ffb648" : "#56d4ff";
-    ctx.shadowColor = color; ctx.shadowBlur = 12;
-    ctx.fillStyle = color;
-    ctx.fillRect(x, h - padY - bh, bw - 8, bh);
-    ctx.shadowBlur = 0;
-    // bright top edge
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.fillRect(x, h - padY - bh, bw - 8, 1);
-    // count above bar
-    ctx.fillStyle = "#a4b1c7"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-    if (b.c > 0) ctx.fillText(b.c, x + (bw - 8) / 2, h - padY - bh - 4);
-    // label below
-    ctx.fillStyle = "#5d6b85";
-    ctx.fillText(b.label, x + (bw - 8) / 2, h - 8);
-    // hit region
-    _hitRegions["chart-holds"].push({
-      x0: x, x1: x + bw - 8,
-      y0: h - padY - bh - 14, y1: h - padY,
-      html: `
-        <div class="tt-row"><span class="tt-label">Bucket</span><span class="tt-value">${b.label}</span></div>
-        <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.c}</span></div>
-        <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
-        <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${b.wins}</span></div>
-        <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${b.losses}</span></div>
-        ${isMicro ? '<div class="tt-row"><span class="tt-label">Lucid</span><span class="tt-value neg">microscalp range</span></div>' : ''}`,
+
+  _animateChart("chart-holds", (ctx, w, h, progress) => {
+    const padX = 30, padY = 30;
+    const bw = (w - 2 * padX) / buckets.length;
+    buckets.forEach((b, i) => {
+      const x = padX + i * bw + 4;
+      // Stagger from left to right
+      const lag = i / buckets.length * 0.5;
+      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
+      const eased = 1 - Math.pow(1 - localT, 3);
+      const fullBh = (b.c / maxC) * (h - 2 * padY);
+      const bh = fullBh * eased;
+      const isMicro = b.label === "≤10s";
+      const color = isMicro ? "#ffb648" : "#56d4ff";
+      ctx.shadowColor = color; ctx.shadowBlur = 12;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, h - padY - bh, bw - 8, bh);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      if (bh > 0.5) ctx.fillRect(x, h - padY - bh, bw - 8, 1);
+      // labels + count (only at near-complete)
+      if (eased > 0.85) {
+        ctx.globalAlpha = (eased - 0.85) / 0.15;
+        ctx.fillStyle = "#a4b1c7"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+        if (b.c > 0) ctx.fillText(b.c, x + (bw - 8) / 2, h - padY - fullBh - 4);
+        ctx.fillStyle = "#5d6b85";
+        ctx.fillText(b.label, x + (bw - 8) / 2, h - 8);
+        ctx.globalAlpha = 1;
+      }
+      if (progress >= 1) {
+        _hitRegions["chart-holds"].push({
+          x0: x, x1: x + bw - 8,
+          y0: h - padY - fullBh - 14, y1: h - padY,
+          html: `
+            <div class="tt-row"><span class="tt-label">Bucket</span><span class="tt-value">${b.label}</span></div>
+            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.c}</span></div>
+            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
+            <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${b.wins}</span></div>
+            <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${b.losses}</span></div>
+            ${isMicro ? '<div class="tt-row"><span class="tt-label">Lucid</span><span class="tt-value neg">microscalp range</span></div>' : ''}`,
+        });
+      }
     });
+    if (progress >= 1) _attachTooltip("chart-holds", "tt-holds");
   });
-  _attachTooltip("chart-holds", "tt-holds");
 }
 
 function drawWinLossHistogram(trades) {
-  const r = _setupCanvas("chart-wlhist"); if (!r) return;
-  const { ctx, w, h } = r;
   _hitRegions["chart-wlhist"] = [];
   if (!trades.length) {
+    const r = _setupCanvas("chart-wlhist"); if (!r) return;
+    const { ctx, w, h } = r;
     ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
   }
   const wins = trades.filter(t => (t.pnl_usd || 0) > 0);
   const losses = trades.filter(t => (t.pnl_usd || 0) < 0);
-  const padX = 30, padY = 30;
   const winTotal = wins.reduce((s, t) => s + t.pnl_usd, 0);
   const lossTotal = losses.reduce((s, t) => s + t.pnl_usd, 0);
   const lanes = [
@@ -1411,37 +1504,341 @@ function drawWinLossHistogram(trades) {
       n: losses.length, avg: losses.length ? lossTotal / losses.length : 0,
       total: lossTotal, biggest: losses.length ? Math.min(...losses.map(t => t.pnl_usd)) : 0 },
   ];
-  // Bar heights + labels show TOTALs (not averages) — totals are the
-  // metric that actually matters (your aggregate profit vs aggregate loss).
   const maxV = Math.max(...lanes.map(l => Math.abs(l.total)), 1);
-  const bw = (w - 2 * padX) / 2;
-  lanes.forEach((lane, i) => {
-    const x = padX + i * bw + 20;
-    const bh = (Math.abs(lane.total) / maxV) * (h - 2 * padY);
-    // glowing bar
-    ctx.shadowColor = lane.color; ctx.shadowBlur = 16;
-    ctx.fillStyle = lane.color;
-    ctx.fillRect(x, h - padY - bh, bw - 40, bh);
-    ctx.shadowBlur = 0;
-    // bright top edge
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillRect(x, h - padY - bh, bw - 40, 1);
-    ctx.fillStyle = lane.color; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(fmtUsd(lane.total), x + (bw - 40) / 2, h - padY - bh - 6);
-    ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
-    ctx.fillText(lane.label, x + (bw - 40) / 2, h - 10);
-    _hitRegions["chart-wlhist"].push({
-      x0: x, x1: x + bw - 40,
-      y0: h - padY - bh - 20, y1: h - padY,
-      html: `
-        <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value">${lane.key === 'wins' ? 'Wins' : 'Losses'}</span></div>
-        <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${lane.n}</span></div>
-        <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.avg)}</span></div>
-        <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.total)}</span></div>
-        <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.biggest)}</span></div>`,
+
+  _animateChart("chart-wlhist", (ctx, w, h, progress) => {
+    const padX = 30, padY = 30;
+    const bw = (w - 2 * padX) / 2;
+    lanes.forEach((lane, i) => {
+      const x = padX + i * bw + 20;
+      const lag = i * 0.15;
+      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
+      const eased = 1 - Math.pow(1 - localT, 3);
+      const fullBh = (Math.abs(lane.total) / maxV) * (h - 2 * padY);
+      const bh = fullBh * eased;
+      ctx.shadowColor = lane.color; ctx.shadowBlur = 16;
+      ctx.fillStyle = lane.color;
+      ctx.fillRect(x, h - padY - bh, bw - 40, bh);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      if (bh > 0.5) ctx.fillRect(x, h - padY - bh, bw - 40, 1);
+      if (eased > 0.8) {
+        ctx.globalAlpha = (eased - 0.8) / 0.2;
+        ctx.fillStyle = lane.color; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+        ctx.shadowColor = lane.color; ctx.shadowBlur = 12;
+        ctx.fillText(fmtUsd(lane.total), x + (bw - 40) / 2, h - padY - fullBh - 8);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
+        ctx.fillText(lane.label, x + (bw - 40) / 2, h - 10);
+        ctx.globalAlpha = 1;
+      }
+      if (progress >= 1) {
+        _hitRegions["chart-wlhist"].push({
+          x0: x, x1: x + bw - 40,
+          y0: h - padY - fullBh - 20, y1: h - padY,
+          html: `
+            <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value">${lane.key === 'wins' ? 'Wins' : 'Losses'}</span></div>
+            <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${lane.n}</span></div>
+            <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.avg)}</span></div>
+            <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.total)}</span></div>
+            <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.biggest)}</span></div>`,
+        });
+      }
     });
+    if (progress >= 1) _attachTooltip("chart-wlhist", "tt-wlhist");
   });
-  _attachTooltip("chart-wlhist", "tt-wlhist");
+}
+
+// ============================================================================
+// NEW CHARTS — premium additions
+// ============================================================================
+
+// 1. Daily P&L Heatmap (GitHub-contributions style)
+function drawDailyHeatmap(trades) {
+  _hitRegions["chart-heatmap"] = [];
+  if (!trades.length) {
+    const r = _setupCanvas("chart-heatmap"); if (!r) return;
+    const { ctx, w, h } = r;
+    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("No trades yet", w / 2, h / 2);
+    return;
+  }
+  // Bucket P&L by local calendar date
+  const byDay = {};
+  trades.forEach(t => {
+    const d = new Date(t.ts);
+    const key = d.toISOString().slice(0, 10);
+    byDay[key] = (byDay[key] || 0) + (t.pnl_usd || 0);
+  });
+  // Build last 84 days (12 weeks × 7 cols of weekday rows)
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 83; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    days.push({ d, key, pnl: byDay[key] });   // pnl is undefined if no trades
+  }
+  const maxAbs = Math.max(
+    ...Object.values(byDay).map(Math.abs), 1
+  );
+
+  _animateChart("chart-heatmap", (ctx, w, h, progress) => {
+    const padX = 28, padTop = 24, padBot = 22;
+    const cols = 12;
+    const rows = 7;
+    const gap = 3;
+    // Compute cell size to fit (cols+1 to leave a column of spacing)
+    const cw = (w - 2 * padX - (cols - 1) * gap) / cols;
+    const ch = (h - padTop - padBot - (rows - 1) * gap) / rows;
+    const cellSize = Math.min(cw, ch);
+    // Row labels (Mon, Wed, Fri only to save space)
+    ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "right";
+    const dayNames = ["S","M","T","W","T","F","S"];
+    if (progress > 0.7) {
+      ctx.globalAlpha = (progress - 0.7) / 0.3;
+      [1, 3, 5].forEach(r => {
+        ctx.fillText(dayNames[r], padX - 4, padTop + r * (cellSize + gap) + cellSize * 0.7);
+      });
+      ctx.globalAlpha = 1;
+    }
+    // Cells: each day is (col, row) where col = weeks-ago, row = day-of-week
+    days.forEach((day, i) => {
+      // The grid we draw goes col 0..11 left-to-right (oldest -> newest)
+      const col = Math.floor(i / 7);
+      const row = i % 7;
+      const x = padX + col * (cellSize + gap);
+      const y = padTop + row * (cellSize + gap);
+      // Wave entry animation: top-left first, bottom-right last
+      const cellLag = (col / cols + row / rows) * 0.5;
+      const localT = Math.max(0, Math.min(1, (progress - cellLag) / (1 - cellLag || 1)));
+      const eased = 1 - Math.pow(1 - localT, 3);
+      const scale = 0.3 + 0.7 * eased;
+      const sz = cellSize * scale;
+      const offset = (cellSize - sz) / 2;
+      let color = "rgba(255,255,255,0.04)";
+      let glow = null;
+      if (day.pnl !== undefined) {
+        const intensity = Math.min(1, Math.abs(day.pnl) / maxAbs);
+        const alpha = 0.18 + 0.72 * intensity;
+        if (day.pnl >= 0) {
+          color = `rgba(34, 211, 154, ${alpha})`;
+          glow = `rgba(34, 211, 154, ${0.4 * intensity})`;
+        } else {
+          color = `rgba(255, 84, 112, ${alpha})`;
+          glow = `rgba(255, 84, 112, ${0.4 * intensity})`;
+        }
+      }
+      if (glow) {
+        ctx.shadowColor = glow; ctx.shadowBlur = 10;
+      }
+      ctx.fillStyle = color;
+      _roundRect(ctx, x + offset, y + offset, sz, sz, 2.5);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      if (progress >= 1 && day.pnl !== undefined) {
+        _hitRegions["chart-heatmap"].push({
+          x0: x, x1: x + cellSize, y0: y, y1: y + cellSize,
+          html: `
+            <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${day.key}</span></div>
+            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${day.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(day.pnl)}</span></div>`,
+        });
+      }
+    });
+    // Month labels (only at near-complete)
+    if (progress > 0.9) {
+      ctx.globalAlpha = (progress - 0.9) / 0.1;
+      ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "center";
+      // Show first day of each visible month
+      let lastMonth = -1;
+      days.forEach((day, i) => {
+        const m = day.d.getMonth();
+        if (m !== lastMonth && i % 7 === 0) {
+          const col = Math.floor(i / 7);
+          const x = padX + col * (cellSize + gap) + cellSize / 2;
+          const monthName = day.d.toLocaleString('en-US', {month: 'short'});
+          ctx.fillText(monthName, x, padTop - 8);
+          lastMonth = m;
+        }
+      });
+      ctx.globalAlpha = 1;
+    }
+    if (progress >= 1) _attachTooltip("chart-heatmap", "tt-heatmap");
+  }, { duration: 1200 });
+}
+
+// 2. Drawdown underwater curve
+function drawDrawdownCurve(trades) {
+  _hitRegions["chart-drawdown"] = [];
+  if (!trades.length) {
+    const r = _setupCanvas("chart-drawdown"); if (!r) return;
+    const { ctx, w, h } = r;
+    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("No trades yet", w / 2, h / 2);
+    return;
+  }
+  // Build underwater series: DD_i = peak - cum_i (always >= 0)
+  let cum = 0, peak = 0;
+  const series = [{ i: 0, t: null, cum: 0, dd: 0 }];
+  trades.forEach((t, i) => {
+    cum += (t.pnl_usd || 0);
+    if (cum > peak) peak = cum;
+    series.push({ i: i + 1, t: t.ts, cum, dd: peak - cum });
+  });
+  const maxDd = Math.max(...series.map(p => p.dd), 1);
+
+  _animateChart("chart-drawdown", (ctx, w, h, progress) => {
+    const padX = 30, padY = 24;
+    const visibleCount = Math.max(2, Math.ceil(series.length * progress));
+    const xy = series.slice(0, visibleCount).map((p, i) => ({
+      p,
+      x: padX + (i / Math.max(series.length - 1, 1)) * (w - 2 * padX),
+      y: padY + (p.dd / maxDd) * (h - 2 * padY),  // DD goes DOWN from top
+    }));
+    // Zero line at top (= peak / no drawdown)
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX, padY); ctx.lineTo(w - padX, padY); ctx.stroke();
+    ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("Peak", padX + 2, padY - 4);
+    // Bottom label
+    ctx.fillText(`Max DD: ${fmtUsd(-maxDd)}`, padX + 2, h - 6);
+    // Fill (red gradient from top to bottom of underwater area)
+    const gradient = ctx.createLinearGradient(0, padY, 0, h - padY);
+    gradient.addColorStop(0, "rgba(255, 84, 112, 0.55)");
+    gradient.addColorStop(0.6, "rgba(255, 84, 112, 0.20)");
+    gradient.addColorStop(1, "rgba(255, 84, 112, 0.02)");
+    ctx.beginPath();
+    xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    const lastX = xy[xy.length - 1].x;
+    ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
+    ctx.fillStyle = gradient; ctx.fill();
+    // Line (glowing red)
+    ctx.beginPath();
+    xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.strokeStyle = "rgba(255, 84, 112, 0.40)";
+    ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#ff7691"; ctx.lineWidth = 1.5;
+    ctx.stroke();
+    if (progress < 1) {
+      const head = xy[xy.length - 1];
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff7691";
+      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    if (progress >= 1) {
+      series.forEach((p, i) => {
+        const x = padX + (i / Math.max(series.length - 1, 1)) * (w - 2 * padX);
+        const y = padY + (p.dd / maxDd) * (h - 2 * padY);
+        _hitRegions["chart-drawdown"].push({
+          x, y, r: 6,
+          html: `
+            <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${p.i}</span></div>
+            <div class="tt-row"><span class="tt-label">Drawdown</span><span class="tt-value neg">${fmtUsd(-p.dd)}</span></div>
+            <div class="tt-row"><span class="tt-label">Cum P&L</span><span class="tt-value ${p.cum >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.cum)}</span></div>`,
+        });
+      });
+      _attachTooltip("chart-drawdown", "tt-drawdown");
+    }
+  });
+}
+
+// 3. Hourly performance bars (P&L by ET hour-of-day)
+function drawHourlyPerformance(trades) {
+  _hitRegions["chart-hourly"] = [];
+  if (!trades.length) {
+    const r = _setupCanvas("chart-hourly"); if (!r) return;
+    const { ctx, w, h } = r;
+    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("No trades yet", w / 2, h / 2);
+    return;
+  }
+  // Bucket by ET hour (UTC - 4, ignoring DST nuance for visualisation)
+  const hours = Array.from({length: 24}, (_, i) => ({
+    h: i, pnl: 0, n: 0, wins: 0,
+  }));
+  trades.forEach(t => {
+    const utcHour = new Date(t.ts).getUTCHours();
+    const et = (utcHour - 4 + 24) % 24;
+    hours[et].pnl += (t.pnl_usd || 0);
+    hours[et].n += 1;
+    if ((t.pnl_usd || 0) > 0) hours[et].wins += 1;
+  });
+  const maxAbs = Math.max(...hours.map(b => Math.abs(b.pnl)), 1);
+
+  _animateChart("chart-hourly", (ctx, w, h, progress) => {
+    const padX = 28, padY = 24;
+    const bw = (w - 2 * padX) / 24;
+    const yZero = h / 2;
+    // zero line
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.beginPath();
+    ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
+    hours.forEach((b, i) => {
+      const x = padX + i * bw + 1;
+      const lag = i / 24 * 0.5;
+      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
+      const eased = 1 - Math.pow(1 - localT, 3);
+      const fullBh = (Math.abs(b.pnl) / maxAbs) * (h / 2 - padY);
+      const bh = fullBh * eased;
+      if (b.n === 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
+        ctx.fillRect(x, yZero - 1, bw - 2, 2);
+        return;
+      }
+      const color = b.pnl >= 0 ? "#22d39a" : "#ff5470";
+      const by = b.pnl >= 0 ? yZero - bh : yZero;
+      ctx.shadowColor = color; ctx.shadowBlur = 10;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, by, bw - 2, bh);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = b.pnl >= 0 ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.40)";
+      if (bh > 0.5) ctx.fillRect(x, b.pnl >= 0 ? by : by + bh - 1, bw - 2, 1);
+      if (progress >= 1) {
+        const fullBy = b.pnl >= 0 ? yZero - fullBh : yZero;
+        _hitRegions["chart-hourly"].push({
+          x0: x, x1: x + bw - 2,
+          y0: Math.min(fullBy, yZero), y1: Math.max(fullBy + fullBh, yZero),
+          html: `
+            <div class="tt-row"><span class="tt-label">ET hour</span><span class="tt-value">${String(i).padStart(2,'0')}:00</span></div>
+            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
+            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.n}</span></div>
+            <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${b.n ? (b.wins/b.n*100).toFixed(0) : 0}%</span></div>`,
+        });
+      }
+    });
+    // x labels (key hours: 0, 6, 12, 18 ET)
+    if (progress > 0.85) {
+      ctx.globalAlpha = (progress - 0.85) / 0.15;
+      ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "center";
+      [0, 6, 9, 12, 16, 20].forEach(hr => {
+        const x = padX + hr * bw + bw / 2;
+        const label = hr === 9 ? "9:30" : hr === 16 ? "16ET" : String(hr).padStart(2,'0');
+        ctx.fillText(label, x, h - 6);
+      });
+      ctx.globalAlpha = 1;
+    }
+    if (progress >= 1) _attachTooltip("chart-hourly", "tt-hourly");
+  });
+}
+
+// Helper for rounded rectangles on canvas
+function _roundRect(ctx, x, y, w, h, r) {
+  if (w < 1 || h < 1) return;
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
 }
 
 // ---- Master render ------------------------------------------------------
