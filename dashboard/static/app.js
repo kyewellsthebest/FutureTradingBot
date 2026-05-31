@@ -1047,9 +1047,6 @@ function _renderPerfPanels(allTrades) {
   drawMonthlyPnl(filtered);
   drawHoldHistogram(filtered);
   drawWinLossHistogram(filtered);
-  drawDailyHeatmap(filtered);
-  drawDrawdownCurve(filtered);
-  drawHourlyPerformance(filtered);
 }
 
 function _renderLifetimeSummary(trades) {
@@ -1247,68 +1244,146 @@ function drawEquityCurve(trades) {
     return;
   }
   const sorted = trades.slice();
-  let bal = start;
-  const points = [{ v: start, t: null, trade: null }];
-  sorted.forEach(t => { bal += (t.pnl_usd || 0); points.push({ v: bal, t: t.ts, trade: t }); });
+  // Build the equity series + a running-peak series for HWM line + drawdown
+  let bal = start, peak = start;
+  const points = [{ v: start, peak: start, t: null, trade: null }];
+  sorted.forEach(t => {
+    bal += (t.pnl_usd || 0);
+    if (bal > peak) peak = bal;
+    points.push({ v: bal, peak, t: t.ts, trade: t });
+  });
   const minV = Math.min(...points.map(p => p.v));
   const maxV = Math.max(...points.map(p => p.v));
   const range = Math.max(maxV - minV, 1);
-  const padX = 30, padY = 20;
+  const padX = 32, padY = 22;
 
   _animateChart("chart-equity", (ctx, w, h, progress) => {
-    // grid line at $50k
-    ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
-    const y50k = h - padY - ((50000 - minV) / range) * (h - 2 * padY);
+    const yOf = (v) => h - padY - ((v - minV) / range) * (h - 2 * padY);
+    // Background grid: 4 horizontal lines + $50k baseline
+    ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      const y = padY + (i / 4) * (h - 2 * padY);
+      ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
+    }
+    // $50k start dashed reference
+    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1;
+    const y50k = yOf(50000);
     ctx.beginPath(); ctx.setLineDash([3, 4]);
     ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
     ctx.fillText("$50k start", padX + 4, y50k - 4);
-    // points (animated reveal: progress controls how many are drawn)
+
     const xy = points.map((p, i) => ({
       p,
       x: padX + (i / Math.max(points.length - 1, 1)) * (w - 2 * padX),
-      y: h - padY - ((p.v - minV) / range) * (h - 2 * padY),
+      y: yOf(p.v),
+      peakY: yOf(p.peak),
     }));
     const visibleCount = Math.max(2, Math.ceil(xy.length * progress));
     const visible = xy.slice(0, visibleCount);
-    // Gradient fill under line
+    const lastX = visible[visible.length - 1].x;
+
+    // ─── 1. DRAWDOWN VALLEY SHADING ─────────────────────────────────
+    // Red translucent area between current equity (below) and the HWM
+    // (above), showing the "underwater" portion of every drawdown.
+    const ddGradient = ctx.createLinearGradient(0, 0, 0, h);
+    ddGradient.addColorStop(0, "rgba(248, 113, 113, 0.28)");
+    ddGradient.addColorStop(1, "rgba(248, 113, 113, 0.04)");
+    ctx.beginPath();
+    visible.forEach(({x, peakY}, i) => { if (i === 0) ctx.moveTo(x, peakY); else ctx.lineTo(x, peakY); });
+    for (let i = visible.length - 1; i >= 0; i--) ctx.lineTo(visible[i].x, visible[i].y);
+    ctx.closePath();
+    ctx.fillStyle = ddGradient; ctx.fill();
+
+    // ─── 2. EQUITY AREA (green gradient under the line) ────────────
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
     gradient.addColorStop(0, "rgba(34,211,154,0.55)");
     gradient.addColorStop(0.5, "rgba(34,211,154,0.18)");
     gradient.addColorStop(1, "rgba(34,211,154,0.0)");
     ctx.beginPath();
     visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-    // fill under (closes to bottom-right of visible region)
-    const lastX = visible[visible.length - 1].x;
     ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
     ctx.fillStyle = gradient; ctx.fill();
-    // Glowing line -- two stroke passes
+
+    // ─── 3. HIGH-WATER-MARK DASHED LINE ────────────────────────────
+    // Step-line tracing each peak.
+    ctx.beginPath();
+    visible.forEach(({x, peakY}, i) => { if (i === 0) ctx.moveTo(x, peakY); else ctx.lineTo(x, peakY); });
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";   // amber
+    ctx.lineWidth = 1.3;
+    ctx.setLineDash([4, 4]);
+    ctx.shadowColor = "rgba(251, 191, 36, 0.5)"; ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0; ctx.setLineDash([]);
+
+    // ─── 4. MAIN EQUITY LINE (double-pass glow) ────────────────────
     ctx.beginPath();
     visible.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
     ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
     ctx.lineWidth = 6;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
+    ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
     ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
     ctx.stroke();
-    // Leading-edge pulse: bright dot at the current animation head
+
+    // ─── 5. TRADE MARKERS (small dots, only when many bars-per-pixel
+    //                       allows -- skip in dense charts to avoid clutter)
+    const pxBetweenTrades = visible.length > 1
+      ? (visible[1].x - visible[0].x) : 99;
+    if (pxBetweenTrades >= 4) {
+      visible.forEach(({p, x, y}, i) => {
+        if (i === 0 || !p.trade) return;
+        const win = (p.trade.pnl_usd || 0) > 0;
+        const r = 2.4;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = win ? "#3df0c2" : "#ff6b85";
+        ctx.shadowColor = win ? "#22d39a" : "#ff5470";
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    // ─── 6. LEADING EDGE PULSE during animation ─────────────────────
     if (progress < 1) {
       const head = visible[visible.length - 1];
+      // Outer halo ring
       ctx.beginPath();
-      ctx.arc(head.x, head.y, 5, 0, Math.PI * 2);
+      ctx.arc(head.x, head.y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(61, 240, 194, 0.18)";
+      ctx.fill();
+      // Inner bright dot
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2);
       ctx.fillStyle = "#3df0c2";
-      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
+      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 16;
       ctx.fill();
       ctx.shadowBlur = 0;
     }
-    // Hit regions only after animation complete
+
+    // ─── 7. ANNOTATIONS (only after animation complete) ─────────────
     if (progress >= 1) {
+      // Find deepest drawdown point and label it
+      let maxDdIdx = 0, maxDd = 0;
+      xy.forEach((pt, i) => {
+        const dd = pt.p.peak - pt.p.v;
+        if (dd > maxDd) { maxDd = dd; maxDdIdx = i; }
+      });
+      if (maxDd > 0) {
+        const dpt = xy[maxDdIdx];
+        ctx.fillStyle = "rgba(248, 113, 113, 0.85)";
+        ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(`Max DD: ${fmtUsd(-maxDd)}`,
+                     dpt.x, Math.min(h - padY - 4, dpt.y + 12));
+      }
+      // Hit regions
       xy.forEach(({p, x, y}, i) => {
         const pnl = p.v - 50000;
         const pnlClass = pnl >= 0 ? "pos" : "neg";
+        const dd = p.peak - p.v;
         const date = p.t ? new Date(p.t).toLocaleString() : "Start";
         const tradeRow = p.trade
           ? `<div class="tt-row"><span class="tt-label">Trade</span><span class="tt-value ${(p.trade.pnl_usd||0) >= 0 ? 'pos' : 'neg'}">${p.trade.side} ${fmtUsd(p.trade.pnl_usd||0)}</span></div>`
@@ -1319,7 +1394,8 @@ function drawEquityCurve(trades) {
             <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${date}</span></div>
             <div class="tt-row"><span class="tt-label">Balance</span><span class="tt-value">${fmtUsdPlain(p.v)}</span></div>
             <div class="tt-row"><span class="tt-label">P&L vs start</span><span class="tt-value ${pnlClass}">${fmtUsd(pnl)}</span></div>
-            <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${i}</span></div>
+            <div class="tt-row"><span class="tt-label">Peak</span><span class="tt-value">${fmtUsdPlain(p.peak)}</span></div>
+            <div class="tt-row"><span class="tt-label">DD from peak</span><span class="tt-value ${dd > 0 ? 'neg' : ''}">${dd > 0 ? fmtUsd(-dd) : '$0'}</span></div>
             ${tradeRow}`,
         });
       });
@@ -1337,66 +1413,116 @@ function drawMonthlyPnl(trades) {
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
   }
+  // Bucket by month; split out wins vs losses TOTALS so we can show
+  // composition (not just net P&L).
   const months = {};
   trades.forEach(t => {
     const d = new Date(t.ts);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
-    if (!months[key]) months[key] = { pnl: 0, n: 0, wins: 0, losses: 0 };
+    if (!months[key]) months[key] = {
+      winsTotal: 0, lossesTotal: 0, n: 0, nWins: 0, nLosses: 0,
+    };
     const p = t.pnl_usd || 0;
-    months[key].pnl += p;
     months[key].n++;
-    if (p > 0) months[key].wins++;
-    else if (p < 0) months[key].losses++;
+    if (p > 0) { months[key].winsTotal  += p; months[key].nWins++; }
+    if (p < 0) { months[key].lossesTotal += p; months[key].nLosses++; }
   });
   const keys = Object.keys(months).sort();
-  const vals = keys.map(k => months[k].pnl);
-  if (!vals.length) return;
-  const maxV = Math.max(...vals.map(Math.abs), 1);
+  // Y-axis scale is the LARGER of (max win column, max loss column) so the
+  // top half and bottom half are proportional.
+  const maxStack = Math.max(
+    1,
+    ...keys.map(k => Math.max(months[k].winsTotal, -months[k].lossesTotal))
+  );
 
   _animateChart("chart-monthly", (ctx, w, h, progress) => {
-    const padX = 30, padY = 20;
-    const bw = (w - 2 * padX) / Math.max(keys.length, 1);
-    // zero line
-    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    const padX = 36, padY = 22;
     const yZero = h / 2;
+    const bw = (w - 2 * padX) / Math.max(keys.length, 1);
+    const halfH = h / 2 - padY;
+
+    // Background quartile grid (faint horizontal stripes)
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    [0.25, 0.5, 0.75, 1.0].forEach(frac => {
+      const yUp = yZero - frac * halfH;
+      const yDn = yZero + frac * halfH;
+      ctx.beginPath(); ctx.moveTo(padX, yUp); ctx.lineTo(w - padX, yUp); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padX, yDn); ctx.lineTo(w - padX, yDn); ctx.stroke();
+    });
+
+    // Zero line (brighter)
+    ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
-    // bars grow from baseline with stagger: each bar starts at i*40ms into the animation
+
+    // Bars: wins ABOVE zero (green) + losses BELOW zero (red), so each
+    // month visibly shows the composition that produced its net.
     keys.forEach((k, i) => {
-      const v = months[k].pnl;
-      const x = padX + i * bw + 2;
-      // Stagger: each bar's progress lags by 5% per index
-      const lag = i / Math.max(keys.length, 1) * 0.4;
+      const m = months[k];
+      const x = padX + i * bw + 3;
+      const innerW = Math.max(8, bw - 8);
+      const lag = i / Math.max(keys.length, 1) * 0.35;
       const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
       const eased = 1 - Math.pow(1 - localT, 3);
-      const fullBh = (Math.abs(v) / maxV) * (h / 2 - padY);
-      const bh = fullBh * eased;
-      const color = v >= 0 ? "#22d39a" : "#ff5470";
-      const by = v >= 0 ? yZero - bh : yZero;
-      ctx.shadowColor = color; ctx.shadowBlur = 14;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, by, bw - 4, bh);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = v >= 0 ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)";
-      if (bh > 0.5) ctx.fillRect(x, v >= 0 ? by : by + bh - 1, bw - 4, 1);
+
+      // Wins (green, growing UP from zero)
+      const winH = (m.winsTotal / maxStack) * halfH * eased;
+      if (winH > 0.4) {
+        const grad = ctx.createLinearGradient(0, yZero - winH, 0, yZero);
+        grad.addColorStop(0, "rgba(61, 240, 194, 0.95)");
+        grad.addColorStop(1, "rgba(34, 211, 154, 0.55)");
+        ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
+        ctx.fillStyle = grad;
+        _roundedBar(ctx, x, yZero - winH, innerW, winH, 3, "top");
+        ctx.shadowBlur = 0;
+        // Bright top highlight
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.fillRect(x + 1, yZero - winH, innerW - 2, 1);
+      }
+      // Losses (red, growing DOWN from zero)
+      const lossH = (-m.lossesTotal / maxStack) * halfH * eased;
+      if (lossH > 0.4) {
+        const grad = ctx.createLinearGradient(0, yZero, 0, yZero + lossH);
+        grad.addColorStop(0, "rgba(255, 84, 112, 0.95)");
+        grad.addColorStop(1, "rgba(248, 113, 113, 0.45)");
+        ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 14;
+        ctx.fillStyle = grad;
+        _roundedBar(ctx, x, yZero, innerW, lossH, 3, "bottom");
+        ctx.shadowBlur = 0;
+        // Bright bottom highlight
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.fillRect(x + 1, yZero + lossH - 1, innerW - 2, 1);
+      }
+      // Net P&L label above the taller side (only after settling)
+      if (eased > 0.85) {
+        ctx.globalAlpha = (eased - 0.85) / 0.15;
+        const net = m.winsTotal + m.lossesTotal;
+        const netCol = net >= 0 ? "#3df0c2" : "#ff7691";
+        ctx.fillStyle = netCol; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+        ctx.shadowColor = netCol; ctx.shadowBlur = 8;
+        const labelY = Math.min(yZero - winH - 6, yZero - 4);
+        ctx.fillText(fmtUsd(net), x + innerW / 2, labelY);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
       if (progress >= 1) {
-        const winRate = months[k].n ? months[k].wins / months[k].n : 0;
-        const fullBy = v >= 0 ? yZero - fullBh : yZero;
+        const winRate = m.n ? m.nWins / m.n : 0;
+        const net = m.winsTotal + m.lossesTotal;
         _hitRegions["chart-monthly"].push({
-          x0: x, x1: x + bw - 4,
-          y0: Math.min(fullBy, yZero), y1: Math.max(fullBy + fullBh, yZero),
+          x0: x, x1: x + innerW,
+          y0: yZero - halfH, y1: yZero + halfH,
           html: `
             <div class="tt-row"><span class="tt-label">Month</span><span class="tt-value">${k}</span></div>
-            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${v >= 0 ? 'pos' : 'neg'}">${fmtUsd(v)}</span></div>
-            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${months[k].n}</span></div>
-            <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${months[k].wins}</span></div>
-            <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${months[k].losses}</span></div>
+            <div class="tt-row"><span class="tt-label">Wins total</span><span class="tt-value pos">${fmtUsd(m.winsTotal)}</span></div>
+            <div class="tt-row"><span class="tt-label">Losses total</span><span class="tt-value neg">${fmtUsd(m.lossesTotal)}</span></div>
+            <div class="tt-row"><span class="tt-label">Net P&L</span><span class="tt-value ${net >= 0 ? 'pos' : 'neg'}">${fmtUsd(net)}</span></div>
+            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${m.n}</span></div>
             <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${fmtPct(winRate)}</span></div>`,
         });
       }
     });
-    // x labels (only after animation completes)
-    if (progress >= 0.95) {
-      ctx.globalAlpha = (progress - 0.95) / 0.05;
+    // x-axis labels (only fully visible at end)
+    if (progress > 0.9) {
+      ctx.globalAlpha = (progress - 0.9) / 0.1;
       ctx.fillStyle = "#5d6b85"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
       const step = keys.length > 12 ? Math.ceil(keys.length / 12) : 1;
       keys.forEach((k, i) => {
@@ -1406,6 +1532,50 @@ function drawMonthlyPnl(trades) {
     }
     if (progress >= 1) _attachTooltip("chart-monthly", "tt-monthly");
   });
+}
+
+// Rounded-corner bar: rounds the SIDE indicated ("top"/"bottom"/"left"/"right"/"all")
+function _roundedBar(ctx, x, y, w, h, r, which) {
+  if (w < 1 || h < 1) return;
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  if (which === "top") {
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + rr);
+    ctx.arcTo(x, y, x + rr, y, rr);
+    ctx.lineTo(x + w - rr, y);
+    ctx.arcTo(x + w, y, x + w, y + rr, rr);
+    ctx.lineTo(x + w, y + h);
+  } else if (which === "bottom") {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+    ctx.lineTo(x + rr, y + h);
+    ctx.arcTo(x, y + h, x, y + h - rr, rr);
+  } else if (which === "left") {
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x + rr, y);
+    ctx.arcTo(x, y, x, y + rr, rr);
+    ctx.lineTo(x, y + h - rr);
+    ctx.arcTo(x, y + h, x + rr, y + h, rr);
+    ctx.lineTo(x + w, y + h);
+  } else if (which === "right") {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.arcTo(x + w, y, x + w, y + rr, rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+    ctx.lineTo(x, y + h);
+  } else {
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + rr, rr);
+    ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+    ctx.arcTo(x, y + h, x, y + h - rr, rr);
+    ctx.arcTo(x, y, x + rr, y, rr);
+  }
+  ctx.closePath();
+  ctx.fill();
 }
 
 function drawHoldHistogram(trades) {
@@ -1438,43 +1608,102 @@ function drawHoldHistogram(trades) {
   const maxC = Math.max(...buckets.map(b => b.c), 1);
 
   _animateChart("chart-holds", (ctx, w, h, progress) => {
-    const padX = 30, padY = 30;
+    const padX = 30, padTop = 28, padBot = 28;
     const bw = (w - 2 * padX) / buckets.length;
+    const chartH = h - padTop - padBot;
+
+    // Faint horizontal grid (quartile lines)
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    for (let i = 1; i <= 3; i++) {
+      const y = padTop + (i / 4) * chartH;
+      ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
+    }
+
     buckets.forEach((b, i) => {
       const x = padX + i * bw + 4;
-      // Stagger from left to right
-      const lag = i / buckets.length * 0.5;
+      const innerW = Math.max(8, bw - 10);
+      const lag = i / buckets.length * 0.45;
       const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
       const eased = 1 - Math.pow(1 - localT, 3);
-      const fullBh = (b.c / maxC) * (h - 2 * padY);
+      const fullBh = (b.c / maxC) * chartH;
       const bh = fullBh * eased;
+      const yTop = h - padBot - bh;
       const isMicro = b.label === "≤10s";
-      const color = isMicro ? "#ffb648" : "#56d4ff";
-      ctx.shadowColor = color; ctx.shadowBlur = 12;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, h - padY - bh, bw - 8, bh);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(255,255,255,0.5)";
-      if (bh > 0.5) ctx.fillRect(x, h - padY - bh, bw - 8, 1);
-      // labels + count (only at near-complete)
-      if (eased > 0.85) {
-        ctx.globalAlpha = (eased - 0.85) / 0.15;
-        ctx.fillStyle = "#a4b1c7"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-        if (b.c > 0) ctx.fillText(b.c, x + (bw - 8) / 2, h - padY - fullBh - 4);
-        ctx.fillStyle = "#5d6b85";
-        ctx.fillText(b.label, x + (bw - 8) / 2, h - 8);
+
+      if (bh < 0.5) {
+        // Empty bucket: just a faint baseline marker
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
+        ctx.fillRect(x, h - padBot - 1, innerW, 1);
+      } else {
+        // ─── COMPOSITION SPLIT ───────────────────────────────────────
+        // Stack win segment (green, on top) above loss segment (red).
+        const total = b.c;
+        const winFrac = b.wins / total;
+        const lossFrac = b.losses / total;
+        const winH = bh * winFrac;
+        const lossH = bh * lossFrac;
+        const neutralH = bh - winH - lossH;   // timeouts that broke even
+
+        // Loss segment at the bottom of the bar
+        if (lossH > 0.4) {
+          const lg = ctx.createLinearGradient(0, h - padBot - lossH, 0, h - padBot);
+          lg.addColorStop(0, "rgba(255, 84, 112, 0.90)");
+          lg.addColorStop(1, "rgba(248, 113, 113, 0.55)");
+          ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 10;
+          ctx.fillStyle = lg;
+          _roundedBar(ctx, x, h - padBot - lossH, innerW, lossH, 3, "bottom");
+          ctx.shadowBlur = 0;
+        }
+        // Win segment on top
+        if (winH > 0.4) {
+          const wg = ctx.createLinearGradient(0, yTop, 0, yTop + winH);
+          wg.addColorStop(0, "rgba(61, 240, 194, 0.95)");
+          wg.addColorStop(1, "rgba(34, 211, 154, 0.55)");
+          ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
+          ctx.fillStyle = wg;
+          _roundedBar(ctx, x, yTop, innerW, winH, 3, "top");
+          ctx.shadowBlur = 0;
+          // Bright top highlight
+          ctx.fillStyle = "rgba(255,255,255,0.55)";
+          ctx.fillRect(x + 1, yTop, innerW - 2, 1);
+        }
+        // Hairline split between win and loss segments
+        if (winH > 0 && lossH > 0) {
+          ctx.fillStyle = "rgba(255,255,255,0.20)";
+          ctx.fillRect(x, h - padBot - lossH, innerW, 1);
+        }
+        // Microscalp warning border (orange) on ≤10s bucket
+        if (isMicro) {
+          ctx.strokeStyle = "rgba(251, 191, 36, 0.5)";
+          ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+          ctx.strokeRect(x - 1, yTop - 1, innerW + 2, bh + 2);
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Labels + count (only at near-complete)
+      if (eased > 0.8) {
+        ctx.globalAlpha = (eased - 0.8) / 0.2;
+        if (b.c > 0) {
+          ctx.fillStyle = "#e6ecf5"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
+          ctx.fillText(b.c, x + innerW / 2, yTop - 6);
+        }
+        ctx.fillStyle = isMicro ? "rgba(251, 191, 36, 0.85)" : "#5d6b85";
+        ctx.font = "10px sans-serif";
+        ctx.fillText(b.label, x + innerW / 2, h - 8);
         ctx.globalAlpha = 1;
       }
       if (progress >= 1) {
         _hitRegions["chart-holds"].push({
-          x0: x, x1: x + bw - 8,
-          y0: h - padY - fullBh - 14, y1: h - padY,
+          x0: x, x1: x + innerW,
+          y0: yTop - 14, y1: h - padBot,
           html: `
             <div class="tt-row"><span class="tt-label">Bucket</span><span class="tt-value">${b.label}</span></div>
             <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.c}</span></div>
-            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
             <div class="tt-row"><span class="tt-label">Wins</span><span class="tt-value pos">${b.wins}</span></div>
             <div class="tt-row"><span class="tt-label">Losses</span><span class="tt-value neg">${b.losses}</span></div>
+            <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${b.c ? (b.wins/b.c*100).toFixed(0) : 0}%</span></div>
+            <div class="tt-row"><span class="tt-label">Net P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
             ${isMicro ? '<div class="tt-row"><span class="tt-label">Lucid</span><span class="tt-value neg">microscalp range</span></div>' : ''}`,
         });
       }
@@ -1495,350 +1724,162 @@ function drawWinLossHistogram(trades) {
   const wins = trades.filter(t => (t.pnl_usd || 0) > 0);
   const losses = trades.filter(t => (t.pnl_usd || 0) < 0);
   const winTotal = wins.reduce((s, t) => s + t.pnl_usd, 0);
-  const lossTotal = losses.reduce((s, t) => s + t.pnl_usd, 0);
-  const lanes = [
-    { key: "wins", label: `Wins (${wins.length})`, color: "#22d39a",
-      n: wins.length, avg: wins.length ? winTotal / wins.length : 0,
-      total: winTotal, biggest: wins.length ? Math.max(...wins.map(t => t.pnl_usd)) : 0 },
-    { key: "losses", label: `Losses (${losses.length})`, color: "#ff5470",
-      n: losses.length, avg: losses.length ? lossTotal / losses.length : 0,
-      total: lossTotal, biggest: losses.length ? Math.min(...losses.map(t => t.pnl_usd)) : 0 },
-  ];
-  const maxV = Math.max(...lanes.map(l => Math.abs(l.total)), 1);
+  const lossTotal = Math.abs(losses.reduce((s, t) => s + t.pnl_usd, 0));   // positive magnitude
+  const net = winTotal - lossTotal;
+  const totalMag = Math.max(winTotal + lossTotal, 1);
+  const winFrac = winTotal / totalMag;
+  const lossFrac = lossTotal / totalMag;
+  const profitFactor = lossTotal > 0 ? winTotal / lossTotal : (winTotal > 0 ? Infinity : 0);
+  const winRate = trades.length ? wins.length / trades.length : 0;
 
   _animateChart("chart-wlhist", (ctx, w, h, progress) => {
-    const padX = 30, padY = 30;
-    const bw = (w - 2 * padX) / 2;
-    lanes.forEach((lane, i) => {
-      const x = padX + i * bw + 20;
-      const lag = i * 0.15;
-      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
-      const eased = 1 - Math.pow(1 - localT, 3);
-      const fullBh = (Math.abs(lane.total) / maxV) * (h - 2 * padY);
-      const bh = fullBh * eased;
-      ctx.shadowColor = lane.color; ctx.shadowBlur = 16;
-      ctx.fillStyle = lane.color;
-      ctx.fillRect(x, h - padY - bh, bw - 40, bh);
+    const padX = 32;
+    const barH = 38;
+    const barY = h / 2 - barH / 2 + 6;     // shifted down to leave room for labels
+    const barW = w - 2 * padX;
+    const innerW = barW;
+
+    // Headline stats (top)
+    if (progress > 0.4) {
+      ctx.globalAlpha = Math.min(1, (progress - 0.4) / 0.4);
+      ctx.font = "bold 13px sans-serif"; ctx.textBaseline = "middle";
+      // Win total (left side)
+      ctx.fillStyle = "#3df0c2"; ctx.textAlign = "left";
+      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 10;
+      ctx.fillText(`+${fmtUsdPlain(winTotal).replace('$','$')}`, padX, barY - 18);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
-      if (bh > 0.5) ctx.fillRect(x, h - padY - bh, bw - 40, 1);
-      if (eased > 0.8) {
-        ctx.globalAlpha = (eased - 0.8) / 0.2;
-        ctx.fillStyle = lane.color; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
-        ctx.shadowColor = lane.color; ctx.shadowBlur = 12;
-        ctx.fillText(fmtUsd(lane.total), x + (bw - 40) / 2, h - padY - fullBh - 8);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "#a4b1c7"; ctx.font = "11px sans-serif";
-        ctx.fillText(lane.label, x + (bw - 40) / 2, h - 10);
-        ctx.globalAlpha = 1;
-      }
-      if (progress >= 1) {
-        _hitRegions["chart-wlhist"].push({
-          x0: x, x1: x + bw - 40,
-          y0: h - padY - fullBh - 20, y1: h - padY,
-          html: `
-            <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value">${lane.key === 'wins' ? 'Wins' : 'Losses'}</span></div>
-            <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${lane.n}</span></div>
-            <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.avg)}</span></div>
-            <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.total)}</span></div>
-            <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value ${lane.key === 'wins' ? 'pos' : 'neg'}">${fmtUsd(lane.biggest)}</span></div>`,
-        });
-      }
-    });
-    if (progress >= 1) _attachTooltip("chart-wlhist", "tt-wlhist");
-  });
-}
+      ctx.fillStyle = "#9ab"; ctx.font = "10px sans-serif";
+      ctx.fillText(`${wins.length} wins`, padX, barY - 4);
 
-// ============================================================================
-// NEW CHARTS — premium additions
-// ============================================================================
-
-// 1. Daily P&L Heatmap (GitHub-contributions style)
-function drawDailyHeatmap(trades) {
-  _hitRegions["chart-heatmap"] = [];
-  if (!trades.length) {
-    const r = _setupCanvas("chart-heatmap"); if (!r) return;
-    const { ctx, w, h } = r;
-    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("No trades yet", w / 2, h / 2);
-    return;
-  }
-  // Bucket P&L by local calendar date
-  const byDay = {};
-  trades.forEach(t => {
-    const d = new Date(t.ts);
-    const key = d.toISOString().slice(0, 10);
-    byDay[key] = (byDay[key] || 0) + (t.pnl_usd || 0);
-  });
-  // Build last 84 days (12 weeks × 7 cols of weekday rows)
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const days = [];
-  for (let i = 83; i >= 0; i--) {
-    const d = new Date(today); d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    days.push({ d, key, pnl: byDay[key] });   // pnl is undefined if no trades
-  }
-  const maxAbs = Math.max(
-    ...Object.values(byDay).map(Math.abs), 1
-  );
-
-  _animateChart("chart-heatmap", (ctx, w, h, progress) => {
-    const padX = 28, padTop = 24, padBot = 22;
-    const cols = 12;
-    const rows = 7;
-    const gap = 3;
-    // Compute cell size to fit (cols+1 to leave a column of spacing)
-    const cw = (w - 2 * padX - (cols - 1) * gap) / cols;
-    const ch = (h - padTop - padBot - (rows - 1) * gap) / rows;
-    const cellSize = Math.min(cw, ch);
-    // Row labels (Mon, Wed, Fri only to save space)
-    ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "right";
-    const dayNames = ["S","M","T","W","T","F","S"];
-    if (progress > 0.7) {
-      ctx.globalAlpha = (progress - 0.7) / 0.3;
-      [1, 3, 5].forEach(r => {
-        ctx.fillText(dayNames[r], padX - 4, padTop + r * (cellSize + gap) + cellSize * 0.7);
-      });
+      // Loss total (right side)
+      ctx.fillStyle = "#ff7691"; ctx.textAlign = "right";
+      ctx.font = "bold 13px sans-serif";
+      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 10;
+      ctx.fillText(`-${fmtUsdPlain(lossTotal).replace('$','$')}`, w - padX, barY - 18);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#9ab"; ctx.font = "10px sans-serif";
+      ctx.fillText(`${losses.length} losses`, w - padX, barY - 4);
       ctx.globalAlpha = 1;
     }
-    // Cells: each day is (col, row) where col = weeks-ago, row = day-of-week
-    days.forEach((day, i) => {
-      // The grid we draw goes col 0..11 left-to-right (oldest -> newest)
-      const col = Math.floor(i / 7);
-      const row = i % 7;
-      const x = padX + col * (cellSize + gap);
-      const y = padTop + row * (cellSize + gap);
-      // Wave entry animation: top-left first, bottom-right last
-      const cellLag = (col / cols + row / rows) * 0.5;
-      const localT = Math.max(0, Math.min(1, (progress - cellLag) / (1 - cellLag || 1)));
-      const eased = 1 - Math.pow(1 - localT, 3);
-      const scale = 0.3 + 0.7 * eased;
-      const sz = cellSize * scale;
-      const offset = (cellSize - sz) / 2;
-      let color = "rgba(255,255,255,0.04)";
-      let glow = null;
-      if (day.pnl !== undefined) {
-        const intensity = Math.min(1, Math.abs(day.pnl) / maxAbs);
-        const alpha = 0.18 + 0.72 * intensity;
-        if (day.pnl >= 0) {
-          color = `rgba(34, 211, 154, ${alpha})`;
-          glow = `rgba(34, 211, 154, ${0.4 * intensity})`;
-        } else {
-          color = `rgba(255, 84, 112, ${alpha})`;
-          glow = `rgba(255, 84, 112, ${0.4 * intensity})`;
-        }
-      }
-      if (glow) {
-        ctx.shadowColor = glow; ctx.shadowBlur = 10;
-      }
-      ctx.fillStyle = color;
-      _roundRect(ctx, x + offset, y + offset, sz, sz, 2.5);
-      ctx.fill();
+
+    // ─── BALANCE BAR ─────────────────────────────────────────────────
+    // Rounded outer container
+    const containerGrad = ctx.createLinearGradient(0, barY, 0, barY + barH);
+    containerGrad.addColorStop(0, "rgba(255,255,255,0.04)");
+    containerGrad.addColorStop(1, "rgba(255,255,255,0.01)");
+    ctx.fillStyle = containerGrad;
+    _roundedBar(ctx, padX, barY, innerW, barH, 10, "all");
+
+    // Win fill (flows in from LEFT)
+    const fillProgress = Math.max(0, Math.min(1, (progress - 0.15) / 0.85));
+    const easedFill = 1 - Math.pow(1 - fillProgress, 3);
+    const winW = winFrac * innerW * easedFill;
+    if (winW > 0.5) {
+      const winGrad = ctx.createLinearGradient(padX, 0, padX + winW, 0);
+      winGrad.addColorStop(0, "rgba(34, 211, 154, 0.95)");
+      winGrad.addColorStop(1, "rgba(61, 240, 194, 0.85)");
+      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 18;
+      ctx.fillStyle = winGrad;
+      _roundedBar(ctx, padX, barY, winW, barH, 10,
+                   winW >= innerW - 0.5 ? "all" : "left");
       ctx.shadowBlur = 0;
-      if (progress >= 1 && day.pnl !== undefined) {
-        _hitRegions["chart-heatmap"].push({
-          x0: x, x1: x + cellSize, y0: y, y1: y + cellSize,
-          html: `
-            <div class="tt-row"><span class="tt-label">Date</span><span class="tt-value">${day.key}</span></div>
-            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${day.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(day.pnl)}</span></div>`,
-        });
-      }
-    });
-    // Month labels (only at near-complete)
-    if (progress > 0.9) {
-      ctx.globalAlpha = (progress - 0.9) / 0.1;
-      ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "center";
-      // Show first day of each visible month
-      let lastMonth = -1;
-      days.forEach((day, i) => {
-        const m = day.d.getMonth();
-        if (m !== lastMonth && i % 7 === 0) {
-          const col = Math.floor(i / 7);
-          const x = padX + col * (cellSize + gap) + cellSize / 2;
-          const monthName = day.d.toLocaleString('en-US', {month: 'short'});
-          ctx.fillText(monthName, x, padTop - 8);
-          lastMonth = m;
-        }
-      });
-      ctx.globalAlpha = 1;
     }
-    if (progress >= 1) _attachTooltip("chart-heatmap", "tt-heatmap");
-  }, { duration: 1200 });
-}
+    // Loss fill (flows in from RIGHT)
+    const lossW = lossFrac * innerW * easedFill;
+    if (lossW > 0.5) {
+      const lossGrad = ctx.createLinearGradient(w - padX - lossW, 0, w - padX, 0);
+      lossGrad.addColorStop(0, "rgba(255, 118, 145, 0.85)");
+      lossGrad.addColorStop(1, "rgba(255, 84, 112, 0.95)");
+      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 18;
+      ctx.fillStyle = lossGrad;
+      _roundedBar(ctx, w - padX - lossW, barY, lossW, barH, 10,
+                   lossW >= innerW - 0.5 ? "all" : "right");
+      ctx.shadowBlur = 0;
+    }
+    // Highlight strip across the top of the bar (the "shine")
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(padX + 10, barY + 2, innerW - 20, 1);
 
-// 2. Drawdown underwater curve
-function drawDrawdownCurve(trades) {
-  _hitRegions["chart-drawdown"] = [];
-  if (!trades.length) {
-    const r = _setupCanvas("chart-drawdown"); if (!r) return;
-    const { ctx, w, h } = r;
-    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("No trades yet", w / 2, h / 2);
-    return;
-  }
-  // Build underwater series: DD_i = peak - cum_i (always >= 0)
-  let cum = 0, peak = 0;
-  const series = [{ i: 0, t: null, cum: 0, dd: 0 }];
-  trades.forEach((t, i) => {
-    cum += (t.pnl_usd || 0);
-    if (cum > peak) peak = cum;
-    series.push({ i: i + 1, t: t.ts, cum, dd: peak - cum });
-  });
-  const maxDd = Math.max(...series.map(p => p.dd), 1);
-
-  _animateChart("chart-drawdown", (ctx, w, h, progress) => {
-    const padX = 30, padY = 24;
-    const visibleCount = Math.max(2, Math.ceil(series.length * progress));
-    const xy = series.slice(0, visibleCount).map((p, i) => ({
-      p,
-      x: padX + (i / Math.max(series.length - 1, 1)) * (w - 2 * padX),
-      y: padY + (p.dd / maxDd) * (h - 2 * padY),  // DD goes DOWN from top
-    }));
-    // Zero line at top (= peak / no drawdown)
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padX, padY); ctx.lineTo(w - padX, padY); ctx.stroke();
-    ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("Peak", padX + 2, padY - 4);
-    // Bottom label
-    ctx.fillText(`Max DD: ${fmtUsd(-maxDd)}`, padX + 2, h - 6);
-    // Fill (red gradient from top to bottom of underwater area)
-    const gradient = ctx.createLinearGradient(0, padY, 0, h - padY);
-    gradient.addColorStop(0, "rgba(255, 84, 112, 0.55)");
-    gradient.addColorStop(0.6, "rgba(255, 84, 112, 0.20)");
-    gradient.addColorStop(1, "rgba(255, 84, 112, 0.02)");
-    ctx.beginPath();
-    xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-    const lastX = xy[xy.length - 1].x;
-    ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
-    ctx.fillStyle = gradient; ctx.fill();
-    // Line (glowing red)
-    ctx.beginPath();
-    xy.forEach(({x, y}, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-    ctx.strokeStyle = "rgba(255, 84, 112, 0.40)";
-    ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 12;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#ff7691"; ctx.lineWidth = 1.5;
-    ctx.stroke();
-    if (progress < 1) {
-      const head = xy[xy.length - 1];
+    // Centre fulcrum / divider — placed at the actual split point
+    if (easedFill > 0.7) {
+      ctx.globalAlpha = (easedFill - 0.7) / 0.3;
+      const splitX = padX + winW;
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(head.x, head.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#ff7691";
-      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 12;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-    if (progress >= 1) {
-      series.forEach((p, i) => {
-        const x = padX + (i / Math.max(series.length - 1, 1)) * (w - 2 * padX);
-        const y = padY + (p.dd / maxDd) * (h - 2 * padY);
-        _hitRegions["chart-drawdown"].push({
-          x, y, r: 6,
-          html: `
-            <div class="tt-row"><span class="tt-label">Trade #</span><span class="tt-value">${p.i}</span></div>
-            <div class="tt-row"><span class="tt-label">Drawdown</span><span class="tt-value neg">${fmtUsd(-p.dd)}</span></div>
-            <div class="tt-row"><span class="tt-label">Cum P&L</span><span class="tt-value ${p.cum >= 0 ? 'pos' : 'neg'}">${fmtUsd(p.cum)}</span></div>`,
-        });
-      });
-      _attachTooltip("chart-drawdown", "tt-drawdown");
-    }
-  });
-}
-
-// 3. Hourly performance bars (P&L by ET hour-of-day)
-function drawHourlyPerformance(trades) {
-  _hitRegions["chart-hourly"] = [];
-  if (!trades.length) {
-    const r = _setupCanvas("chart-hourly"); if (!r) return;
-    const { ctx, w, h } = r;
-    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("No trades yet", w / 2, h / 2);
-    return;
-  }
-  // Bucket by ET hour (UTC - 4, ignoring DST nuance for visualisation)
-  const hours = Array.from({length: 24}, (_, i) => ({
-    h: i, pnl: 0, n: 0, wins: 0,
-  }));
-  trades.forEach(t => {
-    const utcHour = new Date(t.ts).getUTCHours();
-    const et = (utcHour - 4 + 24) % 24;
-    hours[et].pnl += (t.pnl_usd || 0);
-    hours[et].n += 1;
-    if ((t.pnl_usd || 0) > 0) hours[et].wins += 1;
-  });
-  const maxAbs = Math.max(...hours.map(b => Math.abs(b.pnl)), 1);
-
-  _animateChart("chart-hourly", (ctx, w, h, progress) => {
-    const padX = 28, padY = 24;
-    const bw = (w - 2 * padX) / 24;
-    const yZero = h / 2;
-    // zero line
-    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-    ctx.beginPath();
-    ctx.moveTo(padX, yZero); ctx.lineTo(w - padX, yZero); ctx.stroke();
-    hours.forEach((b, i) => {
-      const x = padX + i * bw + 1;
-      const lag = i / 24 * 0.5;
-      const localT = Math.max(0, Math.min(1, (progress - lag) / (1 - lag || 1)));
-      const eased = 1 - Math.pow(1 - localT, 3);
-      const fullBh = (Math.abs(b.pnl) / maxAbs) * (h / 2 - padY);
-      const bh = fullBh * eased;
-      if (b.n === 0) {
-        ctx.fillStyle = "rgba(255,255,255,0.04)";
-        ctx.fillRect(x, yZero - 1, bw - 2, 2);
-        return;
-      }
-      const color = b.pnl >= 0 ? "#22d39a" : "#ff5470";
-      const by = b.pnl >= 0 ? yZero - bh : yZero;
-      ctx.shadowColor = color; ctx.shadowBlur = 10;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, by, bw - 2, bh);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = b.pnl >= 0 ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.40)";
-      if (bh > 0.5) ctx.fillRect(x, b.pnl >= 0 ? by : by + bh - 1, bw - 2, 1);
-      if (progress >= 1) {
-        const fullBy = b.pnl >= 0 ? yZero - fullBh : yZero;
-        _hitRegions["chart-hourly"].push({
-          x0: x, x1: x + bw - 2,
-          y0: Math.min(fullBy, yZero), y1: Math.max(fullBy + fullBh, yZero),
-          html: `
-            <div class="tt-row"><span class="tt-label">ET hour</span><span class="tt-value">${String(i).padStart(2,'0')}:00</span></div>
-            <div class="tt-row"><span class="tt-label">P&L</span><span class="tt-value ${b.pnl >= 0 ? 'pos' : 'neg'}">${fmtUsd(b.pnl)}</span></div>
-            <div class="tt-row"><span class="tt-label">Trades</span><span class="tt-value">${b.n}</span></div>
-            <div class="tt-row"><span class="tt-label">Win rate</span><span class="tt-value">${b.n ? (b.wins/b.n*100).toFixed(0) : 0}%</span></div>`,
-        });
-      }
-    });
-    // x labels (key hours: 0, 6, 12, 18 ET)
-    if (progress > 0.85) {
-      ctx.globalAlpha = (progress - 0.85) / 0.15;
-      ctx.fillStyle = "#5d6b85"; ctx.font = "9px sans-serif"; ctx.textAlign = "center";
-      [0, 6, 9, 12, 16, 20].forEach(hr => {
-        const x = padX + hr * bw + bw / 2;
-        const label = hr === 9 ? "9:30" : hr === 16 ? "16ET" : String(hr).padStart(2,'0');
-        ctx.fillText(label, x, h - 6);
-      });
+      ctx.moveTo(splitX, barY - 4);
+      ctx.lineTo(splitX, barY + barH + 4);
+      ctx.stroke();
+      // Triangle pointer above the split
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+      ctx.moveTo(splitX - 5, barY - 5);
+      ctx.lineTo(splitX + 5, barY - 5);
+      ctx.lineTo(splitX, barY - 1);
+      ctx.closePath(); ctx.fill();
       ctx.globalAlpha = 1;
     }
-    if (progress >= 1) _attachTooltip("chart-hourly", "tt-hourly");
-  });
-}
 
-// Helper for rounded rectangles on canvas
-function _roundRect(ctx, x, y, w, h, r) {
-  if (w < 1 || h < 1) return;
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
+    // ─── BOTTOM SUMMARY: NET P&L + PROFIT FACTOR + WIN RATE ────────
+    if (progress > 0.75) {
+      ctx.globalAlpha = (progress - 0.75) / 0.25;
+      ctx.font = "10px sans-serif"; ctx.textBaseline = "alphabetic";
+      const yBot = barY + barH + 26;
+
+      // Net (centre)
+      const netColor = net >= 0 ? "#3df0c2" : "#ff7691";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
+      ctx.fillText("NET", w / 2, yBot - 14);
+      ctx.fillStyle = netColor;
+      ctx.font = "bold 16px sans-serif";
+      ctx.shadowColor = netColor; ctx.shadowBlur = 12;
+      ctx.fillText(`${net >= 0 ? '+' : ''}${fmtUsdPlain(Math.abs(net))}`, w / 2, yBot + 6);
+      ctx.shadowBlur = 0;
+
+      // Profit Factor (left)
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
+      ctx.fillText("PROFIT FACTOR", padX, yBot - 14);
+      ctx.fillStyle = profitFactor >= 1 ? "#3df0c2" : "#ff7691";
+      ctx.font = "bold 14px sans-serif";
+      const pfText = profitFactor === Infinity ? "∞" : profitFactor.toFixed(2);
+      ctx.fillText(pfText, padX, yBot + 4);
+
+      // Win Rate (right)
+      ctx.textAlign = "right";
+      ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
+      ctx.fillText("WIN RATE", w - padX, yBot - 14);
+      ctx.fillStyle = winRate >= 0.5 ? "#3df0c2" : "#c7d0e0";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText(`${(winRate * 100).toFixed(1)}%`, w - padX, yBot + 4);
+      ctx.globalAlpha = 1;
+    }
+
+    if (progress >= 1) {
+      // Hit regions: wins half on left, losses half on right
+      const splitX = padX + winFrac * innerW;
+      _hitRegions["chart-wlhist"].push({
+        x0: padX, x1: splitX, y0: barY - 25, y1: barY + barH + 30,
+        html: `
+          <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value pos">Wins</span></div>
+          <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${wins.length}</span></div>
+          <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value pos">${fmtUsd(winTotal)}</span></div>
+          <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value pos">${fmtUsd(wins.length ? winTotal/wins.length : 0)}</span></div>
+          <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value pos">${fmtUsd(wins.length ? Math.max(...wins.map(t=>t.pnl_usd)) : 0)}</span></div>`,
+      });
+      _hitRegions["chart-wlhist"].push({
+        x0: splitX, x1: w - padX, y0: barY - 25, y1: barY + barH + 30,
+        html: `
+          <div class="tt-row"><span class="tt-label">Category</span><span class="tt-value neg">Losses</span></div>
+          <div class="tt-row"><span class="tt-label">Count</span><span class="tt-value">${losses.length}</span></div>
+          <div class="tt-row"><span class="tt-label">Total</span><span class="tt-value neg">-${fmtUsdPlain(lossTotal)}</span></div>
+          <div class="tt-row"><span class="tt-label">Average</span><span class="tt-value neg">${fmtUsd(losses.length ? -lossTotal/losses.length : 0)}</span></div>
+          <div class="tt-row"><span class="tt-label">Biggest</span><span class="tt-value neg">${fmtUsd(losses.length ? Math.min(...losses.map(t=>t.pnl_usd)) : 0)}</span></div>`,
+      });
+      _attachTooltip("chart-wlhist", "tt-wlhist");
+    }
+  });
 }
 
 // ---- Master render ------------------------------------------------------
