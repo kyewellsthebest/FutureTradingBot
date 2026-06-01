@@ -872,11 +872,49 @@ function renderFunded(d) {
   bar.classList.remove("warn", "danger");
   if (dllPct >= 75) bar.classList.add("danger");
   else if (dllPct >= 50) bar.classList.add("warn");
-  setText("funded-peak", fmtUsdPlain(acc.peak_eod ?? bal));
+  setText("funded-peak", fmtUsdPlain(acc.peak_eod_high ?? acc.peak_eod ?? bal));
   setText("funded-locked", acc.trail_locked ? "Yes (at $50k)" : "No");
-  setText("funded-days", acc.days_traded ?? 0);
+  setText("funded-days", acc.n_trading_days ?? acc.days_traded ?? 0);
+  setText("funded-consist", fmtPct((acc.today_share_of_total ?? 0) * 100, 1));
   const fib = d.fib || {};
   setText("funded-micro", fmtPct(fib.microscalp_ratio_30d || 0, 1));
+
+  // ---- Payout Readiness ---------------------------------------------------
+  // The actually useful number: across all NY days, what's the biggest day's
+  // share of total profit, and would Lucid approve a withdrawal right now?
+  const totalProfit = acc.total_profit_so_far ?? 0;
+  const worstDayPnl = acc.worst_day_pnl ?? 0;
+  const worstDayDate = acc.worst_day_date || "—";
+  const worstShare = (acc.worst_day_share ?? 0) * 100;
+  const headroom = acc.consistency_headroom_needed_usd ?? 0;
+  const ready = !!acc.payout_consistency_ok;
+
+  const statusEl = document.getElementById("funded-payout-status");
+  const subEl = document.getElementById("funded-payout-sub");
+  if (statusEl) {
+    if (totalProfit <= 0) {
+      statusEl.textContent = "—";
+      statusEl.classList.remove("pos", "neg");
+      if (subEl) subEl.textContent = "No profitable days yet";
+    } else if (ready) {
+      statusEl.textContent = "ELIGIBLE";
+      statusEl.classList.add("pos");
+      statusEl.classList.remove("neg");
+      if (subEl) subEl.textContent =
+        `Biggest day is ${worstShare.toFixed(1)}% of total profit (under 40% threshold)`;
+    } else {
+      statusEl.textContent = "NOT YET";
+      statusEl.classList.add("neg");
+      statusEl.classList.remove("pos");
+      if (subEl) subEl.textContent =
+        `Need $${headroom.toFixed(0)} more from days OTHER than ${worstDayDate} to dilute the ratio under 40%`;
+    }
+  }
+  setText("funded-total-profit", fmtUsd(totalProfit));
+  setText("funded-worst-day",
+          worstDayPnl > 0 ? `${fmtUsd(worstDayPnl)} on ${worstDayDate}` : "—");
+  setText("funded-worst-share", totalProfit > 0 ? worstShare.toFixed(1) + "%" : "—");
+  setText("funded-headroom", headroom > 0 ? fmtUsd(headroom) : "$0 (already eligible)");
 }
 
 // ---- Trades tab ----------------------------------------------------------

@@ -329,6 +329,36 @@ def lifetime_stats() -> dict:
     }
 
 
+def per_day_pnls() -> list[dict]:
+    """Sum P&L by NY calendar date across every closed trade. Returns a
+    list of {ny_date, pnl, n_trades} sorted by date ascending. Used by
+    the dashboard's payout-readiness widget to find the biggest single
+    day and compute its share of total profit (Lucid's 40% consistency
+    rule).
+
+    NY date uses `-4 hours` to map UTC to ET; this is correct under EDT
+    (Mar-Nov). Winter EST would need -5h; matches lifetime_stats which
+    uses the same offset, so the two stay consistent.
+    """
+    sql = """
+        SELECT date(exit_time, '-4 hours') AS ny_date,
+               COUNT(*) AS n_trades,
+               COALESCE(SUM(pnl), 0.0) AS pnl
+        FROM trades
+        WHERE exit_time IS NOT NULL AND pnl IS NOT NULL
+        GROUP BY ny_date
+        ORDER BY ny_date ASC
+    """
+    with _conn() as conn:
+        rows = conn.execute(sql).fetchall()
+    return [
+        {"ny_date": r["ny_date"],
+         "n_trades": int(r["n_trades"]),
+         "pnl": round(float(r["pnl"]), 2)}
+        for r in rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Dashboard / signal-event JSON snapshots
 # ---------------------------------------------------------------------------

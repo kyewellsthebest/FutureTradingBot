@@ -438,7 +438,46 @@ class LucidAccount(PaperAccount):
         rs = self._build_runtime_lucid_state()
         payout = can_request_payout(rs)
         running_total = rs.cum_pnl + rs.today_pnl
-        worst_share = (rs.today_pnl / running_total) if running_total > 0 else 0.0
+        # Legacy "today share" -- kept for backwards-compat. Today's share
+        # of total profit (the original consistency metric).
+        today_share = (rs.today_pnl / running_total) if running_total > 0 else 0.0
+        # New payout-readiness math: look across ALL days, find the biggest
+        # one (could be today, could be Friday two weeks ago), compute its
+        # share of total profit, and how much more $ would need to come
+        # from OTHER days to drop the biggest day's share under the 40%
+        # threshold (= the moment a payout request would clear consistency).
+        try:
+            from bot import persistence
+            day_rows = persistence.per_day_pnls()
+        except Exception as e:
+            logger.debug(f"per_day_pnls failed: {e!r}")
+            day_rows = []
+        # Profitable days only matter for the rule -- losing days don't
+        # contribute to total profit, and the ratio is computed on positive
+        # profit. If a day is in the red, exclude it from both biggest-day
+        # search and total.
+        positive_days = [d for d in day_rows if d["pnl"] > 0]
+        total_profit = sum(d["pnl"] for d in positive_days)
+        if positive_days and total_profit > 0:
+            worst_day = max(positive_days, key=lambda d: d["pnl"])
+            worst_day_pnl = float(worst_day["pnl"])
+            worst_day_date = worst_day["ny_date"]
+            worst_day_share = worst_day_pnl / total_profit
+            # To drop worst_day_share below 40%, total_profit needs to grow
+            # such that worst_day_pnl / new_total < 0.40
+            #   new_total > worst_day_pnl / 0.40
+            # All growth must come from OTHER days (worst day stays fixed --
+            # making the worst day bigger only makes the ratio worse).
+            needed_other_total = (worst_day_pnl / CONSISTENCY_PCT) - worst_day_pnl
+            current_other_total = total_profit - worst_day_pnl
+            headroom_needed = max(0.0, needed_other_total - current_other_total)
+            payout_consistency_ok = worst_day_share < CONSISTENCY_PCT
+        else:
+            worst_day_pnl = 0.0
+            worst_day_date = None
+            worst_day_share = 0.0
+            headroom_needed = 0.0
+            payout_consistency_ok = True
         return {
             "account_id": self.lucid.account_id,
             "started_at": self.lucid.started_at,
@@ -452,8 +491,18 @@ class LucidAccount(PaperAccount):
             "today_date": self.lucid.today_date,
             "cum_pnl": running_total,
             "n_trading_days": self.lucid.n_trading_days,
-            "today_share_of_total": worst_share,
-            "consistency_ok": worst_share <= CONSISTENCY_PCT or running_total <= 0,
+            "today_share_of_total": today_share,
+            "consistency_ok": today_share <= CONSISTENCY_PCT or running_total <= 0,
+            # Payout readiness (the actually useful number for clicking
+            # "request payout") -- looks at the biggest single day across
+            # all NY days and its share of TOTAL profit. Bot trades
+            # freely; this is informational, not a gate.
+            "worst_day_pnl": round(worst_day_pnl, 2),
+            "worst_day_date": worst_day_date,
+            "worst_day_share": round(worst_day_share, 4),
+            "payout_consistency_ok": payout_consistency_ok,
+            "consistency_headroom_needed_usd": round(headroom_needed, 2),
+            "total_profit_so_far": round(total_profit, 2),
             "dll_remaining": max(0.0, DLL + self.lucid.today_pnl),
             "dll_hit": self.lucid.today_pnl <= -DLL,
             "payout_eligible": payout.eligible,

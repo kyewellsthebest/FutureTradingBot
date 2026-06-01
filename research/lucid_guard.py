@@ -238,27 +238,23 @@ def evaluate_trade(
                               f"+ ${TRAIL_SAFETY_MARGIN:.0f} safety margin)",
                               "trail_floor_margin")
 
-    # 7. 40% consistency rule — only blocks new profitable entries when today is
-    #    already >= 40% of running total. Losing trades are unaffected.
+    # 7. 40% consistency rule -- INFORMATIONAL ONLY, NOT A REAL-TIME BLOCK.
     #
-    #    GATED by MIN_DAYS_TO_PAYOUT: this rule is a payout-eligibility check
-    #    (no single day can be >=40% of total profits when you go to withdraw),
-    #    not a real-time trading throttle. On day 1 with cum_pnl=0, the very
-    #    first +$1 win makes today's share = 100%, which would block every
-    #    subsequent trade indefinitely. Since payout isn't possible until
-    #    n_trading_days >= MIN_DAYS_TO_PAYOUT, applying this rule before then
-    #    creates an artificial deadlock with no compliance benefit.
-    if state.n_trading_days >= MIN_DAYS_TO_PAYOUT:
-        running_total = state.cum_pnl + state.today_pnl
-        if running_total > 0 and state.today_pnl > 0:
-            day_share = state.today_pnl / running_total
-            if day_share >= CONSISTENCY_PCT:
-                return GuardDecision(False,
-                                      f"40% consistency cap: today is {day_share*100:.0f}% of total profit; "
-                                      f"taking more would worsen the ratio",
-                                      "consistency_40pct")
+    #    Lucid's actual rule: at WITHDRAWAL time, no single day's profit can
+    #    be >= 40% of total profit. It's a snapshot check when you press
+    #    "request payout", NOT a moment-to-moment cap on trading.
+    #
+    #    Previous version of this gate denied entries any time today's share
+    #    crossed 40%, but that was overly conservative -- it stopped the bot
+    #    mid-day even though the user could keep trading and let the ratio
+    #    dilute over subsequent days before withdrawing. Removed: let the
+    #    bot trade freely; the dashboard's "payout readiness" widget shows
+    #    the user the current ratio so they pick the right day to click
+    #    request-payout.
+    #
+    #    Kept this comment block so the absence is intentional, not a bug.
 
-    # 8. Microscalp ratio — block if >50% of profits already came from <=5s holds
+    # 8. Microscalp ratio -- block if >50% of profits already came from <=5s holds
     if state.micro_total_profit > 0:
         ratio = state.micro_short_profit / state.micro_total_profit
         if ratio >= MICROSCALP_PROFIT_RATIO:
