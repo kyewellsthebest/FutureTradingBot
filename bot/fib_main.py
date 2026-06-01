@@ -214,62 +214,20 @@ class FibRuntime:
         self.cycle = 0
         self._running = True
         self.last_error: Optional[str] = None
-        # Market-awareness machinery (calendar / cross-market / structure)
-        # was strangling the live bot: yfinance hangs, OOM pressure from
-        # cached frames, and a context-aware NewsBlackoutGate in the
-        # shadow engine that denied ~40 setups/day. The live strategy
-        # doesn't read any of this -- they were only used by the shadow
-        # engine's extra gates and by v2 feature columns for offline ML.
-        # Set ENABLE_MARKET_CONTEXT=1 to re-enable.
-        if os.environ.get("ENABLE_MARKET_CONTEXT", "").lower() in ("1", "true", "yes"):
-            try:
-                from engine.data_sources.economic_calendar import EconomicCalendar
-                from bot.account_ctx import data_dir as _acct_dir
-                self.economic_calendar = EconomicCalendar(cache_dir=_acct_dir())
-                self.economic_calendar.refresh()
-            except Exception as e:
-                self.last_error = f"economic_calendar init failed: {e!r}"
-                self.economic_calendar = None
-            try:
-                from engine.data_sources.cross_market import CrossMarketFeed
-                self.cross_market = CrossMarketFeed()
-            except Exception as e:
-                self.last_error = f"cross_market init failed: {e!r}"
-                self.cross_market = None
-        else:
-            self.economic_calendar = None
-            self.cross_market = None
-        try:
-            from engine.brokers.traderspost import TradersPostBroker
-            self.traderspost = TradersPostBroker()
-        except Exception as e:
-            self.last_error = f"traderspost init failed: {e!r}"
-            self.traderspost = None
-        # Shadow engine -- runs the new engine.runtime.Runtime in parallel
-        # on the same bars. Zero influence on live trading; produces an
-        # artifact we can diff against. Pass None for calendar/cross_market
-        # so the shadow's NewsBlackout + MacroAlignment gates stay off
-        # (they were eating 40+ setups/day with no upside).
+        # Shadow engine: runs the new engine.runtime.Runtime in parallel on
+        # the same bars. Zero influence on live trading; produces an
+        # artifact we can diff against the live bot to verify equivalence.
+        # Disabled if engine package can't be imported (graceful fallback).
         try:
             from bot.shadow_engine import ShadowEngine
             self.shadow = ShadowEngine(
                 account_id=account_id,
                 starting_balance=float(getattr(self.account.state, "starting_balance",
                                                  50000.0)),
-                economic_calendar=None,
-                cross_market_feed=None,
             )
         except Exception as e:
             self.last_error = f"shadow_engine init failed: {e!r}"
             self.shadow = None
-        # Structure cache kept as attribute for snapshot compatibility but
-        # never populated -- the live bot doesn't use POC/VAH/VAL.
-        self._cached_structure = None
-        self._structure_computed_at: Optional[datetime] = None
-        # Track open-trade-id so we can update execution stats on close
-        self._open_trade_id: Optional[int] = None
-        # TradersPost setup ref so close can pair to its open (idempotency)
-        self._open_trade_ref: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -386,17 +344,6 @@ class FibRuntime:
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
-        # Memory hygiene: force a garbage collection every 200 cycles
-        # (~5 minutes). The new engine + cross-market + structure compute
-        # produced an OOM crash on Railway; this gives the GC a regular
-        # opportunity to free the per-tick temporaries (history slices,
-        # decision dicts, yfinance dataframes, etc).
-        if self.cycle % 200 == 0:
-            try:
-                import gc
-                gc.collect()
-            except Exception:
-                pass
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the
@@ -537,134 +484,13 @@ class FibRuntime:
                 adverse_slip_pts=ADVERSE_SLIP_PTS,
                 commission_per_mnq_rt=COMM_PER_MNQ_RT,
             )
-            # Capture the trade row id so we can update its features +
-            # execution stats on close.
-            op = self.account.state.open_position
-            self._open_trade_id = getattr(op, "db_id", None) if op else None
-            # v2 feature snapshot intentionally NOT called here -- it ran
-            # yfinance + POC histogram on every open, blocking the trade
-            # path. Re-enable by exporting ENABLE_MARKET_CONTEXT=1.
-            if self.cross_market is not None or self.economic_calendar is not None:
-                self._persist_open_features(trade, now)
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
                         f"tgt={trade.target_px:.2f}")
-            # Forward to TradersPost as a bracketed order (entry LIMIT +
-            # stop + take-profit). The broker will manage the bracket; we
-            # also send an explicit exit on _on_trade_close as a safety
-            # net to reconcile against TradersPost's idempotent "flat"
-            # action. Wrapped: any TradersPost issue cannot prevent the
-            # bot from continuing to paper-trade.
-            if self.traderspost is not None:
-                try:
-                    setup_ref = (f"acct{self.account_id}_"
-                                  f"{self._open_trade_id or 'noid'}_"
-                                  f"{int(now.timestamp())}")
-                    self.traderspost.submit_open(
-                        side=trade.side, qty=trade.n_mnq,
-                        entry_price=trade.entry_px,
-                        stop_price=trade.stop_px,
-                        target_price=trade.target_px,
-                        setup_id=setup_ref,
-                    )
-                    # Stash the setup_ref so the close call can reuse it
-                    # for idempotency-paired exits.
-                    self._open_trade_ref = setup_ref
-                except Exception as te:
-                    logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
-
-    def _persist_open_features(self, trade, now: datetime) -> None:
-        """Build the rich feature snapshot for THIS trade and UPDATE the
-        trade row with the v2 feature columns. Best-effort; failures are
-        logged but don't affect trading."""
-        if self._open_trade_id is None:
-            return
-        try:
-            features = self._build_current_features(trade, now)
-            if not features:
-                return
-            from bot import persistence
-            # Build UPDATE statement from non-None feature fields
-            updates, params = [], []
-            for k, v in features.items():
-                if v is not None and k not in ("signal_name", "side", "entry_time",
-                                                "entry_px", "stop_px", "target_px",
-                                                "qty"):
-                    updates.append(f"{k} = ?")
-                    params.append(v)
-            if not updates:
-                return
-            params.append(self._open_trade_id)
-            import sqlite3 as _sql
-            db_path = persistence._trades_db_path()
-            with _sql.connect(str(db_path)) as conn:
-                conn.execute(
-                    f"UPDATE trades SET {', '.join(updates)} WHERE id = ?",
-                    tuple(params))
-        except Exception as e:
-            logger.debug(f"v2 feature persist failed (non-fatal): {e!r}")
-
-    def _build_current_features(self, trade, now: datetime) -> dict:
-        """Snapshot of current market context as feature dict. Uses the
-        same MarketContext machinery the shadow engine uses."""
-        try:
-            from engine.market_context import build_market_context
-            from engine.features import build_trade_feature_snapshot
-        except Exception:
-            return {}
-        if self._bars_1m is None or self._bars_1m.empty:
-            return {}
-        try:
-            ctx = build_market_context(self._bars_1m, now)
-        except Exception:
-            return {}
-        # Attach extended context (macro, structure, news)
-        if self.cross_market is not None:
-            try:
-                ctx.macro = self.cross_market.snapshot()
-            except Exception:
-                pass
-        try:
-            struct = self._get_current_structure(now)
-            if struct is not None:
-                ctx.structure = struct
-        except Exception:
-            pass
-        if self.economic_calendar is not None:
-            try:
-                ctx.next_news_event = \
-                    self.economic_calendar.next_event_within(now, minutes=120)
-            except Exception:
-                pass
-        # The trade object from bot/pullback_strategy has attribute names
-        # that differ slightly from engine.types.Setup. Build a tiny
-        # adapter so feature builder works on both.
-        adapter = _SetupAdapter(trade)
-        try:
-            return build_trade_feature_snapshot(
-                adapter, ctx, qty=trade.n_mnq, entry_ts=now)
-        except Exception:
-            return {}
-
-    def _get_current_structure(self, now: datetime):
-        """Cached session structure (refresh every 60s)."""
-        if (self._cached_structure is not None and
-                self._structure_computed_at is not None and
-                (now - self._structure_computed_at).total_seconds() < 60):
-            return self._cached_structure
-        try:
-            from engine.structure.session import compute_session_structure
-            if self._bars_1m is None or self._bars_1m.empty:
-                return None
-            self._cached_structure = compute_session_structure(self._bars_1m, now)
-            self._structure_computed_at = now
-            return self._cached_structure
-        except Exception:
-            return None
 
     def _on_trade_close(self, record: dict, now: datetime) -> None:
         # Always close through the paper account so balance updates and
@@ -680,42 +506,6 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
-        # Persist v2 execution stats: slippage, MAE/MFE if available
-        try:
-            from bot import persistence
-            if self._open_trade_id is not None:
-                # Slippage on stops = adverse_slip_pts * sign; on targets = 0
-                slip = ADVERSE_SLIP_PTS if record["exit_reason"] == "stop" else 0.0
-                persistence.update_trade_execution_stats(
-                    trade_id=self._open_trade_id,
-                    slippage_pts=slip,
-                    # MAE/MFE not tracked in legacy strategy; placeholder 0
-                    mae_pts=0.0, mfe_pts=0.0,
-                )
-        except Exception as e:
-            logger.debug(f"v2 execution stats persist failed: {e!r}")
-        # Forward exit to TradersPost. The broker's bracket order (stop +
-        # take-profit) should already have closed the position when it
-        # triggered, so this "exit/flat" call is normally a no-op on
-        # TradersPost's side -- but it acts as a reconciliation safety
-        # net in case the bracket didn't fire as expected, OR the bot
-        # is closing for a non-bracket reason (timeout, manual flatten,
-        # auto-DLL trigger). action="exit" + sentiment="flat" is
-        # idempotent on the TradersPost side; safe to always send.
-        if self.traderspost is not None:
-            try:
-                self.traderspost.submit_close(
-                    side=record.get("side", "LONG"),
-                    qty=record.get("n_mnq", 1),
-                    reason=record.get("exit_reason", "manual"),
-                    setup_id=getattr(self, "_open_trade_ref", None),
-                )
-            except Exception as te:
-                logger.warning(f"traderspost submit_close failed: {te!r}")
-        # Reset per-trade tracking
-        self._open_trade_id = None
-        self._open_trade_ref = None
-
 
     # ---- dashboard data publish ---------------------------------------
     def _publish_dashboard(self) -> None:
@@ -779,37 +569,6 @@ class FibRuntime:
                     f"_publish_dashboard crashed: {e!r}\n\n{_tb.format_exc()}")
             except Exception:
                 pass
-
-
-# ---------------------------------------------------------------------------
-# Adapter: bot/pullback_strategy.FibSetup attrs -> engine/types.Setup attrs
-# Lets engine.features.build_trade_feature_snapshot work on both shapes.
-# Module-level (NOT a FibRuntime method) so it doesn't accidentally end the
-# FibRuntime class definition.
-# ---------------------------------------------------------------------------
-class _SetupAdapter:
-    def __init__(self, trade):
-        self._t = trade
-        s = getattr(trade, "setup", trade)
-        self.side = trade.side
-        self.entry_price = getattr(trade, "entry_px", None) or \
-                            getattr(s, "pullback_entry", None)
-        self.stop_price  = getattr(trade, "stop_px", None) or \
-                            getattr(s, "stop_px_val", None)
-        self.target_price = getattr(trade, "target_px", None) or \
-                             getattr(s, "target_px_val", None)
-        self.impulse_high = getattr(s, "impulse_high", None) or \
-                             getattr(s, "pivot_high_val", None)
-        self.impulse_low  = getattr(s, "impulse_low", None) or \
-                             getattr(s, "pivot_low_val", None)
-        if self.impulse_high and self.impulse_low:
-            # Pullback strategy doesn't store impulse_pts directly; reconstruct
-            self.impulse_pts = round(self.impulse_high - self.impulse_low, 2) \
-                                * (1 if trade.side == "LONG" else -1)
-        else:
-            self.impulse_pts = None
-        self.strategy_name = "pullback_impulse"
-        self.meta = {}
 
 
 def main() -> int:

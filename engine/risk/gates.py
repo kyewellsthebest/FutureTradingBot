@@ -30,11 +30,6 @@ class AccountState:
     # Locks are bound to a tag so multiple gates can have independent
     # locks without stepping on each other.
     locks: dict = field(default_factory=dict)   # {tag: lockout_until_ts}
-    # Lifetime aggregates: incremented per-trade so we can cap the
-    # closed_trades deque without losing total stats.
-    lifetime_trades: int = 0
-    lifetime_wins: int = 0
-    lifetime_pnl: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -226,147 +221,20 @@ class TradingWindowGate(RiskGate):
 
 
 class NewsBlackoutGate(RiskGate):
-    """Block ±N minutes around scheduled high-impact USD economic events.
-
-    Can be wired EITHER via:
-      (a) a real EconomicCalendar instance -> blocks events in calendar
-      (b) just ctx.is_news_window flag      -> blocks when upstream says so
-
-    Default behaviour: use (a) when calendar is provided, else fall back
-    to (b). Pre-event window default 15min, post-event window 30min
-    (microstructure stays degraded after a release).
-    """
+    """Block ±N minutes around scheduled high-impact events. Uses the
+    MarketContext.is_news_window flag, which is computed upstream by
+    the runtime from an EconomicCalendar."""
     name = "news_blackout"
 
-    def __init__(self, enabled: bool = True,
-                 calendar=None,
-                 pre_event_minutes: int = 15,
-                 post_event_minutes: int = 30):
+    def __init__(self, enabled: bool = True):
         self.enabled = enabled
-        self.calendar = calendar
-        self.pre_event_minutes = int(pre_event_minutes)
-        self.post_event_minutes = int(post_event_minutes)
 
     def check(self, setup, state, ctx):
-        if not self.enabled:
-            return RiskDecision.ok()
-        # (a) Real calendar -- prefer this
-        if self.calendar is not None:
-            try:
-                upcoming = self.calendar.next_event_within(
-                    ctx.now, minutes=self.pre_event_minutes,
-                    only_blackout=True)
-                if upcoming is not None:
-                    return RiskDecision.deny(
-                        reason="news_blackout_pre",
-                        detail=f"{upcoming.title} in "
-                                f"{upcoming.minutes_until(ctx.now):.1f}min",
-                        lockout_until=upcoming.ts + timedelta(
-                            minutes=self.post_event_minutes),
-                    )
-                # Also check if we're WITHIN post-event window of a
-                # recently-passed event
-                recently_passed = [
-                    e for e in self.calendar.upcoming(
-                        ctx.now - timedelta(minutes=self.post_event_minutes),
-                        hours=1, only_blackout=True)
-                    if e.ts <= ctx.now
-                ]
-                if recently_passed:
-                    most_recent = max(recently_passed, key=lambda e: e.ts)
-                    mins_since = (ctx.now - most_recent.ts).total_seconds() / 60.0
-                    if mins_since <= self.post_event_minutes:
-                        return RiskDecision.deny(
-                            reason="news_blackout_post",
-                            detail=f"{mins_since:.1f}min after {most_recent.title}",
-                            lockout_until=most_recent.ts + timedelta(
-                                minutes=self.post_event_minutes),
-                        )
-            except Exception:
-                pass   # calendar failure shouldn't crash trading
-        # (b) Fallback to upstream flag
-        if getattr(ctx, "is_news_window", False):
+        if self.enabled and ctx.is_news_window:
             return RiskDecision.deny(
                 reason="news_blackout",
                 detail="within scheduled news window",
             )
-        return RiskDecision.ok()
-
-
-class MacroAlignmentSizerGate(RiskGate):
-    """Doesn't deny outright -- adjusts size based on cross-market
-    alignment. When macro context strongly disagrees with the setup's
-    side, cuts size or denies. When strongly agrees, allows full size.
-
-    Reads ctx.macro.alignment_score(side) -> [-1, +1].
-    Mapping (tunable):
-       score >= +0.3   : full size (no change)
-       0 <= score < 0.3: full size (mild support)
-       -0.3 < score < 0: cut size by 1
-       -0.6 < score <= -0.3: cut size by 1 (still allows tiny size)
-       score <= -0.6   : deny outright (macro is strongly against us)
-    """
-    name = "macro_alignment_sizer"
-
-    def __init__(self, deny_threshold: float = -0.6,
-                 cut_size_threshold: float = -0.3,
-                 default_qty: int = 2):
-        self.deny_threshold = deny_threshold
-        self.cut_size_threshold = cut_size_threshold
-        self.default_qty = int(default_qty)
-
-    def check(self, setup, state, ctx):
-        macro = getattr(ctx, "macro", None)
-        if macro is None:
-            return RiskDecision.ok()
-        try:
-            side = setup.side.value if hasattr(setup.side, "value") else str(setup.side)
-            score = macro.alignment_score(side)
-        except Exception:
-            return RiskDecision.ok()
-        if score <= self.deny_threshold:
-            return RiskDecision.deny(
-                reason="macro_disagrees",
-                detail=f"alignment={score:.2f} <= {self.deny_threshold}",
-            )
-        if score <= self.cut_size_threshold:
-            return RiskDecision.ok(suggested_qty=max(1, self.default_qty - 1))
-        return RiskDecision.ok()
-
-
-class VolatilityAdaptiveSizerGate(RiskGate):
-    """Doesn't deny -- adjusts size based on intraday volatility regime.
-    Reads ctx.atr_5 and ctx.atr_60. When vol_ratio is extreme high
-    (>2x baseline), cuts size by 1. When extreme low (<0.4x), keeps
-    full size but flags the regime via suggested_qty.
-
-    Philosophy: rather than widening stops on high-vol days (which makes
-    losses larger per stop-out), we reduce position size. Math works out
-    similar on expected loss but is psychologically and operationally
-    cleaner.
-    """
-    name = "volatility_adaptive_sizer"
-
-    def __init__(self, default_qty: int = 2,
-                 high_vol_ratio: float = 2.0,
-                 extreme_vol_ratio: float = 3.5):
-        self.default_qty = int(default_qty)
-        self.high_vol_ratio = high_vol_ratio
-        self.extreme_vol_ratio = extreme_vol_ratio
-
-    def check(self, setup, state, ctx):
-        atr_5 = getattr(ctx, "atr_5", None)
-        atr_60 = getattr(ctx, "atr_60", None)
-        if atr_5 is None or atr_60 is None or atr_60 <= 0:
-            return RiskDecision.ok()
-        ratio = atr_5 / atr_60
-        if ratio >= self.extreme_vol_ratio:
-            return RiskDecision.deny(
-                reason="extreme_volatility",
-                detail=f"atr_5/atr_60={ratio:.2f} >= {self.extreme_vol_ratio}",
-            )
-        if ratio >= self.high_vol_ratio:
-            return RiskDecision.ok(suggested_qty=max(1, self.default_qty - 1))
         return RiskDecision.ok()
 
 

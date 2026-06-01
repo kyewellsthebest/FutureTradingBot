@@ -19,9 +19,7 @@ import pandas as pd
 ET_OFFSET_HOURS = -4   # EDT; -5 during EST. Production should use proper tz.
 
 
-@dataclass(frozen=False)   # Frozen dataclasses can't carry post-hoc context; we
-                            # want to attach macro/structure after construction
-                            # without breaking older call sites.
+@dataclass(frozen=True)
 class MarketContext:
     now: datetime               # bar timestamp
     last_close: float
@@ -33,11 +31,6 @@ class MarketContext:
     is_us_open_15min: bool      # 09:30-09:45 ET, where spreads widen
     is_news_window: bool        # within ±30min of scheduled event
     is_overnight: bool          # outside US RTH
-
-    # Extended context (optional -- may be None if not available)
-    macro: object = None        # CrossMarketState from engine.data_sources
-    structure: object = None    # SessionStructure from engine.structure
-    next_news_event: object = None   # EconomicEvent or None
 
     @property
     def vol_ratio(self) -> float:
