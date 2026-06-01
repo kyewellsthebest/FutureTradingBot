@@ -214,63 +214,58 @@ class FibRuntime:
         self.cycle = 0
         self._running = True
         self.last_error: Optional[str] = None
-        # Shadow engine: runs the new engine.runtime.Runtime in parallel on
-        # the same bars. Zero influence on live trading; produces an
-        # artifact we can diff against the live bot to verify equivalence.
-        # Disabled if engine package can't be imported (graceful fallback).
-        # External context first -- so we can pass them to the shadow engine.
-        try:
-            from engine.data_sources.economic_calendar import EconomicCalendar
-            from bot.account_ctx import data_dir as _acct_dir
-            self.economic_calendar = EconomicCalendar(cache_dir=_acct_dir())
-            self.economic_calendar.refresh()
-        except Exception as e:
-            self.last_error = f"economic_calendar init failed: {e!r}"
+        # Market-awareness machinery (calendar / cross-market / structure)
+        # was strangling the live bot: yfinance hangs, OOM pressure from
+        # cached frames, and a context-aware NewsBlackoutGate in the
+        # shadow engine that denied ~40 setups/day. The live strategy
+        # doesn't read any of this -- they were only used by the shadow
+        # engine's extra gates and by v2 feature columns for offline ML.
+        # Set ENABLE_MARKET_CONTEXT=1 to re-enable.
+        if os.environ.get("ENABLE_MARKET_CONTEXT", "").lower() in ("1", "true", "yes"):
+            try:
+                from engine.data_sources.economic_calendar import EconomicCalendar
+                from bot.account_ctx import data_dir as _acct_dir
+                self.economic_calendar = EconomicCalendar(cache_dir=_acct_dir())
+                self.economic_calendar.refresh()
+            except Exception as e:
+                self.last_error = f"economic_calendar init failed: {e!r}"
+                self.economic_calendar = None
+            try:
+                from engine.data_sources.cross_market import CrossMarketFeed
+                self.cross_market = CrossMarketFeed()
+            except Exception as e:
+                self.last_error = f"cross_market init failed: {e!r}"
+                self.cross_market = None
+        else:
             self.economic_calendar = None
-        try:
-            from engine.data_sources.cross_market import CrossMarketFeed
-            self.cross_market = CrossMarketFeed()
-        except Exception as e:
-            self.last_error = f"cross_market init failed: {e!r}"
             self.cross_market = None
-        # TradersPost broker -- forwards every live trade open/close to the
-        # user's TradersPost webhook so it can route to whichever prop firm
-        # broker they've connected (Lucid/Tradovate, Apex, etc).
-        # SAFETY: default is dry-run (logs the JSON payload but doesn't
-        # actually POST). Requires TRADERSPOST_LIVE=true env var to send
-        # real orders.
         try:
             from engine.brokers.traderspost import TradersPostBroker
             self.traderspost = TradersPostBroker()
         except Exception as e:
             self.last_error = f"traderspost init failed: {e!r}"
             self.traderspost = None
-        # Shadow engine -- gets the calendar + cross-market for context-aware
-        # risk decisions
+        # Shadow engine -- runs the new engine.runtime.Runtime in parallel
+        # on the same bars. Zero influence on live trading; produces an
+        # artifact we can diff against. Pass None for calendar/cross_market
+        # so the shadow's NewsBlackout + MacroAlignment gates stay off
+        # (they were eating 40+ setups/day with no upside).
         try:
             from bot.shadow_engine import ShadowEngine
             self.shadow = ShadowEngine(
                 account_id=account_id,
                 starting_balance=float(getattr(self.account.state, "starting_balance",
                                                  50000.0)),
-                economic_calendar=self.economic_calendar,
-                cross_market_feed=self.cross_market,
+                economic_calendar=None,
+                cross_market_feed=None,
             )
         except Exception as e:
             self.last_error = f"shadow_engine init failed: {e!r}"
             self.shadow = None
-        # Cache structure for the current session; recomputed when new bars
-        # arrive (every 60s). Avoids re-running POC histogram every cycle.
+        # Structure cache kept as attribute for snapshot compatibility but
+        # never populated -- the live bot doesn't use POC/VAH/VAL.
         self._cached_structure = None
         self._structure_computed_at: Optional[datetime] = None
-        # One-shot DB schema migration for v2 feature columns
-        try:
-            from bot import persistence
-            added = persistence.migrate_v2_feature_columns()
-            if added:
-                logger.warning(f"trades DB: added {added} v2 feature columns")
-        except Exception as e:
-            logger.warning(f"v2 schema migration failed: {e!r}")
         # Track open-trade-id so we can update execution stats on close
         self._open_trade_id: Optional[int] = None
         # TradersPost setup ref so close can pair to its open (idempotency)
@@ -546,8 +541,11 @@ class FibRuntime:
             # execution stats on close.
             op = self.account.state.open_position
             self._open_trade_id = getattr(op, "db_id", None) if op else None
-            # Persist the v2 feature snapshot (best-effort).
-            self._persist_open_features(trade, now)
+            # v2 feature snapshot intentionally NOT called here -- it ran
+            # yfinance + POC histogram on every open, blocking the trade
+            # path. Re-enable by exporting ENABLE_MARKET_CONTEXT=1.
+            if self.cross_market is not None or self.economic_calendar is not None:
+                self._persist_open_features(trade, now)
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "

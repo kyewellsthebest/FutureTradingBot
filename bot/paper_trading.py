@@ -192,7 +192,24 @@ class PaperAccount:
         `commission_per_mnq_rt` overrides the default $2/contract (legacy NQ
         figure) with the actual MNQ broker rate (~$0.74-$1)."""
         if self.state.open_position is not None:
-            raise RuntimeError("position already open")
+            # Was raising RuntimeError, which desynced strategy state from
+            # paper-account state after orphan recovery on restart. Now we
+            # mark the stale position as closed at the new entry price
+            # (best estimate of "where we were when we crashed") and
+            # proceed with the new entry. Loses fidelity on the orphan's
+            # P&L but keeps live and paper books in sync.
+            stale = self.state.open_position
+            logger.warning(
+                f"paper account had orphan {stale.side} @ {stale.entry_px:.2f} "
+                f"(db_id={stale.db_id}); closing it before new entry")
+            try:
+                persistence.close_trade(
+                    stale.db_id,
+                    exit_time=(now or datetime.now(timezone.utc)).isoformat(),
+                    exit_px=entry_px_raw, exit_reason="orphan_recovered", pnl=0.0)
+            except Exception as ce:
+                logger.debug(f"orphan close persist failed (non-fatal): {ce!r}")
+            self.state.open_position = None
         now = now or datetime.now(timezone.utc)
         slip = SLIPPAGE_POINTS if entry_slip_pts is None else entry_slip_pts
         slipped = entry_px_raw + slip if side == "LONG" else entry_px_raw - slip
