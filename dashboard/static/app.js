@@ -135,11 +135,15 @@ async function _doResetAccount() {
               "There is no undo.";
   if (!confirm(msg)) return;
   if (!confirm("Are you absolutely sure? Click OK to reset.")) return;
+  const pwd = prompt("Enter reset password:");
+  if (pwd === null) return;   // user cancelled
   btn.disabled = true;
   const prev = btn.textContent;
   btn.textContent = "Resetting…";
   try {
-    const r = await fetch(af("/api/admin/reset_all?confirm=YES"), { method: "POST" });
+    const url = af("/api/admin/reset_all?confirm=YES&password=" +
+                    encodeURIComponent(pwd));
+    const r = await fetch(url, { method: "POST" });
     const j = await r.json();
     if (r.ok && j.ok) {
       alert("Account reset.\n\nFiles deleted: " + (j.deleted || []).length +
@@ -151,6 +155,10 @@ async function _doResetAccount() {
         _allTradesCache = { trades: null, ts: 0 };
       } catch (e) {}
       window.location.reload();
+    } else if (r.status === 401) {
+      btn.textContent = prev;
+      btn.disabled = false;
+      alert("Incorrect password. Reset cancelled.");
     } else {
       btn.textContent = prev;
       btn.disabled = false;

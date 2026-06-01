@@ -2086,8 +2086,15 @@ def api_admin_reset_all():
         return jsonify({
             "ok": False,
             "error": "confirmation required",
-            "hint": "POST /api/admin/reset_all?confirm=YES",
+            "hint": "POST /api/admin/reset_all?confirm=YES&password=...",
         }), 400
+    # Password gate -- prevents accidental resets even if someone hits the
+    # endpoint directly. Keep simple; this is a single-user dashboard.
+    if request.args.get("password") != "Pepp3r06":
+        return jsonify({
+            "ok": False,
+            "error": "invalid password",
+        }), 401
 
     from bot.account_ctx import data_dir, _LEGACY_DATA
     base = data_dir()
