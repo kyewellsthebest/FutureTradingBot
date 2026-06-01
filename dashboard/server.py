@@ -1633,8 +1633,197 @@ def api_download(kind: str):
             else:
                 body = resp.get_json() if hasattr(resp, "get_json") else None
         return _json_resp(body, f"{base_name}_verify.json")
+    if kind == "regime_today":
+        try:
+            data = _build_regime_today_payload()
+        except Exception as e:
+            data = {"ok": False, "error": repr(e)}
+        return _json_resp(data, f"{base_name}_regime_today.json")
 
     return jsonify({"ok": False, "error": f"unknown download kind: {kind}"}), 400
+
+
+def _build_regime_today_payload():
+    """Pulls today's NQ 1-min bars from Polygon, compares apples-to-apples
+    against the SAME ELAPSED TIME of the prior 6 NY days, and returns a
+    verdict on whether today is unusually quiet/choppy or whether
+    something else is off."""
+    from research.data_loader import download_nq
+    from research.signal_filters import NY_TZ
+    from datetime import datetime, timezone, timedelta
+    import pandas as _pd
+
+    bars = download_nq("1min", force_refresh=True)
+    if bars is None or bars.empty:
+        return {"ok": False, "error": "no bars returned from Polygon"}
+    if bars.index.tz is None:
+        bars.index = bars.index.tz_localize("UTC")
+    else:
+        bars.index = bars.index.tz_convert("UTC")
+    bars = bars.sort_index()
+
+    now_utc = datetime.now(timezone.utc)
+
+    def _ny_day_start_utc(dt_utc):
+        """Return the UTC start of the NY day that contains dt_utc.
+        NY day rolls at 16:00 ET; tz handled properly (DST-aware)."""
+        et = _pd.Timestamp(dt_utc).tz_convert(NY_TZ)
+        if et.hour >= 16:
+            start = et.replace(hour=16, minute=0, second=0, microsecond=0)
+        else:
+            start = (et - _pd.Timedelta(days=1)).replace(
+                hour=16, minute=0, second=0, microsecond=0)
+        return start.tz_convert("UTC").to_pydatetime()
+
+    today_start = _ny_day_start_utc(now_utc)
+    elapsed_secs = (now_utc - today_start).total_seconds()
+
+    def _slice(start_utc, end_utc):
+        m = (bars.index >= _pd.Timestamp(start_utc)) & \
+            (bars.index <= _pd.Timestamp(end_utc))
+        return bars.loc[m]
+
+    def _analyze(b):
+        if b.empty: return None
+        h = float(b["high"].max()); l = float(b["low"].min())
+        rng = b["high"] - b["low"]
+        # Count 5pt 4-bar impulses -- matches strategy logic exactly
+        impulses = 0
+        impulse_pts_sum = 0.0
+        c = b["close"].to_numpy(); o = b["open"].to_numpy()
+        for i in range(4, len(b) + 1):
+            net = c[i-1] - o[i-4]
+            if abs(net) >= 5.0:
+                impulses += 1
+                impulse_pts_sum += abs(net)
+        # 5-bar ATR
+        atr5 = 0.0
+        if len(b) >= 6:
+            hh = b["high"].to_numpy()[-6:]; ll = b["low"].to_numpy()[-6:]
+            cc = b["close"].to_numpy()[-6:]
+            import numpy as _np
+            prev = _np.r_[cc[0], cc[:-1]]
+            tr = _np.maximum.reduce([hh - ll, _np.abs(hh - prev), _np.abs(ll - prev)])
+            atr5 = float(tr[1:].mean())
+        return {
+            "n_bars":                int(len(b)),
+            "range_pts":             round(h - l, 2),
+            "avg_bar_range_pts":     round(float(rng.mean()), 3),
+            "median_bar_range_pts":  round(float(rng.median()), 3),
+            "total_volume":          int(b["volume"].sum()),
+            "avg_volume_per_bar":    round(float(b["volume"].mean()), 1),
+            "n_5pt_impulses":        int(impulses),
+            "avg_impulse_pts":       round(impulse_pts_sum / impulses, 2) if impulses else 0,
+            "impulses_per_hour":     round(impulses / max(len(b) / 60.0, 0.1), 2),
+            "atr_5bar_pts":          round(atr5, 2),
+        }
+
+    today_bars = _slice(today_start, now_utc)
+    today_stats = _analyze(today_bars)
+
+    # Baseline: same elapsed window from each of the prior 6 NY days.
+    baseline_days = []
+    for k in range(1, 7):
+        d_start = today_start - timedelta(days=k)
+        d_end   = d_start + timedelta(seconds=elapsed_secs)
+        d_bars  = _slice(d_start, d_end)
+        a = _analyze(d_bars)
+        if a:
+            baseline_days.append({
+                "ny_date_start_utc": d_start.isoformat(),
+                "elapsed_window":    a,
+            })
+
+    # Mean baseline
+    def _mean(field):
+        vals = [d["elapsed_window"][field] for d in baseline_days
+                if d["elapsed_window"].get(field) is not None]
+        if not vals: return None
+        return sum(vals) / len(vals)
+
+    baseline_avg = None
+    if baseline_days:
+        baseline_avg = {
+            "n_bars":            round(_mean("n_bars") or 0),
+            "range_pts":         round(_mean("range_pts") or 0, 2),
+            "avg_bar_range_pts": round(_mean("avg_bar_range_pts") or 0, 3),
+            "total_volume":      round(_mean("total_volume") or 0),
+            "n_5pt_impulses":    round(_mean("n_5pt_impulses") or 0),
+            "impulses_per_hour": round(_mean("impulses_per_hour") or 0, 2),
+            "atr_5bar_pts":      round(_mean("atr_5bar_pts") or 0, 2),
+        }
+
+    # Verdict
+    verdict_lines = [
+        f"=== TODAY vs LAST 6 DAYS (apples-to-apples, same elapsed window) ===",
+        f"Now: {now_utc.isoformat()}",
+        f"NY day started: {today_start.isoformat()}",
+        f"Elapsed: {elapsed_secs/3600:.1f} hours into the NY day",
+        f"",
+    ]
+    diagnosis = "no_diagnosis"
+    if today_stats and baseline_avg:
+        def _pct(t_field):
+            t = today_stats.get(t_field) or 0
+            b = baseline_avg.get(t_field) or 0
+            if b == 0: return None
+            return round(100 * t / b, 0)
+        i_pct = _pct("n_5pt_impulses")
+        v_pct = _pct("total_volume")
+        r_pct = _pct("avg_bar_range_pts")
+        atr_pct = _pct("atr_5bar_pts")
+
+        verdict_lines.append(f"  Bars elapsed:        {today_stats['n_bars']} vs {baseline_avg['n_bars']} avg")
+        verdict_lines.append(f"  Total range:         {today_stats['range_pts']:.0f}pt vs {baseline_avg['range_pts']:.0f}pt avg")
+        verdict_lines.append(f"  Avg bar range:       {today_stats['avg_bar_range_pts']:.2f}pt vs {baseline_avg['avg_bar_range_pts']:.2f}pt avg  ({r_pct}% of normal)")
+        verdict_lines.append(f"  5-bar ATR (current): {today_stats['atr_5bar_pts']:.2f}pt vs {baseline_avg['atr_5bar_pts']:.2f}pt avg  ({atr_pct}% of normal)")
+        verdict_lines.append(f"  Total volume:        {today_stats['total_volume']:,} vs {baseline_avg['total_volume']:,} avg  ({v_pct}% of normal)")
+        verdict_lines.append(f"  5pt impulses:        {today_stats['n_5pt_impulses']} vs {baseline_avg['n_5pt_impulses']} avg  ({i_pct}% of normal)")
+        verdict_lines.append(f"  Impulses/hour:       {today_stats['impulses_per_hour']:.2f} vs {baseline_avg['impulses_per_hour']:.2f} avg")
+        verdict_lines.append(f"")
+        # Verdict logic
+        if i_pct is not None and i_pct < 50:
+            diagnosis = "low_opportunity_market"
+            verdict_lines.append(f"DIAGNOSIS: low_opportunity_market")
+            verdict_lines.append(f"  Today has only {i_pct}% of the usual 5pt impulse count.")
+            verdict_lines.append(f"  The strategy fires on 5pt 4-bar impulses; if those don't happen,")
+            verdict_lines.append(f"  the bot CAN'T trade. This is a quiet-market day, NOT a bot bug.")
+        elif i_pct is not None and i_pct < 75:
+            diagnosis = "below_average_market"
+            verdict_lines.append(f"DIAGNOSIS: below_average_market")
+            verdict_lines.append(f"  Today is showing {i_pct}% of typical impulse count -- slower")
+            verdict_lines.append(f"  than usual but not unusual. Expect ~{i_pct}% of typical trade count.")
+        else:
+            diagnosis = "market_normal_check_bot"
+            verdict_lines.append(f"DIAGNOSIS: market_normal_check_bot")
+            verdict_lines.append(f"  Impulse count is {i_pct}% of normal -- market is roughly normal.")
+            verdict_lines.append(f"  If the bot still isn't trading, check:")
+            verdict_lines.append(f"    - Health snapshot: bars_1m_source must be 'real'")
+            verdict_lines.append(f"    - Last error field non-null?")
+            verdict_lines.append(f"    - Risk gates (auto-DLL, cooldown, news blackout)")
+        if r_pct is not None and r_pct < 70:
+            verdict_lines.append(f"VOLATILITY: avg bar range is {r_pct}% of normal -- price action is QUIET / CHOPPY.")
+        elif r_pct is not None and r_pct > 130:
+            verdict_lines.append(f"VOLATILITY: elevated ({r_pct}% of normal) -- possibly news/event driven.")
+        if v_pct is not None and v_pct < 70:
+            verdict_lines.append(f"VOLUME: {v_pct}% of normal -- low participation, thin liquidity.")
+        elif v_pct is not None and v_pct > 130:
+            verdict_lines.append(f"VOLUME: {v_pct}% of normal -- heavy participation.")
+
+    return {
+        "ok": True,
+        "ts": now_utc.isoformat(),
+        "today_window": {
+            "start_utc": today_start.isoformat(),
+            "end_utc":   now_utc.isoformat(),
+            "elapsed_hours": round(elapsed_secs / 3600, 2),
+            "stats": today_stats,
+        },
+        "baseline_days": baseline_days,
+        "baseline_avg":  baseline_avg,
+        "diagnosis":     diagnosis,
+        "verdict":       verdict_lines,
+    }
 
 
 @app.route("/api/admin/verify_today", methods=["GET", "POST"])
