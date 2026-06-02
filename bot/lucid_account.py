@@ -25,6 +25,7 @@ from typing import Optional
 
 import pandas as pd
 
+import os
 from bot import persistence
 from bot.funded_accounts import FundedLedger
 from bot.paper_trading import AccountState, OpenPosition, PaperAccount
@@ -50,6 +51,12 @@ from research.lucid_guard import (
 from research.signal_filters import DOLLARS_PER_POINT, NY_TZ
 
 logger = logging.getLogger("lucid_account")
+
+# Profit threshold (USD) at which the bot auto-pauses itself the first
+# time total profit crosses it. Lucid 50K Pro challenge target is $3,000
+# by default; override via PROFIT_TARGET_PASS env var. Pause clears on
+# /api/admin/reset_all (auto_pause_armed re-arms).
+PROFIT_TARGET_PASS = float(os.environ.get("PROFIT_TARGET_PASS", "3000.0"))
 
 from bot.account_ctx import data_dir
 def _lucid_state_path():
@@ -88,6 +95,11 @@ class LucidAccountState:
     blown: bool = False
     blow_reason: Optional[str] = None
     applied_reset_serial: int = 0       # last RESET_SERIAL applied
+    # Auto-pause armed = bot will pause itself the first time total profit
+    # crosses PROFIT_TARGET_PASS so the user sees a clean "I passed!"
+    # state without the bot risking the win on more trades. Disarms after
+    # firing; re-arms on /api/admin/reset_all.
+    auto_pause_armed: bool = True
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -323,6 +335,23 @@ class LucidAccount(PaperAccount):
         # The trade just closed — update Lucid state with the realized P&L
         pnl = float(result.get("pnl", 0.0))
         self.lucid.today_pnl += pnl
+        # Auto-pause when total profit first crosses the challenge profit
+        # target. The user wants to manually decide whether to keep trading
+        # past the target (and risk reversing the pass) or stop and enjoy
+        # the eligible state. Disarms after firing; re-arms on reset.
+        try:
+            total_profit = self.lucid.cum_pnl_closed_days + self.lucid.today_pnl
+            if (self.lucid.auto_pause_armed
+                    and total_profit >= PROFIT_TARGET_PASS):
+                self.lucid.auto_pause_armed = False
+                from bot.account_ctx import set_paused
+                set_paused(True, reason="profit_target_hit")
+                logger.warning(
+                    f"[AUTO-PAUSE] profit target hit: total +${total_profit:.2f} "
+                    f">= ${PROFIT_TARGET_PASS:.0f}. Bot paused; resume from "
+                    f"dashboard when ready.")
+        except Exception as e:
+            logger.warning(f"auto-pause check failed (non-fatal): {e!r}")
         # Microscalp accounting: hold time
         try:
             entry_t = pd.Timestamp(result.get("entry_time") or "")

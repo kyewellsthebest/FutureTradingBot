@@ -278,28 +278,48 @@ async function _doDownload(btn) {
 // its existing stop or target. Pause state survives bot restarts (stored as
 // a flag file in the account's data dir).
 let _pauseBusy = false;
-function _renderPauseBtn(paused, sinceIso) {
+let _autoPauseAlerted = false;   // only show the popup once per session
+function _renderPauseBtn(paused, sinceIso, reason) {
   const btn = document.getElementById("btn-pause");
   const badge = document.getElementById("badge-paused");
   if (!btn) return;
   btn.dataset.paused = paused ? "1" : "0";
+  btn.dataset.reason = reason || "";
   btn.textContent = paused ? "▶ Resume" : "⏸ Pause";
   if (badge) {
     badge.hidden = !paused;
-    if (paused && sinceIso) {
-      try {
-        const d = new Date(sinceIso);
-        badge.title = "Paused since " + d.toLocaleString();
-      } catch (e) {}
+    if (paused) {
+      badge.textContent = (reason === "profit_target_hit")
+        ? "PROFIT TARGET HIT" : "PAUSED";
+      if (sinceIso) {
+        try {
+          const d = new Date(sinceIso);
+          badge.title = "Paused since " + d.toLocaleString() +
+                        (reason ? " (" + reason + ")" : "");
+        } catch (e) {}
+      }
     }
   }
+  // First time we see auto-pause this session, fire a popup so the user
+  // knows the bot stopped because it cleared the challenge.
+  if (paused && reason === "profit_target_hit" && !_autoPauseAlerted) {
+    _autoPauseAlerted = true;
+    setTimeout(() => {
+      alert("🎯 Profit target hit!\n\nThe bot crossed the challenge profit " +
+            "target and auto-paused so you can lock in the pass.\n\n" +
+            "Check the Funded tab -> Payout Readiness widget. When it " +
+            "shows ELIGIBLE, you can request payout.\n\n" +
+            "Click Resume on the top bar to keep trading.");
+    }, 200);
+  }
+  if (!paused) _autoPauseAlerted = false;
 }
 async function pollPauseStatus(force) {
   try {
     const r = await fetch(af("/api/pause_status"));
     if (!r.ok) return;
     const j = await r.json();
-    _renderPauseBtn(!!j.paused, j.since);
+    _renderPauseBtn(!!j.paused, j.since, j.reason);
   } catch (e) {}
 }
 async function _togglePause() {
@@ -307,9 +327,17 @@ async function _togglePause() {
   const btn = document.getElementById("btn-pause");
   if (!btn) return;
   const isPaused = btn.dataset.paused === "1";
+  const reason = btn.dataset.reason || "";
   // Pausing is silent; resuming during a losing streak is the dangerous one --
   // confirm so the user doesn't accidentally re-arm the bot mid-tantrum.
-  if (isPaused && !confirm("Resume new entries on this account?")) return;
+  // Auto-pause-on-target also confirms so the user doesn't accidentally
+  // re-arm the bot and risk reversing the pass.
+  const resumeMsg = (reason === "profit_target_hit")
+    ? "The bot auto-paused because it hit the challenge profit target.\n\n" +
+      "Resuming will let it keep trading -- which could LOSE the pass if " +
+      "future trades go badly.\n\nResume anyway?"
+    : "Resume new entries on this account?";
+  if (isPaused && !confirm(resumeMsg)) return;
   _pauseBusy = true;
   btn.disabled = true;
   const prevLabel = btn.textContent;
