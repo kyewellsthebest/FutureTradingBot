@@ -113,15 +113,19 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            # NOTE: "price" field intentionally OMITTED. TradersPost was
-            # using it as the bracket-reference price (computing stop/
-            # target as offsets from "price", NOT from the actual market
-            # fill). For a market order that fills with slippage, this
-            # left the brackets at the wrong distance from the real fill
-            # -- effectively pinning brackets to the bot's intended entry
-            # while the position is at a different price. Omitting "price"
-            # forces TradersPost to use the actual fill as the reference,
-            # which is what we want for market entries.
+            # TradersPost REQUIRES a price field when relative ($-based)
+            # brackets are configured in the subscription. Without it,
+            # TradersPost rejects every signal with "Price required for
+            # relative calculation" because Tradovate doesn't expose
+            # real-time quotes for TradersPost to fetch.
+            #
+            # Trade-off accepted: bracket prices are computed as offsets
+            # from this "price" value (the bot's intended entry, e.g. the
+            # 0.618 pullback level), NOT from the actual market fill. If
+            # market slips 1-3pt between bot signal and Tradovate fill,
+            # the bracket is off by that slippage. This is acceptable --
+            # better than failing entirely.
+            "price":      round(float(entry_price), 2),
             "orderType":  "market",
             "timeInForce": "Day",
         }
