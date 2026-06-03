@@ -416,13 +416,34 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
     """Return (exit_px, reason) if this bar triggers exit, else None.
 
     Exit rules per Lucid Terms of Use:
-      - STOPS fire IMMEDIATELY — losses are NOT subject to microscalp
+      - STOPS fire IMMEDIATELY -- losses are NOT subject to microscalp
         rule (Lucid only counts profitable trades held <=5s).
         Cutting losses fast is good risk management.
       - TARGETS require >= MIN_TARGET_HOLD_SECONDS (10s) of hold time.
         Lucid's microscalp threshold is 5s; we use 10s as safety buffer.
       - TIMEOUTS naturally past 10s (10-min max hold).
+
+    LOOK-AHEAD BIAS GUARD: skip exit detection on bars that started AT
+    OR BEFORE the trade was opened. The entry bar's high/low includes
+    ticks from BEFORE the entry, which would otherwise let the bot
+    falsely "detect" a stop/target hit that actually happened pre-entry.
+    This was inflating paper-account wins and causing the dashboard to
+    show ~10-15s trade durations while Tradovate's real-time bracket
+    saw the trade play out differently. With this guard, exits only
+    fire on bars that started AFTER the entry timestamp.
     """
+    try:
+        bar_start = last_1m_bar.name
+        if hasattr(bar_start, "to_pydatetime"):
+            bar_start = bar_start.to_pydatetime()
+        if bar_start.tzinfo is None:
+            bar_start = bar_start.replace(tzinfo=timezone.utc)
+        if bar_start <= trade.entry_ts:
+            return None
+    except Exception:
+        # If bar timestamp parsing fails, fall through to exit check.
+        pass
+
     high = float(last_1m_bar["high"])
     low = float(last_1m_bar["low"])
     close = float(last_1m_bar["close"])
