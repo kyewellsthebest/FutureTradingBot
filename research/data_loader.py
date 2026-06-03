@@ -17,7 +17,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -346,18 +346,119 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
 _LIVE_QUOTE_CACHE: dict = {"product": None, "fetched": 0.0, "val": None}
 
 
-def polygon_latest_quote(product: str = "NQ", max_age_s: float = 20.0):
+def polygon_futures_snapshot(product: str = "NQ") -> Optional[tuple[float, float]]:
+    """Real-time snapshot for a futures contract — tries Polygon's snapshot
+    endpoints to get last-trade / last-quote tick data instead of bar
+    aggregates. Returns (price, age_seconds) or None.
+
+    Polygon Futures API doesn't have a single canonical snapshot path; we
+    try the documented variants in order:
+      /futures/v1/snapshot/{ticker}
+      /futures/v1/last/trade/{ticker}
+      /futures/v1/last/quote/{ticker}
+    On first success returns. None means fall back to aggregates.
+
+    Requires Futures Advanced ($199/mo) plan for real-time snapshot
+    access -- on a delayed plan these endpoints either 403 or return
+    delayed data.
+    """
+    import json as _json
+    import time as _time
+    import urllib.request
+
+    key = _polygon_key()
+    if not key:
+        return None
+    tk = polygon_front_month(product)
+
+    endpoints = (
+        f"https://api.polygon.io/futures/v1/snapshot/{tk}",
+        f"https://api.polygon.io/futures/v1/last/trade/{tk}",
+        f"https://api.polygon.io/futures/v1/last/quote/{tk}",
+    )
+
+    for base in endpoints:
+        url = f"{base}?apiKey={key}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status != 200:
+                    continue
+                data = _json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            continue
+        # Polygon returns variable shapes -- try the common ones. The "results"
+        # wrapper is standard for v3, but v1 futures uses bare objects.
+        results = data.get("results") if isinstance(data, dict) else None
+        if results is None:
+            results = data
+        if not isinstance(results, dict):
+            continue
+        # Try last_trade.price first (most common), then last_quote.bid_price,
+        # then top-level "price" / "p".
+        price = None
+        ts_ns = None
+        for path in (
+            ("last_trade", "price"), ("last_trade", "p"),
+            ("trade", "price"), ("trade", "p"),
+            ("last_quote", "bid_price"), ("last_quote", "bp"),
+            ("price",), ("p",), ("last",),
+        ):
+            cur = results
+            ok = True
+            for k in path:
+                if not isinstance(cur, dict) or k not in cur:
+                    ok = False
+                    break
+                cur = cur[k]
+            if ok and isinstance(cur, (int, float)):
+                price = float(cur)
+                # Try to extract the corresponding timestamp
+                parent = results
+                for k in path[:-1]:
+                    if isinstance(parent, dict) and k in parent:
+                        parent = parent[k]
+                if isinstance(parent, dict):
+                    for ts_key in ("sip_timestamp", "participant_timestamp",
+                                    "timestamp", "t", "trf_timestamp"):
+                        if ts_key in parent:
+                            ts_ns = parent[ts_key]
+                            break
+                break
+        if price is None:
+            continue
+        # Polygon timestamps are nanoseconds since epoch. Convert to seconds-old.
+        if ts_ns is not None:
+            try:
+                ts_s = float(ts_ns) / 1e9
+                age = _time.time() - ts_s
+                if age < 0:
+                    age = 0.0
+            except Exception:
+                age = 0.0
+        else:
+            age = 0.0
+        return price, age
+    return None
+
+
+
+def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
     """Latest live futures quote from Polygon — for the price monitor.
 
-    Returns (price, high, low, bar_age_seconds) or None. `price` is the
-    most recent 5-min bar's close (the current price as the bar forms),
-    `high`/`low` are that bar's real range. `bar_age_seconds` is how old
-    that bar is — it makes the plan's true data delay VISIBLE rather than
-    assumed (a real-time plan -> a few minutes; a delayed plan -> ~15+).
+    Returns (price, high, low, age_seconds) or None. Prefers the
+    tick-level snapshot endpoint (real-time on Futures Advanced plan)
+    and falls back to 5-min aggregates only when snapshot fails (e.g.
+    user is on a delayed plan).
 
-    Throttled: it re-hits Polygon at most every `max_age_s` seconds, so the
-    price monitor can poll it as fast as it likes without hammering the API.
-    Returns None on any failure so the caller falls through to CNBC/yfinance.
+    Throttled: re-hits Polygon at most every `max_age_s` seconds (default
+    2s) so the price monitor can poll as fast as it likes without
+    hammering the API. Returns None on total failure so the caller falls
+    through to CNBC/yfinance.
+
+    age_seconds is the actual tick age when using the snapshot endpoint
+    (sub-second on a real-time plan), or the 5-min bar age when falling
+    back to aggregates.
     """
     import time as _time
 
@@ -366,18 +467,43 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 20.0):
     c = _LIVE_QUOTE_CACHE
     fresh = (c["product"] == product and c["val"] is not None
              and _time.time() - c["fetched"] < max_age_s)
-    if not fresh:
-        try:
-            df = download_polygon_futures(product, "5min", force_refresh=True)
-        except Exception as e:
-            logger.debug(f"polygon_latest_quote {product}: {e!r}")
-            return None
-        if df is None or df.empty:
-            return None
-        last = df.iloc[-1]
+    if fresh:
+        price, high, low, ref = c["val"]
+        if isinstance(ref, (int, float)):
+            age = _time.time() - ref
+        else:
+            age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
+        return price, high, low, max(age, 0.0)
+
+    # Try the real-time snapshot endpoint first. If it works, we get
+    # tick-level freshness (sub-second on Futures Advanced).
+    try:
+        snap = polygon_futures_snapshot(product)
+    except Exception as e:
+        logger.debug(f"polygon snapshot {product}: {e!r}")
+        snap = None
+    if snap is not None:
+        price, age = snap
         c.update(product=product, fetched=_time.time(),
-                 val=(float(last["close"]), float(last["high"]),
-                      float(last["low"]), df.index[-1]))
+                 # Store the snapshot time so subsequent reads from cache
+                 # still report a sensible "age" (the snapshot-was-taken
+                 # time as a unix seconds float).
+                 val=(price, price, price, _time.time() - age))
+        return price, price, price, age
+
+    # Fallback: 5-min aggregates. Higher inherent delay (5-10 min) but
+    # works even on delayed plans.
+    try:
+        df = download_polygon_futures(product, "5min", force_refresh=True)
+    except Exception as e:
+        logger.debug(f"polygon_latest_quote {product} (aggs fallback): {e!r}")
+        return None
+    if df is None or df.empty:
+        return None
+    last = df.iloc[-1]
+    c.update(product=product, fetched=_time.time(),
+             val=(float(last["close"]), float(last["high"]),
+                  float(last["low"]), df.index[-1]))
     price, high, low, bar_ts = c["val"]
     age = (pd.Timestamp.now(tz="UTC") - bar_ts).total_seconds()
     return price, high, low, age

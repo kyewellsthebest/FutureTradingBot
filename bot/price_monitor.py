@@ -81,13 +81,21 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     now = time.time()
     if now - _polygon_last_age_log > 300:
         _polygon_last_age_log = now
-        mins = age / 60.0
-        if mins > 12:
-            logger.warning(f"polygon live quote {mins:.0f} min old — this "
+        # New thresholds match the snapshot endpoint's real-time
+        # capability: sub-second on the Futures Advanced plan, minutes
+        # on the aggregate fallback. >60s strongly suggests we're
+        # falling back to 5-min bars; >12 min means truly delayed.
+        if age > 720:        # > 12 min: confirmed delayed plan
+            logger.warning(f"polygon live quote {age/60:.0f} min old — this "
                            f"plan is DELAYED, not real-time")
+        elif age > 60:       # 1-12 min: snapshot likely failed, on aggs fallback
+            logger.warning(f"polygon live quote {age/60:.1f} min old — snapshot "
+                           f"endpoint not returning data; running on 5-min bar "
+                           f"fallback. Check Futures Advanced plan is active.")
+        elif age > 5:        # 5-60s: working but throttled
+            logger.info(f"polygon live quote {age:.1f}s old (real-time, throttled)")
         else:
-            logger.info(f"polygon live quote {mins:.1f} min old "
-                        f"(real-time-ish)")
+            logger.info(f"polygon live quote {age:.1f}s old (real-time)")
     return price, high, low
 
 
