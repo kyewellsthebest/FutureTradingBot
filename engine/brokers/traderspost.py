@@ -113,20 +113,23 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            # TradersPost REQUIRES a price field when relative ($-based)
-            # brackets are configured in the subscription. Without it,
-            # TradersPost rejects every signal with "Price required for
-            # relative calculation" because Tradovate doesn't expose
-            # real-time quotes for TradersPost to fetch.
-            #
-            # Trade-off accepted: bracket prices are computed as offsets
-            # from this "price" value (the bot's intended entry, e.g. the
-            # 0.618 pullback level), NOT from the actual market fill. If
-            # market slips 1-3pt between bot signal and Tradovate fill,
-            # the bracket is off by that slippage. This is acceptable --
-            # better than failing entirely.
             "price":      round(float(entry_price), 2),
             "orderType":  "market",
+            # ABSOLUTE bracket prices, NOT $-amount offsets. TradersPost's
+            # "$" mode for take profit / stop loss was being interpreted
+            # as TOTAL POSITION DOLLARS (not per-contract, not price
+            # points), which made brackets land at half the intended
+            # distance. Sending absolute prices removes all ambiguity --
+            # bot says "stop at 30768.49" and that's exactly where it
+            # goes regardless of how the subscription is configured.
+            #
+            # The subscription's "Allow signal override" MUST be CHECKED
+            # for both Take Profit and Stop Loss fields, otherwise
+            # TradersPost ignores these absolute prices and falls back
+            # to its (broken-for-our-use) $-mode interpretation.
+            "stopLoss":   {"type": "stop",
+                           "stopPrice": round(float(stop_price), 2)},
+            "takeProfit": {"limitPrice": round(float(target_price), 2)},
             "timeInForce": "Day",
         }
         if setup_id:
