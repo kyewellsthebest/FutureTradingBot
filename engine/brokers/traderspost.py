@@ -89,18 +89,22 @@ class TradersPostBroker:
                     entry_price: float, stop_price: float,
                     target_price: float,
                     setup_id: Optional[str] = None) -> WebhookResult:
-        """Bot has decided to open a trade. Send TradersPost a bracketed
-        order: entry MARKET + protective STOP + take-profit LIMIT.
+        """Bot has decided to open a trade. Send TradersPost a MARKET
+        entry. The TradersPost subscription is configured with $-based
+        brackets ($12 stop, $24 target) that compute relative to the
+        ACTUAL fill price, so brackets stay correctly distanced even
+        when market entries slip.
 
         side: "LONG" or "SHORT" (bot convention) -> mapped to TP "buy"/"sell"
 
-        Order type is MARKET (was LIMIT). Reason: LIMIT entries arriving
-        at Tradovate ~300-500ms after the bot fires would sit passive in
-        the order book when price moved away from the limit, never
-        filling. The bot's paper account would book phantom trades that
-        had no real execution. Market entries guarantee fill at the cost
-        of ~0.25-1.5pt slippage per entry, which is the accepted trade-off
-        for real-broker execution.
+        Brackets (stopLoss, takeProfit) are NOT sent in the payload --
+        TradersPost computes them from the subscription config. This is
+        the only way to keep stop/target distances correct when market
+        entries fill at a different price than the bot's intended entry.
+
+        entry_price, stop_price, target_price are kept as function
+        parameters for caller backwards-compat but only entry_price is
+        used (as a reference field in the payload; not used for execution).
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
@@ -109,11 +113,8 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            "price":      round(float(entry_price), 2),   # reference price for TP/SL math
+            "price":      round(float(entry_price), 2),   # reference only
             "orderType":  "market",
-            "stopLoss":   {"type": "stop",
-                           "stopPrice": round(float(stop_price), 2)},
-            "takeProfit": {"limitPrice": round(float(target_price), 2)},
             "timeInForce": "Day",
         }
         if setup_id:
