@@ -122,10 +122,16 @@ class TradersPostBroker:
 
         side: the side of the trade being CLOSED ("LONG" -> exit long).
         reason: free-text label for our own audit trail.
+
+        TradersPost close format: action is the OPPOSITE direction of the
+        position being closed, with sentiment="flat". Previous version
+        used action="exit" which TradersPost rejected as "Invalid
+        Sentiment Action" on every close.
         """
+        close_action = "sell" if side == "LONG" else "buy"
         payload = {
             "ticker":    self.ticker,
-            "action":    "exit",
+            "action":    close_action,
             "sentiment": "flat",
             "quantity":  int(qty),
         }
