@@ -509,28 +509,15 @@ class FibRuntime:
             # account's legacy market-order defaults with prop-firm-realistic
             # values (env-configurable for tuning to actual broker statements).
             #
-            # Estimate the actual market-order fill price using the latest
-            # live tick from PriceMonitor instead of the bot's intended
-            # entry (the pullback level). For real market orders, Tradovate
-            # fills at the current market -- which can differ from the
-            # bot's intended entry by 1-10+ points depending on how fast
-            # price has moved since the setup formed. Recording the LIVE
-            # price as the fill makes the bot's paper P&L track real
-            # Tradovate outcomes much more closely.
-            est_fill = trade.entry_px
-            try:
-                _live = self.monitor.latest()
-                if _live is not None and getattr(_live, "price", None) is not None:
-                    est_fill = float(_live.price)
-            except Exception:
-                pass
-            # Bot's internal active_trade still keeps trade.entry_px (the
-            # intended pullback level) for stop/target distance math --
-            # but the paper account books at est_fill so its P&L matches
-            # the real Tradovate fill within slippage tolerance.
+            # Paper account books at the bot's INTENDED entry price (the
+            # 0.618 pullback level). With LIMIT orders on TradersPost,
+            # Tradovate's actual fill happens at exactly this price (or
+            # better), so paper P&L matches Tradovate within ~$1 slippage
+            # on stop fills. Wins are clean $48, losses clean -$24, just
+            # like the paper backtest.
             self.account.enter(
                 signal_name=f"FIB_{trade.side}_{int(trade.setup.level50)}",
-                side=trade.side, entry_px_raw=est_fill,
+                side=trade.side, entry_px_raw=trade.entry_px,
                 stop_px=trade.stop_px, target_px=trade.target_px,
                 qty=trade.n_mnq, vol_regime="FIB",
                 rr=abs(trade.target_px - trade.entry_px) /

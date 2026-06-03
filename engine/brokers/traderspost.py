@@ -113,20 +113,28 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            "price":      round(float(entry_price), 2),
-            "orderType":  "market",
-            # ABSOLUTE bracket prices, NOT $-amount offsets. TradersPost's
-            # "$" mode for take profit / stop loss was being interpreted
-            # as TOTAL POSITION DOLLARS (not per-contract, not price
-            # points), which made brackets land at half the intended
-            # distance. Sending absolute prices removes all ambiguity --
-            # bot says "stop at 30768.49" and that's exactly where it
-            # goes regardless of how the subscription is configured.
+            # PAPER-PARITY MODE: use LIMIT orders at the intended entry
+            # price (the 0.618 pullback level the strategy computed). This
+            # matches what the paper backtest assumes -- fill happens
+            # exactly at the pullback level, giving clean +12pt target
+            # ($48) and -6pt stop ($24) outcomes when brackets hit.
             #
-            # The subscription's "Allow signal override" MUST be CHECKED
-            # for both Take Profit and Stop Loss fields, otherwise
-            # TradersPost ignores these absolute prices and falls back
-            # to its (broken-for-our-use) $-mode interpretation.
+            # Previous MARKET approach filled at current market price,
+            # which has typically moved past the pullback by the time the
+            # order reaches Tradovate. The bracket was at the intended
+            # absolute price but the entry wasn't, causing wildly varying
+            # per-trade P&L ($74 wins, $26 losses, etc.) that didn't
+            # match the paper backtest.
+            #
+            # Trade-off: limit orders can fail to fill if price moves
+            # away before the order is placed. TradersPost subscription's
+            # "Cancel open entry order after delay" (set to 60s) will
+            # clean up unfilled limits. Some trades the paper account
+            # books may not actually execute on Tradovate. This is the
+            # cost of paper-quality fills -- but cleaner than market
+            # slippage destroying the strategy's edge.
+            "price":      round(float(entry_price), 2),
+            "orderType":  "limit",
             "stopLoss":   {"type": "stop",
                            "stopPrice": round(float(stop_price), 2)},
             "takeProfit": {"limitPrice": round(float(target_price), 2)},
