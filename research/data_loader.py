@@ -343,7 +343,8 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
     return df
 
 
-_LIVE_QUOTE_CACHE: dict = {"product": None, "fetched": 0.0, "val": None}
+_LIVE_QUOTE_CACHE: dict = {"product": None, "fetched": 0.0, "val": None,
+                            "source": None}
 
 
 def polygon_futures_snapshot(product: str = "NQ") -> Optional[tuple[float, float]]:
@@ -448,51 +449,80 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
 
     Returns (price, high, low, age_seconds) or None. Prefers the
     tick-level snapshot endpoint (real-time on Futures Advanced plan)
-    and falls back to 5-min aggregates only when snapshot fails (e.g.
-    user is on a delayed plan).
+    and falls back to 5-min aggregates only when snapshot has been
+    failing for an extended period.
+
+    Stickiness: once we get a successful snapshot, subsequent polls
+    that fail (transient network errors, occasional 5xx from Polygon)
+    reuse the last snapshot value for up to STALE_SNAPSHOT_MAX_S
+    seconds before giving up and falling to aggregates. This prevents
+    the dashboard price from flickering between real-time (30746) and
+    delayed (30717) values when snapshot calls intermittently fail.
 
     Throttled: re-hits Polygon at most every `max_age_s` seconds (default
-    2s) so the price monitor can poll as fast as it likes without
-    hammering the API. Returns None on total failure so the caller falls
-    through to CNBC/yfinance.
+    2s) so polling at 1Hz doesn't hammer the API.
 
     age_seconds is the actual tick age when using the snapshot endpoint
-    (sub-second on a real-time plan), or the 5-min bar age when falling
-    back to aggregates.
+    (sub-second on a real-time plan), or the 5-min bar age when on the
+    aggregate fallback.
     """
     import time as _time
+
+    # How long to keep using the last-known-good snapshot when Polygon
+    # snapshot endpoint is returning errors. 60s = if real-time has been
+    # broken for a full minute, fall back to aggregates. Below that we
+    # prefer slightly stale real-time over fresh delayed.
+    STALE_SNAPSHOT_MAX_S = 60.0
 
     if not _polygon_key():
         return None
     c = _LIVE_QUOTE_CACHE
+    now_t = _time.time()
+
+    # If cache is fresh AND came from snapshot path, return it immediately.
     fresh = (c["product"] == product and c["val"] is not None
-             and _time.time() - c["fetched"] < max_age_s)
+             and now_t - c["fetched"] < max_age_s)
     if fresh:
         price, high, low, ref = c["val"]
         if isinstance(ref, (int, float)):
-            age = _time.time() - ref
+            age = now_t - ref
         else:
             age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
         return price, high, low, max(age, 0.0)
 
-    # Try the real-time snapshot endpoint first. If it works, we get
-    # tick-level freshness (sub-second on Futures Advanced).
+    # Try the real-time snapshot endpoint first.
     try:
         snap = polygon_futures_snapshot(product)
     except Exception as e:
         logger.debug(f"polygon snapshot {product}: {e!r}")
         snap = None
+
     if snap is not None:
+        # Snapshot worked. Cache + return.
         price, age = snap
-        c.update(product=product, fetched=_time.time(),
-                 # Store the snapshot time so subsequent reads from cache
-                 # still report a sensible "age" (the snapshot-was-taken
-                 # time as a unix seconds float).
-                 val=(price, price, price, _time.time() - age))
+        c.update(product=product, fetched=now_t, source="snapshot",
+                 val=(price, price, price, now_t - age))
         return price, price, price, age
 
-    # Fallback: 5-min aggregates. Higher inherent delay (5-10 min) but
-    # works even on delayed plans.
+    # Snapshot failed. If our last successful fetch was a snapshot AND
+    # it's still within STALE_SNAPSHOT_MAX_S, keep using it (stale-but-
+    # real-time is better than fresh-but-delayed). Update fetched so we
+    # don't re-attempt snapshot on every call -- wait max_age_s.
+    if (c["product"] == product and c["val"] is not None
+            and c.get("source") == "snapshot"
+            and now_t - c["fetched"] < STALE_SNAPSHOT_MAX_S):
+        price, high, low, ref = c["val"]
+        if isinstance(ref, (int, float)):
+            age = now_t - ref
+        else:
+            age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
+        # Bump fetched-attempt time so we don't slam the API every call;
+        # the next attempt happens after max_age_s.
+        c["fetched"] = now_t
+        return price, high, low, max(age, 0.0)
+
+    # Snapshot has been failing for too long OR we never got one. Fall
+    # back to 5-min aggregates (delayed plan or extended outage).
     try:
         df = download_polygon_futures(product, "5min", force_refresh=True)
     except Exception as e:
@@ -501,7 +531,7 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
     if df is None or df.empty:
         return None
     last = df.iloc[-1]
-    c.update(product=product, fetched=_time.time(),
+    c.update(product=product, fetched=now_t, source="aggs",
              val=(float(last["close"]), float(last["high"]),
                   float(last["low"]), df.index[-1]))
     price, high, low, bar_ts = c["val"]
