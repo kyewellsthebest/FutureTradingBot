@@ -447,39 +447,35 @@ def polygon_futures_snapshot(product: str = "NQ") -> Optional[tuple[float, float
 def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
     """Latest live futures quote from Polygon — for the price monitor.
 
-    Returns (price, high, low, age_seconds) or None. Prefers the
-    tick-level snapshot endpoint (real-time on Futures Advanced plan)
-    and falls back to 5-min aggregates only when snapshot has been
-    failing for an extended period.
+    Returns (price, high, low, age_seconds) or None.
 
-    Stickiness: once we get a successful snapshot, subsequent polls
-    that fail (transient network errors, occasional 5xx from Polygon)
-    reuse the last snapshot value for up to STALE_SNAPSHOT_MAX_S
-    seconds before giving up and falling to aggregates. This prevents
-    the dashboard price from flickering between real-time (30746) and
-    delayed (30717) values when snapshot calls intermittently fail.
+    Architecture: uses 1-minute aggregates with force_refresh and grabs
+    the LATEST bar's close as the live price. On Polygon Futures Advanced
+    this returns the in-progress current bar, giving sub-minute freshness
+    (typically 1-30s old depending on where in the minute we poll).
+
+    Previously tried REST snapshot endpoints (/futures/v1/snapshot/...)
+    but those don't reliably exist for futures contracts -- they returned
+    inconsistent results that caused price-flicker between real-time and
+    delayed sources. The 1-min aggregate path is proven to work.
+
+    For tick-level updates matching a broker terminal exactly, you'd
+    need a Polygon WebSocket subscriber instead -- bigger architecture
+    change. The 1-min poll gives "real-time enough" for the dashboard
+    NQ price box and the bot's bar-based strategy.
 
     Throttled: re-hits Polygon at most every `max_age_s` seconds (default
-    2s) so polling at 1Hz doesn't hammer the API.
-
-    age_seconds is the actual tick age when using the snapshot endpoint
-    (sub-second on a real-time plan), or the 5-min bar age when on the
-    aggregate fallback.
+    2s). The dashboard's 1Hz `/api/price` poll hits this cached value
+    most of the time.
     """
     import time as _time
-
-    # How long to keep using the last-known-good snapshot when Polygon
-    # snapshot endpoint is returning errors. 60s = if real-time has been
-    # broken for a full minute, fall back to aggregates. Below that we
-    # prefer slightly stale real-time over fresh delayed.
-    STALE_SNAPSHOT_MAX_S = 60.0
 
     if not _polygon_key():
         return None
     c = _LIVE_QUOTE_CACHE
     now_t = _time.time()
 
-    # If cache is fresh AND came from snapshot path, return it immediately.
+    # Return cached value if fresh.
     fresh = (c["product"] == product and c["val"] is not None
              and now_t - c["fetched"] < max_age_s)
     if fresh:
@@ -490,7 +486,60 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
             age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
         return price, high, low, max(age, 0.0)
 
-    # Try the real-time snapshot endpoint first.
+    # Fetch 1-min aggregates -- latest bar's close is the live price.
+    try:
+        df = download_polygon_futures(product, "1min", force_refresh=True)
+    except Exception as e:
+        logger.debug(f"polygon_latest_quote {product} 1min fetch: {e!r}")
+        # On total failure, return last cached value if we have one (better
+        # than nothing) up to 60s old. Otherwise return None.
+        if (c["product"] == product and c["val"] is not None
+                and now_t - c["fetched"] < 60):
+            price, high, low, ref = c["val"]
+            age = (now_t - ref) if isinstance(ref, (int, float)) else \
+                  (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
+            return price, high, low, max(age, 0.0)
+        return None
+    if df is None or df.empty:
+        return None
+    last = df.iloc[-1]
+    c.update(product=product, fetched=now_t, source="aggs_1min",
+             val=(float(last["close"]), float(last["high"]),
+                  float(last["low"]), df.index[-1]))
+    price, high, low, bar_ts = c["val"]
+    age = (pd.Timestamp.now(tz="UTC") - bar_ts).total_seconds()
+    return price, high, low, age
+
+
+def polygon_latest_quote_OLD_snapshot_attempt(product: str = "NQ", max_age_s: float = 2.0):
+    """DEPRECATED. Previous version that tried Polygon's REST snapshot
+    endpoints (/futures/v1/snapshot/..., /last/trade/..., /last/quote/...)
+    which don't reliably exist for futures contracts. Kept as a reference
+    in case Polygon documents these for futures in the future. Replaced
+    by the 1-min aggregate path above which is proven to work.
+    """
+    import time as _time
+
+    # How long to keep using the last-known-good snapshot when Polygon
+    # snapshot endpoint is returning errors. 60s = if real-time has been
+    # broken for a full minute, fall back to aggregates.
+    STALE_SNAPSHOT_MAX_S = 60.0
+
+    if not _polygon_key():
+        return None
+    c = _LIVE_QUOTE_CACHE
+    now_t = _time.time()
+
+    fresh = (c["product"] == product and c["val"] is not None
+             and now_t - c["fetched"] < max_age_s)
+    if fresh:
+        price, high, low, ref = c["val"]
+        if isinstance(ref, (int, float)):
+            age = now_t - ref
+        else:
+            age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
+        return price, high, low, max(age, 0.0)
+
     try:
         snap = polygon_futures_snapshot(product)
     except Exception as e:
@@ -498,16 +547,11 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
         snap = None
 
     if snap is not None:
-        # Snapshot worked. Cache + return.
         price, age = snap
         c.update(product=product, fetched=now_t, source="snapshot",
                  val=(price, price, price, now_t - age))
         return price, price, price, age
 
-    # Snapshot failed. If our last successful fetch was a snapshot AND
-    # it's still within STALE_SNAPSHOT_MAX_S, keep using it (stale-but-
-    # real-time is better than fresh-but-delayed). Update fetched so we
-    # don't re-attempt snapshot on every call -- wait max_age_s.
     if (c["product"] == product and c["val"] is not None
             and c.get("source") == "snapshot"
             and now_t - c["fetched"] < STALE_SNAPSHOT_MAX_S):
@@ -516,13 +560,9 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
             age = now_t - ref
         else:
             age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
-        # Bump fetched-attempt time so we don't slam the API every call;
-        # the next attempt happens after max_age_s.
         c["fetched"] = now_t
         return price, high, low, max(age, 0.0)
 
-    # Snapshot has been failing for too long OR we never got one. Fall
-    # back to 5-min aggregates (delayed plan or extended outage).
     try:
         df = download_polygon_futures(product, "5min", force_refresh=True)
     except Exception as e:
