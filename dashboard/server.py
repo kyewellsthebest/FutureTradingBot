@@ -378,9 +378,28 @@ def api_data():
 
 @app.route("/api/price")
 def api_price():
-    """Live price. Falls back to a direct CNBC fetch if the bot's snapshot
-    is empty or older than 60s — keeps the dashboard's top-left price
-    populated even if the bot's PriceMonitor chain is failing."""
+    """Live price. Hits Polygon's snapshot endpoint directly so the
+    1Hz dashboard poll gets tick-fresh data instead of the bot's 60s
+    dashboard_data.json snapshot. Falls back to CNBC / yfinance / the
+    bot's snapshot in that order if Polygon snapshot fails."""
+    # Primary: Polygon snapshot endpoint (tick-level, real-time on
+    # Futures Advanced plan). polygon_latest_quote has its own 2s cache
+    # so spamming this endpoint at 1Hz is cheap.
+    try:
+        from research.data_loader import polygon_latest_quote
+        q = polygon_latest_quote("NQ", max_age_s=1.0)
+        if q is not None:
+            price, _high, _low, age = q
+            return jsonify({
+                "price": float(price),
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "age_s": round(float(age), 2),
+                "source": "polygon_snapshot",
+            })
+    except Exception as e:
+        logger.warning(f"/api/price polygon snapshot failed: {e}")
+
+    # Fallback chain: bot's snapshot, then direct CNBC, then yfinance.
     state = persistence.load_dashboard()
     price = state.get("price")
     ts = state.get("price_ts")
