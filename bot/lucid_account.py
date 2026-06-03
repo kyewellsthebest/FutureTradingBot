@@ -183,36 +183,48 @@ class LucidAccount(PaperAccount):
     def _save_lucid(self) -> None:
         _save_state(self.lucid)
 
-    def _reset_paper_account(self) -> None:
-        """Wipe the underlying PaperAccount to a fresh $50K start."""
+    def _reset_paper_account(self, starting_balance: float = None) -> None:
+        """Wipe the underlying PaperAccount to a fresh starting balance
+        (defaults to START_BAL = $50K)."""
+        bal = float(starting_balance) if starting_balance is not None else START_BAL
         self.state = AccountState(
-            balance=START_BAL, starting_balance=START_BAL,
+            balance=bal, starting_balance=bal,
             open_position=None,
             trades_today=0, last_trade_date=None,
             last_trade_close_time=None, last_trade_was_winner=False,
             total_trades=0, wins=0, losses=0, realized_pnl=0.0,
-            peak_balance=START_BAL, max_drawdown=0.0,
+            peak_balance=bal, max_drawdown=0.0,
         )
         self.save()
 
-    def _hard_reset_all(self) -> None:
+    def _hard_reset_all(self, starting_balance: float = None) -> None:
         """One-shot full reset triggered by RESET_SERIAL bump or
         BOT_RESET_ACCOUNT=1. Wipes paper balance, Lucid bookkeeping,
         the trades DB, the dashboard JSON cache, and signal-event JSON so
-        the dashboard shows a clean $50k account with zero trade history."""
-        logger.warning("=== HARD RESET requested — wiping account back to $50k ===")
+        the dashboard shows a clean account with zero trade history.
+
+        starting_balance: override the default $50K. Used to align the
+        bot's starting equity with a real broker account that has
+        non-default starting balance (e.g. after a partial loss on the
+        live broker before resetting the bot)."""
+        bal = float(starting_balance) if starting_balance is not None else START_BAL
+        # Trail floor scales proportionally with the starting balance so
+        # the per-dollar headroom is preserved. INITIAL_TRAIL is $48k
+        # against START_BAL of $50k -> $2k below start. Keep that gap.
+        trail = bal - (START_BAL - INITIAL_TRAIL)
+        logger.warning(f"=== HARD RESET requested — wiping account back to ${bal:,.0f} ===")
         # Lucid state → fresh, but record the serial we just applied so
         # the bump-trigger doesn't loop on every restart.
         self.lucid = LucidAccountState(
             account_id=1,
             started_at=datetime.now(timezone.utc).isoformat(),
-            peak_eod_high=START_BAL,
-            trail_floor=INITIAL_TRAIL,
+            peak_eod_high=bal,
+            trail_floor=trail,
             applied_reset_serial=RESET_SERIAL,
         )
         self._save_lucid()
         # Paper account → fresh
-        self._reset_paper_account()
+        self._reset_paper_account(starting_balance=bal)
         # Trades DB → wiped via persistence helper (handles concurrent
         # bot writes by using DELETE+VACUUM rather than file unlink, and
         # falls back to file removal if that fails).
@@ -237,8 +249,8 @@ class LucidAccount(PaperAccount):
                 logger.warning("=== signal_events.json deleted ===")
         except Exception as e:
             logger.warning(f"signal events wipe failed (non-fatal): {e}")
-        logger.warning(f"=== HARD RESET COMPLETE — balance ${START_BAL:,.0f}, "
-                       f"trail ${INITIAL_TRAIL:,.0f} ===")
+        logger.warning(f"=== HARD RESET COMPLETE — balance ${bal:,.0f}, "
+                       f"trail ${trail:,.0f} ===")
         logger.warning("=== REMEMBER to unset BOT_RESET_ACCOUNT in Railway "
                        "or every deploy will wipe again ===")
 

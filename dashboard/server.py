@@ -2141,14 +2141,31 @@ def api_admin_reset_all():
                 deleted.append(str(d) + "/ (entire dir)")
             except Exception as e:
                 errors.append(f"{d}: {e!r}")
+    # Optional ?starting_balance=NNNNN to start the bot at a non-default
+    # balance (e.g. align with a broker account that lost some equity
+    # before reset). Must be > 0. Default behaviour (omit param) = $50k.
+    custom_balance = None
+    sb_param = request.args.get("starting_balance")
+    if sb_param:
+        try:
+            v = float(sb_param)
+            if v > 0:
+                custom_balance = v
+        except Exception:
+            pass
     # Drop a flag file so the running bot's _tick loop picks up the reset
     # on its next cycle (within ~1 sec when flat, ~10 sec when in a trade)
     # and wipes its in-memory state too. Without this, the bot would keep
-    # writing its stale in-memory state right back to disk.
+    # writing its stale in-memory state right back to disk. The flag file
+    # contains the ISO timestamp on line 1 and (optionally) the custom
+    # starting balance on line 2.
     try:
         flag = base / "reset_pending.flag"
         flag.parent.mkdir(parents=True, exist_ok=True)
-        flag.write_text(datetime.now(timezone.utc).isoformat())
+        body = datetime.now(timezone.utc).isoformat()
+        if custom_balance is not None:
+            body += f"\n{custom_balance}"
+        flag.write_text(body)
         deleted.append(str(flag) + " (created, bot will consume)")
     except Exception as e:
         errors.append(f"reset_pending.flag: {e!r}")

@@ -368,8 +368,20 @@ class FibRuntime:
             _reset_flag = _acct_dir() / "reset_pending.flag"
             if _reset_flag.exists():
                 logger.warning("=== runtime reset flag detected — wiping in-memory state ===")
+                # Flag file may contain a custom starting balance on the
+                # SECOND line (first line is the ISO timestamp). Used to
+                # align bot's starting equity with a broker account that
+                # has non-default starting balance (e.g. $49,956 after a
+                # partial loss on the demo broker before reset).
+                starting_balance = None
                 try:
-                    self.account._hard_reset_all()
+                    raw = _reset_flag.read_text().strip().splitlines()
+                    if len(raw) >= 2:
+                        starting_balance = float(raw[1].strip())
+                except Exception:
+                    pass
+                try:
+                    self.account._hard_reset_all(starting_balance=starting_balance)
                 except Exception as e:
                     logger.warning(f"hard_reset_all failed during runtime reset: {e!r}")
                 # Re-init strategy state (clear pending setups + any active trade).
@@ -378,7 +390,8 @@ class FibRuntime:
                     _reset_flag.unlink()
                 except Exception:
                     pass
-                logger.warning("=== runtime reset complete -- account at $50k, history wiped ===")
+                _bal_msg = f"${starting_balance:,.0f}" if starting_balance else "$50k"
+                logger.warning(f"=== runtime reset complete -- account at {_bal_msg}, history wiped ===")
         except Exception as e:
             logger.debug(f"reset-flag check skipped: {e!r}")
         snap = self.monitor.snapshot_and_reset()
