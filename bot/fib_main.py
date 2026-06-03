@@ -386,6 +386,14 @@ class FibRuntime:
                     logger.warning(f"hard_reset_all failed during runtime reset: {e!r}")
                 # Re-init strategy state (clear pending setups + any active trade).
                 self.state = FibStrategyState()
+                # Clear in-memory recent trades cache. Without this, the
+                # dashboard keeps showing yesterday's trades after a reset
+                # because the deque survives in memory until bot restart.
+                self.recent_trades.clear()
+                # Reset counters too so "TRADES TODAY" reflects post-reset state.
+                self.bars_processed = 0
+                self.signals_fired = 0
+                self.signals_blocked = 0
                 try:
                     _reset_flag.unlink()
                 except Exception:
