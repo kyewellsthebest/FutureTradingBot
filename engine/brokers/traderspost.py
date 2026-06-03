@@ -90,9 +90,17 @@ class TradersPostBroker:
                     target_price: float,
                     setup_id: Optional[str] = None) -> WebhookResult:
         """Bot has decided to open a trade. Send TradersPost a bracketed
-        order: entry LIMIT + protective STOP + take-profit LIMIT.
+        order: entry MARKET + protective STOP + take-profit LIMIT.
 
         side: "LONG" or "SHORT" (bot convention) -> mapped to TP "buy"/"sell"
+
+        Order type is MARKET (was LIMIT). Reason: LIMIT entries arriving
+        at Tradovate ~300-500ms after the bot fires would sit passive in
+        the order book when price moved away from the limit, never
+        filling. The bot's paper account would book phantom trades that
+        had no real execution. Market entries guarantee fill at the cost
+        of ~0.25-1.5pt slippage per entry, which is the accepted trade-off
+        for real-broker execution.
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
@@ -101,8 +109,8 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            "price":      round(float(entry_price), 2),
-            "orderType":  "limit",
+            "price":      round(float(entry_price), 2),   # reference price for TP/SL math
+            "orderType":  "market",
             "stopLoss":   {"type": "stop",
                            "stopPrice": round(float(stop_price), 2)},
             "takeProfit": {"limitPrice": round(float(target_price), 2)},
