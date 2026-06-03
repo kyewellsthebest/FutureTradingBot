@@ -228,6 +228,21 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"shadow_engine init failed: {e!r}"
             self.shadow = None
+        # TradersPost broker -- forwards every live trade open/close to the
+        # user's TradersPost webhook so it can route to whichever prop firm
+        # broker they've connected (Lucid/Tradovate, Apex, etc).
+        # SAFETY: default is dry-run (TRADERSPOST_LIVE!=true logs payloads
+        # but doesn't actually POST). Wrapped so broker outages can never
+        # crash the bot loop.
+        try:
+            from engine.brokers.traderspost import TradersPostBroker
+            self.traderspost = TradersPostBroker()
+        except Exception as e:
+            self.last_error = f"traderspost init failed: {e!r}"
+            self.traderspost = None
+        # Stashes the setup_ref between open and close so the close webhook
+        # can pair with its open for TradersPost idempotency.
+        self._open_trade_ref: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -488,6 +503,28 @@ class FibRuntime:
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
                         f"tgt={trade.target_px:.2f}")
+            # Forward to TradersPost as a bracketed limit order
+            # (entry LIMIT + stop + take-profit). The broker manages the
+            # bracket; we also send an explicit "exit" on _on_trade_close
+            # as a reconciliation safety net. TradersPost dry-run mode
+            # (default) just logs the JSON without POSTing.
+            if self.traderspost is not None:
+                try:
+                    op = self.account.state.open_position
+                    db_id = getattr(op, "db_id", None) if op else None
+                    setup_ref = (f"acct{self.account_id}_"
+                                 f"{db_id or 'noid'}_"
+                                 f"{int(now.timestamp())}")
+                    self.traderspost.submit_open(
+                        side=trade.side, qty=trade.n_mnq,
+                        entry_price=trade.entry_px,
+                        stop_price=trade.stop_px,
+                        target_price=trade.target_px,
+                        setup_id=setup_ref,
+                    )
+                    self._open_trade_ref = setup_ref
+                except Exception as te:
+                    logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
@@ -503,6 +540,24 @@ class FibRuntime:
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
                         f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
+            # Forward exit to TradersPost. The bracket order (stop+target)
+            # placed on the open should have already closed the position
+            # when it triggered, so this "exit/flat" call is normally a
+            # no-op on TradersPost's side. It exists as a reconciliation
+            # safety net for non-bracket exits (timeout, manual flatten,
+            # auto-DLL). action="exit"+sentiment="flat" is idempotent on
+            # TradersPost's side so duplicate sends are harmless.
+            if self.traderspost is not None:
+                try:
+                    self.traderspost.submit_close(
+                        side=record.get("side", "LONG"),
+                        qty=record.get("n_mnq", 1),
+                        reason=record.get("exit_reason", "manual"),
+                        setup_id=self._open_trade_ref,
+                    )
+                except Exception as te:
+                    logger.warning(f"traderspost submit_close failed: {te!r}")
+            self._open_trade_ref = None
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
