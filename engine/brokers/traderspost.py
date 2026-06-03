@@ -113,7 +113,15 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            "price":      round(float(entry_price), 2),   # reference only
+            # NOTE: "price" field intentionally OMITTED. TradersPost was
+            # using it as the bracket-reference price (computing stop/
+            # target as offsets from "price", NOT from the actual market
+            # fill). For a market order that fills with slippage, this
+            # left the brackets at the wrong distance from the real fill
+            # -- effectively pinning brackets to the bot's intended entry
+            # while the position is at a different price. Omitting "price"
+            # forces TradersPost to use the actual fill as the reference,
+            # which is what we want for market entries.
             "orderType":  "market",
             "timeInForce": "Day",
         }
