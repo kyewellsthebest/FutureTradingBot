@@ -263,6 +263,11 @@ class FibRuntime:
         # Stashes the setup_ref between open and close so the close webhook
         # can pair with its open for TradersPost idempotency.
         self._open_trade_ref: Optional[str] = None
+        # Set when we've fired a broker-side panic close so the next tick
+        # doesn't re-fire it. Cleared in _on_trade_close. Without this
+        # flag, every tick after the panic trigger would send another
+        # submit_close to TradersPost.
+        self._panic_closed_ref: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -425,6 +430,53 @@ class FibRuntime:
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 
+        # ------------------------------------------------------------------
+        # Panic-close: catch broker brackets that didn't fire.
+        # ------------------------------------------------------------------
+        # If we're in a trade AND we successfully forwarded the open to the
+        # broker (i.e. self._open_trade_ref is set, meaning the kill-switch
+        # didn't block it) AND live market has crossed the intended stop
+        # level, force-flatten on the broker. This catches the case where
+        # TradersPost auto-converted our limit entry to MARKET because the
+        # limit price was unreachable from current market -- the bracket
+        # then anchors to the stale strategy price, leaving the position
+        # effectively naked. Without panic close, the position runs until
+        # the bot's 1-min bar exit fires, by which time it's slipped 7-15pt
+        # past the intended stop (observed in real trades: -$60 to -$114
+        # losses on positions with a $24 intended stop).
+        if (in_trade and self._open_trade_ref is not None
+                and self._panic_closed_ref != self._open_trade_ref
+                and snap is not None):
+            at = self.state.active_trade
+            stop_dist = abs(at.entry_px - at.stop_px)
+            if at.side == "LONG":
+                adverse_pts = at.entry_px - snap.price
+            else:
+                adverse_pts = snap.price - at.entry_px
+            # Trigger when live market has crossed the intended stop level.
+            # 1.0x stop_dist (not 1.5x) because the kill-switch caps the
+            # bot-vs-broker entry divergence at 10pt, so even if broker
+            # entry is 10pt offside from at.entry_px, panicking at 1.0x
+            # stop_dist caps real loss at stop_dist + 10pt (~$32 on 2 MNQ
+            # vs the $100+ losses observed without this guard).
+            if adverse_pts > stop_dist:
+                logger.error(
+                    f"[traderspost PANIC CLOSE] live price {snap.price:.2f} "
+                    f"crossed intended stop {at.stop_px:.2f} by "
+                    f"{adverse_pts - stop_dist:.1f}pts -- broker bracket "
+                    f"didn't fire. Force-flattening.")
+                if self.traderspost is not None:
+                    try:
+                        self.traderspost.submit_close(
+                            side=at.side, qty=at.n_mnq,
+                            reason="panic_bracket_missed",
+                            setup_id=self._open_trade_ref,
+                        )
+                        self._panic_closed_ref = self._open_trade_ref
+                    except Exception as te:
+                        logger.warning(
+                            f"traderspost panic-close failed: {te!r}")
+
         # Refresh 5-min (HTF trend) + 1-min (setup detection) bars at most
         # every 60s. Prefer REAL 1-min from Polygon/yfinance; fall back to
         # synthesizing 1-min from 5-min if 1-min source is unavailable. The
@@ -583,13 +635,15 @@ class FibRuntime:
                             f"entry={trade.entry_px:.2f}")
                         return
                     divergence = abs(trade.entry_px - live_snap.price)
-                    if divergence > 50.0:
+                    if divergence > 10.0:
                         logger.error(
                             f"[traderspost SKIP] bracket prices diverge "
                             f"from live market by {divergence:.1f}pts "
                             f"(entry={trade.entry_px:.2f} vs "
-                            f"live={live_snap.price:.2f}). Likely cause: "
-                            f"bar pipeline fell back to synthetic data. "
+                            f"live={live_snap.price:.2f}). TradersPost "
+                            f"would auto-convert the unreachable limit "
+                            f"to MARKET and anchor the bracket to the "
+                            f"stale strategy price -- effectively naked. "
                             f"Not forwarding to broker.")
                         return
                     self.traderspost.submit_open(
@@ -635,6 +689,7 @@ class FibRuntime:
                 except Exception as te:
                     logger.warning(f"traderspost submit_close failed: {te!r}")
             self._open_trade_ref = None
+            self._panic_closed_ref = None
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
