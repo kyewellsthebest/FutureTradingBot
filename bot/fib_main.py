@@ -564,6 +564,34 @@ class FibRuntime:
                     setup_ref = (f"acct{self.account_id}_"
                                  f"{db_id or 'noid'}_"
                                  f"{int(now.timestamp())}")
+                    # Kill-switch: never forward bracket prices that
+                    # diverge from live market by >50pts. This catches
+                    # the case where the bot's bar pipeline silently
+                    # falls back to research/data_loader._synthetic() --
+                    # a random walk starting at $21,000 -- and computes
+                    # setups at prices that have no relation to reality.
+                    # When that happens, TradersPost auto-converts our
+                    # unreachable limit into a market entry that fills
+                    # at real price, but the bracket attaches at the
+                    # hallucinated stop level (e.g. 1300pts away), so
+                    # the position is effectively naked.
+                    live_snap = self.monitor.latest()
+                    if live_snap is None:
+                        logger.warning(
+                            "[traderspost SKIP] live monitor has no price "
+                            f"yet -- refusing to send bracket "
+                            f"entry={trade.entry_px:.2f}")
+                        return
+                    divergence = abs(trade.entry_px - live_snap.price)
+                    if divergence > 50.0:
+                        logger.error(
+                            f"[traderspost SKIP] bracket prices diverge "
+                            f"from live market by {divergence:.1f}pts "
+                            f"(entry={trade.entry_px:.2f} vs "
+                            f"live={live_snap.price:.2f}). Likely cause: "
+                            f"bar pipeline fell back to synthetic data. "
+                            f"Not forwarding to broker.")
+                        return
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
                         entry_price=trade.entry_px,
