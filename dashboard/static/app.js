@@ -437,22 +437,62 @@ function animateNumber(id, target, formatter, flashDirection = false) {
     el._lastNum = target;
     return;
   }
-  // Tick-flash: visual proof the price stream is live. Green when the
-  // tick went up, red when down. Required by spec -- without this the
-  // user assumes a frozen display means the bot is broken.
+  // For flash mode: compute the common digit prefix between the FROM
+  // and TO formatted strings. Only the differing tail flashes -- e.g.
+  // 100 -> 120 flashes just "20", not the whole number. Matches how
+  // trading terminals like Bloomberg / NinjaTrader show price changes.
+  // If lengths differ (99 -> 101 crosses a digit boundary), bail to
+  // whole-number flash since position-by-position split breaks.
+  let commonPrefixLen = 0;
+  const fmtTarget = fmt(target);
   if (flashDirection && typeof el._lastNum === "number") {
-    el.classList.remove("tick-up", "tick-down");
-    // Force reflow so a back-to-back same-direction tick still replays.
-    void el.offsetWidth;
-    el.classList.add(target > from ? "tick-up" : "tick-down");
+    const fmtFrom = fmt(el._lastNum);
+    if (fmtFrom.length === fmtTarget.length) {
+      while (commonPrefixLen < fmtTarget.length &&
+             fmtFrom[commonPrefixLen] === fmtTarget[commonPrefixLen]) {
+        commonPrefixLen++;
+      }
+      // If everything matches (shouldn't happen given the <0.005
+      // early-return above, but defensive), don't flash.
+      if (commonPrefixLen === fmtTarget.length) commonPrefixLen = 0;
+    }
   }
+  const tickClass = flashDirection && typeof el._lastNum === "number"
+                    ? (target > from ? "tick-up" : "tick-down")
+                    : null;
   const start = performance.now();
   function step(now) {
     const t = Math.min(1, (now - start) / _animBudget);
     // ease-out cubic
     const eased = 1 - Math.pow(1 - t, 3);
     const v = from + (target - from) * eased;
-    el.textContent = fmt(v);
+    const formatted = fmt(v);
+    if (tickClass && commonPrefixLen > 0 &&
+        formatted.length === fmtTarget.length) {
+      // Split: static prefix + flashing suffix. Use textContent on
+      // each span so digits can't be interpreted as HTML if the
+      // formatter ever returns special chars.
+      const staticPart = formatted.substring(0, commonPrefixLen);
+      const animPart = formatted.substring(commonPrefixLen);
+      el.innerHTML = "";
+      const s = document.createElement("span");
+      s.className = "px-static";
+      s.textContent = staticPart;
+      const a = document.createElement("span");
+      a.className = "px-tick " + tickClass;
+      a.textContent = animPart;
+      el.appendChild(s);
+      el.appendChild(a);
+    } else if (tickClass) {
+      // Whole-number flash fallback (length mismatch or no common prefix)
+      el.innerHTML = "";
+      const a = document.createElement("span");
+      a.className = "px-tick " + tickClass;
+      a.textContent = formatted;
+      el.appendChild(a);
+    } else {
+      el.textContent = formatted;
+    }
     if (t < 1) {
       el._tweenRaf = requestAnimationFrame(step);
     } else {
