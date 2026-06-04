@@ -744,53 +744,47 @@ class FibRuntime:
                             f"stale strategy price -- effectively naked. "
                             f"Not forwarding to broker.")
                         return
-                    # Re-anchor brackets to LIVE tick price.
-                    # ----------------------------------------
-                    # The strategy detects the setup on the latest CLOSED
-                    # 1-min bar (up to 60s stale by design, for backtest
-                    # parity). But sending those stale absolute prices to
-                    # the broker is what's been producing the +/-$100s of
-                    # P&L the user sees: TradersPost auto-converts the
-                    # unreachable limit to a market fill at the REAL
-                    # current price, while the bracket anchors to the
-                    # stale strategy price, leaving stop/target 20-40pt
-                    # off from real fill.
+                    # Use STRATEGY's intended prices (pullback level + brackets).
+                    # ---------------------------------------------------------
+                    # Previously we re-anchored entry+brackets to live tick,
+                    # which killed the pullback strategy's selectivity: every
+                    # setup fired at current market price (LIMIT at live ~=
+                    # market order), bypassing the strategy's requirement
+                    # that price actually retrace to the 0.618 level.
+                    # Result: 15.8% win rate vs ~49% backtest because the
+                    # bot was taking all the "false pullback" entries the
+                    # strategy was designed to skip.
                     #
-                    # Mix the two: keep the strategy's stop/target
-                    # DISTANCES (its edge), but anchor them to the live
-                    # PriceMonitor price (1-4s fresh from Polygon). Now
-                    # the bracket lands within ~1pt of real fill instead
-                    # of 20-40pt off. Worst case slippage is the gap
-                    # between when we read monitor.latest() here and when
-                    # Tradovate fills the entry -- typically <2pt.
-                    live_anchor = live_snap.price
-                    stop_dist = abs(trade.entry_px - trade.stop_px)
-                    target_dist = abs(trade.target_px - trade.entry_px)
-                    if trade.side == "LONG":
-                        anchored_stop = live_anchor - stop_dist
-                        anchored_target = live_anchor + target_dist
-                    else:
-                        anchored_stop = live_anchor + stop_dist
-                        anchored_target = live_anchor - target_dist
+                    # Now: send LIMIT at the strategy's pullback price. If
+                    # price doesn't actually retrace to it, limit doesn't
+                    # fill (TradersPost auto-cancels after 60s) -- trade
+                    # is correctly skipped. If price does retrace, fill is
+                    # at the intended level, brackets anchored correctly.
+                    #
+                    # The kill-switch above (10pt divergence) still prevents
+                    # the catastrophic mis-anchoring case (synthetic-data /
+                    # stale-bar producing wildly wrong prices). That's the
+                    # original problem live-anchor was solving; kill-switch
+                    # alone handles it now that Polygon WS gives fresh live
+                    # ticks for the comparison.
                     logger.info(
-                        f"[traderspost ANCHOR] strategy {trade.entry_px:.2f}"
-                        f"/{trade.stop_px:.2f}/{trade.target_px:.2f} -> "
-                        f"live {live_anchor:.2f}"
-                        f"/{anchored_stop:.2f}/{anchored_target:.2f} "
-                        f"(delta {live_anchor - trade.entry_px:+.2f}pt)")
+                        f"[traderspost SEND] strategy {trade.entry_px:.2f}"
+                        f"/{trade.stop_px:.2f}/{trade.target_px:.2f} "
+                        f"(live {live_snap.price:.2f}, "
+                        f"divergence {trade.entry_px - live_snap.price:+.2f}pt)")
                     # Send entry + stop only; defer the target by
                     # MIN_TARGET_HOLD_SECONDS (10s) for Lucid microscalp
                     # compliance. Target gets sent below in _tick once
                     # the deferral window elapses.
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
-                        entry_price=live_anchor,
-                        stop_price=anchored_stop,
+                        entry_price=trade.entry_px,
+                        stop_price=trade.stop_px,
                         target_price=None,
                         setup_id=setup_ref,
                     )
-                    self._broker_stop_px = anchored_stop
-                    self._broker_target_px = anchored_target
+                    self._broker_stop_px = trade.stop_px
+                    self._broker_target_px = trade.target_px
                     self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
                     self._broker_entry_ts = now
