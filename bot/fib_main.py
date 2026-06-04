@@ -275,6 +275,14 @@ class FibRuntime:
         self._broker_stop_px: Optional[float] = None
         self._broker_target_px: Optional[float] = None
         self._broker_side: Optional[str] = None
+        # Trade timing + deferred target dispatch state. Lucid funded
+        # account microscalp rule: <5s profit trades can't exceed 50% of
+        # profits. We defer sending the broker take-profit by 10s after
+        # entry so the broker can't fire it inside Lucid's microscalp
+        # window. The entry is sent with stop-only; the target is sent
+        # as a separate limit order once hold time >= LUCID_TARGET_DEFER_S.
+        self._broker_entry_ts: Optional[datetime] = None
+        self._broker_target_sent: bool = False
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -504,6 +512,41 @@ class FibRuntime:
                     except Exception as te:
                         logger.warning(
                             f"traderspost panic-close failed: {te!r}")
+
+        # ------------------------------------------------------------------
+        # Deferred take-profit dispatch (Lucid microscalp compliance)
+        # ------------------------------------------------------------------
+        # The broker entry was sent with stop-loss only -- no take-profit.
+        # Now that MIN_TARGET_HOLD_SECONDS (10s) have elapsed, send the
+        # take-profit as a separate limit order. By deferring it, the
+        # broker cannot fire a take-profit inside Lucid's <5s microscalp
+        # window -- if price already moved past target during the wait,
+        # the limit fills immediately at current market (better than
+        # limit). The Lucid violation risk is structurally eliminated.
+        if (in_trade
+                and self._open_trade_ref is not None
+                and self._broker_target_px is not None
+                and self._broker_entry_ts is not None
+                and not self._broker_target_sent
+                and self.traderspost is not None):
+            hold_s = (now - self._broker_entry_ts).total_seconds()
+            if hold_s >= float(MIN_TARGET_HOLD_SECONDS):
+                at = self.state.active_trade
+                if at is not None:
+                    try:
+                        self.traderspost.submit_target(
+                            side=at.side, qty=at.n_mnq,
+                            target_price=self._broker_target_px,
+                            setup_id=self._open_trade_ref,
+                        )
+                        self._broker_target_sent = True
+                        logger.info(
+                            f"[traderspost TARGET DEFERRED] sent at "
+                            f"{hold_s:.1f}s for {at.side} "
+                            f"target={self._broker_target_px:.2f}")
+                    except Exception as te:
+                        logger.warning(
+                            f"deferred target send failed: {te!r}")
 
         # Refresh 5-min (HTF trend) + 1-min (setup detection) bars at most
         # every 60s. Prefer REAL 1-min from Polygon/yfinance; fall back to
@@ -735,20 +778,23 @@ class FibRuntime:
                         f"live {live_anchor:.2f}"
                         f"/{anchored_stop:.2f}/{anchored_target:.2f} "
                         f"(delta {live_anchor - trade.entry_px:+.2f}pt)")
+                    # Send entry + stop only; defer the target by
+                    # MIN_TARGET_HOLD_SECONDS (10s) for Lucid microscalp
+                    # compliance. Target gets sent below in _tick once
+                    # the deferral window elapses.
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
                         entry_price=live_anchor,
                         stop_price=anchored_stop,
-                        target_price=anchored_target,
+                        target_price=None,
                         setup_id=setup_ref,
                     )
-                    # Stash the broker-anchored stop so the panic-close
-                    # check uses the SAME level the broker bracket is at,
-                    # not the stale strategy stop_px.
                     self._broker_stop_px = anchored_stop
                     self._broker_target_px = anchored_target
                     self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
+                    self._broker_entry_ts = now
+                    self._broker_target_sent = False
                 except Exception as te:
                     logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
@@ -799,6 +845,8 @@ class FibRuntime:
             self._broker_stop_px = None
             self._broker_target_px = None
             self._broker_side = None
+            self._broker_entry_ts = None
+            self._broker_target_sent = False
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")

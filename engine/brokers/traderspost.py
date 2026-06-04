@@ -95,7 +95,7 @@ class TradersPostBroker:
     # ------------------------------------------------------------------
     def submit_open(self, *, side: str, qty: int,
                     entry_price: float, stop_price: float,
-                    target_price: float,
+                    target_price: Optional[float] = None,
                     setup_id: Optional[str] = None) -> WebhookResult:
         """Send TradersPost a bracketed LIMIT entry.
 
@@ -104,20 +104,22 @@ class TradersPostBroker:
         Tradovate silently rejects brackets at non-tick-aligned prices,
         leaving the position naked.
 
-        For the live bot, entry_price should be a LIVE tick price
-        (Polygon WS in PriceMonitor) and stop/target should be
-        relative-distance offsets from that anchor -- bot/fib_main.py
-        _on_trade_open re-anchors the strategy's closed-bar prices to
-        live monitor before calling this. That ensures the bracket
-        lands within ~1-2pt of the actual broker fill instead of the
-        20-40pt off observed when sending stale closed-bar prices.
+        target_price=None: send entry+stop ONLY, no take-profit bracket.
+        Caller must follow up with submit_target() to add the target
+        once the deferral window elapses. Used for Lucid microscalp
+        compliance: by deferring the broker's take-profit by 10s after
+        entry, we ensure the broker can't fire a target within Lucid's
+        microscalp window. NOTE: requires TradersPost subscription
+        configured to NOT auto-attach a default take-profit when one is
+        omitted from the payload (set TP amount to None, or rely on
+        "Allow signal override" passing through the missing field).
 
-        side       "LONG" / "SHORT" -> action "buy" / "sell"
-        qty        contract count (e.g. 2 for DEFAULT_SIZE)
-        entry_price  limit price (will be tick-rounded)
-        stop_price   absolute stop trigger (will be tick-rounded)
-        target_price absolute take-profit limit (will be tick-rounded)
-        setup_id   idempotency key, sent as orderRef
+        For the live bot, entry_price should be a LIVE tick price
+        (Polygon WS in PriceMonitor). bot/fib_main.py _on_trade_open
+        re-anchors the strategy's closed-bar prices to live monitor
+        before calling this. That ensures the bracket lands within
+        ~1-2pt of the actual broker fill instead of the 20-40pt off
+        observed when sending stale closed-bar prices.
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
@@ -130,14 +132,42 @@ class TradersPostBroker:
             "orderType":  "limit",
             "stopLoss":   {"type": "stop",
                            "stopPrice": _tick_round(stop_price)},
-            "takeProfit": {"limitPrice": _tick_round(target_price)},
+            "timeInForce": "Day",
+        }
+        if target_price is not None:
+            payload["takeProfit"] = {"limitPrice": _tick_round(target_price)}
+        if setup_id:
+            payload["orderRef"] = setup_id
+        return self._post(payload)
+
+    def submit_target(self, *, side: str, qty: int,
+                      target_price: float,
+                      setup_id: Optional[str] = None) -> WebhookResult:
+        """Send a deferred take-profit limit order.
+
+        Used after submit_open(target_price=None) once the Lucid 10s
+        microscalp deferral window has elapsed. The position is already
+        open (from the prior submit_open with entry+stop). This call
+        adds a closing LIMIT order at the target price. When price
+        reaches the target, the limit fills and the position closes.
+
+        side: the side of the OPEN position ("LONG" closes via "sell",
+              "SHORT" closes via "buy").
+        target_price: absolute price the limit should fire at.
+        setup_id: same ref as the open, with "-target" suffix appended.
+        """
+        close_action = "sell" if side == "LONG" else "buy"
+        payload = {
+            "ticker":    self.ticker,
+            "action":    close_action,
+            "sentiment": "flat",   # closes the position when filled
+            "quantity":  int(qty),
+            "price":     _tick_round(target_price),
+            "orderType": "limit",
             "timeInForce": "Day",
         }
         if setup_id:
-            # TradersPost respects orderRef as idempotency key on many
-            # broker integrations. Prevents accidental double-fills if
-            # we retry a transient error.
-            payload["orderRef"] = setup_id
+            payload["orderRef"] = setup_id + "-target"
         return self._post(payload)
 
     def submit_close(self, *, side: str, qty: int,
