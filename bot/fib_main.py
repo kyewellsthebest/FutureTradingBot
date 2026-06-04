@@ -786,6 +786,14 @@ class FibRuntime:
                 "signals_blocked": self.signals_blocked,
                 "price": current_price,
                 "price_ts": latest.ts.isoformat() if latest and latest.ts else None,
+                # Source of the displayed price -- "polygon" is real-time;
+                # anything else means we're on a delayed fallback (CNBC =
+                # 15min, yfinance = 1-15min). When user sees the price
+                # flicker between two values, this field tells them which
+                # source it came from each tick. The dashboard can render
+                # a "STALE" badge based on this.
+                "price_source": latest.ts and self.monitor.last_source or None,
+                "price_realtime": (self.monitor.last_source == "polygon"),
                 "fib": fib_snap,
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
