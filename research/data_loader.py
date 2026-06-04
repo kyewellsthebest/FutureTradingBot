@@ -501,7 +501,33 @@ def polygon_latest_quote(product: str = "NQ", max_age_s: float = 2.0):
             age = (pd.Timestamp.now(tz="UTC") - ref).total_seconds()
         return price, high, low, max(age, 0.0)
 
-    # Fetch 1-min aggregates -- latest bar's close is the live price.
+    # FAST PATH: Polygon's snapshot / last-trade endpoint returns a
+    # single tick price in one tiny request -- sub-second freshness on
+    # the Futures Advanced plan. Try this first; falling through to
+    # 1-min aggregates only when snapshot returns None (which can happen
+    # if the plan doesn't expose the endpoint).
+    #
+    # User-reported symptom this fixes: price was taking ~35s to update
+    # because the aggregate endpoint's CDN cache + minute-boundary close
+    # semantics meant the in-progress bar's close didn't tick in
+    # real-time. Snapshot bypasses all of that -- it's literally the
+    # last trade reported on the contract.
+    try:
+        snap = polygon_futures_snapshot(product)
+    except Exception as e:
+        logger.debug(f"polygon snapshot failed, will use aggregates: {e!r}")
+        snap = None
+    if snap is not None:
+        price, age = snap
+        # We don't have separate high/low from snapshot -- use price for
+        # both. Callers that care about intra-poll H/L (the dashboard
+        # active-trade card) re-derive from PriceMonitor's accumulated
+        # extremes anyway.
+        c.update(product=product, fetched=now_t, source="snapshot",
+                 val=(float(price), float(price), float(price), now_t - age))
+        return float(price), float(price), float(price), max(age, 0.0)
+
+    # SLOW PATH: 1-min aggregates as fallback.
     try:
         df = download_polygon_futures(product, "1min", force_refresh=True)
     except Exception as e:

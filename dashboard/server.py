@@ -392,13 +392,13 @@ def api_price():
     """
     try:
         from research.data_loader import polygon_latest_quote
-        # Server-side 500ms cache. Frontend polls at 100ms so it sees
-        # responsive updates, but Polygon only gets hit at 2Hz max --
-        # safe under any rate limit. The cache returns the same price
-        # within the 500ms window so identical reads at 100ms won't
-        # spam the flash animation either (animateNumber's <0.005pt
-        # threshold suppresses no-op animations).
-        q = polygon_latest_quote("NQ", max_age_s=0.5)
+        # max_age_s=0.2 = 200ms server-side cache. Frontend polls at
+        # 100ms so half its calls hit the cache and half trigger a
+        # fresh snapshot fetch (~5/sec to Polygon). polygon_latest_quote
+        # now tries the snapshot endpoint first (single tick) before
+        # falling back to 1-min aggregates -- snapshot is sub-second
+        # fresh on Futures Advanced.
+        q = polygon_latest_quote("NQ", max_age_s=0.2)
         if q is not None:
             price, _high, _low, age = q
             return jsonify({

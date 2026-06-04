@@ -71,7 +71,10 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     global _polygon_last_age_log
     try:
         from research.data_loader import polygon_latest_quote
-        q = polygon_latest_quote("NQ")
+        # max_age_s=1.0: bot polls every 3s (POLL_SECONDS), so a 1s
+        # cache lets each poll see a fresh snapshot value. snapshot
+        # path inside polygon_latest_quote is sub-second fresh.
+        q = polygon_latest_quote("NQ", max_age_s=1.0)
     except Exception as e:
         logger.debug(f"polygon live fetch failed: {e!r}")
         return None
