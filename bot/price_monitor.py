@@ -208,6 +208,8 @@ class PriceMonitor:
             price, high, low = res
             now = datetime.now(timezone.utc)
             with self._lock:
+                prev_source = self.last_source
+                prev_price = self._price
                 self._price = price
                 self._ts = now
                 self._poll_count += 1
@@ -216,6 +218,16 @@ class PriceMonitor:
                     self._high = max(high, price)
                 if self._low is None or low < self._low:
                     self._low = min(low, price)
+            # Log source changes -- catches the dual-source flicker
+            # (e.g., Polygon at 30470 alternating with CNBC at 30463
+            # because CNBC is 15min delayed). When this fires repeatedly
+            # in the logs, the bot's live-anchor caller will see it and
+            # skip trades via realtime_only=True.
+            if prev_source and prev_source != name:
+                delta = (price - prev_price) if prev_price is not None else 0.0
+                logger.warning(
+                    f"price-monitor source change: {prev_source}"
+                    f"@{prev_price} -> {name}@{price} (delta {delta:+.2f}pt)")
             return
         logger.warning("price-monitor: every source failed this poll")
 
@@ -236,9 +248,21 @@ class PriceMonitor:
             self._poll_count = 0
             return snap
 
-    def latest(self) -> PriceSnapshot | None:
+    def latest(self, realtime_only: bool = False) -> PriceSnapshot | None:
+        """Return current snapshot without mutating extremes.
+
+        realtime_only: if True, return None unless the most recent poll
+        came from Polygon (the only real-time source in the chain). Use
+        this for any live-anchoring path -- CNBC is 15min delayed, the
+        yfinance sources are 1-15min delayed, and anchoring a bracket
+        to a delayed price reproduces the same stale-anchor catastrophe
+        we just fixed with the live-tick re-anchoring. Better to skip
+        a trade than enter with a 7pt-flicker anchor.
+        """
         with self._lock:
             if self._price is None:
+                return None
+            if realtime_only and self.last_source != "polygon":
                 return None
             return PriceSnapshot(
                 price=self._price,

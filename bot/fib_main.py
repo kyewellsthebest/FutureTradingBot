@@ -632,11 +632,17 @@ class FibRuntime:
                     # at real price, but the bracket attaches at the
                     # hallucinated stop level (e.g. 1300pts away), so
                     # the position is effectively naked.
-                    live_snap = self.monitor.latest()
+                    # realtime_only=True: only accept Polygon (real-time).
+                    # If the monitor is currently on a delayed fallback
+                    # (CNBC = 15min, yfinance = 1-15min), we'd anchor the
+                    # bracket to a delayed price -- same stale-anchor
+                    # catastrophe we're trying to fix. Skip the trade.
+                    live_snap = self.monitor.latest(realtime_only=True)
                     if live_snap is None:
                         logger.warning(
-                            "[traderspost SKIP] live monitor has no price "
-                            f"yet -- refusing to send bracket "
+                            "[traderspost SKIP] no real-time price "
+                            f"(monitor on delayed fallback or empty) -- "
+                            f"refusing to send bracket "
                             f"entry={trade.entry_px:.2f}")
                         return
                     divergence = abs(trade.entry_px - live_snap.price)
