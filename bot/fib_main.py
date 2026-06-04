@@ -485,9 +485,12 @@ class FibRuntime:
                     f"{snap.price:.2f} crossed broker-anchored {which} "
                     f"{level:.2f} -- broker bracket didn't fire. "
                     f"Force-flattening.")
-                # Panic-close also gated by SHADOW: if open wasn't
-                # forwarded, broker has no position to close.
-                if (not SHADOW_MODE
+                # Panic-close gated by _open_trade_ref (not SHADOW_MODE):
+                # if we forwarded the open, we MUST clean up the broker
+                # position, even if SHADOW was toggled mid-trade.
+                # _open_trade_ref None means the broker never got the
+                # open, so no position to flatten.
+                if (self._open_trade_ref is not None
                         and self.traderspost is not None
                         and self.state.active_trade):
                     at = self.state.active_trade
@@ -771,11 +774,16 @@ class FibRuntime:
             # auto-DLL). action="exit"+sentiment="flat" is idempotent on
             # TradersPost's side so duplicate sends are harmless.
             #
-            # Same SHADOW gate as the open path -- if the open wasn't
-            # forwarded, the close shouldn't be either, or we'd send a
-            # flatten signal for a position the broker never had.
-            if SHADOW_MODE:
-                pass  # logged via the [SHADOW CLOSE] tag above
+            # Gate by _open_trade_ref (NOT by SHADOW_MODE): if we
+            # successfully forwarded the open, we MUST forward the
+            # close to avoid orphan positions. Toggling SHADOW_MODE
+            # mid-trade or having the open fire before SHADOW was set
+            # would strand the broker position otherwise. If we never
+            # forwarded the open (_open_trade_ref is None because
+            # SHADOW gated it or the kill-switch skipped), there's no
+            # broker position to close so we skip.
+            if self._open_trade_ref is None:
+                pass  # broker never got the open; nothing to close
             elif self.traderspost is not None:
                 try:
                     self.traderspost.submit_close(
