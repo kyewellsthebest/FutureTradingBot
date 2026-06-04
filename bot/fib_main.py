@@ -273,6 +273,7 @@ class FibRuntime:
         # live price against THIS, not against the strategy's stale
         # stop_px (which can be 20-40pt off from real fill).
         self._broker_stop_px: Optional[float] = None
+        self._broker_target_px: Optional[float] = None
         self._broker_side: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
@@ -452,23 +453,38 @@ class FibRuntime:
         # losses on positions with a $24 intended stop).
         if (in_trade and self._open_trade_ref is not None
                 and self._broker_stop_px is not None
+                and self._broker_target_px is not None
                 and self._broker_side is not None
                 and self._panic_closed_ref != self._open_trade_ref
                 and snap is not None):
-            # Compare live price against the BROKER-ANCHORED stop (set at
-            # submit_open from live monitor price), not the strategy's
-            # stop_px (which is anchored to a closed-bar entry that can be
-            # 20-40pt off from real broker fill).
+            # Compare live price against the BROKER-ANCHORED stop and
+            # target (set at submit_open from live monitor price), not
+            # the strategy's stop_px / target_px (which are anchored to
+            # a closed-bar entry that can be 20-40pt off from real fill).
+            #
+            # SYMMETRIC -- panic on BOTH stop breach AND target breach.
+            # Without the target-side check, observed bug: bracket TP
+            # didn't fire on the broker, position ran from intended
+            # +$48 to +$100+ open P&L. By the time price came back to
+            # the missed target level, the open P&L had already given
+            # most of it back. Force-closing when target should have
+            # fired locks in the strategy's intended +$48 outcome.
             if self._broker_side == "LONG":
-                crossed = snap.price <= self._broker_stop_px
+                stop_crossed   = snap.price <= self._broker_stop_px
+                target_crossed = snap.price >= self._broker_target_px
             else:
-                crossed = snap.price >= self._broker_stop_px
+                stop_crossed   = snap.price >= self._broker_stop_px
+                target_crossed = snap.price <= self._broker_target_px
+            crossed = stop_crossed or target_crossed
             if crossed:
+                which = "STOP" if stop_crossed else "TARGET"
+                level = (self._broker_stop_px if stop_crossed
+                         else self._broker_target_px)
                 logger.error(
-                    f"[traderspost PANIC CLOSE] live price {snap.price:.2f} "
-                    f"crossed broker-anchored stop "
-                    f"{self._broker_stop_px:.2f} -- broker bracket didn't "
-                    f"fire. Force-flattening.")
+                    f"[traderspost PANIC CLOSE/{which}] live price "
+                    f"{snap.price:.2f} crossed broker-anchored {which} "
+                    f"{level:.2f} -- broker bracket didn't fire. "
+                    f"Force-flattening.")
                 # Panic-close also gated by SHADOW: if open wasn't
                 # forwarded, broker has no position to close.
                 if (not SHADOW_MODE
@@ -478,7 +494,7 @@ class FibRuntime:
                     try:
                         self.traderspost.submit_close(
                             side=at.side, qty=at.n_mnq,
-                            reason="panic_bracket_missed",
+                            reason=f"panic_{which.lower()}_missed",
                             setup_id=self._open_trade_ref,
                         )
                         self._panic_closed_ref = self._open_trade_ref
@@ -727,6 +743,7 @@ class FibRuntime:
                     # check uses the SAME level the broker bracket is at,
                     # not the stale strategy stop_px.
                     self._broker_stop_px = anchored_stop
+                    self._broker_target_px = anchored_target
                     self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
                 except Exception as te:
@@ -772,6 +789,7 @@ class FibRuntime:
             self._open_trade_ref = None
             self._panic_closed_ref = None
             self._broker_stop_px = None
+            self._broker_target_px = None
             self._broker_side = None
         except Exception as e:
             self.last_error = f"close failed: {e}"
