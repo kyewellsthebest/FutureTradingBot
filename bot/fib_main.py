@@ -469,7 +469,11 @@ class FibRuntime:
                     f"crossed broker-anchored stop "
                     f"{self._broker_stop_px:.2f} -- broker bracket didn't "
                     f"fire. Force-flattening.")
-                if self.traderspost is not None and self.state.active_trade:
+                # Panic-close also gated by SHADOW: if open wasn't
+                # forwarded, broker has no position to close.
+                if (not SHADOW_MODE
+                        and self.traderspost is not None
+                        and self.state.active_trade):
                     at = self.state.active_trade
                     try:
                         self.traderspost.submit_close(
@@ -625,7 +629,20 @@ class FibRuntime:
             # bracket; we also send an explicit "exit" on _on_trade_close
             # as a reconciliation safety net. TradersPost dry-run mode
             # (default) just logs the JSON without POSTing.
-            if self.traderspost is not None:
+            #
+            # SHADOW_MODE gate: when SHADOW_MODE is on (BOT_SHADOW_MODE=1,
+            # default), DO NOT send to the broker. The module docstring
+            # says "Logs decisions but does NOT send orders" -- without
+            # this check the bot was forwarding live orders despite the
+            # dashboard's SHADOW badge, producing real broker losses
+            # while the paper account showed clean strategy outcomes.
+            # Caller must explicitly set BOT_SHADOW_MODE=0 to enable
+            # real broker forwarding.
+            if SHADOW_MODE:
+                logger.info(f"[SHADOW] not forwarding to broker: "
+                            f"{trade.side} {trade.n_mnq} @ "
+                            f"{trade.entry_px:.2f}")
+            elif self.traderspost is not None:
                 try:
                     op = self.account.state.open_position
                     db_id = getattr(op, "db_id", None) if op else None
@@ -736,7 +753,13 @@ class FibRuntime:
             # safety net for non-bracket exits (timeout, manual flatten,
             # auto-DLL). action="exit"+sentiment="flat" is idempotent on
             # TradersPost's side so duplicate sends are harmless.
-            if self.traderspost is not None:
+            #
+            # Same SHADOW gate as the open path -- if the open wasn't
+            # forwarded, the close shouldn't be either, or we'd send a
+            # flatten signal for a position the broker never had.
+            if SHADOW_MODE:
+                pass  # logged via the [SHADOW CLOSE] tag above
+            elif self.traderspost is not None:
                 try:
                     self.traderspost.submit_close(
                         side=record.get("side", "LONG"),
