@@ -268,6 +268,12 @@ class FibRuntime:
         # flag, every tick after the panic trigger would send another
         # submit_close to TradersPost.
         self._panic_closed_ref: Optional[str] = None
+        # Broker-anchored stop level + side, captured at submit_open time
+        # using the LIVE PriceMonitor anchor. The panic-close compares
+        # live price against THIS, not against the strategy's stale
+        # stop_px (which can be 20-40pt off from real fill).
+        self._broker_stop_px: Optional[float] = None
+        self._broker_side: Optional[str] = None
         self.bars_processed = 0
         self.signals_fired = 0
         self.signals_blocked = 0
@@ -445,27 +451,26 @@ class FibRuntime:
         # past the intended stop (observed in real trades: -$60 to -$114
         # losses on positions with a $24 intended stop).
         if (in_trade and self._open_trade_ref is not None
+                and self._broker_stop_px is not None
+                and self._broker_side is not None
                 and self._panic_closed_ref != self._open_trade_ref
                 and snap is not None):
-            at = self.state.active_trade
-            stop_dist = abs(at.entry_px - at.stop_px)
-            if at.side == "LONG":
-                adverse_pts = at.entry_px - snap.price
+            # Compare live price against the BROKER-ANCHORED stop (set at
+            # submit_open from live monitor price), not the strategy's
+            # stop_px (which is anchored to a closed-bar entry that can be
+            # 20-40pt off from real broker fill).
+            if self._broker_side == "LONG":
+                crossed = snap.price <= self._broker_stop_px
             else:
-                adverse_pts = snap.price - at.entry_px
-            # Trigger when live market has crossed the intended stop level.
-            # 1.0x stop_dist (not 1.5x) because the kill-switch caps the
-            # bot-vs-broker entry divergence at 10pt, so even if broker
-            # entry is 10pt offside from at.entry_px, panicking at 1.0x
-            # stop_dist caps real loss at stop_dist + 10pt (~$32 on 2 MNQ
-            # vs the $100+ losses observed without this guard).
-            if adverse_pts > stop_dist:
+                crossed = snap.price >= self._broker_stop_px
+            if crossed:
                 logger.error(
                     f"[traderspost PANIC CLOSE] live price {snap.price:.2f} "
-                    f"crossed intended stop {at.stop_px:.2f} by "
-                    f"{adverse_pts - stop_dist:.1f}pts -- broker bracket "
-                    f"didn't fire. Force-flattening.")
-                if self.traderspost is not None:
+                    f"crossed broker-anchored stop "
+                    f"{self._broker_stop_px:.2f} -- broker bracket didn't "
+                    f"fire. Force-flattening.")
+                if self.traderspost is not None and self.state.active_trade:
+                    at = self.state.active_trade
                     try:
                         self.traderspost.submit_close(
                             side=at.side, qty=at.n_mnq,
@@ -646,13 +651,52 @@ class FibRuntime:
                             f"stale strategy price -- effectively naked. "
                             f"Not forwarding to broker.")
                         return
+                    # Re-anchor brackets to LIVE tick price.
+                    # ----------------------------------------
+                    # The strategy detects the setup on the latest CLOSED
+                    # 1-min bar (up to 60s stale by design, for backtest
+                    # parity). But sending those stale absolute prices to
+                    # the broker is what's been producing the +/-$100s of
+                    # P&L the user sees: TradersPost auto-converts the
+                    # unreachable limit to a market fill at the REAL
+                    # current price, while the bracket anchors to the
+                    # stale strategy price, leaving stop/target 20-40pt
+                    # off from real fill.
+                    #
+                    # Mix the two: keep the strategy's stop/target
+                    # DISTANCES (its edge), but anchor them to the live
+                    # PriceMonitor price (1-4s fresh from Polygon). Now
+                    # the bracket lands within ~1pt of real fill instead
+                    # of 20-40pt off. Worst case slippage is the gap
+                    # between when we read monitor.latest() here and when
+                    # Tradovate fills the entry -- typically <2pt.
+                    live_anchor = live_snap.price
+                    stop_dist = abs(trade.entry_px - trade.stop_px)
+                    target_dist = abs(trade.target_px - trade.entry_px)
+                    if trade.side == "LONG":
+                        anchored_stop = live_anchor - stop_dist
+                        anchored_target = live_anchor + target_dist
+                    else:
+                        anchored_stop = live_anchor + stop_dist
+                        anchored_target = live_anchor - target_dist
+                    logger.info(
+                        f"[traderspost ANCHOR] strategy {trade.entry_px:.2f}"
+                        f"/{trade.stop_px:.2f}/{trade.target_px:.2f} -> "
+                        f"live {live_anchor:.2f}"
+                        f"/{anchored_stop:.2f}/{anchored_target:.2f} "
+                        f"(delta {live_anchor - trade.entry_px:+.2f}pt)")
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
-                        entry_price=trade.entry_px,
-                        stop_price=trade.stop_px,
-                        target_price=trade.target_px,
+                        entry_price=live_anchor,
+                        stop_price=anchored_stop,
+                        target_price=anchored_target,
                         setup_id=setup_ref,
                     )
+                    # Stash the broker-anchored stop so the panic-close
+                    # check uses the SAME level the broker bracket is at,
+                    # not the stale strategy stop_px.
+                    self._broker_stop_px = anchored_stop
+                    self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
                 except Exception as te:
                     logger.warning(f"traderspost submit_open failed: {te!r}")
@@ -690,6 +734,8 @@ class FibRuntime:
                     logger.warning(f"traderspost submit_close failed: {te!r}")
             self._open_trade_ref = None
             self._panic_closed_ref = None
+            self._broker_stop_px = None
+            self._broker_side = None
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
