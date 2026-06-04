@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import urllib.parse
@@ -71,10 +72,14 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     global _polygon_last_age_log
     try:
         from research.data_loader import polygon_latest_quote
-        # max_age_s=1.0: bot polls every 3s (POLL_SECONDS), so a 1s
-        # cache lets each poll see a fresh snapshot value. snapshot
-        # path inside polygon_latest_quote is sub-second fresh.
-        q = polygon_latest_quote("NQ", max_age_s=1.0)
+        # Track MNQ (the micro contract user actually trades) not NQ
+        # (the big contract). They follow the same Nasdaq-100 index but
+        # trade in separate orderbooks and can diverge 2-15pt during
+        # thin liquidity overnight -- when the bot was on NQ and the
+        # broker filled on MNQ, every bracket was anchored to the wrong
+        # contract. Override with POLYGON_CONTRACT env var if needed.
+        product = os.environ.get("POLYGON_CONTRACT", "MNQ")
+        q = polygon_latest_quote(product, max_age_s=1.0)
     except Exception as e:
         logger.debug(f"polygon live fetch failed: {e!r}")
         return None
@@ -216,7 +221,9 @@ class PriceMonitor:
         try:
             from bot.polygon_ws import PolygonWSClient
             from research.data_loader import polygon_front_month
-            tk = polygon_front_month("NQ")
+            # Subscribe to MNQ (the contract user trades), not NQ.
+            product = os.environ.get("POLYGON_CONTRACT", "MNQ")
+            tk = polygon_front_month(product)
             self._ws_client = PolygonWSClient(
                 ticker=tk, on_tick=self._on_ws_tick)
             self._ws_started = self._ws_client.start()

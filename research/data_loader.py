@@ -146,7 +146,11 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False,
 
     # Polygon futures = preferred live source when POLYGON_API is configured.
     # Falls through to yfinance on any failure (see _try_polygon_futures).
-    pf = _try_polygon_futures("NQ", timeframe, force_refresh)
+    # Product overridable so the live bot tracks MNQ (the contract the
+    # user actually trades) while research/backtest calls keep using
+    # NQ as the historical reference series.
+    product = os.environ.get("POLYGON_CONTRACT", "NQ") if live_only else "NQ"
+    pf = _try_polygon_futures(product, timeframe, force_refresh)
     if pf is not None:
         return pf
     if live_only:

@@ -392,13 +392,13 @@ def api_price():
     """
     try:
         from research.data_loader import polygon_latest_quote
-        # max_age_s=0.2 = 200ms server-side cache. Frontend polls at
-        # 100ms so half its calls hit the cache and half trigger a
-        # fresh snapshot fetch (~5/sec to Polygon). polygon_latest_quote
-        # now tries the snapshot endpoint first (single tick) before
-        # falling back to 1-min aggregates -- snapshot is sub-second
-        # fresh on Futures Advanced.
-        q = polygon_latest_quote("NQ", max_age_s=0.2)
+        # Track MNQ (the micro contract user trades), not NQ (the big
+        # contract). Separate orderbooks can diverge 2-15pt overnight
+        # so anchoring brackets to NQ when filling on MNQ was wrong.
+        # POLYGON_CONTRACT env var can override.
+        import os as _os
+        product = _os.environ.get("POLYGON_CONTRACT", "MNQ")
+        q = polygon_latest_quote(product, max_age_s=0.2)
         if q is not None:
             price, _high, _low, age = q
             return jsonify({
