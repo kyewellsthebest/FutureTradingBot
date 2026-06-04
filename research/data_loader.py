@@ -102,12 +102,20 @@ def _synthetic(timeframe: Timeframe, n: int = 2000) -> pd.DataFrame:
     return pd.DataFrame({"open": open_, "high": high, "low": low, "close": close, "volume": vol}, index=idx)
 
 
-def download_nq(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.DataFrame:
+def download_nq(timeframe: Timeframe, *, force_refresh: bool = False,
+                live_only: bool = False) -> pd.DataFrame:
     """
     Return OHLCV DataFrame for NQ=F at the requested timeframe.
 
     If environment variable NQ_USE_LOCAL=1 is set, load from local 2-year
     1-min contract files (stitched with front-month convention) instead of yfinance.
+
+    live_only=True: Polygon ONLY. If Polygon fails, returns an empty frame
+    instead of falling through to yfinance/cache/synthetic. Use for the
+    live bot -- mixing delayed sources with real-time anchoring caused
+    the dashboard-price-flicker incident and runaway brackets. Backtests
+    and research callers leave this False so the fallback chain still
+    works for historical exploration.
 
     Cache strategy:
       - If cache file is < 24h old and not force_refresh -> return cached data.
@@ -141,6 +149,13 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False) -> pd.Data
     pf = _try_polygon_futures("NQ", timeframe, force_refresh)
     if pf is not None:
         return pf
+    if live_only:
+        # The live bot path -- Polygon or nothing. Empty frame signals
+        # the caller to skip this refresh tick instead of using delayed
+        # yfinance data or synthesizing random walks.
+        logger.warning(f"{timeframe}: Polygon unavailable in live_only "
+                       f"mode -- returning empty frame")
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
 
     interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
     path = cache_path(timeframe)

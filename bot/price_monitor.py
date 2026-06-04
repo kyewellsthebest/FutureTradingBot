@@ -162,13 +162,18 @@ def _fetch_csv() -> tuple[float, float, float] | None:
 
 _CHAIN = [
     ("polygon",    _fetch_polygon),
-    ("cnbc",       _fetch_cnbc),
-    ("yf_1m",      lambda: _fetch_yf("5d", "1m")),
-    ("yf_5m",      lambda: _fetch_yf("5d", "5m")),
-    ("yf_15m",     lambda: _fetch_yf("1mo", "15m")),
-    ("yf_fast",    _fetch_yf_fast),
-    ("csv_cache",  _fetch_csv),
 ]
+# Polygon-only by design. Previous chain included CNBC (15min delayed),
+# yfinance (1-15min delayed), and a CSV cache (days/weeks old). Those
+# fallbacks caused the dashboard NQ price to flicker between two values
+# whenever Polygon missed a poll -- the bot would briefly anchor on a
+# delayed source, then snap back to real-time. Triggered runaway P&L
+# because brackets attached to stale prices.
+#
+# If Polygon is down, _poll_once returns nothing and latest()/snapshot
+# return None. The bot's bracket forwarder already refuses to trade on
+# None price, so we cleanly skip trades during outages instead of using
+# wrong data.
 
 
 class PriceMonitor:
@@ -248,21 +253,11 @@ class PriceMonitor:
             self._poll_count = 0
             return snap
 
-    def latest(self, realtime_only: bool = False) -> PriceSnapshot | None:
-        """Return current snapshot without mutating extremes.
-
-        realtime_only: if True, return None unless the most recent poll
-        came from Polygon (the only real-time source in the chain). Use
-        this for any live-anchoring path -- CNBC is 15min delayed, the
-        yfinance sources are 1-15min delayed, and anchoring a bracket
-        to a delayed price reproduces the same stale-anchor catastrophe
-        we just fixed with the live-tick re-anchoring. Better to skip
-        a trade than enter with a 7pt-flicker anchor.
-        """
+    def latest(self) -> PriceSnapshot | None:
+        """Return current snapshot without mutating extremes. Since the
+        source chain is Polygon-only, any non-None return is real-time."""
         with self._lock:
             if self._price is None:
-                return None
-            if realtime_only and self.last_source != "polygon":
                 return None
             return PriceSnapshot(
                 price=self._price,

@@ -490,26 +490,37 @@ class FibRuntime:
         tnow = time.time()
         if self._bars_5m is None or tnow - self._last_bar_refresh > 60:
             try:
-                nq5 = download_nq("5min")
+                # live_only=True: Polygon or nothing. No yfinance, no
+                # cache, no synthetic. If Polygon is down the bars stay
+                # stale until the next successful poll and the bot won't
+                # arm new setups -- safer than trading on delayed data.
+                nq5 = download_nq("5min", live_only=True)
                 if nq5 is not None and not nq5.empty:
                     if nq5.index.tz is None:
                         nq5.index = nq5.index.tz_localize("UTC")
                     self._bars_5m = nq5
-                    # Try real 1-min; if unavailable, synthesize.
                     nq1 = None
                     try:
-                        nq1 = download_nq("1min")
+                        nq1 = download_nq("1min", live_only=True)
                         if nq1 is not None and not nq1.empty and nq1.index.tz is None:
                             nq1.index = nq1.index.tz_localize("UTC")
                     except Exception as e:
-                        logger.debug(f"1-min fetch failed (will synth): {e}")
+                        logger.debug(f"1-min fetch failed: {e}")
                     if nq1 is None or nq1.empty:
+                        # Synthesizing 1-min from 5-min is acceptable here:
+                        # the source 5-min IS Polygon (live_only enforced),
+                        # we're just up-sampling its OHLC walk. Not a
+                        # different data provider.
                         self._bars_1m = _synth_1min_from_5min(nq5)
                         self._bars_1m_source = "synth"
                     else:
                         self._bars_1m = nq1
                         self._bars_1m_source = "real"
                     self._last_bar_refresh = tnow
+                else:
+                    logger.warning("bar refresh: Polygon returned empty "
+                                   "-- keeping previous bars (or no-op if "
+                                   "none cached)")
             except Exception as e:
                 logger.warning(f"bar refresh failed: {e}")
                 if self._bars_5m is None:
@@ -632,17 +643,14 @@ class FibRuntime:
                     # at real price, but the bracket attaches at the
                     # hallucinated stop level (e.g. 1300pts away), so
                     # the position is effectively naked.
-                    # realtime_only=True: only accept Polygon (real-time).
-                    # If the monitor is currently on a delayed fallback
-                    # (CNBC = 15min, yfinance = 1-15min), we'd anchor the
-                    # bracket to a delayed price -- same stale-anchor
-                    # catastrophe we're trying to fix. Skip the trade.
-                    live_snap = self.monitor.latest(realtime_only=True)
+                    # PriceMonitor's _CHAIN is Polygon-only now, so any
+                    # non-None snapshot is real-time. Skip trade if no
+                    # snap (Polygon outage -> bot shouldn't trade).
+                    live_snap = self.monitor.latest()
                     if live_snap is None:
                         logger.warning(
-                            "[traderspost SKIP] no real-time price "
-                            f"(monitor on delayed fallback or empty) -- "
-                            f"refusing to send bracket "
+                            "[traderspost SKIP] no live price (Polygon "
+                            f"outage?) -- refusing to send bracket "
                             f"entry={trade.entry_px:.2f}")
                         return
                     divergence = abs(trade.entry_px - live_snap.price)
