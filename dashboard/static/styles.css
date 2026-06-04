@@ -523,6 +523,26 @@ img, svg, canvas { max-width: 100%; }
 }
 .kpi-meta .kpi-value { color: var(--text-soft); font-size: 13px; font-weight: 500; }
 
+/* ─── Live price tick flash ─────────────────────────────────────────────
+   When the live NQ price ticks, flash green if it went up, red if it
+   went down. JS adds the .tick-up / .tick-down class on each update;
+   the animation runs once and self-clears. Without this visual proof,
+   a frozen price display looks identical to a working one -- the user
+   specifically asked for the flash so they can SEE the stream is live. */
+@keyframes price-flash-up {
+  0%   { color: #10d4a8; text-shadow: 0 0 24px rgba(16, 212, 168, 0.85); transform: translateY(-1px); }
+  100% { color: var(--text-bright); text-shadow: 0 0 24px rgba(255, 255, 255, 0.08); transform: translateY(0); }
+}
+@keyframes price-flash-down {
+  0%   { color: #f87171; text-shadow: 0 0 24px rgba(248, 113, 113, 0.85); transform: translateY(1px); }
+  100% { color: var(--text-bright); text-shadow: 0 0 24px rgba(255, 255, 255, 0.08); transform: translateY(0); }
+}
+.kpi-value.tick-up   { animation: price-flash-up   0.55s ease-out; }
+.kpi-value.tick-down { animation: price-flash-down 0.55s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .kpi-value.tick-up, .kpi-value.tick-down { animation: none; }
+}
+
 /* ─── Tabs ──────────────────────────────────────────────────────────────── */
 .tabs {
   display: flex;

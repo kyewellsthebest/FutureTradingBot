@@ -414,7 +414,7 @@ const setClass = (id, cls) => { const el = document.getElementById(id); if (el) 
 // Stores the last-set value on the element so subsequent calls animate FROM
 // that value. Reduced-motion users get instant update.
 const _animBudget = 700; // ms per transition
-function animateNumber(id, target, formatter) {
+function animateNumber(id, target, formatter, flashDirection = false) {
   const el = document.getElementById(id);
   if (!el) return;
   if (typeof target !== "number" || !isFinite(target)) {
@@ -436,6 +436,15 @@ function animateNumber(id, target, formatter) {
     el.textContent = fmt(target);
     el._lastNum = target;
     return;
+  }
+  // Tick-flash: visual proof the price stream is live. Green when the
+  // tick went up, red when down. Required by spec -- without this the
+  // user assumes a frozen display means the bot is broken.
+  if (flashDirection && typeof el._lastNum === "number") {
+    el.classList.remove("tick-up", "tick-down");
+    // Force reflow so a back-to-back same-direction tick still replays.
+    void el.offsetWidth;
+    el.classList.add(target > from ? "tick-up" : "tick-down");
   }
   const start = performance.now();
   function step(now) {
@@ -544,9 +553,9 @@ async function pollPriceOnly() {
 
 // ---- TOPBAR + LIVE ------------------------------------------------------
 function renderTopbar(d) {
-  // NQ price: animate smoothly between ticks
+  // NQ price: animate smoothly between ticks, flash green/red on direction
   if (typeof d.price === "number") {
-    animateNumber("kpi-price", d.price, (n) => n.toFixed(2));
+    animateNumber("kpi-price", d.price, (n) => n.toFixed(2), true);
   } else {
     setText("kpi-price", "—");
   }
