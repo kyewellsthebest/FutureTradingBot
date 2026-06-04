@@ -378,16 +378,27 @@ def api_data():
 
 @app.route("/api/price")
 def api_price():
-    """Live price. Hits Polygon's snapshot endpoint directly so the
-    1Hz dashboard poll gets tick-fresh data instead of the bot's 60s
-    dashboard_data.json snapshot. Falls back to CNBC / yfinance / the
-    bot's snapshot in that order if Polygon snapshot fails."""
-    # Primary: Polygon snapshot endpoint (tick-level, real-time on
-    # Futures Advanced plan). polygon_latest_quote has its own 2s cache
-    # so spamming this endpoint at 1Hz is cheap.
+    """Live price. Polygon-ONLY by design. No fallbacks.
+
+    User directive: "we only should be using 1 stream for the price and
+    tick data which is polygon." Previous code fell through to CNBC
+    (15-min delayed), yfinance (1-15min delayed), and a CSV ledger when
+    Polygon blipped -- that's what produced the dashboard NQ price
+    flickering between 30501 and 30510 (a 9pt gap = Polygon vs delayed
+    CNBC of the same NQ from 15 minutes ago).
+
+    If Polygon snapshot fails, return null price. Frontend treats null
+    as "data unavailable" and won't lie to the user with a stale value.
+    """
     try:
         from research.data_loader import polygon_latest_quote
-        q = polygon_latest_quote("NQ", max_age_s=1.0)
+        # Server-side 500ms cache. Frontend polls at 100ms so it sees
+        # responsive updates, but Polygon only gets hit at 2Hz max --
+        # safe under any rate limit. The cache returns the same price
+        # within the 500ms window so identical reads at 100ms won't
+        # spam the flash animation either (animateNumber's <0.005pt
+        # threshold suppresses no-op animations).
+        q = polygon_latest_quote("NQ", max_age_s=0.5)
         if q is not None:
             price, _high, _low, age = q
             return jsonify({
@@ -399,73 +410,15 @@ def api_price():
     except Exception as e:
         logger.warning(f"/api/price polygon snapshot failed: {e}")
 
-    # Fallback chain: bot's snapshot, then direct CNBC, then yfinance.
+    # Polygon failed -- return null so the frontend can show "—"
+    # instead of a stale fallback price. State.monitor_error helps the
+    # user see what's actually wrong.
     state = persistence.load_dashboard()
-    price = state.get("price")
-    ts = state.get("price_ts")
-    err = state.get("monitor_error")
-
-    # Decide if we trust the bot's snapshot
-    stale = False
-    if ts:
-        try:
-            ts_dt = pd.Timestamp(ts)
-            if ts_dt.tz is None:
-                ts_dt = ts_dt.tz_localize("UTC")
-            age = (pd.Timestamp.now(tz="UTC") - ts_dt).total_seconds()
-            if age > 60:
-                stale = True
-        except Exception:
-            stale = True
-
-    if price is None or stale:
-        # Try CNBC directly from the Flask process — independent of the bot
-        try:
-            res = _fetch_cnbc()
-            if res is not None:
-                live_px, _, _ = res
-                live_ts = datetime.now(timezone.utc).isoformat()
-                return jsonify({
-                    "price": live_px, "ts": live_ts,
-                    "monitor_error": err,
-                    "source": "cnbc_direct",
-                })
-        except Exception as e:
-            logger.warning(f"/api/price CNBC fallback failed: {e}")
-        # yfinance — chart already proves this works in production
-        try:
-            df = download_nq("5min").tail(1)
-            if df is not None and not df.empty:
-                last = df.iloc[-1]
-                ts_idx = df.index[-1]
-                if hasattr(ts_idx, "tz_localize") and ts_idx.tz is None:
-                    ts_idx = pd.Timestamp(ts_idx).tz_localize("UTC")
-                return jsonify({
-                    "price": float(last["close"]),
-                    "ts": pd.Timestamp(ts_idx).isoformat(),
-                    "monitor_error": err,
-                    "source": "yfinance",
-                })
-        except Exception as e:
-            logger.warning(f"/api/price yfinance fallback failed: {e}")
-        # Last-resort: pull from CNBC live ledger if the poller is writing
-        if LIVE_BARS_PATH.exists():
-            try:
-                bars = json.loads(LIVE_BARS_PATH.read_text())
-                if bars:
-                    last_bar = bars[-1]
-                    return jsonify({
-                        "price": last_bar.get("close"),
-                        "ts": last_bar.get("ts"),
-                        "monitor_error": err,
-                        "source": "cnbc_ledger",
-                    })
-            except Exception:
-                pass
-
     return jsonify({
-        "price": price, "ts": ts, "monitor_error": err,
-        "source": "bot",
+        "price": None,
+        "ts": None,
+        "monitor_error": state.get("monitor_error"),
+        "source": "polygon_unavailable",
     })
 
 

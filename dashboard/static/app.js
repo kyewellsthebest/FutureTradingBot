@@ -501,29 +501,33 @@ async function pollTrades() {
 setInterval(poll, POLL_MS);
 setInterval(pollCandles, 30_000);
 setInterval(pollTrades, 15_000);
-setInterval(pollPriceOnly, 1000);   // 1Hz price refresh -- decouples the
-                                    // top-bar NQ tick from the heavier
-                                    // 5s /api/data snapshot poll. Server
-                                    // returns cached in-memory price so
-                                    // there's zero external-API cost.
+// 100ms price-only poll. The user wants tick-level visibility -- every
+// poll fetches Polygon directly (max_age_s=0.1 on the server) and the
+// price card flashes green/red on each direction change. Network cost
+// is one tiny JSON GET every 100ms (~10/sec); server-side hits
+// polygon_latest_quote which has its own rate-limit handling.
+setInterval(pollPriceOnly, 100);
 poll(); pollCandles(); pollTrades();
 
-// Lightweight price-only poll. Hits /api/price (microseconds server-side
-// since the value's in-memory) and updates kpi-price + the live current
-// price the chart marker tooltips read from. Limited by the bot's own 3s
-// PriceMonitor cadence -- true tick-by-tick would need Polygon Premium +
-// a WebSocket subscriber, not just faster polling.
+// Lightweight price-only poll. Hits /api/price (Polygon-only, no
+// fallbacks) and updates kpi-price + live state.data.price for any
+// derived UI (active-trade unrealised P&L, chart in-progress candle).
+// Uses animateNumber with flashDirection=true so each tick rolls the
+// digits and flashes green/red -- without that, the user can't tell
+// whether the stream is live or frozen.
 async function pollPriceOnly() {
   try {
     const r = await fetch(af("/api/price"));
     if (!r.ok) return;
     const j = await r.json();
     const px = j.price;
-    if (px == null) return;
-    const el = document.getElementById("kpi-price");
-    if (el) el.textContent = (+px).toFixed(2);
-    // Keep state.data.price in sync so the active-trade unrealised P&L
-    // tooltip and any other readers stay live too.
+    if (px == null) {
+      // Polygon unavailable. Show "—" rather than lie with a stale value.
+      const el = document.getElementById("kpi-price");
+      if (el) { el.textContent = "—"; el._lastNum = null; }
+      return;
+    }
+    animateNumber("kpi-price", +px, (n) => n.toFixed(2), true);
     if (state.data) state.data.price = +px;
     // Update the live (in-progress) candle so the chart's last bar's
     // close/high/low tick with each price refresh, instead of snapping
