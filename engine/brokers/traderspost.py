@@ -97,22 +97,27 @@ class TradersPostBroker:
                     entry_price: float, stop_price: float,
                     target_price: float,
                     setup_id: Optional[str] = None) -> WebhookResult:
-        """Bot has decided to open a trade. Send TradersPost a MARKET
-        entry. The TradersPost subscription is configured with $-based
-        brackets ($12 stop, $24 target) that compute relative to the
-        ACTUAL fill price, so brackets stay correctly distanced even
-        when market entries slip.
+        """Send TradersPost a bracketed LIMIT entry.
 
-        side: "LONG" or "SHORT" (bot convention) -> mapped to TP "buy"/"sell"
+        Caller passes ABSOLUTE prices (entry, stop, target). All three
+        get tick-rounded to 0.25 (NQ tick size) before send because
+        Tradovate silently rejects brackets at non-tick-aligned prices,
+        leaving the position naked.
 
-        Brackets (stopLoss, takeProfit) are NOT sent in the payload --
-        TradersPost computes them from the subscription config. This is
-        the only way to keep stop/target distances correct when market
-        entries fill at a different price than the bot's intended entry.
+        For the live bot, entry_price should be a LIVE tick price
+        (Polygon WS in PriceMonitor) and stop/target should be
+        relative-distance offsets from that anchor -- bot/fib_main.py
+        _on_trade_open re-anchors the strategy's closed-bar prices to
+        live monitor before calling this. That ensures the bracket
+        lands within ~1-2pt of the actual broker fill instead of the
+        20-40pt off observed when sending stale closed-bar prices.
 
-        entry_price, stop_price, target_price are kept as function
-        parameters for caller backwards-compat but only entry_price is
-        used (as a reference field in the payload; not used for execution).
+        side       "LONG" / "SHORT" -> action "buy" / "sell"
+        qty        contract count (e.g. 2 for DEFAULT_SIZE)
+        entry_price  limit price (will be tick-rounded)
+        stop_price   absolute stop trigger (will be tick-rounded)
+        target_price absolute take-profit limit (will be tick-rounded)
+        setup_id   idempotency key, sent as orderRef
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
@@ -121,26 +126,6 @@ class TradersPostBroker:
             "action":     action,
             "sentiment":  sentiment,
             "quantity":   int(qty),
-            # PAPER-PARITY MODE: use LIMIT orders at the intended entry
-            # price (the 0.618 pullback level the strategy computed). This
-            # matches what the paper backtest assumes -- fill happens
-            # exactly at the pullback level, giving clean +12pt target
-            # ($48) and -6pt stop ($24) outcomes when brackets hit.
-            #
-            # Previous MARKET approach filled at current market price,
-            # which has typically moved past the pullback by the time the
-            # order reaches Tradovate. The bracket was at the intended
-            # absolute price but the entry wasn't, causing wildly varying
-            # per-trade P&L ($74 wins, $26 losses, etc.) that didn't
-            # match the paper backtest.
-            #
-            # Trade-off: limit orders can fail to fill if price moves
-            # away before the order is placed. TradersPost subscription's
-            # "Cancel open entry order after delay" (set to 60s) will
-            # clean up unfilled limits. Some trades the paper account
-            # books may not actually execute on Tradovate. This is the
-            # cost of paper-quality fills -- but cleaner than market
-            # slippage destroying the strategy's edge.
             "price":      _tick_round(entry_price),
             "orderType":  "limit",
             "stopLoss":   {"type": "stop",

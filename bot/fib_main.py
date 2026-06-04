@@ -801,7 +801,11 @@ class FibRuntime:
                 # source it came from each tick. The dashboard can render
                 # a "STALE" badge based on this.
                 "price_source": latest.ts and self.monitor.last_source or None,
-                "price_realtime": (self.monitor.last_source == "polygon"),
+                # WS push and REST snapshot are both Polygon-only paths;
+                # either qualifies as real-time. Anything else (none,
+                # fallback name) is not.
+                "price_realtime": self.monitor.last_source in
+                                   ("polygon_ws", "polygon"),
                 "fib": fib_snap,
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
