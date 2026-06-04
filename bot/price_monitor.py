@@ -190,16 +190,72 @@ class PriceMonitor:
         self._ts: datetime | None = None
         self._poll_count: int = 0
         self.last_source: str = ""
+        # WebSocket subscriber for tick-level updates. When connected,
+        # every actual NQ trade pushes a price update with ~sub-second
+        # latency. REST polling continues as a heartbeat / fallback so
+        # if the WS dies we still get updates every POLL_SECONDS.
+        self._ws_client = None
+        self._ws_started: bool = False
 
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop.clear()
-        self._thread = threading.Thread(target=self._loop, name="PriceMonitor", daemon=True)
+        # Spin up the WS subscriber first. If it fails to start (no
+        # POLYGON_API key, websocket-client not installed, etc) it
+        # returns False and we keep REST polling as the sole source.
+        self._start_ws()
+        self._thread = threading.Thread(target=self._loop,
+                                         name="PriceMonitor", daemon=True)
         self._thread.start()
+
+    def _start_ws(self) -> None:
+        """Spawn the Polygon WS subscriber on the front-month ticker.
+        Returns silently if WS isn't available -- bot keeps running on
+        REST poll as before."""
+        try:
+            from bot.polygon_ws import PolygonWSClient
+            from research.data_loader import polygon_front_month
+            tk = polygon_front_month("NQ")
+            self._ws_client = PolygonWSClient(
+                ticker=tk, on_tick=self._on_ws_tick)
+            self._ws_started = self._ws_client.start()
+        except Exception as e:
+            logger.warning(f"polygon WS init failed: {e!r} -- "
+                           f"falling back to REST-only polling")
+            self._ws_client = None
+            self._ws_started = False
+
+    def _on_ws_tick(self, price: float, ts_utc: datetime) -> None:
+        """Called by PolygonWSClient on every trade event. Updates the
+        in-memory price atomically under the existing lock so
+        snapshot()/latest() readers see consistent values."""
+        with self._lock:
+            prev_source = self.last_source
+            self._price = price
+            self._ts = ts_utc
+            self._poll_count += 1
+            self.last_source = "polygon_ws"
+            # Accumulate intra-snapshot extremes from tick stream (same
+            # contract as the REST path -- snapshot_and_reset() consumes
+            # and resets them).
+            if self._high is None or price > self._high:
+                self._high = price
+            if self._low is None or price < self._low:
+                self._low = price
+        # Log source change once when WS first kicks in or if we fell
+        # back to REST and now WS came back.
+        if prev_source and prev_source != "polygon_ws":
+            logger.info(f"price source promoted to polygon_ws "
+                        f"(was {prev_source})")
 
     def stop(self) -> None:
         self._stop.set()
+        if self._ws_client is not None:
+            try:
+                self._ws_client.stop()
+            except Exception:
+                pass
         if self._thread:
             self._thread.join(timeout=3)
 
@@ -209,6 +265,16 @@ class PriceMonitor:
             self._stop.wait(POLL_SECONDS)
 
     def _poll_once(self) -> None:
+        # If the WS subscriber is ticking, skip the REST poll -- the
+        # WS is sub-second fresh and the REST aggregate would just
+        # stomp on it with a 30-60s old close. Threshold: 10s since
+        # last WS tick. If WS goes longer than 10s without a tick the
+        # contract is dead/illiquid OR the WS is broken; either way
+        # REST takes over until WS recovers.
+        if (self._ws_client is not None
+                and self._ws_client._last_tick_ts is not None
+                and time.time() - self._ws_client._last_tick_ts < 10.0):
+            return
         for name, fn in _CHAIN:
             res = fn()
             if res is None:
