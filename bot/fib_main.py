@@ -240,6 +240,26 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"traderspost init failed: {e!r}"
             self.traderspost = None
+        # Economic calendar -- pulled from Forex Factory's free XML feed
+        # every 6h. Used by pullback_strategy to skip entries 5min before
+        # / 15min after big USD releases (CPI, FOMC, NFP, PCE, GDP, Powell,
+        # ISM, Retail Sales). Init is non-blocking: the first refresh()
+        # runs lazily on the first strategy tick. A fetch failure leaves
+        # events=[] so no blackout windows fire -- fail-open.
+        try:
+            from engine.data_sources.economic_calendar import EconomicCalendar
+            self.news_calendar = EconomicCalendar(
+                cache_dir=_account_data_dir() / "cache")
+            # Warm the cache once at startup so the first ticks already
+            # know about today's events. Errors swallowed -- the strategy
+            # will retry on its next next_event_within() call.
+            try:
+                self.news_calendar.refresh()
+            except Exception as e:
+                logger.warning(f"economic calendar initial refresh failed: {e!r}")
+        except Exception as e:
+            self.last_error = f"calendar init failed: {e!r}"
+            self.news_calendar = None
         # Stashes the setup_ref between open and close so the close webhook
         # can pair with its open for TradersPost idempotency.
         self._open_trade_ref: Optional[str] = None
@@ -469,7 +489,8 @@ class FibRuntime:
         record = on_new_1m_bar(self.state, runtime_lucid,
                                self._bars_1m, last_1m, now,
                                n_mnq=N_MNQ, bars_trend=self._bars_1m,
-                               params=get_strategy_params(self.account_id))
+                               params=get_strategy_params(self.account_id),
+                               calendar=self.news_calendar)
 
         # Trade opened this tick?
         if not had_trade_before and self.state.active_trade is not None:
@@ -609,6 +630,14 @@ class FibRuntime:
                 logger.debug(f"lifetime_stats failed: {e}")
                 lifetime = None
             shadow_snap = self.shadow.snapshot() if self.shadow else {"enabled": False}
+            # Calendar snapshot for the dashboard: next blackout-worthy
+            # event + current status. None if calendar disabled.
+            cal_snap = None
+            if self.news_calendar is not None:
+                try:
+                    cal_snap = self.news_calendar.status()
+                except Exception as e:
+                    logger.debug(f"calendar status failed: {e!r}")
             blob = {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "mode": "shadow" if SHADOW_MODE else "live",
@@ -623,6 +652,7 @@ class FibRuntime:
                 "price": current_price,
                 "price_ts": latest.ts.isoformat() if latest and latest.ts else None,
                 "fib": fib_snap,
+                "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,
                 "funded_accounts": funded_snap,

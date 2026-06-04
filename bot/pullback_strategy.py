@@ -85,6 +85,47 @@ MICROSCALP_WINDOW_DAYS = 30
 # So the simplest correct gate is: block entries inside the closed window.
 
 
+# News blackout: TIGHT window around the big macro releases that move NQ
+# 20-50pts in seconds (CPI, FOMC, NFP, PCE, GDP, Powell speeches, ISM,
+# Retail Sales). The 6pt stop is meaningless against that kind of shock --
+# a stop-market gets filled wherever the next ask lands, often 15-30pts
+# adverse. One blown stop into CPI = 5+ regular losses.
+#
+# Window: 5 min pre, 15 min post. The 5-min pre window catches the
+# pre-release algo positioning; the 15-min post window covers the
+# fast-thin-spread aftermath while still letting us trade most of the day.
+NEWS_PRE_MIN = 5
+NEWS_POST_MIN = 15
+
+
+def _news_blackout_reason(now: datetime, calendar) -> Optional[str]:
+    """Returns a string reason if `now` is inside a news blackout window
+    around a blackout-worthy event, else None. Fail-open on any error --
+    a calendar fetch failure should never stop the bot from trading."""
+    if calendar is None:
+        return None
+    try:
+        upcoming = calendar.next_event_within(
+            now, minutes=NEWS_PRE_MIN, only_blackout=True)
+        if upcoming is not None:
+            mins = upcoming.minutes_until(now)
+            return f"news_pre:{upcoming.title}@{mins:.1f}min"
+        # Post-event window: look back for any blackout-worthy events
+        # in the last NEWS_POST_MIN minutes.
+        recent = calendar.upcoming(
+            now - timedelta(minutes=NEWS_POST_MIN), hours=1,
+            only_blackout=True)
+        passed = [e for e in recent if e.ts <= now]
+        if passed:
+            most_recent = max(passed, key=lambda e: e.ts)
+            mins_since = (now - most_recent.ts).total_seconds() / 60.0
+            if mins_since <= NEWS_POST_MIN:
+                return f"news_post:{most_recent.title}@{mins_since:.1f}min"
+    except Exception:
+        return None
+    return None
+
+
 def _in_lucid_closed_window(now: datetime) -> bool:
     """True if `now` falls inside Lucid's no-trade window.
 
@@ -502,6 +543,7 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                   now: datetime, n_mnq: int = DEFAULT_SIZE,
                   bars_trend: Optional[pd.DataFrame] = None,
                   params: Optional[dict] = None,
+                  calendar=None,
                   ) -> Optional[dict]:
     """Single entry per tick. Returns closed-trade dict if a trade exited.
 
@@ -554,6 +596,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # positions are NOT force-closed here -- Lucid handles their 16:45 auto-
     # close with no penalty per their rules.
     lucid_blocked = _in_lucid_closed_window(now)
+
+    # 2b'. News blackout gate -- block entries 5 min before / 15 min after
+    # blackout-worthy USD events (CPI, FOMC, NFP, PCE, GDP, Powell speeches,
+    # ISM, Retail Sales, etc.). Stop-market fills during these releases can
+    # turn a routine 6pt stop into a 20-30pt slip; one bad release wipes
+    # 5+ regular trades' worth of edge.
+    news_blackout = _news_blackout_reason(now, calendar)
 
     # 2c. ATR regime filter (params["MIN_ATR"]). Worst-day forensics found
     # baseline LOSES money predominantly on low-ATR drift days (ATR < 3).
@@ -660,6 +709,15 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         for s in state.pending_setups:
             if not s.used:
                 s.last_block_reason = "lucid_trading_window_closed"
+                s.last_block_at = now
+        return None
+    if news_blackout is not None:
+        # Tag pending setups so the dashboard can show the news reason
+        # (which event + how close). Setups stay armed; they'll fire as
+        # soon as the post-event window expires.
+        for s in state.pending_setups:
+            if not s.used:
+                s.last_block_reason = news_blackout
                 s.last_block_at = now
         return None
 
