@@ -55,6 +55,14 @@ def _url_id(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:8]
 
 
+def _tick_round(px: float, tick: float = 0.25) -> float:
+    """Round to nearest NQ tick (0.25 pt). Tradovate / TradersPost can
+    silently reject brackets whose prices aren't tick-aligned, leaving
+    the position naked. Use this on every price field that goes into a
+    payload."""
+    return round(round(float(px) / tick) * tick, 2)
+
+
 @dataclass
 class WebhookResult:
     ok: bool
@@ -133,11 +141,11 @@ class TradersPostBroker:
             # books may not actually execute on Tradovate. This is the
             # cost of paper-quality fills -- but cleaner than market
             # slippage destroying the strategy's edge.
-            "price":      round(float(entry_price), 2),
+            "price":      _tick_round(entry_price),
             "orderType":  "limit",
             "stopLoss":   {"type": "stop",
-                           "stopPrice": round(float(stop_price), 2)},
-            "takeProfit": {"limitPrice": round(float(target_price), 2)},
+                           "stopPrice": _tick_round(stop_price)},
+            "takeProfit": {"limitPrice": _tick_round(target_price)},
             "timeInForce": "Day",
         }
         if setup_id:
@@ -193,11 +201,19 @@ class TradersPostBroker:
                          "User-Agent": "hftbot/1.0"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 text = resp.read().decode("utf-8", errors="replace")
+                # Log the response body too -- this is where Tradovate's
+                # bracket attach confirmation / order IDs land, and the
+                # only way to verify the stop+target actually got placed
+                # vs. silently rejected for tick-alignment or other
+                # validation reasons.
                 logger.info(
                     f"[traderspost LIVE OK] status={resp.status} "
                     f"action={payload.get('action')} "
                     f"qty={payload.get('quantity')} "
-                    f"price={payload.get('price')}")
+                    f"price={payload.get('price')} "
+                    f"stop={payload.get('stopLoss', {}).get('stopPrice')} "
+                    f"tgt={payload.get('takeProfit', {}).get('limitPrice')} "
+                    f"resp={text[:300]}")
                 return WebhookResult(ok=True, status_code=resp.status,
                                      response_text=text[:500],
                                      payload=payload, dry_run=False)
