@@ -259,6 +259,42 @@ class FibStrategyState:
 # ============================================================================
 # Setup detection from last N closed bars
 # ============================================================================
+def _compute_htf_trend(bars: pd.DataFrame, htf_k: int = 5) -> str:
+    """Trend state from the last two confirmed major (k=htf_k) fractal
+    pivots. Ported from bot/fib_strategy.compute_htf_trend.
+
+    Returns "UP" (higher-low followed by higher-high),
+    "DOWN" (lower-high followed by lower-low), or "FLAT" (no clear
+    structure or insufficient bars).
+
+    Backtest improvement when wired into pullback strategy: PF 1.52 ->
+    1.98. Cuts the counter-trend losing trades that were dominating
+    bad regimes.
+    """
+    if bars is None or len(bars) < 2 * htf_k + 1:
+        return "FLAT"
+    h = bars["high"].to_numpy()
+    l = bars["low"].to_numpy()
+    n = len(bars)
+    last_h_val = last_l_val = None
+    last_h_src = last_l_src = -1
+    for t in range(htf_k, n - htf_k):
+        win = slice(t - htf_k, t + htf_k + 1)
+        if h[t] == h[win].max():
+            last_h_val = float(h[t])
+            last_h_src = t
+        if l[t] == l[win].min():
+            last_l_val = float(l[t])
+            last_l_src = t
+    if last_h_val is None or last_l_val is None:
+        return "FLAT"
+    if last_h_src > last_l_src and last_h_val > last_l_val:
+        return "UP"
+    if last_l_src > last_h_src and last_l_val < last_h_val:
+        return "DOWN"
+    return "FLAT"
+
+
 def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
                           params: Optional[dict] = None
                           ) -> Optional[FibSetup]:
@@ -646,8 +682,33 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             if atr60_now > 0 and (atr5_now / atr60_now) < float(min_vol_ratio):
                 atr_blocked = True
 
+    # 2d. HTF TREND FILTER -- port of the fib_strategy filter that
+    # backtested at PF 1.98 vs 1.52 without (30% improvement). The
+    # pullback strategy was firing both LONG and SHORT setups regardless
+    # of prevailing trend, causing counter-trend setups to get repeatedly
+    # stopped in trending markets. This filter:
+    #   - LONG setups only fire when 1-min trend is UP
+    #   - SHORT setups only fire when 1-min trend is DOWN
+    #   - FLAT trend: skip everything (chop kills pullback strategy)
+    # Computed from the most recent two confirmed major pivots (k=5
+    # fractal on the bars_trend series). Toggleable via params for A/B.
+    htf_trend = "FLAT"
+    htf_filter_enabled = bool((params or {}).get("HTF_TREND_FILTER", True))
+    if htf_filter_enabled and bars_trend is not None and len(bars_trend) >= 11:
+        htf_trend = _compute_htf_trend(bars_trend, htf_k=5)
+        state.htf_trend = htf_trend  # surface to dashboard
+
     # 3. DETECT new setup from latest 1-min bar history
     new_setup = None if atr_blocked else detect_pullback_setup(bars_setup, now, params=params)
+    if new_setup is not None and htf_filter_enabled:
+        # HTF trend filter: require setup direction to MATCH the trend.
+        # FLAT trend means no setups (chop is poison for pullbacks).
+        if (htf_trend == "UP" and new_setup.side != "LONG") or \
+           (htf_trend == "DOWN" and new_setup.side != "SHORT") or \
+           (htf_trend == "FLAT"):
+            logger.info("[HTF-FILTER] %s setup rejected -- trend=%s",
+                        new_setup.side, htf_trend)
+            new_setup = None
     if new_setup is not None:
         key = _setup_key(new_setup)
         # dedup against recent + pending
@@ -655,10 +716,11 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                    any(_setup_key(s) == key for s in state.pending_setups if not s.used))
         if not already:
             state.pending_setups.append(new_setup)
-            logger.info("[SETUP] %s impulse=[%.2f,%.2f] pullback=%.2f stop=%.2f tgt=%.2f",
+            logger.info("[SETUP] %s impulse=[%.2f,%.2f] pullback=%.2f stop=%.2f tgt=%.2f trend=%s",
                         new_setup.side, new_setup.impulse_low,
                         new_setup.impulse_high, new_setup.pullback_entry,
-                        new_setup.stop_px_val, new_setup.target_px_val)
+                        new_setup.stop_px_val, new_setup.target_px_val,
+                        htf_trend)
 
     # 4. Drop expired/invalidated setups
     state.pending_setups = [s for s in state.pending_setups
