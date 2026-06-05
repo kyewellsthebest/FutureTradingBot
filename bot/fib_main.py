@@ -630,6 +630,24 @@ class FibRuntime:
         # in both LIVE and SHADOW modes. The mode label only controls
         # whether we'd ALSO send a real broker order (we never do yet,
         # so today shadow and live are functionally identical).
+        #
+        # DUPLICATE-ENTRY GUARD: if _open_trade_ref is already set, the
+        # broker thinks we already have a position open. Sending another
+        # entry would open a SECOND identical position, with each having
+        # its own bracket. During fast moves the brackets can fail to
+        # fill simultaneously (Tradovate matching engine partials), and
+        # in the worst case one position runs naked while the other
+        # closes -- producing the 58-74pt losses observed in user's
+        # cash log. Hard-block here so the broker never gets a duplicate
+        # open while a previous one is still active.
+        if self._open_trade_ref is not None:
+            logger.error(
+                f"[traderspost SKIP] duplicate entry blocked: "
+                f"_open_trade_ref={self._open_trade_ref} still active. "
+                f"Strategy fired {trade.side} setup but broker already "
+                f"has a position open. Paper account books normally; "
+                f"broker stays single-position.")
+            return
         try:
             # Pullback strategy uses LIMIT-style entries (waits for price to
             # touch pullback_entry, fills at that level). Override the paper
