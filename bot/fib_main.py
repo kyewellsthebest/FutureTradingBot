@@ -471,18 +471,26 @@ class FibRuntime:
             # a closed-bar entry that can be 20-40pt off from real fill).
             #
             # SYMMETRIC -- panic on BOTH stop breach AND target breach.
-            # Without the target-side check, observed bug: bracket TP
-            # didn't fire on the broker, position ran from intended
-            # +$48 to +$100+ open P&L. By the time price came back to
-            # the missed target level, the open P&L had already given
-            # most of it back. Force-closing when target should have
-            # fired locks in the strategy's intended +$48 outcome.
+            #
+            # TARGET-side fires WITHIN 0.5pt of target (not just past it).
+            # Rationale: paper account books +$48 when bar's high touches
+            # target. But the broker LIMIT at target may not fill if the
+            # touch was brief / thin. By the time tick price has fully
+            # CROSSED target, price is often already reversing -- panic
+            # close fires market exit at a worse price than target. By
+            # firing within 0.5pt, we send the market exit while price
+            # is still at/near target, guaranteeing exit at the level
+            # paper expects. Trade-off: 0.5pt of slippage worst case vs
+            # +$72 loss when limit misses and price reverses to stop.
+            tgt_buffer = 0.5
             if self._broker_side == "LONG":
                 stop_crossed   = snap.price <= self._broker_stop_px
-                target_crossed = snap.price >= self._broker_target_px
+                target_crossed = snap.price >= (self._broker_target_px
+                                                 - tgt_buffer)
             else:
                 stop_crossed   = snap.price >= self._broker_stop_px
-                target_crossed = snap.price <= self._broker_target_px
+                target_crossed = snap.price <= (self._broker_target_px
+                                                 + tgt_buffer)
             crossed = stop_crossed or target_crossed
             if crossed:
                 which = "STOP" if stop_crossed else "TARGET"
