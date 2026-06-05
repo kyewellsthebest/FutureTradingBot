@@ -513,40 +513,12 @@ class FibRuntime:
                         logger.warning(
                             f"traderspost panic-close failed: {te!r}")
 
-        # ------------------------------------------------------------------
-        # Deferred take-profit dispatch (Lucid microscalp compliance)
-        # ------------------------------------------------------------------
-        # The broker entry was sent with stop-loss only -- no take-profit.
-        # Now that MIN_TARGET_HOLD_SECONDS (10s) have elapsed, send the
-        # take-profit as a separate limit order. By deferring it, the
-        # broker cannot fire a take-profit inside Lucid's <5s microscalp
-        # window -- if price already moved past target during the wait,
-        # the limit fills immediately at current market (better than
-        # limit). The Lucid violation risk is structurally eliminated.
-        if (in_trade
-                and self._open_trade_ref is not None
-                and self._broker_target_px is not None
-                and self._broker_entry_ts is not None
-                and not self._broker_target_sent
-                and self.traderspost is not None):
-            hold_s = (now - self._broker_entry_ts).total_seconds()
-            if hold_s >= float(MIN_TARGET_HOLD_SECONDS):
-                at = self.state.active_trade
-                if at is not None:
-                    try:
-                        self.traderspost.submit_target(
-                            side=at.side, qty=at.n_mnq,
-                            target_price=self._broker_target_px,
-                            setup_id=self._open_trade_ref,
-                        )
-                        self._broker_target_sent = True
-                        logger.info(
-                            f"[traderspost TARGET DEFERRED] sent at "
-                            f"{hold_s:.1f}s for {at.side} "
-                            f"target={self._broker_target_px:.2f}")
-                    except Exception as te:
-                        logger.warning(
-                            f"deferred target send failed: {te!r}")
+        # Deferred-target dispatch REMOVED -- it was sending a flat
+        # sentiment signal that TradersPost interpreted as "cancel
+        # bracket, install limit exit", killing the stop. Trades ran
+        # 20-30pt without stopping. Bracket is now sent atomically at
+        # entry (entry+stop+target together) so the stop is guaranteed
+        # to be on the broker for the entire trade lifecycle.
 
         # Refresh 5-min (HTF trend) + 1-min (setup detection) bars at most
         # every 60s. Prefer REAL 1-min from Polygon/yfinance; fall back to
@@ -772,15 +744,28 @@ class FibRuntime:
                         f"/{trade.stop_px:.2f}/{trade.target_px:.2f} "
                         f"(live {live_snap.price:.2f}, "
                         f"divergence {trade.entry_px - live_snap.price:+.2f}pt)")
-                    # Send entry + stop only; defer the target by
-                    # MIN_TARGET_HOLD_SECONDS (10s) for Lucid microscalp
-                    # compliance. Target gets sent below in _tick once
-                    # the deferral window elapses.
+                    # Send entry + stop + target all in one bracket payload.
+                    # Previously tried deferred-target (send entry+stop only,
+                    # then send target as separate limit after 10s) for
+                    # Lucid microscalp compliance -- but sentiment="flat"
+                    # on the deferred order was being interpreted by
+                    # TradersPost as "cancel bracket, replace with limit
+                    # exit", killing the stop. Result: trades ran 20-30pt
+                    # without stopping. Reverted to atomic bracket so the
+                    # stop is guaranteed to be on the broker.
+                    #
+                    # Microscalp risk mitigation: the strategy's MIN_TARGET_
+                    # HOLD_SECONDS=10 still applies to the bot's own
+                    # bookkeeping. <5s target fires on the broker side
+                    # would still count against Lucid -- but they're rare
+                    # in practice (would need a 12pt move in <5s, which is
+                    # already blocked by the news blackout filter). The
+                    # 40% microscalp circuit breaker is the safety net.
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
                         entry_price=trade.entry_px,
                         stop_price=trade.stop_px,
-                        target_price=None,
+                        target_price=trade.target_px,
                         setup_id=setup_ref,
                     )
                     self._broker_stop_px = trade.stop_px
@@ -788,7 +773,7 @@ class FibRuntime:
                     self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
                     self._broker_entry_ts = now
-                    self._broker_target_sent = False
+                    self._broker_target_sent = True  # sent inline, no defer
                 except Exception as te:
                     logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
