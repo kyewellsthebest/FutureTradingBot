@@ -817,32 +817,62 @@ class FibRuntime:
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
                         f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
-            # Forward exit to TradersPost. The bracket order (stop+target)
-            # placed on the open should have already closed the position
-            # when it triggered, so this "exit/flat" call is normally a
-            # no-op on TradersPost's side. It exists as a reconciliation
-            # safety net for non-bracket exits (timeout, manual flatten,
-            # auto-DLL). action="exit"+sentiment="flat" is idempotent on
-            # TradersPost's side so duplicate sends are harmless.
+            # BROKER EXIT POLICY -- the root-cause fix for paper-vs-broker
+            # divergence:
             #
-            # Gate by _open_trade_ref (NOT by SHADOW_MODE): if we
-            # successfully forwarded the open, we MUST forward the
-            # close to avoid orphan positions. Toggling SHADOW_MODE
-            # mid-trade or having the open fire before SHADOW was set
-            # would strand the broker position otherwise. If we never
-            # forwarded the open (_open_trade_ref is None because
-            # SHADOW gated it or the kill-switch skipped), there's no
-            # broker position to close so we skip.
+            # The broker already has the OCO bracket (stop-market +
+            # limit-target) from _on_trade_open, which fills at EXACT
+            # prices with tick-level accuracy on Tradovate's engine. The
+            # tick-level panic-close (in _tick, using live PriceMonitor
+            # ticks) is the real-time safety net that force-closes the
+            # instant live price hits the stop or target-0.5pt level.
+            #
+            # This _on_trade_close path runs off the bot's should_exit,
+            # which detects exits using the CLOSED BAR's high/low -- up
+            # to 60s stale. Sending a MARKET close here was SABOTAGING
+            # the broker's clean bracket: when a bar's high briefly
+            # touched target then reversed, should_exit booked the paper
+            # win (+$48) AND fired a stale market close that filled at the
+            # reversed (lower) price -- turning broker winners into losses
+            # while paper showed the clean win. This was the primary
+            # source of the paper-overstates-broker gap.
+            #
+            # New policy: only forward an exit to the broker for TIMEOUT
+            # (the OCO bracket has no timeout equivalent). For stop and
+            # target, the bracket + tick-panic-close handle it at the
+            # right price and the right moment -- the stale bar close is
+            # suppressed. If the tick-panic-close already fired (ref
+            # matches), skip regardless of reason to avoid a double-close.
+            reason = record.get("exit_reason", "manual")
+            panic_already_closed = (
+                self._panic_closed_ref is not None
+                and self._panic_closed_ref == self._open_trade_ref)
             if self._open_trade_ref is None:
                 pass  # broker never got the open; nothing to close
+            elif panic_already_closed:
+                logger.info(
+                    f"[traderspost CLOSE skip] tick-panic already "
+                    f"flattened {self._open_trade_ref} -- not double-closing")
+            elif reason in ("stop", "target"):
+                # OCO bracket (and tick-panic-close) own these exits at
+                # the correct price. The stale bar-based market close
+                # would fill at a worse price and sabotage the bracket.
+                logger.info(
+                    f"[traderspost CLOSE skip] {reason} handled by broker "
+                    f"OCO bracket -- not sending stale bar market close")
             elif self.traderspost is not None:
+                # timeout / manual / auto-DLL: bracket has no equivalent,
+                # send the market close to flatten.
                 try:
                     self.traderspost.submit_close(
                         side=record.get("side", "LONG"),
                         qty=record.get("n_mnq", 1),
-                        reason=record.get("exit_reason", "manual"),
+                        reason=reason,
                         setup_id=self._open_trade_ref,
                     )
+                    logger.info(
+                        f"[traderspost CLOSE sent] {reason} market flatten "
+                        f"for {self._open_trade_ref}")
                 except Exception as te:
                     logger.warning(f"traderspost submit_close failed: {te!r}")
             self._open_trade_ref = None
