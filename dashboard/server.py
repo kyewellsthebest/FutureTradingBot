@@ -117,6 +117,129 @@ def api_health():
     return jsonify({"ok": True, "ts": datetime.now(timezone.utc).isoformat()})
 
 
+@app.route("/api/audit")
+def api_audit():
+    """Trade audit log -- every TradersPost interaction with full
+    request/response. Used for paper-vs-broker reconciliation.
+
+    Query params:
+      n        return last N entries (default 100, max 5000)
+      ref      filter to a specific orderRef (the setup_id from open)
+      kind     filter to open / target / close
+      since    ISO timestamp; only entries after this time
+      summary  if 1, return aggregate counts instead of rows
+
+    The audit log is JSONL at TRADERSPOST_AUDIT_DIR/traderspost_audit.jsonl
+    (defaults to data/). Each row contains: ts, kind, ref, ok, status,
+    error, payload, response. Cross-reference response.brokerage_orders[]
+    against your Tradovate Orders tab to find divergence."""
+    import os as _os
+    from pathlib import Path as _P
+    args = request.args
+    n = min(int(args.get("n", "100")), 5000)
+    ref_filter = args.get("ref")
+    kind_filter = args.get("kind")
+    since = args.get("since")
+    summary = args.get("summary") == "1"
+
+    log_dir = _os.environ.get("TRADERSPOST_AUDIT_DIR",
+                               "/home/user/HFTBot/data")
+    log_path = _P(log_dir) / "traderspost_audit.jsonl"
+    if not log_path.exists():
+        return jsonify({"rows": [], "count": 0,
+                        "note": "no audit log yet -- first trade will create it"})
+    rows = []
+    try:
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if ref_filter and r.get("ref") != ref_filter:
+                    continue
+                if kind_filter and r.get("kind") != kind_filter:
+                    continue
+                if since and r.get("ts", "") < since:
+                    continue
+                rows.append(r)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    rows = rows[-n:]  # most recent N after filter
+    if summary:
+        by_kind = {}
+        by_status = {"ok": 0, "fail": 0}
+        for r in rows:
+            k = r.get("kind", "?")
+            by_kind[k] = by_kind.get(k, 0) + 1
+            by_status["ok" if r.get("ok") else "fail"] += 1
+        return jsonify({
+            "total_rows_scanned": len(rows),
+            "by_kind": by_kind,
+            "by_status": by_status,
+            "earliest_ts": rows[0]["ts"] if rows else None,
+            "latest_ts": rows[-1]["ts"] if rows else None,
+        })
+    return jsonify({"count": len(rows), "rows": rows})
+
+
+@app.route("/api/reconcile/<ref>")
+def api_reconcile(ref):
+    """Per-trade reconciliation. Given a setup_id (orderRef), return:
+      - what the bot intended (from paper-account trade record)
+      - every TradersPost interaction for that ref (open, target, close)
+      - what TradersPost said in response to each
+    Lets you compare side-by-side without grepping logs.
+
+    Use case: you see a -$295 trade in Tradovate, you find the orderRef
+    from the dashboard's recent trades, you hit /api/reconcile/{ref} and
+    see the FULL story -- what we sent, what came back, what the bracket
+    was supposed to do. No more inference from cash logs."""
+    import os as _os
+    from pathlib import Path as _P
+    log_dir = _os.environ.get("TRADERSPOST_AUDIT_DIR",
+                               "/home/user/HFTBot/data")
+    log_path = _P(log_dir) / "traderspost_audit.jsonl"
+    interactions = []
+    if log_path.exists():
+        try:
+            with open(log_path) as f:
+                for line in f:
+                    try:
+                        r = json.loads(line.strip())
+                    except Exception:
+                        continue
+                    if r.get("ref") == ref or \
+                       r.get("ref") == ref + "-target" or \
+                       r.get("ref") == ref + "-exit":
+                        interactions.append(r)
+        except Exception:
+            pass
+    # Try to find the bot's intended trade record
+    paper_record = None
+    try:
+        state = persistence.load_dashboard()
+        for t in state.get("recent_trades", []):
+            if t.get("setup_ref") == ref or t.get("orderRef") == ref:
+                paper_record = t
+                break
+    except Exception:
+        pass
+    return jsonify({
+        "ref": ref,
+        "paper_record": paper_record,
+        "interactions": interactions,
+        "summary": {
+            "n_interactions": len(interactions),
+            "kinds": list({i.get("kind") for i in interactions}),
+            "any_failed": any(not i.get("ok") for i in interactions),
+        },
+    })
+
+
 @app.route("/api/diag")
 def api_diag():
     """Server-side diagnostic — tells you whether the BOT process (not just

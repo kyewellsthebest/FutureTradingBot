@@ -197,17 +197,66 @@ class TradersPostBroker:
     # ------------------------------------------------------------------
     # INTERNALS
     # ------------------------------------------------------------------
+    def _audit(self, payload: dict, result: "WebhookResult",
+                kind: str) -> None:
+        """Append a single JSONL row capturing the full request/response
+        round-trip. Persistent across restarts. Each row is independently
+        parseable so the user can `tail -f`, `jq`, or `grep` the file
+        without parsing anything else.
+
+        Schema (one JSON object per line):
+          ts        ISO-8601 UTC of the POST attempt
+          kind      "open" | "target" | "close"  (which method called)
+          ref       orderRef from payload (the trade's setup_id)
+          live_mode bool (dry-run vs real POST)
+          ok        bool (request succeeded)
+          status    HTTP status code (None on dry-run / network fail)
+          error     short error tag if any
+          payload   the actual JSON we sent
+          response  first 500 chars of response body
+                    -- for TradersPost LIVE responses this contains the
+                    placed order details + brokerage IDs which is what
+                    you cross-reference against the broker's order log
+
+        File: data/traderspost_audit.jsonl (account-namespaced via env)
+        """
+        import os as _os
+        try:
+            log_dir = _os.environ.get("TRADERSPOST_AUDIT_DIR",
+                                       "/home/user/HFTBot/data")
+            log_path = f"{log_dir}/traderspost_audit.jsonl"
+            row = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "kind": kind,
+                "ref": payload.get("orderRef"),
+                "live_mode": self.live,
+                "ok": result.ok,
+                "status": result.status_code,
+                "error": result.error,
+                "payload": payload,
+                "response": (result.response_text or "")[:500],
+            }
+            with open(log_path, "a") as f:
+                f.write(json.dumps(row, default=str) + "\n")
+        except Exception as e:
+            logger.debug(f"audit log write failed: {e!r}")
+
     def _post(self, payload: dict) -> WebhookResult:
         # Dry run: log + return
         if not self.live:
             logger.info(f"[traderspost DRY_RUN] would POST: {json.dumps(payload)}")
-            return WebhookResult(ok=True, status_code=None, response_text="DRY_RUN",
-                                 payload=payload, dry_run=True)
+            result = WebhookResult(ok=True, status_code=None, response_text="DRY_RUN",
+                                    payload=payload, dry_run=True)
+            self._audit(payload, result, self._kind_from_payload(payload))
+            return result
         if not self.url:
             logger.warning("[traderspost] LIVE=true but TRADERSPOST_WEBHOOK_URL not set")
-            return WebhookResult(ok=False, status_code=None, response_text="",
-                                 payload=payload, dry_run=False,
-                                 error="webhook_url_missing")
+            result = WebhookResult(ok=False, status_code=None, response_text="",
+                                    payload=payload, dry_run=False,
+                                    error="webhook_url_missing")
+            self._audit(payload, result, self._kind_from_payload(payload))
+            return result
+        kind = self._kind_from_payload(payload)
         try:
             body = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
@@ -229,9 +278,11 @@ class TradersPostBroker:
                     f"stop={payload.get('stopLoss', {}).get('stopPrice')} "
                     f"tgt={payload.get('takeProfit', {}).get('limitPrice')} "
                     f"resp={text[:300]}")
-                return WebhookResult(ok=True, status_code=resp.status,
-                                     response_text=text[:500],
-                                     payload=payload, dry_run=False)
+                result = WebhookResult(ok=True, status_code=resp.status,
+                                        response_text=text[:500],
+                                        payload=payload, dry_run=False)
+                self._audit(payload, result, kind)
+                return result
         except urllib.error.HTTPError as e:
             err_text = ""
             try:
@@ -241,20 +292,48 @@ class TradersPostBroker:
             logger.warning(
                 f"[traderspost LIVE FAIL] status={e.code} "
                 f"action={payload.get('action')} body={err_text}")
-            return WebhookResult(ok=False, status_code=e.code,
-                                 response_text=err_text,
-                                 payload=payload, dry_run=False,
-                                 error=f"http_{e.code}")
+            result = WebhookResult(ok=False, status_code=e.code,
+                                    response_text=err_text,
+                                    payload=payload, dry_run=False,
+                                    error=f"http_{e.code}")
+            self._audit(payload, result, kind)
+            return result
         except urllib.error.URLError as e:
             logger.warning(f"[traderspost LIVE NETWORK FAIL] {e!r}")
-            return WebhookResult(ok=False, status_code=None, response_text="",
-                                 payload=payload, dry_run=False,
-                                 error=f"network_{e.reason!r}")
+            result = WebhookResult(ok=False, status_code=None, response_text="",
+                                    payload=payload, dry_run=False,
+                                    error=f"network_{e.reason!r}")
+            self._audit(payload, result, kind)
+            return result
         except Exception as e:
             logger.warning(f"[traderspost LIVE UNEXPECTED] {e!r}")
-            return WebhookResult(ok=False, status_code=None, response_text="",
-                                 payload=payload, dry_run=False,
-                                 error=f"unexpected_{type(e).__name__}")
+            result = WebhookResult(ok=False, status_code=None, response_text="",
+                                    payload=payload, dry_run=False,
+                                    error=f"unexpected_{type(e).__name__}")
+            self._audit(payload, result, kind)
+            return result
+
+    @staticmethod
+    def _kind_from_payload(payload: dict) -> str:
+        """Derive kind from payload shape -- saves caller from passing it
+        through every layer. Detects:
+          open   -- has stopLoss/takeProfit child, sentiment in long/short
+          target -- has price field but sentiment=flat (separate target)
+          close  -- sentiment=flat with no price (market exit)
+        """
+        # "stopLoss" / "takeProfit" presence -> open (entry+bracket).
+        # Use `in` not truthy-get because the child dict might be empty.
+        if "stopLoss" in payload or "takeProfit" in payload:
+            return "open"
+        if payload.get("sentiment") == "flat":
+            if "price" in payload:
+                return "target"
+            return "close"
+        # Entries without explicit bracket (shouldn't happen with current
+        # code, but handle it): sentiment long/short = open.
+        if payload.get("sentiment") in ("long", "short"):
+            return "open"
+        return "unknown"
 
 
 def traderspost_status() -> dict:
