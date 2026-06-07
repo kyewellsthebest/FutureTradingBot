@@ -445,81 +445,18 @@ class FibRuntime:
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 
-        # ------------------------------------------------------------------
-        # Panic-close: catch broker brackets that didn't fire.
-        # ------------------------------------------------------------------
-        # If we're in a trade AND we successfully forwarded the open to the
-        # broker (i.e. self._open_trade_ref is set, meaning the kill-switch
-        # didn't block it) AND live market has crossed the intended stop
-        # level, force-flatten on the broker. This catches the case where
-        # TradersPost auto-converted our limit entry to MARKET because the
-        # limit price was unreachable from current market -- the bracket
-        # then anchors to the stale strategy price, leaving the position
-        # effectively naked. Without panic close, the position runs until
-        # the bot's 1-min bar exit fires, by which time it's slipped 7-15pt
-        # past the intended stop (observed in real trades: -$60 to -$114
-        # losses on positions with a $24 intended stop).
-        if (in_trade and self._open_trade_ref is not None
-                and self._broker_stop_px is not None
-                and self._broker_target_px is not None
-                and self._broker_side is not None
-                and self._panic_closed_ref != self._open_trade_ref
-                and snap is not None):
-            # Compare live price against the BROKER-ANCHORED stop and
-            # target (set at submit_open from live monitor price), not
-            # the strategy's stop_px / target_px (which are anchored to
-            # a closed-bar entry that can be 20-40pt off from real fill).
-            #
-            # SYMMETRIC -- panic on BOTH stop breach AND target breach.
-            #
-            # TARGET-side fires WITHIN 0.5pt of target (not just past it).
-            # Rationale: paper account books +$48 when bar's high touches
-            # target. But the broker LIMIT at target may not fill if the
-            # touch was brief / thin. By the time tick price has fully
-            # CROSSED target, price is often already reversing -- panic
-            # close fires market exit at a worse price than target. By
-            # firing within 0.5pt, we send the market exit while price
-            # is still at/near target, guaranteeing exit at the level
-            # paper expects. Trade-off: 0.5pt of slippage worst case vs
-            # +$72 loss when limit misses and price reverses to stop.
-            tgt_buffer = 0.5
-            if self._broker_side == "LONG":
-                stop_crossed   = snap.price <= self._broker_stop_px
-                target_crossed = snap.price >= (self._broker_target_px
-                                                 - tgt_buffer)
-            else:
-                stop_crossed   = snap.price >= self._broker_stop_px
-                target_crossed = snap.price <= (self._broker_target_px
-                                                 + tgt_buffer)
-            crossed = stop_crossed or target_crossed
-            if crossed:
-                which = "STOP" if stop_crossed else "TARGET"
-                level = (self._broker_stop_px if stop_crossed
-                         else self._broker_target_px)
-                logger.error(
-                    f"[traderspost PANIC CLOSE/{which}] live price "
-                    f"{snap.price:.2f} crossed broker-anchored {which} "
-                    f"{level:.2f} -- broker bracket didn't fire. "
-                    f"Force-flattening.")
-                # Panic-close gated by _open_trade_ref (not SHADOW_MODE):
-                # if we forwarded the open, we MUST clean up the broker
-                # position, even if SHADOW was toggled mid-trade.
-                # _open_trade_ref None means the broker never got the
-                # open, so no position to flatten.
-                if (self._open_trade_ref is not None
-                        and self.traderspost is not None
-                        and self.state.active_trade):
-                    at = self.state.active_trade
-                    try:
-                        self.traderspost.submit_close(
-                            side=at.side, qty=at.n_mnq,
-                            reason=f"panic_{which.lower()}_missed",
-                            setup_id=self._open_trade_ref,
-                        )
-                        self._panic_closed_ref = self._open_trade_ref
-                    except Exception as te:
-                        logger.warning(
-                            f"traderspost panic-close failed: {te!r}")
+        # Tick-level panic-close REMOVED.
+        # ----------------------------------------------------------------
+        # Was a workaround for the bracket-mis-anchored bug class. With
+        # the bare-minimum architecture (subscription owns brackets at
+        # $12/$24 per contract from actual fill), the bracket is always
+        # correctly anchored. Tick panic-close racing it caused more
+        # harm than help -- it would fire market exits that filled at
+        # worse prices than the bracket's clean limit/stop fills.
+        #
+        # If the subscription bracket doesn't fire (broker outage, etc),
+        # the bot's 10-min max_hold timeout sends a market flatten
+        # via _on_trade_close. That's the only safety net needed.
 
         # Deferred-target dispatch REMOVED -- it was sending a flat
         # sentiment signal that TradersPost interpreted as "cancel
@@ -684,24 +621,38 @@ class FibRuntime:
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
                         f"tgt={trade.target_px:.2f}")
-            # Forward to TradersPost as a bracketed limit order
-            # (entry LIMIT + stop + take-profit). The broker manages the
-            # bracket; we also send an explicit "exit" on _on_trade_close
-            # as a reconciliation safety net. TradersPost dry-run mode
-            # (default) just logs the JSON without POSTing.
+            # BARE-MINIMUM TRADERSPOST INTEGRATION
+            # ---------------------------------------------------------
+            # We send: direction + quantity + market type. That's it.
+            # No stop/target prices, no order ref tricks, no deferred
+            # signals. The TradersPost subscription owns the bracket
+            # logic ($12 stop, $24 target per contract) which auto-
+            # attaches at fill price.
             #
-            # SHADOW_MODE gate: when SHADOW_MODE is on (BOT_SHADOW_MODE=1,
-            # default), DO NOT send to the broker. The module docstring
-            # says "Logs decisions but does NOT send orders" -- without
-            # this check the bot was forwarding live orders despite the
-            # dashboard's SHADOW badge, producing real broker losses
-            # while the paper account showed clean strategy outcomes.
-            # Caller must explicitly set BOT_SHADOW_MODE=0 to enable
-            # real broker forwarding.
+            # This is the canonical TradersPost design pattern (see
+            # all the example videos: Jacob/Lux Algo, Tom/Trader Post
+            # founder, Rebecca walkthrough). Every override we used to
+            # add was a workaround for incomplete understanding of how
+            # the subscription brackets work. Each override introduced
+            # bugs:
+            #   - Absolute stop/target prices (mis-anchored on slippage)
+            #   - LIMIT entries (didn't always fill, paper booked phantom
+            #     wins, subscription auto-converted to market anyway)
+            #   - Deferred-target signal (wiped the stop bracket)
+            #   - Bar-based market close (raced and beat the bracket
+            #     at worse prices)
+            #
+            # By trusting the subscription, all these classes of bugs
+            # vanish. The broker bracket is the single source of truth
+            # for the trade's lifecycle.
+            #
+            # The strategy still owns WHEN to enter (price has touched
+            # the 0.618 pullback level on the closed bar -- that's why
+            # on_new_1m_bar returned this trade). The broker handles
+            # everything else.
             if SHADOW_MODE:
                 logger.info(f"[SHADOW] not forwarding to broker: "
-                            f"{trade.side} {trade.n_mnq} @ "
-                            f"{trade.entry_px:.2f}")
+                            f"{trade.side} {trade.n_mnq} MARKET")
             elif self.traderspost is not None:
                 try:
                     op = self.account.state.open_position
@@ -709,97 +660,46 @@ class FibRuntime:
                     setup_ref = (f"acct{self.account_id}_"
                                  f"{db_id or 'noid'}_"
                                  f"{int(now.timestamp())}")
-                    # Kill-switch: never forward bracket prices that
-                    # diverge from live market by >50pts. This catches
-                    # the case where the bot's bar pipeline silently
-                    # falls back to research/data_loader._synthetic() --
-                    # a random walk starting at $21,000 -- and computes
-                    # setups at prices that have no relation to reality.
-                    # When that happens, TradersPost auto-converts our
-                    # unreachable limit into a market entry that fills
-                    # at real price, but the bracket attaches at the
-                    # hallucinated stop level (e.g. 1300pts away), so
-                    # the position is effectively naked.
-                    # PriceMonitor's _CHAIN is Polygon-only now, so any
-                    # non-None snapshot is real-time. Skip trade if no
-                    # snap (Polygon outage -> bot shouldn't trade).
+                    # Kill-switch: skip if live price is too far from
+                    # strategy's view -- indicates stale/bad data, not a
+                    # real setup. With Polygon WS giving sub-second ticks
+                    # this should almost never trigger in practice.
                     live_snap = self.monitor.latest()
                     if live_snap is None:
                         logger.warning(
                             "[traderspost SKIP] no live price (Polygon "
-                            f"outage?) -- refusing to send bracket "
-                            f"entry={trade.entry_px:.2f}")
+                            f"outage?) -- refusing entry")
                         return
                     divergence = abs(trade.entry_px - live_snap.price)
                     if divergence > 10.0:
                         logger.error(
-                            f"[traderspost SKIP] bracket prices diverge "
-                            f"from live market by {divergence:.1f}pts "
-                            f"(entry={trade.entry_px:.2f} vs "
-                            f"live={live_snap.price:.2f}). TradersPost "
-                            f"would auto-convert the unreachable limit "
-                            f"to MARKET and anchor the bracket to the "
-                            f"stale strategy price -- effectively naked. "
-                            f"Not forwarding to broker.")
+                            f"[traderspost SKIP] strategy/live divergence "
+                            f"{divergence:.1f}pt "
+                            f"(strategy={trade.entry_px:.2f} vs "
+                            f"live={live_snap.price:.2f}) -- bad data, "
+                            f"not entering")
                         return
-                    # Use STRATEGY's intended prices (pullback level + brackets).
-                    # ---------------------------------------------------------
-                    # Previously we re-anchored entry+brackets to live tick,
-                    # which killed the pullback strategy's selectivity: every
-                    # setup fired at current market price (LIMIT at live ~=
-                    # market order), bypassing the strategy's requirement
-                    # that price actually retrace to the 0.618 level.
-                    # Result: 15.8% win rate vs ~49% backtest because the
-                    # bot was taking all the "false pullback" entries the
-                    # strategy was designed to skip.
-                    #
-                    # Now: send LIMIT at the strategy's pullback price. If
-                    # price doesn't actually retrace to it, limit doesn't
-                    # fill (TradersPost auto-cancels after 60s) -- trade
-                    # is correctly skipped. If price does retrace, fill is
-                    # at the intended level, brackets anchored correctly.
-                    #
-                    # The kill-switch above (10pt divergence) still prevents
-                    # the catastrophic mis-anchoring case (synthetic-data /
-                    # stale-bar producing wildly wrong prices). That's the
-                    # original problem live-anchor was solving; kill-switch
-                    # alone handles it now that Polygon WS gives fresh live
-                    # ticks for the comparison.
                     logger.info(
-                        f"[traderspost SEND] strategy {trade.entry_px:.2f}"
-                        f"/{trade.stop_px:.2f}/{trade.target_px:.2f} "
-                        f"(live {live_snap.price:.2f}, "
-                        f"divergence {trade.entry_px - live_snap.price:+.2f}pt)")
-                    # Send entry + stop + target all in one bracket payload.
-                    # Previously tried deferred-target (send entry+stop only,
-                    # then send target as separate limit after 10s) for
-                    # Lucid microscalp compliance -- but sentiment="flat"
-                    # on the deferred order was being interpreted by
-                    # TradersPost as "cancel bracket, replace with limit
-                    # exit", killing the stop. Result: trades ran 20-30pt
-                    # without stopping. Reverted to atomic bracket so the
-                    # stop is guaranteed to be on the broker.
-                    #
-                    # Microscalp risk mitigation: the strategy's MIN_TARGET_
-                    # HOLD_SECONDS=10 still applies to the bot's own
-                    # bookkeeping. <5s target fires on the broker side
-                    # would still count against Lucid -- but they're rare
-                    # in practice (would need a 12pt move in <5s, which is
-                    # already blocked by the news blackout filter). The
-                    # 40% microscalp circuit breaker is the safety net.
+                        f"[traderspost SEND MARKET] {trade.side} "
+                        f"{trade.n_mnq} (strategy intent: "
+                        f"entry={trade.entry_px:.2f} stop={trade.stop_px:.2f} "
+                        f"tgt={trade.target_px:.2f}, live={live_snap.price:.2f}; "
+                        f"subscription owns brackets)")
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
-                        entry_price=trade.entry_px,
-                        stop_price=trade.stop_px,
-                        target_price=trade.target_px,
                         setup_id=setup_ref,
                     )
-                    self._broker_stop_px = trade.stop_px
-                    self._broker_target_px = trade.target_px
-                    self._broker_side = trade.side
                     self._open_trade_ref = setup_ref
                     self._broker_entry_ts = now
-                    self._broker_target_sent = True  # sent inline, no defer
+                    # Broker-side stop/target unknown to us now (sub-
+                    # scription auto-attaches at fill +/- $6/$12). The
+                    # paper account still tracks intended levels for
+                    # dashboard display, but bot doesn't try to second-
+                    # guess the bracket.
+                    self._broker_stop_px = None
+                    self._broker_target_px = None
+                    self._broker_side = trade.side
+                    self._broker_target_sent = True  # nothing to defer
                 except Exception as te:
                     logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
@@ -817,49 +717,34 @@ class FibRuntime:
             tag = "SHADOW" if SHADOW_MODE else "LIVE"
             logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
                         f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
-            # BROKER EXIT POLICY -- the root-cause fix for paper-vs-broker
-            # divergence:
+            # BROKER EXIT POLICY -- bare-minimum integration
             #
-            # The broker already has the OCO bracket (stop-market +
-            # limit-target) from _on_trade_open, which fills at EXACT
-            # prices with tick-level accuracy on Tradovate's engine. The
-            # tick-level panic-close (in _tick, using live PriceMonitor
-            # ticks) is the real-time safety net that force-closes the
-            # instant live price hits the stop or target-0.5pt level.
+            # The subscription's OCO bracket (stop-market + take-profit
+            # limit at $12/$24 per contract) is the single source of
+            # truth for stop and target exits. The bracket fires
+            # tick-accurately on Tradovate's engine at the EXACT levels
+            # the subscription computed from actual fill price.
             #
-            # This _on_trade_close path runs off the bot's should_exit,
-            # which detects exits using the CLOSED BAR's high/low -- up
-            # to 60s stale. Sending a MARKET close here was SABOTAGING
-            # the broker's clean bracket: when a bar's high briefly
-            # touched target then reversed, should_exit booked the paper
-            # win (+$48) AND fired a stale market close that filled at the
-            # reversed (lower) price -- turning broker winners into losses
-            # while paper showed the clean win. This was the primary
-            # source of the paper-overstates-broker gap.
+            # The bot's should_exit detects exits from CLOSED 1-min
+            # bars -- up to 60s stale. Sending a MARKET close on bar-
+            # detected stop/target was the #1 cause of paper>broker
+            # divergence: bar's high touched target briefly, reversed,
+            # should_exit booked paper +$48 AND fired stale market
+            # close that filled at reversed price.
             #
-            # New policy: only forward an exit to the broker for TIMEOUT
-            # (the OCO bracket has no timeout equivalent). For stop and
-            # target, the bracket + tick-panic-close handle it at the
-            # right price and the right moment -- the stale bar close is
-            # suppressed. If the tick-panic-close already fired (ref
-            # matches), skip regardless of reason to avoid a double-close.
+            # Policy: only forward an exit on TIMEOUT (10-min max hold;
+            # the OCO bracket has no timeout equivalent). For stop and
+            # target, the broker bracket already owns the close --
+            # paper account books the strategy outcome for the dashboard,
+            # but we never send a competing signal that could race the
+            # bracket at a worse fill.
             reason = record.get("exit_reason", "manual")
-            panic_already_closed = (
-                self._panic_closed_ref is not None
-                and self._panic_closed_ref == self._open_trade_ref)
             if self._open_trade_ref is None:
                 pass  # broker never got the open; nothing to close
-            elif panic_already_closed:
-                logger.info(
-                    f"[traderspost CLOSE skip] tick-panic already "
-                    f"flattened {self._open_trade_ref} -- not double-closing")
             elif reason in ("stop", "target"):
-                # OCO bracket (and tick-panic-close) own these exits at
-                # the correct price. The stale bar-based market close
-                # would fill at a worse price and sabotage the bracket.
                 logger.info(
-                    f"[traderspost CLOSE skip] {reason} handled by broker "
-                    f"OCO bracket -- not sending stale bar market close")
+                    f"[traderspost CLOSE skip] {reason} owned by broker "
+                    f"OCO bracket -- subscription handles it at fill price")
             elif self.traderspost is not None:
                 # timeout / manual / auto-DLL: bracket has no equivalent,
                 # send the market close to flatten.
@@ -876,7 +761,6 @@ class FibRuntime:
                 except Exception as te:
                     logger.warning(f"traderspost submit_close failed: {te!r}")
             self._open_trade_ref = None
-            self._panic_closed_ref = None
             self._broker_stop_px = None
             self._broker_target_px = None
             self._broker_side = None

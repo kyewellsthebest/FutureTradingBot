@@ -94,48 +94,59 @@ class TradersPostBroker:
     # PUBLIC: bot lifecycle hooks
     # ------------------------------------------------------------------
     def submit_open(self, *, side: str, qty: int,
-                    entry_price: float, stop_price: float,
-                    target_price: Optional[float] = None,
                     setup_id: Optional[str] = None) -> WebhookResult:
-        """Send TradersPost a bracketed LIMIT entry.
+        """Send TradersPost a MARKET entry signal.
 
-        Caller passes ABSOLUTE prices (entry, stop, target). All three
-        get tick-rounded to 0.25 (NQ tick size) before send because
-        Tradovate silently rejects brackets at non-tick-aligned prices,
-        leaving the position naked.
+        Bare-minimum payload -- direction, quantity, market type. NO
+        prices, NO brackets. This is the canonical TradersPost design
+        pattern: subscription settings own the bracket logic ($12
+        stop-loss + $24 take-profit per contract). When the market
+        order fills, TradersPost auto-attaches the bracket relative to
+        the ACTUAL fill price.
 
-        target_price=None: send entry+stop ONLY, no take-profit bracket.
-        Caller must follow up with submit_target() to add the target
-        once the deferral window elapses. Used for Lucid microscalp
-        compliance: by deferring the broker's take-profit by 10s after
-        entry, we ensure the broker can't fire a target within Lucid's
-        microscalp window. NOTE: requires TradersPost subscription
-        configured to NOT auto-attach a default take-profit when one is
-        omitted from the payload (set TP amount to None, or rely on
-        "Allow signal override" passing through the missing field).
+        Why bare-minimum: previous architectures tried to send absolute
+        stop/target prices, deferred-target signals, and orderType
+        overrides to compensate for our incomplete understanding of
+        TradersPost's behavior. Each layer introduced bugs:
+          - Limit prices that didn't fill (paper booked phantom wins)
+          - Bracket prices that mis-anchored when fill differed
+          - Override toggles that we didn't fully control
+          - Deferred targets that wiped the stop bracket
+          - Bar-based close signals that raced the bracket
 
-        For the live bot, entry_price should be a LIVE tick price
-        (Polygon WS in PriceMonitor). bot/fib_main.py _on_trade_open
-        re-anchors the strategy's closed-bar prices to live monitor
-        before calling this. That ensures the bracket lands within
-        ~1-2pt of the actual broker fill instead of the 20-40pt off
-        observed when sending stale closed-bar prices.
+        By sending JUST direction+qty+market, the broker fills
+        immediately at current price, subscription attaches brackets
+        relative to that fill, and the OCO bracket lives on Tradovate
+        as the single source of truth for the trade's lifecycle. We
+        never need to send another signal until either (a) the bracket
+        fires (no action needed from us), or (b) a 10-min timeout
+        exhausts (we send a market flat to clean up).
+
+        REQUIREMENTS on the TradersPost subscription side:
+          - Stop loss type: Stop Market
+          - Stop loss amount: $12 per contract
+          - Take profit amount: $24 per contract
+          - Entry order type: Market
+          - Allow signal override on quantity: Yes
+          - Allow signal override on stop/target amounts: No (force
+            subscription to own brackets, ignore our payload's silence)
+
+        Timing: caller (fib_main._on_trade_open) is responsible for
+        deciding WHEN to fire this signal. The strategy fires the
+        signal when price has reached the 0.618 pullback level on a
+        closed bar. The market entry fills at whatever current price
+        is when TradersPost forwards -- typically very close to the
+        bar's close.
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
         payload = {
-            "ticker":     self.ticker,
-            "action":     action,
-            "sentiment":  sentiment,
-            "quantity":   int(qty),
-            "price":      _tick_round(entry_price),
-            "orderType":  "limit",
-            "stopLoss":   {"type": "stop",
-                           "stopPrice": _tick_round(stop_price)},
-            "timeInForce": "Day",
+            "ticker":    self.ticker,
+            "action":    action,
+            "sentiment": sentiment,
+            "quantity":  int(qty),
+            "orderType": "market",
         }
-        if target_price is not None:
-            payload["takeProfit"] = {"limitPrice": _tick_round(target_price)}
         if setup_id:
             payload["orderRef"] = setup_id
         return self._post(payload)
