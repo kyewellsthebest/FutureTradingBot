@@ -820,6 +820,124 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     return None
 
 
+def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
+                     live_price: float, now: datetime, *,
+                     n_mnq: int = DEFAULT_SIZE,
+                     params: Optional[dict] = None,
+                     calendar=None) -> bool:
+    """Tick-level entry trigger -- fire pending pullback setups the
+    INSTANT live price touches the pullback level, instead of waiting
+    for the 1-min bar to close.
+
+    Old flow (bar-only):
+      t=0:    bar closes, setup detected
+      t=0-60: price retraces to pullback level mid-bar
+      t=60:   next bar closes, is_filled() sees high/low touched
+              pullback -> trade fires
+      Total latency: up to 60s between price touching pullback and
+      bot's entry signal reaching the broker.
+
+    New flow (tick + bar):
+      t=0:    bar closes, setup detected (unchanged)
+      t=12:   live tick from Polygon WS shows price touched pullback
+              -> trade fires immediately
+      Total latency: ~0.5s (Polygon WS tick + bot _tick poll interval).
+
+    The bar-based on_new_1m_bar() firing path still exists as a
+    backstop. If a tick is missed (e.g. PriceMonitor down), the bar's
+    high/low will catch the touch on the next close. Defense in depth.
+
+    Returns True if a trade was opened on this tick (state.active_trade
+    is now set), False otherwise. Caller (fib_main._tick) should call
+    its _on_trade_open hook when True.
+
+    SAFETY: applies the SAME pre-flight checks as the bar-based fire
+    path -- circuit breaker, manual pause, auto-DLL, cooldown, Lucid
+    closed window, news blackout, Lucid precheck. Single source of
+    truth for "may we trade right now."
+    """
+    if state.active_trade is not None:
+        return False  # already in a trade
+    if not state.pending_setups:
+        return False
+    if state.circuit_breaker_tripped:
+        return False
+    # Manual / auto pause -- same gates as on_new_1m_bar
+    p = _get_manual_pause_state()
+    if p.get("paused"):
+        return False
+    try:
+        _check_auto_daily_loss(lucid, now)
+    except Exception:
+        pass
+    p = _get_manual_pause_state()
+    if p.get("paused"):
+        return False
+    # Cooldown
+    if state.last_trade_close_ts is not None:
+        if (now - state.last_trade_close_ts).total_seconds() < COOLDOWN_SECS:
+            return False
+    # Lucid trading window
+    if _in_lucid_closed_window(now):
+        return False
+    # News blackout
+    blackout = _news_blackout_reason(now, calendar)
+    if blackout is not None:
+        for s in state.pending_setups:
+            if not s.used:
+                s.last_block_reason = blackout
+                s.last_block_at = now
+        return False
+
+    # Find a setup whose pullback level has been touched by the live tick.
+    # LIMIT semantics: LONG fires when price comes DOWN to pullback;
+    # SHORT fires when price goes UP to pullback.
+    fired = None
+    for setup in state.pending_setups:
+        if setup.used:
+            continue
+        if setup.is_invalidated(now):
+            continue
+        if setup.side == "LONG" and live_price <= setup.pullback_entry:
+            fired = setup
+            break
+        if setup.side == "SHORT" and live_price >= setup.pullback_entry:
+            fired = setup
+            break
+    if fired is None:
+        return False
+
+    # Lucid precheck
+    decision = lucid_precheck(fired, n_mnq, lucid)
+    if not decision.allowed:
+        if decision.reason != fired.last_block_reason:
+            logger.info("[BLOCKED tick] %s reason=%s", fired.side, decision.reason)
+        fired.last_block_reason = decision.reason
+        fired.last_block_at = now
+        return False
+    size_to_use = decision.suggested_n if decision.suggested_n > 0 else n_mnq
+
+    # Open the trade. The bot's entry to the broker is a MARKET order
+    # (subscription owns the bracket distances). Paper account books
+    # at the pullback level for clean strategy outcome tracking; broker
+    # executes at current tick. The two will differ by ~0-1pt typically,
+    # which is acceptable.
+    entry_px = float(fired.pullback_entry)
+    new_trade = open_trade(fired, size_to_use, entry_px, now)
+    if fired.armed_at_ts is None:
+        fired.armed_at_ts = now
+        fired.entry_armed = True
+    fired.fire_attempted = True
+    state.active_trade = new_trade
+    fired.used = True
+    state.recent_used_setups.append(_setup_key(fired))
+    logger.info("[OPEN tick] %s %d MNQ pullback=%.2f live=%.2f "
+                "stop=%.2f tgt=%.2f",
+                fired.side, size_to_use, entry_px, live_price,
+                fired.stop_px_val, fired.target_px_val)
+    return True
+
+
 def _get_manual_pause_state() -> dict:
     """Safe wrapper -- never let a snapshot read crash the bot loop."""
     try:

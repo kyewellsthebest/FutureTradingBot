@@ -55,6 +55,68 @@ def _url_id(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:8]
 
 
+def _extract_fill_info(text: str) -> dict:
+    """Defensively extract anything fill-related from a TradersPost
+    response body. The exact JSON shape varies by broker (Tradovate,
+    Alpaca, etc.) and TradersPost version, so we use heuristics:
+
+      - Look for common keys: fillPrice, fill_price, filledAt,
+        avgPrice, fillAvgPrice, executionPrice, brokerageOrders[]
+      - Capture all numeric values that look like NQ-range prices
+        (10000-40000) so a future pass can correlate them
+      - Capture any order/transaction IDs we see
+
+    Returns a dict that always has the same keys (filled with None /
+    [] if nothing found), so downstream code can read it without
+    isinstance() checks.
+    """
+    out = {
+        "fill_price": None,
+        "broker_order_id": None,
+        "trader_post_id": None,
+        "candidate_prices": [],
+        "ids": [],
+    }
+    if not text:
+        return out
+    try:
+        data = json.loads(text)
+    except Exception:
+        # Not JSON. Skip structured parse; regex over text might still
+        # work for ID-looking strings but skip for now.
+        return out
+    # Walk the JSON structure looking for fill-related keys.
+    fill_keys = {
+        "fillPrice", "fill_price", "filledAt", "avgPrice",
+        "fillAvgPrice", "executionPrice", "filledPrice",
+        "price",
+    }
+    id_keys = {
+        "id", "orderId", "order_id", "transactionId", "ticketId",
+        "brokerageOrderId", "external_id",
+    }
+    def _walk(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in fill_keys and isinstance(v, (int, float)):
+                    out["candidate_prices"].append({"key": k, "value": float(v)})
+                    if out["fill_price"] is None and 10000 < v < 50000:
+                        out["fill_price"] = float(v)
+                if k in id_keys and isinstance(v, (str, int)):
+                    out["ids"].append({"key": k, "value": str(v)})
+                _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+    _walk(data)
+    # Pick the first id-looking value for the top-level shortcuts
+    if out["ids"]:
+        out["broker_order_id"] = out["ids"][0]["value"]
+        if len(out["ids"]) > 1:
+            out["trader_post_id"] = out["ids"][1]["value"]
+    return out
+
+
 def _tick_round(px: float, tick: float = 0.25) -> float:
     """Round to nearest NQ tick (0.25 pt). Tradovate / TradersPost can
     silently reject brackets whose prices aren't tick-aligned, leaving
@@ -236,6 +298,12 @@ class TradersPostBroker:
             log_dir = _os.environ.get("TRADERSPOST_AUDIT_DIR",
                                        "/home/user/HFTBot/data")
             log_path = f"{log_dir}/traderspost_audit.jsonl"
+            # Try to extract structured fill data from the response body
+            # so we don't have to re-parse it every time we read the log.
+            # TradersPost responses vary by broker; defensively scan for
+            # the common field names. Captures ALL price-looking numbers
+            # so a future analysis pass can cross-reference against paper.
+            extracted = _extract_fill_info(result.response_text or "")
             row = {
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "kind": kind,
@@ -246,6 +314,7 @@ class TradersPostBroker:
                 "error": result.error,
                 "payload": payload,
                 "response": (result.response_text or "")[:500],
+                "extracted": extracted,
             }
             with open(log_path, "a") as f:
                 f.write(json.dumps(row, default=str) + "\n")

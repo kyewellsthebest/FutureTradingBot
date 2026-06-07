@@ -445,6 +445,42 @@ class FibRuntime:
         snap = self.monitor.snapshot_and_reset()
         in_trade = self.state.active_trade is not None
 
+        # ------------------------------------------------------------------
+        # TICK-LEVEL ENTRY TRIGGER
+        # ------------------------------------------------------------------
+        # If there are pending pullback setups armed by a previously
+        # closed bar, check if live tick has touched the pullback level
+        # NOW (instead of waiting for the next bar to close, up to 60s
+        # later).
+        #
+        # This is the missing piece between strategy and execution:
+        #   Strategy fires setups on closed bars.
+        #   Polygon WS gives us tick-level price data.
+        #   Without this hook, the bot would WAIT 0-60s after the
+        #   pullback level was actually touched to send the entry --
+        #   by which time price has often moved off the level.
+        #
+        # With this hook, the bot fires within the PriceMonitor poll
+        # interval (typically <1s of the actual tick) and the broker's
+        # market entry fills at near-pullback price. Most of the paper-
+        # vs-broker timing gap goes away.
+        if (not in_trade and snap is not None
+                and self.state.pending_setups):
+            from bot.account_ctx import get_strategy_params
+            from bot.pullback_strategy import try_fire_on_tick
+            runtime_lucid = self.account._build_runtime_lucid_state()
+            fired = try_fire_on_tick(
+                state=self.state, lucid=runtime_lucid,
+                live_price=float(snap.price), now=now,
+                n_mnq=N_MNQ,
+                params=get_strategy_params(self.account_id),
+                calendar=self.news_calendar,
+            )
+            if fired:
+                self.signals_fired += 1
+                self._on_trade_open(self.state.active_trade, now)
+                in_trade = True  # we're in a trade now
+
         # Tick-level panic-close REMOVED.
         # ----------------------------------------------------------------
         # Was a workaround for the bracket-mis-anchored bug class. With
