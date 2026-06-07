@@ -74,7 +74,7 @@
   <nav class="tabs">
     <button class="tab active" data-tab="live">Live</button>
     <button class="tab" data-tab="chart">Chart</button>
-    <button class="tab" data-tab="strategy">Strategy</button>
+    <button class="tab" data-tab="broker">Broker</button>
     <button class="tab" data-tab="performance">Performance</button>
     <button class="tab" data-tab="funded">Funded</button>
     <button class="tab" data-tab="trades">Trades</button>
@@ -203,44 +203,97 @@
     </section>
 
     <!-- ─── STRATEGY ───────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-strategy">
-      <div class="grid">
+    <section class="tabpane" id="pane-broker">
+      <!-- Status strip: at-a-glance is broker working? -->
+      <div class="grid grid-3">
         <div class="card">
-          <div class="card-header">Strategy Rules</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Entry timeframe</span><b>1-min bars (real Polygon when available, synth fallback)</b></div>
-            <div class="kv-row"><span>Signal</span><b>≥5 NQ-pt net move over last 4 bars</b></div>
-            <div class="kv-row"><span>Entry</span><b>LIMIT @ 0.618 retracement</b></div>
-            <div class="kv-row"><span>Setup expiry</span><b>5 minutes</b></div>
-            <div class="kv-row"><span>Stop</span><b>6 NQ pts from entry</b></div>
-            <div class="kv-row"><span>Target</span><b id="strat-target">—</b></div>
-            <div class="kv-row"><span>Default size</span><b>2 MNQ</b></div>
-            <div class="kv-row"><span>Min target hold</span><b>10 s (Lucid microscalp safety)</b></div>
-            <div class="kv-row"><span>Stops fire</span><b>Immediately</b></div>
-            <div class="kv-row"><span>Max hold</span><b>10 minutes</b></div>
-            <div class="kv-row"><span>Cooldown</span><b>60 seconds between trades</b></div>
+          <div class="card-header">TradersPost Connection</div>
+          <div class="card-body">
+            <div class="big-stat" id="broker-status">—</div>
+            <div class="big-stat-label" id="broker-status-sub">Initializing…</div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header">Live Execution Cost Model</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Entry slippage</span><b>0 pt (LIMIT semantics)</b></div>
-            <div class="kv-row"><span>Stop adverse slip</span><b>0.25 pt (1 MNQ tick)</b></div>
-            <div class="kv-row"><span>Commission</span><b>$0.74 / MNQ round-trip</b></div>
-            <div class="kv-row"><span>Latency</span><b>200 ms (signal → fill scan)</b></div>
-            <div class="kv-row"><span>Tunable via env</span><b class="muted">FIB_COMM_PER_MNQ_RT, FIB_ADVERSE_SLIP_PTS, FIB_ENTRY_SLIP_PTS</b></div>
+          <div class="card-header">Signals (last hour)</div>
+          <div class="card-body">
+            <div class="big-stat" id="broker-signals-count">—</div>
+            <div class="big-stat-label">
+              <span id="broker-signals-ok" class="pos">0 ok</span> ·
+              <span id="broker-signals-fail" class="neg">0 fail</span>
+            </div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header">Backtest Validation · 3-mo NQ tick, 8,647 trades</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Median return / mo (Monte Carlo)</span><b class="pos" id="strat-baseline-ret-mc">+27.04%</b></div>
-            <div class="kv-row"><span>5-95% confidence range</span><b id="strat-baseline-range">+22.67% to +31.76%</b></div>
-            <div class="kv-row"><span>P(positive month)</span><b class="pos">100%</b></div>
-            <div class="kv-row"><span>P(≥10% / mo)</span><b class="pos">100%</b></div>
-            <div class="kv-row"><span>P(DD breaches $2K trail)</span><b class="pos" id="strat-baseline-trail">0.2%</b></div>
-            <div class="kv-row"><span>OOS split-half (train / val)</span><b id="strat-baseline-oos">+12.59% / +30.13%</b></div>
+          <div class="card-header">Open Trade Ref</div>
+          <div class="card-body">
+            <div class="big-stat mono small" id="broker-current-ref">none</div>
+            <div class="big-stat-label" id="broker-current-status">no active trade</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Paper vs broker reconciliation -->
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header">Paper vs Broker · Today</div>
+          <div class="card-body kv-list">
+            <div class="kv-row"><span>Dashboard "TODAY" (paper)</span><b id="recon-paper-today">—</b></div>
+            <div class="kv-row"><span>Dashboard trades today</span><b id="recon-paper-trades">—</b></div>
+            <div class="kv-row"><span>Broker signals sent today</span><b id="recon-broker-sent">—</b></div>
+            <div class="kv-row"><span>Broker signals OK today</span><b id="recon-broker-ok">—</b></div>
+            <div class="kv-row"><span>Broker signals failed today</span><b id="recon-broker-fail">—</b></div>
+            <div class="kv-row"><span>Open / target / close ratio</span><b id="recon-broker-kinds" class="mono">—</b></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Subscription Required Config</div>
+          <div class="card-body kv-list small-muted">
+            <div class="kv-row"><span>Entry order type</span><b>Market</b></div>
+            <div class="kv-row"><span>Stop loss type</span><b>Stop Market</b></div>
+            <div class="kv-row"><span>Stop loss amount</span><b>$12 / contract</b></div>
+            <div class="kv-row"><span>Take profit amount</span><b>$24 / contract</b></div>
+            <div class="kv-row"><span>Allow override: quantity</span><b>Yes</b></div>
+            <div class="kv-row"><span>Allow override: stop loss</span><b class="neg">No</b></div>
+            <div class="kv-row"><span>Allow override: take profit</span><b class="neg">No</b></div>
+            <div class="kv-row"><span>Reject if signal older than</span><b>empty</b></div>
+            <div class="kv-row"><span>Cancel open exit after delay</span><b>empty</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live audit feed -->
+      <div class="card">
+        <div class="card-header">
+          Audit Feed · last 20 broker interactions
+          <button class="btn-period" id="btn-refresh-audit" style="float:right;margin-top:-4px">⟳ Refresh</button>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div class="table-wrap">
+            <table class="data-table" id="broker-audit-table">
+              <thead><tr>
+                <th>Time</th>
+                <th>Kind</th>
+                <th>Ref</th>
+                <th>Status</th>
+                <th>Action / Qty</th>
+                <th>Response</th>
+              </tr></thead>
+              <tbody><tr><td colspan="6" class="muted center" style="padding: 24px;">No audit entries yet. Will populate on first trade after deploy.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reference (collapsed) -->
+      <div class="card">
+        <div class="card-header">Strategy Reference</div>
+        <div class="card-body kv-list">
+          <div class="kv-row"><span>Strategy</span><b>Pullback Impulse (1-min bars)</b></div>
+          <div class="kv-row"><span>Entry</span><b>MARKET when price touches 0.618 retracement</b></div>
+          <div class="kv-row"><span>Stop</span><b>6 pt from broker fill (subscription owns)</b></div>
+          <div class="kv-row"><span>Target</span><b>12 pt from broker fill (subscription owns)</b></div>
+          <div class="kv-row"><span>Default size</span><b>2 MNQ</b></div>
+          <div class="kv-row"><span>Cooldown / max hold</span><b>60 s / 10 min</b></div>
         </div>
       </div>
     </section>

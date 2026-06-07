@@ -245,6 +245,10 @@ body::after {
 .muted { color: var(--text-mute); }
 .dim   { color: var(--text-dim); }
 .center { text-align: center; }
+.small { font-size: 12px; }
+.big-stat.small { font-size: 18px; line-height: 1.3; word-break: break-all; }
+/* Broker tab: tighter kv lists for reference cards */
+.small-muted .kv-row b { color: var(--text-soft); font-weight: 500; }
 
 a { color: inherit; }
 button { font-family: inherit; }

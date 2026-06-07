@@ -127,28 +127,54 @@ document.addEventListener("DOMContentLoaded", () => {
 async function _doResetAccount() {
   const btn = document.getElementById("btn-reset-account");
   if (!btn) return;
-  const msg = "RESET THIS ACCOUNT?\n\n" +
-              "This deletes ALL trade history, balance state, snapshots, " +
-              "and pause flags for the currently selected account, and " +
-              "removes any orphan account_2/3 data directories.\n\n" +
-              "Next bot cycle will start fresh at $50,000.\n\n" +
-              "There is no undo.";
-  if (!confirm(msg)) return;
-  if (!confirm("Are you absolutely sure? Click OK to reset.")) return;
+  // Step 1: get the starting balance the user wants.
+  const balStr = prompt(
+    "RESET THIS ACCOUNT\n\n" +
+    "Enter the starting balance for the fresh account.\n" +
+    "Any whole-dollar amount from $1 to $1,000,000.\n\n" +
+    "Examples: 50000, 100000, 52719, 23909\n\n" +
+    "(Leave empty and click OK for $50,000 default.)",
+    "50000"
+  );
+  if (balStr === null) return;   // user cancelled
+  let startingBalance = 50000;
+  if (balStr.trim() !== "") {
+    const v = parseFloat(balStr.replace(/[,$\s]/g, ""));
+    if (!isFinite(v) || v <= 0 || v > 1_000_000) {
+      alert("Invalid balance. Must be a positive number up to 1,000,000.");
+      return;
+    }
+    startingBalance = v;
+  }
+  // Step 2: confirm.
+  const confirmMsg =
+    `RESET CONFIRMATION\n\n` +
+    `Starting balance will be: $${startingBalance.toLocaleString()}\n\n` +
+    `This deletes ALL trade history, balance state, snapshots, and pause ` +
+    `flags for the currently selected account. There is no undo.\n\n` +
+    `Click OK to proceed.`;
+  if (!confirm(confirmMsg)) return;
+  // Step 3: password.
   const pwd = prompt("Enter reset password:");
   if (pwd === null) return;   // user cancelled
   btn.disabled = true;
   const prev = btn.textContent;
   btn.textContent = "Resetting…";
   try {
-    const url = af("/api/admin/reset_all?confirm=YES&password=" +
-                    encodeURIComponent(pwd));
+    const url = af(
+      "/api/admin/reset_all?confirm=YES" +
+      "&password=" + encodeURIComponent(pwd) +
+      "&starting_balance=" + encodeURIComponent(startingBalance)
+    );
     const r = await fetch(url, { method: "POST" });
     const j = await r.json();
     if (r.ok && j.ok) {
-      alert("Account reset.\n\nFiles deleted: " + (j.deleted || []).length +
-            "\n\nThe bot will recreate a fresh $50k account on its next cycle. " +
-            "Reloading the dashboard now.");
+      alert(
+        `Account reset to $${startingBalance.toLocaleString()}.\n\n` +
+        `Files deleted: ${(j.deleted || []).length}\n\n` +
+        `The bot will pick up the reset on its next cycle. ` +
+        `Reloading the dashboard now.`
+      );
       // Wipe local caches and reload.
       try {
         state = { data: null, candles: null, trades: null };
@@ -381,6 +407,10 @@ function activateTab(name) {
   if (name === "performance") {
     _resetChartAnimations();   // re-play entrance animations each visit
     renderPerformanceGraphs();
+  }
+  // refresh broker view when opening
+  if (name === "broker") {
+    renderBrokerView();
   }
 }
 document.querySelectorAll(".tab").forEach(t => {
@@ -1995,6 +2025,155 @@ function drawWinLossHistogram(trades) {
   });
 }
 
+// ---- Broker tab ---------------------------------------------------------
+// Renders the broker audit feed and paper-vs-broker reconciliation. Pulls
+// from /api/audit (the JSONL log every TradersPost call writes). Lets the
+// user see ground truth -- what we sent, what came back, whether the
+// broker is actually doing what the bot intended.
+async function renderBrokerView() {
+  try {
+    // Pull last hour summary + last 20 raw rows in parallel.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+    const oneHrAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const [rRecent, rSummaryHr, rSummaryDay] = await Promise.all([
+      fetch(af(`/api/audit?n=20`)).then(r => r.json()).catch(() => null),
+      fetch(af(`/api/audit?summary=1&since=${oneHrAgo}`)).then(r => r.json()).catch(() => null),
+      fetch(af(`/api/audit?summary=1&since=${todayIso}`)).then(r => r.json()).catch(() => null),
+    ]);
+    _renderBrokerStatusStrip(rSummaryHr, rRecent);
+    _renderBrokerReconciliation(state.data, rSummaryDay);
+    _renderBrokerAuditTable(rRecent);
+  } catch (e) {
+    console.warn("renderBrokerView failed", e);
+  }
+}
+
+function _renderBrokerStatusStrip(summaryHr, recent) {
+  const statusEl = document.getElementById("broker-status");
+  const statusSubEl = document.getElementById("broker-status-sub");
+  const countEl = document.getElementById("broker-signals-count");
+  const okEl = document.getElementById("broker-signals-ok");
+  const failEl = document.getElementById("broker-signals-fail");
+  if (!statusEl) return;
+
+  const rows = (recent && recent.rows) || [];
+  const hourTotals = (summaryHr && summaryHr.by_status) || { ok: 0, fail: 0 };
+
+  // Connection status: green if recent OK; red if recent failures
+  if (rows.length === 0) {
+    statusEl.textContent = "Idle";
+    statusEl.className = "big-stat muted";
+    statusSubEl.textContent = "No broker interactions yet";
+  } else {
+    const lastRow = rows[rows.length - 1];
+    const lastOk = lastRow.ok;
+    const lastTs = lastRow.ts ? new Date(lastRow.ts).toLocaleTimeString() : "?";
+    if (lastOk) {
+      statusEl.textContent = "OK";
+      statusEl.className = "big-stat pos";
+      statusSubEl.textContent = `Last interaction ${lastTs} (${lastRow.kind})`;
+    } else {
+      statusEl.textContent = "ERROR";
+      statusEl.className = "big-stat neg";
+      statusSubEl.textContent = `Last failure ${lastTs}: ${lastRow.error || lastRow.status || "unknown"}`;
+    }
+  }
+  // Hour totals
+  countEl.textContent = (hourTotals.ok || 0) + (hourTotals.fail || 0);
+  okEl.textContent = `${hourTotals.ok || 0} ok`;
+  failEl.textContent = `${hourTotals.fail || 0} fail`;
+
+  // Current open trade ref
+  const refEl = document.getElementById("broker-current-ref");
+  const refStatusEl = document.getElementById("broker-current-status");
+  const at = (state.data && state.data.fib && state.data.fib.active_trade) || null;
+  if (at) {
+    refEl.textContent = at.setup_ref || at.orderRef || "(no ref)";
+    refStatusEl.textContent = `${at.side} ${at.n_mnq} MNQ open`;
+  } else {
+    refEl.textContent = "none";
+    refStatusEl.textContent = "no active trade";
+  }
+}
+
+function _renderBrokerReconciliation(dashData, summaryDay) {
+  // Paper side
+  const paperTodayEl = document.getElementById("recon-paper-today");
+  const paperTradesEl = document.getElementById("recon-paper-trades");
+  if (dashData) {
+    const allT = _allTradesCache.trades || [];
+    const todayStr = new Date().toDateString();
+    const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
+    const today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+    if (paperTodayEl) {
+      paperTodayEl.textContent = fmtUsd(today);
+      paperTodayEl.className = today > 0 ? "pos" : today < 0 ? "neg" : "";
+    }
+    if (paperTradesEl) paperTradesEl.textContent = todayTrades.length;
+  }
+  // Broker side
+  const sentEl = document.getElementById("recon-broker-sent");
+  const okEl = document.getElementById("recon-broker-ok");
+  const failEl = document.getElementById("recon-broker-fail");
+  const kindsEl = document.getElementById("recon-broker-kinds");
+  const sd = summaryDay || {};
+  const byStatus = sd.by_status || { ok: 0, fail: 0 };
+  const byKind = sd.by_kind || {};
+  const total = (byStatus.ok || 0) + (byStatus.fail || 0);
+  if (sentEl) sentEl.textContent = total;
+  if (okEl) {
+    okEl.textContent = byStatus.ok || 0;
+    okEl.className = (byStatus.ok || 0) > 0 ? "pos" : "";
+  }
+  if (failEl) {
+    failEl.textContent = byStatus.fail || 0;
+    failEl.className = (byStatus.fail || 0) > 0 ? "neg" : "";
+  }
+  if (kindsEl) {
+    kindsEl.textContent =
+      `${byKind.open || 0} / ${byKind.target || 0} / ${byKind.close || 0}`;
+  }
+}
+
+function _renderBrokerAuditTable(recent) {
+  const tbody = document.querySelector("#broker-audit-table tbody");
+  if (!tbody) return;
+  const rows = (recent && recent.rows) || [];
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted center" style="padding: 24px;">No audit entries yet.</td></tr>';
+    return;
+  }
+  // Most recent first
+  const sorted = rows.slice().reverse();
+  tbody.innerHTML = sorted.map(r => {
+    const t = r.ts ? new Date(r.ts).toLocaleTimeString() : "—";
+    const status = r.ok
+      ? `<span class="pos">✓ ${r.status || "ok"}</span>`
+      : `<span class="neg">✗ ${r.status || r.error || "fail"}</span>`;
+    const p = r.payload || {};
+    const action = `${p.action || "?"} ${p.quantity || "?"}${p.orderType ? " · " + p.orderType : ""}`;
+    const resp = (r.response || "").substring(0, 80);
+    const respDisplay = resp.length >= 80 ? resp + "…" : resp;
+    const ref = r.ref || "—";
+    return `<tr>
+      <td class="mono small">${t}</td>
+      <td><b>${r.kind || "?"}</b></td>
+      <td class="mono small" title="${ref}">${ref.substring(0, 24)}</td>
+      <td>${status}</td>
+      <td>${action}</td>
+      <td class="mono small">${respDisplay}</td>
+    </tr>`;
+  }).join("");
+}
+
+// Wire the refresh button once on load
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btn-refresh-audit");
+  if (btn) btn.addEventListener("click", renderBrokerView);
+});
+
 // ---- Master render ------------------------------------------------------
 function renderAll() {
   if (!state.data) return;
@@ -2006,4 +2185,10 @@ function renderAll() {
   updateChartMarkers();
   updateSetupLines();
   updateTradeLineSegments();
+  // Only re-render broker view if it's currently visible (cheap to keep
+  // fresh; avoids unnecessary work otherwise)
+  const brokerPane = document.getElementById("pane-broker");
+  if (brokerPane && brokerPane.classList.contains("active")) {
+    renderBrokerView();
+  }
 }
