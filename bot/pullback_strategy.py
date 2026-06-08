@@ -30,6 +30,7 @@ Position size: FIXED at 1 MNQ.
 from __future__ import annotations
 
 import logging
+import os
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -40,6 +41,16 @@ import pandas as pd
 from research.lucid_guard import LucidState, GuardDecision
 
 logger = logging.getLogger("pullback_strategy")
+
+# Env override: BOT_HTF_TREND_FILTER=0 disables the HTF trend gate entirely.
+# Use when the filter is wedging trades (e.g. choppy days where pivots flip
+# every few bars and reject every setup direction). Default ON.
+_HTF_FILTER_ENV = os.environ.get("BOT_HTF_TREND_FILTER", "1") != "0"
+# Fractal-pivot half-window for HTF trend on 1-min bars. Design intent was
+# k=30 (~30 min trend confirmation) per the fib_main comment; was previously
+# hardcoded to 5, which made the trend flip on every minor wiggle and gated
+# 100% of setups on chop days. Override with BOT_HTF_K env var.
+_HTF_K = int(os.environ.get("BOT_HTF_K", "30"))
 
 
 # ============================================================================
@@ -693,9 +704,12 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     # Computed from the most recent two confirmed major pivots (k=5
     # fractal on the bars_trend series). Toggleable via params for A/B.
     htf_trend = "FLAT"
-    htf_filter_enabled = bool((params or {}).get("HTF_TREND_FILTER", True))
-    if htf_filter_enabled and bars_trend is not None and len(bars_trend) >= 11:
-        htf_trend = _compute_htf_trend(bars_trend, htf_k=5)
+    htf_filter_enabled = (
+        bool((params or {}).get("HTF_TREND_FILTER", True))
+        and _HTF_FILTER_ENV
+    )
+    if htf_filter_enabled and bars_trend is not None and len(bars_trend) >= 2 * _HTF_K + 1:
+        htf_trend = _compute_htf_trend(bars_trend, htf_k=_HTF_K)
         state.htf_trend = htf_trend  # surface to dashboard
 
     # 3. DETECT new setup from latest 1-min bar history
