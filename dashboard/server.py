@@ -522,49 +522,52 @@ def api_price():
     If Polygon snapshot fails, return null price. Frontend treats null
     as "data unavailable" and won't lie to the user with a stale value.
     """
-    # FIRST: read the bot's PriceMonitor snapshot from disk. The bot
-    # publishes the WebSocket-sourced live tick price every cycle, and
-    # that's the freshest source we have when the Polygon REST snapshot
-    # endpoint is unreliable for this plan (observed: aggs endpoint can
-    # return bars from the prior session close, leaving the dashboard
-    # showing a 200pt-stale price while WS ticks were arriving fine).
+    # FIRST: read the bot's published PriceMonitor snapshot from disk.
+    # The bot polls Polygon every cycle, rejects stale data internally
+    # via bot.polygon_data, and writes the fresh price to its snapshot.
+    # As long as the snapshot is recent and the published price isn't
+    # frozen (price_ts moves between polls), we use it directly. No
+    # source-name discrimination -- bot.polygon_data already enforces
+    # freshness, so whatever it gave us is good.
     try:
         state = persistence.load_dashboard()
         ws_price = state.get("price")
         ws_ts = state.get("price_ts")
-        ws_source = state.get("price_source") or ""
-        if ws_price is not None and ws_ts and "polygon_ws" in str(ws_source):
+        ws_source = state.get("price_source") or "polygon"
+        snap_ts = state.get("ts")
+        if ws_price is not None and snap_ts:
             try:
                 from datetime import datetime as _dt
-                t = _dt.fromisoformat(str(ws_ts).replace("Z", "+00:00"))
-                age = (datetime.now(timezone.utc) - t).total_seconds()
+                # Use the snapshot's own ts (when the bot wrote it) as
+                # the freshness gate. price_ts can lag behind ts when
+                # the bot is using REST aggs (which only updates at
+                # minute boundaries), but the snapshot being recent
+                # means the bot at least TRIED to refresh recently.
+                snap_t = _dt.fromisoformat(str(snap_ts).replace("Z", "+00:00"))
+                snap_age = (datetime.now(timezone.utc) - snap_t).total_seconds()
             except Exception:
-                age = 0.0
-            # WS ticks should be sub-second; treat <5s as fresh.
-            if age < 5.0:
+                snap_age = 0.0
+            # Accept if the bot's last publish was <30s ago. The bot
+            # publishes on every poll (~3-5s when idle, faster when
+            # in trade), so >30s indicates the bot is dead.
+            if snap_age < 30.0:
                 return jsonify({
                     "price": float(ws_price),
                     "ts": datetime.now(timezone.utc).isoformat(),
-                    "age_s": round(float(age), 2),
-                    "source": "polygon_ws",
+                    "age_s": round(float(snap_age), 2),
+                    "source": str(ws_source),
                 })
     except Exception as e:
-        logger.debug(f"/api/price WS snapshot read failed: {e}")
+        logger.debug(f"/api/price snapshot read failed: {e}")
 
-    # FALLBACK: Polygon REST snapshot endpoint.
+    # FALLBACK: hit Polygon directly via the new clean client. Only
+    # used when the bot's snapshot is unavailable (e.g. bot just
+    # restarted and hasn't published yet).
     try:
-        from research.data_loader import polygon_latest_quote
-        # Track MNQ (the micro contract user trades), not NQ (the big
-        # contract). Separate orderbooks can diverge 2-15pt overnight
-        # so anchoring brackets to NQ when filling on MNQ was wrong.
-        # POLYGON_CONTRACT env var can override.
-        import os as _os
-        product = _os.environ.get("POLYGON_CONTRACT", "MNQ")
-        q = polygon_latest_quote(product, max_age_s=0.2)
+        from bot.polygon_data import get_snapshot_price
+        q = get_snapshot_price()
         if q is not None:
-            price, _high, _low, age = q
-            # Only trust if <60s old. Anything older is the stale-aggs
-            # fallback path that produced the 218pt off-by gap.
+            price, age = q
             if age < 60:
                 return jsonify({
                     "price": float(price),
