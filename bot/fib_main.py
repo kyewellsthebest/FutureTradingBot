@@ -553,17 +553,15 @@ class FibRuntime:
         if self._bars_1m is None or self._bars_1m.empty:
             return
 
-        # Bar-staleness guard. If the latest historical bar's timestamp
-        # is more than STALE_BAR_MAX_AGE_S behind real time, the strategy
-        # would detect setups at prices that no longer relate to the
-        # market. Observed in production: bars stuck at 28989 close while
-        # MNQM6 was trading at 29207 (218pt gap). The strategy would
-        # arm SHORT pullback setups at 28999 that the real market would
-        # never touch -- and even if a market entry forced through, the
-        # bracket would be anchored 200pt away from the fill.
-        # Refuse to evaluate the strategy when bars are stale; the kill-
-        # switch in _on_trade_open (10pt divergence) catches it at the
-        # broker boundary but stops paper booking phantom setups too.
+        # Bar-staleness guard with WS-tick fallback.
+        # ------------------------------------------------------------
+        # If the latest REST aggs bar is >5min old (observed on the
+        # user's Polygon plan: aggs endpoint stops updating after each
+        # session reopen even though WS keeps delivering ticks), try
+        # the live WS-built bars instead. The tick aggregator only has
+        # data from when the bot started, so it needs enough warmup
+        # bars (>= 35) before HTF trend + impulse window are valid.
+        # If neither REST nor WS bars are usable, skip strategy eval.
         try:
             latest_bar_ts = self._bars_1m.index[-1]
             if latest_bar_ts.tz is None:
@@ -572,15 +570,34 @@ class FibRuntime:
                          ).total_seconds()
             stale_max = float(os.environ.get("BOT_STALE_BAR_MAX_S", "300"))
             if bar_age_s > stale_max:
-                if self._last_stale_warn_age != int(bar_age_s) // 60:
-                    self._last_stale_warn_age = int(bar_age_s) // 60
-                    logger.warning(
-                        f"[BAR-STALE] latest 1-min bar is {bar_age_s/60:.1f} min "
-                        f"old (>{stale_max/60:.1f} min) -- skipping strategy "
-                        f"eval. Polygon aggs lag or market closed? "
-                        f"last bar ts={latest_bar_ts.isoformat()}")
-                self.last_error = f"bars_stale_{int(bar_age_s/60)}min"
-                return
+                # Try WS-built bars as a live replacement
+                ws_bars = None
+                ws_closed = 0
+                try:
+                    ws_bars = self.monitor.tick_bars.get_bars()
+                    ws_closed = len(ws_bars)
+                except Exception as e:
+                    logger.debug(f"tick_bars.get_bars failed: {e!r}")
+                if ws_bars is not None and ws_closed >= 35:
+                    if self._bars_1m_source != "polygon_ws_ticks":
+                        logger.warning(
+                            f"[BAR-FALLBACK] REST aggs is {bar_age_s/60:.1f} min "
+                            f"stale; switching to WS-built bars "
+                            f"({ws_closed} closed bars from tick stream)")
+                    self._bars_1m = ws_bars
+                    self._bars_1m_source = "polygon_ws_ticks"
+                else:
+                    if self._last_stale_warn_age != int(bar_age_s) // 60:
+                        self._last_stale_warn_age = int(bar_age_s) // 60
+                        logger.warning(
+                            f"[BAR-STALE] REST 1-min bar is {bar_age_s/60:.1f} "
+                            f"min old (>{stale_max/60:.1f} min) and WS has "
+                            f"only {ws_closed} closed bars (need >=35) -- "
+                            f"skipping strategy eval. last REST bar ts="
+                            f"{latest_bar_ts.isoformat()}")
+                    self.last_error = (f"bars_stale_{int(bar_age_s/60)}min_"
+                                       f"ws_warmup_{ws_closed}/35")
+                    return
         except Exception as e:
             logger.debug(f"bar-staleness check failed: {e!r}")
 
@@ -896,6 +913,12 @@ class FibRuntime:
                 "polygon_ws": (self.monitor._ws_client.health()
                                if getattr(self.monitor, "_ws_client", None)
                                else {"enabled": False}),
+                # WS-built bar count -- needs >=35 closed bars before
+                # the strategy can fall back to it when REST aggs is
+                # stale. Surface so user can watch warmup progress.
+                "ws_tick_bars": (self.monitor.tick_bars.closed_count
+                                 if hasattr(self.monitor, "tick_bars")
+                                 else 0),
                 "fib": fib_snap,
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,

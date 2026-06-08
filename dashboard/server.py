@@ -311,6 +311,7 @@ def api_diag():
         # plan isn't delivering real-time futures WebSocket ticks and
         # the bot is stuck on delayed REST aggregates.
         out["polygon_ws"] = snap.get("polygon_ws", {"enabled": False})
+        out["ws_tick_bars"] = snap.get("ws_tick_bars", 0)
     except Exception as e:
         out["snapshot"] = {"error": str(e)}
     # Try to read Lucid state directly — if the bot ever ran, applied_reset_serial

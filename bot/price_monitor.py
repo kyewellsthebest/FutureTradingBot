@@ -184,6 +184,94 @@ _CHAIN = [
 # wrong data.
 
 
+class _TickBarAggregator:
+    """Builds rolling 1-min OHLC bars from WebSocket tick stream.
+
+    Used as a live replacement for Polygon's REST /futures/v1/aggs
+    endpoint when the latter is returning stale data despite WS being
+    alive (observed on the user's plan tier: WS pushes ticks fine but
+    REST aggs stops updating shortly after each session reopen).
+
+    Thread-safe: on_tick is called from PolygonWSClient's recv thread,
+    get_bars from the bot's main loop. Internal lock protects the
+    current-bar state plus the closed-bar deque.
+
+    Bar boundary: floor(ts, 1 minute). The first tick of a new minute
+    closes the previous minute's bar (emitted to the deque) and starts
+    a fresh one.
+    """
+
+    def __init__(self, max_bars: int = 2000) -> None:
+        self._lock = threading.Lock()
+        # Current in-progress bar
+        self._cur_start: Optional[datetime] = None
+        self._cur_o: float | None = None
+        self._cur_h: float | None = None
+        self._cur_l: float | None = None
+        self._cur_c: float | None = None
+        self._cur_v: int = 0
+        # Rolling closed bars (oldest first)
+        self._closed: list[tuple[datetime, float, float, float, float, int]] = []
+        self._max_bars = max_bars
+        self.closed_count: int = 0
+
+    @staticmethod
+    def _floor_minute(ts: datetime) -> datetime:
+        return ts.replace(second=0, microsecond=0)
+
+    def on_tick(self, price: float, ts: datetime) -> None:
+        bucket = self._floor_minute(ts)
+        with self._lock:
+            if self._cur_start is None:
+                # First tick ever -- start a fresh bar
+                self._cur_start = bucket
+                self._cur_o = self._cur_h = self._cur_l = self._cur_c = price
+                self._cur_v = 1
+                return
+            if bucket == self._cur_start:
+                # Same minute -- update H/L/C
+                if price > self._cur_h:  # type: ignore[operator]
+                    self._cur_h = price
+                if price < self._cur_l:  # type: ignore[operator]
+                    self._cur_l = price
+                self._cur_c = price
+                self._cur_v += 1
+                return
+            # New minute -- close the prior bar and start fresh
+            self._closed.append((
+                self._cur_start, self._cur_o, self._cur_h,  # type: ignore[arg-type]
+                self._cur_l, self._cur_c, self._cur_v,
+            ))
+            self.closed_count += 1
+            if len(self._closed) > self._max_bars:
+                self._closed = self._closed[-self._max_bars:]
+            self._cur_start = bucket
+            self._cur_o = self._cur_h = self._cur_l = self._cur_c = price
+            self._cur_v = 1
+
+    def get_bars(self, include_current: bool = False) -> "pd.DataFrame":
+        """Return all closed bars as a DataFrame indexed by UTC ts.
+        Columns: open, high, low, close, volume.
+        include_current=True appends the in-progress bar (for live
+        last-bar fallback only -- do not pass to strategies that
+        require closed bars)."""
+        with self._lock:
+            rows = list(self._closed)
+            if include_current and self._cur_start is not None:
+                rows.append((
+                    self._cur_start, self._cur_o, self._cur_h,
+                    self._cur_l, self._cur_c, self._cur_v,
+                ))
+        if not rows:
+            return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+        df = pd.DataFrame(
+            rows, columns=["ts", "open", "high", "low", "close", "volume"]
+        ).set_index("ts").sort_index()
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        return df
+
+
 class PriceMonitor:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -201,6 +289,12 @@ class PriceMonitor:
         # if the WS dies we still get updates every POLL_SECONDS.
         self._ws_client = None
         self._ws_started: bool = False
+        # Tick->bar aggregator. Builds 1-min OHLC bars from incoming WS
+        # ticks so the strategy has a live bar source when Polygon's
+        # REST aggs endpoint is returning stale data. Exposed for the
+        # bot to consume in place of REST bars when WS has enough
+        # history.
+        self.tick_bars = _TickBarAggregator(max_bars=2000)
 
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
@@ -250,6 +344,12 @@ class PriceMonitor:
                 self._high = price
             if self._low is None or price < self._low:
                 self._low = price
+        # Feed tick->bar aggregator outside the lock to avoid holding
+        # both locks at once (aggregator has its own).
+        try:
+            self.tick_bars.on_tick(price, ts_utc)
+        except Exception as e:
+            logger.debug(f"tick_bars.on_tick failed: {e!r}")
         # Log source change once when WS first kicks in or if we fell
         # back to REST and now WS came back.
         if prev_source and prev_source != "polygon_ws":
