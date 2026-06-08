@@ -156,59 +156,56 @@ class TradersPostBroker:
     # PUBLIC: bot lifecycle hooks
     # ------------------------------------------------------------------
     def submit_open(self, *, side: str, qty: int,
+                    entry_price: Optional[float] = None,
+                    stop_price: Optional[float] = None,
+                    target_price: Optional[float] = None,
                     setup_id: Optional[str] = None) -> WebhookResult:
-        """Send TradersPost a MARKET entry signal.
+        """Send TradersPost a bracketed LIMIT entry.
 
-        Bare-minimum payload -- direction, quantity, market type. NO
-        prices, NO brackets. This is the canonical TradersPost design
-        pattern: subscription settings own the bracket logic ($12
-        stop-loss + $24 take-profit per contract). When the market
-        order fills, TradersPost auto-attaches the bracket relative to
-        the ACTUAL fill price.
+        Bracketed payload: ENTRY (limit) + STOP (stop-market) + TARGET
+        (take-profit limit). Prices are absolute and tick-rounded.
 
-        Why bare-minimum: previous architectures tried to send absolute
-        stop/target prices, deferred-target signals, and orderType
-        overrides to compensate for our incomplete understanding of
-        TradersPost's behavior. Each layer introduced bugs:
-          - Limit prices that didn't fill (paper booked phantom wins)
-          - Bracket prices that mis-anchored when fill differed
-          - Override toggles that we didn't fully control
-          - Deferred targets that wiped the stop bracket
-          - Bar-based close signals that raced the bracket
+        This is the payload format the user's existing TradersPost
+        subscription was configured for pre-weekend. The bot sent
+        full brackets, TradersPost forwarded them to Tradovate, and
+        the broker executed cleanly. The bare-minimum market-only
+        payload we briefly used afterwards required a subscription
+        re-config the user hadn't done -- causing zero broker trades
+        despite paper booking them.
 
-        By sending JUST direction+qty+market, the broker fills
-        immediately at current price, subscription attaches brackets
-        relative to that fill, and the OCO bracket lives on Tradovate
-        as the single source of truth for the trade's lifecycle. We
-        never need to send another signal until either (a) the bracket
-        fires (no action needed from us), or (b) a 10-min timeout
-        exhausts (we send a market flat to clean up).
+        If `entry_price`/`stop_price`/`target_price` are all omitted,
+        falls back to bare-minimum market order (the simplified
+        payload). Provided for backwards compatibility / unit tests.
 
-        REQUIREMENTS on the TradersPost subscription side:
-          - Stop loss type: Stop Market
-          - Stop loss amount: $12 per contract
-          - Take profit amount: $24 per contract
-          - Entry order type: Market
-          - Allow signal override on quantity: Yes
-          - Allow signal override on stop/target amounts: No (force
-            subscription to own brackets, ignore our payload's silence)
-
-        Timing: caller (fib_main._on_trade_open) is responsible for
-        deciding WHEN to fire this signal. The strategy fires the
-        signal when price has reached the 0.618 pullback level on a
-        closed bar. The market entry fills at whatever current price
-        is when TradersPost forwards -- typically very close to the
-        bar's close.
+        Caller passes ABSOLUTE prices. All three get tick-rounded to
+        0.25 (NQ tick size) because Tradovate silently rejects brackets
+        whose prices aren't tick-aligned, leaving the position naked.
         """
         action = "buy" if side == "LONG" else "sell"
         sentiment = "long" if side == "LONG" else "short"
-        payload = {
-            "ticker":    self.ticker,
-            "action":    action,
-            "sentiment": sentiment,
-            "quantity":  int(qty),
-            "orderType": "market",
-        }
+        if entry_price is None:
+            payload = {
+                "ticker":    self.ticker,
+                "action":    action,
+                "sentiment": sentiment,
+                "quantity":  int(qty),
+                "orderType": "market",
+            }
+        else:
+            payload = {
+                "ticker":     self.ticker,
+                "action":     action,
+                "sentiment":  sentiment,
+                "quantity":   int(qty),
+                "price":      _tick_round(entry_price),
+                "orderType":  "limit",
+                "timeInForce": "Day",
+            }
+            if stop_price is not None:
+                payload["stopLoss"] = {"type": "stop",
+                                       "stopPrice": _tick_round(stop_price)}
+            if target_price is not None:
+                payload["takeProfit"] = {"limitPrice": _tick_round(target_price)}
         if setup_id:
             payload["orderRef"] = setup_id
         return self._post(payload)

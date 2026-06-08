@@ -716,26 +716,23 @@ class FibRuntime:
                             f"not entering")
                         return
                     logger.info(
-                        f"[traderspost SEND MARKET] {trade.side} "
-                        f"{trade.n_mnq} (strategy intent: "
-                        f"entry={trade.entry_px:.2f} stop={trade.stop_px:.2f} "
-                        f"tgt={trade.target_px:.2f}, live={live_snap.price:.2f}; "
-                        f"subscription owns brackets)")
+                        f"[traderspost SEND BRACKET] {trade.side} "
+                        f"{trade.n_mnq} entry={trade.entry_px:.2f} "
+                        f"stop={trade.stop_px:.2f} tgt={trade.target_px:.2f} "
+                        f"(live={live_snap.price:.2f})")
                     self.traderspost.submit_open(
                         side=trade.side, qty=trade.n_mnq,
+                        entry_price=trade.entry_px,
+                        stop_price=trade.stop_px,
+                        target_price=trade.target_px,
                         setup_id=setup_ref,
                     )
                     self._open_trade_ref = setup_ref
                     self._broker_entry_ts = now
-                    # Broker-side stop/target unknown to us now (sub-
-                    # scription auto-attaches at fill +/- $6/$12). The
-                    # paper account still tracks intended levels for
-                    # dashboard display, but bot doesn't try to second-
-                    # guess the bracket.
-                    self._broker_stop_px = None
-                    self._broker_target_px = None
+                    self._broker_stop_px = trade.stop_px
+                    self._broker_target_px = trade.target_px
                     self._broker_side = trade.side
-                    self._broker_target_sent = True  # nothing to defer
+                    self._broker_target_sent = True
                 except Exception as te:
                     logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
