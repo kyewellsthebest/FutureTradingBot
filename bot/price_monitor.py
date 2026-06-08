@@ -249,6 +249,32 @@ class _TickBarAggregator:
             self._cur_o = self._cur_h = self._cur_l = self._cur_c = price
             self._cur_v = 1
 
+    def on_bar(self, o: float, h: float, l: float, c: float,
+               v: int, ts: datetime) -> None:
+        """Direct insertion of a closed 1-min bar from a WS AM event.
+        Idempotent: if a bar with the same ts already exists, replace
+        it (Polygon occasionally re-emits the latest closed bar). If
+        the bar belongs to the current in-progress minute being built
+        by on_tick, finalize it (drop the in-progress state) and use
+        the AM data as authoritative -- AM aggregates Polygon's whole
+        trade tape which is more accurate than our tick aggregator
+        seeing only what the WS pushes."""
+        bucket = self._floor_minute(ts)
+        with self._lock:
+            # If this minute matches the current in-progress bar, drop
+            # it -- AM is authoritative.
+            if self._cur_start == bucket:
+                self._cur_start = None
+                self._cur_o = self._cur_h = self._cur_l = self._cur_c = None
+                self._cur_v = 0
+            # Replace any existing bar at this ts (idempotent).
+            self._closed = [row for row in self._closed if row[0] != bucket]
+            self._closed.append((bucket, o, h, l, c, v))
+            self._closed.sort(key=lambda r: r[0])
+            self.closed_count += 1
+            if len(self._closed) > self._max_bars:
+                self._closed = self._closed[-self._max_bars:]
+
     def get_bars(self, include_current: bool = False) -> "pd.DataFrame":
         """Return all closed bars as a DataFrame indexed by UTC ts.
         Columns: open, high, low, close, volume.
@@ -319,7 +345,9 @@ class PriceMonitor:
             product = os.environ.get("POLYGON_CONTRACT", "MNQ")
             tk = polygon_front_month(product)
             self._ws_client = PolygonWSClient(
-                ticker=tk, on_tick=self._on_ws_tick)
+                ticker=tk,
+                on_tick=self._on_ws_tick,
+                on_bar=self._on_ws_bar)
             self._ws_started = self._ws_client.start()
         except Exception as e:
             logger.warning(f"polygon WS init failed: {e!r} -- "
@@ -350,6 +378,23 @@ class PriceMonitor:
             self.tick_bars.on_tick(price, ts_utc)
         except Exception as e:
             logger.debug(f"tick_bars.on_tick failed: {e!r}")
+
+    def _on_ws_bar(self, o: float, h: float, l: float, c: float,
+                    v: int, ts_utc: datetime) -> None:
+        """Called by PolygonWSClient on every AM (minute-aggregate)
+        event. Inserts the closed bar directly into the aggregator so
+        the strategy has authoritative OHLC even when the plan doesn't
+        deliver T (trade) events. Also updates the in-memory price/ts
+        with the bar close so latest()/api_price report the most
+        recent minute's close."""
+        with self._lock:
+            self._price = c
+            self._ts = ts_utc
+            self.last_source = "polygon_ws_am"
+        try:
+            self.tick_bars.on_bar(o, h, l, c, v, ts_utc)
+        except Exception as e:
+            logger.debug(f"tick_bars.on_bar failed: {e!r}")
         # Log source change once when WS first kicks in or if we fell
         # back to REST and now WS came back.
         if prev_source and prev_source != "polygon_ws":

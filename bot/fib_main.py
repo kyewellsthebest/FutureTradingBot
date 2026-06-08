@@ -578,7 +578,12 @@ class FibRuntime:
                     ws_closed = len(ws_bars)
                 except Exception as e:
                     logger.debug(f"tick_bars.get_bars failed: {e!r}")
-                if ws_bars is not None and ws_closed >= 35:
+                # Minimum bars to start trading: impulse window (4) +
+                # one slot for the current closing bar. HTF filter is
+                # bypassed during warmup (see pullback_strategy), so
+                # we don't need 2*HTF_K+1 before firing.
+                min_ws_bars = 5
+                if ws_bars is not None and ws_closed >= min_ws_bars:
                     if self._bars_1m_source != "polygon_ws_ticks":
                         logger.warning(
                             f"[BAR-FALLBACK] REST aggs is {bar_age_s/60:.1f} min "
@@ -592,11 +597,10 @@ class FibRuntime:
                         logger.warning(
                             f"[BAR-STALE] REST 1-min bar is {bar_age_s/60:.1f} "
                             f"min old (>{stale_max/60:.1f} min) and WS has "
-                            f"only {ws_closed} closed bars (need >=35) -- "
-                            f"skipping strategy eval. last REST bar ts="
-                            f"{latest_bar_ts.isoformat()}")
+                            f"only {ws_closed} closed bars (need "
+                            f">={min_ws_bars}) -- skipping strategy eval.")
                     self.last_error = (f"bars_stale_{int(bar_age_s/60)}min_"
-                                       f"ws_warmup_{ws_closed}/35")
+                                       f"ws_warmup_{ws_closed}/{min_ws_bars}")
                     return
         except Exception as e:
             logger.debug(f"bar-staleness check failed: {e!r}")
@@ -905,7 +909,7 @@ class FibRuntime:
                 # either qualifies as real-time. Anything else (none,
                 # fallback name) is not.
                 "price_realtime": self.monitor.last_source in
-                                   ("polygon_ws", "polygon"),
+                                   ("polygon_ws", "polygon_ws_am", "polygon"),
                 # WS health: tells the user whether Polygon's WebSocket is
                 # actually delivering ticks. tick_count=0 several minutes
                 # after start = plan likely doesn't include futures real-

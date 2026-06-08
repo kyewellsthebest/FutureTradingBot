@@ -708,13 +708,21 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         bool((params or {}).get("HTF_TREND_FILTER", True))
         and _HTF_FILTER_ENV
     )
-    if htf_filter_enabled and bars_trend is not None and len(bars_trend) >= 2 * _HTF_K + 1:
+    # The filter can only apply when bars_trend has enough history for
+    # the k-period fractal pivot scan. During warmup (e.g. WS-built
+    # bars are still accumulating) we don't have enough -- in that
+    # case, BYPASS the filter rather than letting htf_trend stay FLAT
+    # and reject every setup. Without this bypass the strategy never
+    # fires until 2*HTF_K+1 bars exist (~61 min on a fresh restart).
+    htf_history_ready = (bars_trend is not None
+                         and len(bars_trend) >= 2 * _HTF_K + 1)
+    if htf_filter_enabled and htf_history_ready:
         htf_trend = _compute_htf_trend(bars_trend, htf_k=_HTF_K)
         state.htf_trend = htf_trend  # surface to dashboard
 
     # 3. DETECT new setup from latest 1-min bar history
     new_setup = None if atr_blocked else detect_pullback_setup(bars_setup, now, params=params)
-    if new_setup is not None and htf_filter_enabled:
+    if new_setup is not None and htf_filter_enabled and htf_history_ready:
         # HTF trend filter: require setup direction to MATCH the trend.
         # FLAT trend means no setups (chop is poison for pullbacks).
         if (htf_trend == "UP" and new_setup.side != "LONG") or \
@@ -723,6 +731,10 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             logger.info("[HTF-FILTER] %s setup rejected -- trend=%s",
                         new_setup.side, htf_trend)
             new_setup = None
+    elif new_setup is not None and htf_filter_enabled and not htf_history_ready:
+        n_bars = len(bars_trend) if bars_trend is not None else 0
+        logger.info(f"[HTF-FILTER bypass] insufficient bars "
+                    f"({n_bars}/{2*_HTF_K+1}); allowing setup through")
     if new_setup is not None:
         key = _setup_key(new_setup)
         # dedup against recent + pending

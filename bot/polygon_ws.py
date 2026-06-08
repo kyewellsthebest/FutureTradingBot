@@ -52,9 +52,16 @@ class PolygonWSClient:
 
     def __init__(self, ticker: str,
                  on_tick: Callable[[float, datetime], None],
+                 on_bar: Optional[Callable[[float, float, float, float,
+                                             int, datetime], None]] = None,
                  api_key: Optional[str] = None) -> None:
         self.ticker = ticker
         self.on_tick = on_tick
+        # on_bar(open, high, low, close, volume, bar_start_utc) -- fired
+        # for every AM (minute-aggregate) event. Lets PriceMonitor
+        # populate its bar history directly from the WS feed when the
+        # plan delivers aggregates but not raw trades.
+        self.on_bar = on_bar
         self.api_key = api_key or os.environ.get("POLYGON_API")
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -158,11 +165,28 @@ class PolygonWSClient:
             if "auth_success" not in auth_resp and "success" not in auth_resp:
                 raise RuntimeError(f"polygon_ws auth failed: {auth_resp[:300]}")
             logger.info(f"polygon_ws: authenticated, subscribing to "
-                        f"T.{self.ticker}")
+                        f"T.{self.ticker},AM.{self.ticker},A.{self.ticker}")
 
-            # Subscribe to trades on the front-month
-            self._ws.send(json.dumps({"action": "subscribe",
-                                       "params": f"T.{self.ticker}"}))
+            # Subscribe to ALL price channels on the front-month:
+            #   T.*   = trades (preferred, sub-second)
+            #   AM.*  = aggregate-minute (1-min OHLC, fires at minute close)
+            #   A.*   = aggregate-second (1-sec OHLC, fires every second
+            #           with a trade)
+            #
+            # Plan tier on massive.com / Polygon reseller frequently
+            # excludes raw trade events for futures but DOES include
+            # aggregate streams. Subscribing to all three means we get
+            # whatever the plan delivers, and the bot can build its
+            # 1-min bars from either AM (direct) or T (aggregated).
+            #
+            # Polygon accepts comma-separated subscriptions in a single
+            # action.
+            self._ws.send(json.dumps({
+                "action": "subscribe",
+                "params": (f"T.{self.ticker},"
+                           f"AM.{self.ticker},"
+                           f"A.{self.ticker}"),
+            }))
             sub_resp = self._ws.recv()
             # Log subscription response at INFO so plan-entitlement
             # failures are visible. Polygon returns a status event like
@@ -213,10 +237,28 @@ class PolygonWSClient:
                 pass
             self._ws = None
 
+    @staticmethod
+    def _polygon_ts_to_utc(ts_raw) -> datetime:
+        """Polygon timestamps come as ms or ns since epoch. Auto-detect
+        magnitude and return a tz-aware UTC datetime."""
+        if ts_raw is None:
+            return datetime.now(timezone.utc)
+        try:
+            ts_n = float(ts_raw)
+            if ts_n > 1e15:
+                ts_s = ts_n / 1e9
+            elif ts_n > 1e12:
+                ts_s = ts_n / 1e3
+            else:
+                ts_s = ts_n
+            return datetime.fromtimestamp(ts_s, tz=timezone.utc)
+        except Exception:
+            return datetime.now(timezone.utc)
+
     def _process_message(self, raw: str) -> None:
-        """Polygon sends arrays of events. Each event is one trade
-        when ev='T'. Status/heartbeat events have ev='status' and are
-        logged at debug. Anything else we ignore."""
+        """Polygon sends arrays of events. We subscribe to T (trades),
+        AM (minute aggregates), and A (second aggregates) so we get
+        whichever the plan delivers."""
         try:
             events = json.loads(raw)
         except Exception:
@@ -228,37 +270,64 @@ class PolygonWSClient:
             if not isinstance(e, dict):
                 continue
             ev = e.get("ev")
+            # First 10 of EVERY event type at INFO level so the user
+            # can see in deploy logs which channel their plan is
+            # delivering. Beyond that, throttle to every 500.
+            self.tick_count += 1
+            if self.tick_count <= 10 or self.tick_count % 500 == 0:
+                logger.info(f"polygon_ws event #{self.tick_count} "
+                            f"ev={ev!r} keys={list(e.keys())[:8]}")
+
             if ev == "T":
+                # Single trade
                 price = e.get("p") or e.get("price")
                 ts_raw = e.get("t") or e.get("timestamp")
                 if price is None:
                     continue
-                # Polygon futures trade timestamps: documentation says ms
-                # since epoch; some endpoints return ns. Auto-detect via
-                # magnitude (anything > 1e15 is ns).
-                try:
-                    ts_n = float(ts_raw) if ts_raw is not None else \
-                           time.time() * 1000
-                    if ts_n > 1e15:
-                        ts_s = ts_n / 1e9
-                    elif ts_n > 1e12:
-                        ts_s = ts_n / 1e3
-                    else:
-                        ts_s = ts_n
-                    ts_utc = datetime.fromtimestamp(ts_s, tz=timezone.utc)
-                except Exception:
-                    ts_utc = datetime.now(timezone.utc)
+                ts_utc = self._polygon_ts_to_utc(ts_raw)
                 self._last_tick_ts = time.time()
-                self.tick_count += 1
-                # Throttle log spam: only every 500th tick
-                if self.tick_count % 500 == 0:
-                    logger.info(f"polygon_ws: {self.tick_count} ticks "
-                                f"received, last={price}")
                 try:
                     self.on_tick(float(price), ts_utc)
                 except Exception as cb_err:
-                    logger.warning(f"polygon_ws on_tick callback: {cb_err!r}")
+                    logger.warning(f"polygon_ws on_tick (T) failed: {cb_err!r}")
+
+            elif ev == "A":
+                # Second-aggregate. Treat as a tick using the close price.
+                close = e.get("c") or e.get("close")
+                ts_raw = e.get("s") or e.get("start_timestamp") or e.get("t")
+                if close is None:
+                    continue
+                ts_utc = self._polygon_ts_to_utc(ts_raw)
+                self._last_tick_ts = time.time()
+                try:
+                    self.on_tick(float(close), ts_utc)
+                except Exception as cb_err:
+                    logger.warning(f"polygon_ws on_tick (A) failed: {cb_err!r}")
+
+            elif ev == "AM":
+                # Minute-aggregate: full OHLC of the just-closed minute.
+                # Feed both on_tick (for live price) and on_bar (for
+                # direct insertion into the strategy's bar history).
+                o = e.get("o") or e.get("open")
+                h = e.get("h") or e.get("high")
+                l = e.get("l") or e.get("low")
+                c = e.get("c") or e.get("close")
+                v = e.get("v") or e.get("volume") or 0
+                ts_raw = e.get("s") or e.get("start_timestamp") or e.get("t")
+                if c is None:
+                    continue
+                ts_utc = self._polygon_ts_to_utc(ts_raw)
+                self._last_tick_ts = time.time()
+                try:
+                    self.on_tick(float(c), ts_utc)
+                except Exception as cb_err:
+                    logger.warning(f"polygon_ws on_tick (AM) failed: {cb_err!r}")
+                if self.on_bar is not None and None not in (o, h, l, c):
+                    try:
+                        self.on_bar(float(o), float(h), float(l),
+                                     float(c), int(v), ts_utc)
+                    except Exception as cb_err:
+                        logger.warning(f"polygon_ws on_bar failed: {cb_err!r}")
+
             elif ev == "status":
-                logger.debug(f"polygon_ws status: {e}")
-            # All other event types (A=aggregates, Q=quotes) silently
-            # ignored since we only subscribed to T.
+                logger.info(f"polygon_ws status: {e}")
