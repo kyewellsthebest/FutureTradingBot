@@ -83,6 +83,12 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     if q is None:
         return None
     price, age = q
+    if not (PRICE_MIN <= price <= PRICE_MAX):
+        logger.warning(f"polygon snapshot returned implausible price "
+                       f"{price} (expected {PRICE_MIN}-{PRICE_MAX}) -- "
+                       f"rejecting. Likely wrong field extracted from v3 "
+                       f"snapshot response.")
+        return None
     if age > 5:
         logger.info(f"polygon snapshot {age:.1f}s old (real-time)")
     return price, price, price
@@ -129,10 +135,16 @@ def _fetch_yf_fast() -> tuple[float, float, float] | None:
         import yfinance as yf
         info = yf.Ticker("NQ=F").fast_info
         last = float(info["last_price"])
-        return last, last, last
     except Exception as e:
         logger.debug(f"yfinance fast_info failed: {e!r}")
         return None
+    if not (PRICE_MIN <= last <= PRICE_MAX):
+        logger.warning(f"yfinance NQ=F returned implausible price "
+                       f"{last} (expected {PRICE_MIN}-{PRICE_MAX}) -- "
+                       f"rejecting. yfinance backend occasionally "
+                       f"swaps NQ=F for an unrelated symbol.")
+        return None
+    return last, last, last
 
 
 def _fetch_csv() -> tuple[float, float, float] | None:
@@ -153,6 +165,15 @@ _CHAIN = [
     ("polygon",    _fetch_polygon),
     ("yf_fast",    _fetch_yf_fast),
 ]
+# Sanity range for a valid MNQ/NQ price. Anything outside this band
+# is bogus and gets rejected before it touches the cached state.
+# Observed: yfinance briefly returned 2899.72 (10x too low) during a
+# data-feed glitch; Polygon's universal snapshot endpoint can
+# occasionally surface a non-price numeric field if the response
+# shape is unfamiliar. Either way, rejecting out-of-range values
+# stops the bot from displaying / trading on nonsense.
+PRICE_MIN = float(os.environ.get("PRICE_SANITY_MIN", "15000"))
+PRICE_MAX = float(os.environ.get("PRICE_SANITY_MAX", "60000"))
 # Polygon is the primary source. Pre-weekend the chain was Polygon-
 # only by design (to prevent dashboard flicker between real-time vs
 # delayed sources). That worked while Polygon delivered. As of this
@@ -348,6 +369,16 @@ class PriceMonitor:
         """Called by PolygonWSClient on every trade event. Updates the
         in-memory price atomically under the existing lock so
         snapshot()/latest() readers see consistent values."""
+        if not (PRICE_MIN <= price <= PRICE_MAX):
+            # Drop bogus ticks rather than corrupting the cached state.
+            # If the WS is genuinely subscribed to the wrong contract
+            # this will be noisy and visible in the logs.
+            if not hasattr(self, "_last_ws_oor_log_t") or \
+                    time.time() - getattr(self, "_last_ws_oor_log_t", 0) > 30:
+                self._last_ws_oor_log_t = time.time()
+                logger.warning(f"WS tick rejected: {price} out of range "
+                               f"[{PRICE_MIN},{PRICE_MAX}]")
+            return
         with self._lock:
             prev_source = self.last_source
             self._price = price
@@ -421,6 +452,12 @@ class PriceMonitor:
             if res is None:
                 continue
             price, high, low = res
+            # Double-check the sanity range here too, in case a future
+            # source skips its own check.
+            if not (PRICE_MIN <= price <= PRICE_MAX):
+                logger.warning(f"_poll_once {name} returned out-of-range "
+                               f"price {price}; skipping")
+                continue
             now = datetime.now(timezone.utc)
             with self._lock:
                 prev_source = self.last_source
@@ -433,6 +470,14 @@ class PriceMonitor:
                     self._high = max(high, price)
                 if self._low is None or low < self._low:
                     self._low = min(low, price)
+            # Log every poll that produced a price + which source won.
+            # Critical for diagnosing "what's feeding this nonsense
+            # value" issues. Throttled to once per 60s to keep log
+            # volume sane.
+            if (not hasattr(self, "_last_poll_log_t")
+                    or time.time() - getattr(self, "_last_poll_log_t", 0) > 60):
+                self._last_poll_log_t = time.time()
+                logger.info(f"price poll: {name}={price} (poll {self._poll_count})")
             # Log source changes -- catches the dual-source flicker
             # (e.g., Polygon at 30470 alternating with CNBC at 30463
             # because CNBC is 15min delayed). When this fires repeatedly
