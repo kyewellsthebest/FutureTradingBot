@@ -513,6 +513,36 @@ def api_price():
     If Polygon snapshot fails, return null price. Frontend treats null
     as "data unavailable" and won't lie to the user with a stale value.
     """
+    # FIRST: read the bot's PriceMonitor snapshot from disk. The bot
+    # publishes the WebSocket-sourced live tick price every cycle, and
+    # that's the freshest source we have when the Polygon REST snapshot
+    # endpoint is unreliable for this plan (observed: aggs endpoint can
+    # return bars from the prior session close, leaving the dashboard
+    # showing a 200pt-stale price while WS ticks were arriving fine).
+    try:
+        state = persistence.load_dashboard()
+        ws_price = state.get("price")
+        ws_ts = state.get("price_ts")
+        ws_source = state.get("price_source") or ""
+        if ws_price is not None and ws_ts and "polygon_ws" in str(ws_source):
+            try:
+                from datetime import datetime as _dt
+                t = _dt.fromisoformat(str(ws_ts).replace("Z", "+00:00"))
+                age = (datetime.now(timezone.utc) - t).total_seconds()
+            except Exception:
+                age = 0.0
+            # WS ticks should be sub-second; treat <5s as fresh.
+            if age < 5.0:
+                return jsonify({
+                    "price": float(ws_price),
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "age_s": round(float(age), 2),
+                    "source": "polygon_ws",
+                })
+    except Exception as e:
+        logger.debug(f"/api/price WS snapshot read failed: {e}")
+
+    # FALLBACK: Polygon REST snapshot endpoint.
     try:
         from research.data_loader import polygon_latest_quote
         # Track MNQ (the micro contract user trades), not NQ (the big
@@ -524,12 +554,15 @@ def api_price():
         q = polygon_latest_quote(product, max_age_s=0.2)
         if q is not None:
             price, _high, _low, age = q
-            return jsonify({
-                "price": float(price),
-                "ts": datetime.now(timezone.utc).isoformat(),
-                "age_s": round(float(age), 2),
-                "source": "polygon_snapshot",
-            })
+            # Only trust if <60s old. Anything older is the stale-aggs
+            # fallback path that produced the 218pt off-by gap.
+            if age < 60:
+                return jsonify({
+                    "price": float(price),
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "age_s": round(float(age), 2),
+                    "source": "polygon_snapshot",
+                })
     except Exception as e:
         logger.warning(f"/api/price polygon snapshot failed: {e}")
 

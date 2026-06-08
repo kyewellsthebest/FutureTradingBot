@@ -293,6 +293,9 @@ class FibRuntime:
         self._bars_1m: Optional[pd.DataFrame] = None
         self._bars_1m_source: str = "synth"   # "real" or "synth"
         self._last_bar_refresh = 0.0
+        # Rate-limit the "[BAR-STALE]" log so it fires at most once per
+        # minute of staleness instead of every tick.
+        self._last_stale_warn_age: int = -1
         # Recent completed trades for dashboard. Hydrated from the
         # SQLite trade log on construction so history survives restarts.
         self.recent_trades: deque = deque(maxlen=30)
@@ -549,6 +552,37 @@ class FibRuntime:
             return
         if self._bars_1m is None or self._bars_1m.empty:
             return
+
+        # Bar-staleness guard. If the latest historical bar's timestamp
+        # is more than STALE_BAR_MAX_AGE_S behind real time, the strategy
+        # would detect setups at prices that no longer relate to the
+        # market. Observed in production: bars stuck at 28989 close while
+        # MNQM6 was trading at 29207 (218pt gap). The strategy would
+        # arm SHORT pullback setups at 28999 that the real market would
+        # never touch -- and even if a market entry forced through, the
+        # bracket would be anchored 200pt away from the fill.
+        # Refuse to evaluate the strategy when bars are stale; the kill-
+        # switch in _on_trade_open (10pt divergence) catches it at the
+        # broker boundary but stops paper booking phantom setups too.
+        try:
+            latest_bar_ts = self._bars_1m.index[-1]
+            if latest_bar_ts.tz is None:
+                latest_bar_ts = latest_bar_ts.tz_localize("UTC")
+            bar_age_s = (datetime.now(timezone.utc) - latest_bar_ts.to_pydatetime()
+                         ).total_seconds()
+            stale_max = float(os.environ.get("BOT_STALE_BAR_MAX_S", "300"))
+            if bar_age_s > stale_max:
+                if self._last_stale_warn_age != int(bar_age_s) // 60:
+                    self._last_stale_warn_age = int(bar_age_s) // 60
+                    logger.warning(
+                        f"[BAR-STALE] latest 1-min bar is {bar_age_s/60:.1f} min "
+                        f"old (>{stale_max/60:.1f} min) -- skipping strategy "
+                        f"eval. Polygon aggs lag or market closed? "
+                        f"last bar ts={latest_bar_ts.isoformat()}")
+                self.last_error = f"bars_stale_{int(bar_age_s/60)}min"
+                return
+        except Exception as e:
+            logger.debug(f"bar-staleness check failed: {e!r}")
 
         # Synthesize the live 1-min bar from accumulated tick high/low.
         # Used for exit-detection precision (tight when in-trade) and to
@@ -842,14 +876,14 @@ class FibRuntime:
                 "signals_fired": self.signals_fired,
                 "signals_blocked": self.signals_blocked,
                 "price": current_price,
-                "price_ts": latest.ts.isoformat() if latest and latest.ts else None,
+                "price_ts": latest.ts.isoformat() if (latest is not None and latest.ts is not None) else None,
                 # Source of the displayed price -- "polygon" is real-time;
                 # anything else means we're on a delayed fallback (CNBC =
                 # 15min, yfinance = 1-15min). When user sees the price
                 # flicker between two values, this field tells them which
                 # source it came from each tick. The dashboard can render
                 # a "STALE" badge based on this.
-                "price_source": latest.ts and self.monitor.last_source or None,
+                "price_source": self.monitor.last_source if latest is not None else None,
                 # WS push and REST snapshot are both Polygon-only paths;
                 # either qualifies as real-time. Anything else (none,
                 # fallback name) is not.
