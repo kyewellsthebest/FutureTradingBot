@@ -60,12 +60,28 @@ class PolygonWSClient:
         self._thread: Optional[threading.Thread] = None
         self._ws = None
         self._last_tick_ts: Optional[float] = None
+        self._subscribed_at: Optional[float] = None
         # Counter of trade messages received since start -- exposed for
         # the dashboard's "WS alive?" indicator and for log rate-limit
         # logging.
         self.tick_count: int = 0
         self.connected: bool = False
         self.last_error: Optional[str] = None
+
+    def health(self) -> dict:
+        """Snapshot for the dashboard. Tells the user whether WS is
+        actually delivering ticks (vs just "connected but silent")."""
+        now = time.time()
+        return {
+            "ticker": self.ticker,
+            "connected": bool(self.connected),
+            "tick_count": int(self.tick_count),
+            "last_tick_age_s": (round(now - self._last_tick_ts, 1)
+                                 if self._last_tick_ts else None),
+            "subscribed_age_s": (round(now - self._subscribed_at, 1)
+                                  if self._subscribed_at else None),
+            "last_error": self.last_error,
+        }
 
     def start(self) -> bool:
         """Spawn the WS thread. Returns True if started, False if
@@ -148,7 +164,29 @@ class PolygonWSClient:
             self._ws.send(json.dumps({"action": "subscribe",
                                        "params": f"T.{self.ticker}"}))
             sub_resp = self._ws.recv()
-            logger.debug(f"polygon_ws sub: {sub_resp[:200]}")
+            # Log subscription response at INFO so plan-entitlement
+            # failures are visible. Polygon returns a status event like
+            # {"ev":"status","status":"success","message":"subscribed..."}
+            # on success, or {"status":"error","message":"unauthorized"}
+            # when the plan doesn't include futures WS.
+            logger.info(f"polygon_ws sub response: {sub_resp[:500]}")
+            try:
+                _parsed = json.loads(sub_resp)
+                if isinstance(_parsed, list) and _parsed:
+                    first = _parsed[0]
+                    if isinstance(first, dict):
+                        status = str(first.get("status", "")).lower()
+                        msg = str(first.get("message", ""))
+                        if status in ("error", "auth_failed", "max_connections"):
+                            self.last_error = f"sub_failed: {msg}"
+                            raise RuntimeError(
+                                f"polygon_ws subscription rejected by "
+                                f"Polygon: {msg!r}. Plan likely doesn't "
+                                f"include real-time futures WebSocket.")
+            except RuntimeError:
+                raise
+            except Exception as e:
+                logger.debug(f"polygon_ws sub parse failed: {e!r}")
 
             # Pump trade messages. Use a generous read timeout (15s) so
             # quiet periods on the contract don't tear down the
@@ -158,6 +196,7 @@ class PolygonWSClient:
             self._ws.settimeout(15)
             self.connected = True
             self.last_error = None
+            self._subscribed_at = time.time()
             while not self._stop.is_set():
                 try:
                     raw = self._ws.recv()

@@ -889,6 +889,13 @@ class FibRuntime:
                 # fallback name) is not.
                 "price_realtime": self.monitor.last_source in
                                    ("polygon_ws", "polygon"),
+                # WS health: tells the user whether Polygon's WebSocket is
+                # actually delivering ticks. tick_count=0 several minutes
+                # after start = plan likely doesn't include futures real-
+                # time WS, or contract is illiquid.
+                "polygon_ws": (self.monitor._ws_client.health()
+                               if getattr(self.monitor, "_ws_client", None)
+                               else {"enabled": False}),
                 "fib": fib_snap,
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,

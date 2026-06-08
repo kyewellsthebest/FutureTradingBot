@@ -301,8 +301,16 @@ def api_diag():
             "signals_blocked": snap.get("signals_blocked"),
             "last_error": snap.get("last_error"),
             "mode": snap.get("mode"),
+            "price": snap.get("price"),
             "price_ts": snap.get("price_ts"),
+            "price_source": snap.get("price_source"),
+            "price_realtime": snap.get("price_realtime"),
         }
+        # WS health -- the key diagnostic for "why isn't bot trading":
+        # if tick_count is 0 several minutes after start, the Polygon
+        # plan isn't delivering real-time futures WebSocket ticks and
+        # the bot is stuck on delayed REST aggregates.
+        out["polygon_ws"] = snap.get("polygon_ws", {"enabled": False})
     except Exception as e:
         out["snapshot"] = {"error": str(e)}
     # Try to read Lucid state directly — if the bot ever ran, applied_reset_serial
