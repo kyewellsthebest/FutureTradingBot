@@ -461,7 +461,13 @@ function animateNumber(id, target, formatter, flashDirection = false) {
   }
   // Cancel any previous in-flight tween on this element
   if (el._tweenRaf) cancelAnimationFrame(el._tweenRaf);
-  const from = (typeof el._lastNum === "number") ? el._lastNum : 0;
+  // First-time default: target (so the FIRST call doesn't animate
+  // from 0). Without this the price ramps from 0 to ~29000 on every
+  // poll because pollPriceOnly runs every 100ms but _animBudget is
+  // 700ms -- the animation never completes (_lastNum is only set on
+  // completion at line ~529), so every subsequent call also starts
+  // from 0. The visible result was a perpetual 0->29000 ramp.
+  const from = (typeof el._lastNum === "number") ? el._lastNum : target;
   if (Math.abs(target - from) < 0.005) {
     el.textContent = fmt(target);
     el._lastNum = target;
@@ -523,6 +529,11 @@ function animateNumber(id, target, formatter, flashDirection = false) {
     } else {
       el.textContent = formatted;
     }
+    // Persist the currently displayed value on every frame -- if a
+    // new poll cancels this animation mid-flight (cancelAnimationFrame
+    // at line ~463), the next call's `from` reads this and continues
+    // smoothly instead of restarting from zero.
+    el._lastNum = v;
     if (t < 1) {
       el._tweenRaf = requestAnimationFrame(step);
     } else {
