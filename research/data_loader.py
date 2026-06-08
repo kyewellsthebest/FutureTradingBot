@@ -735,30 +735,31 @@ def polygon_latest_quote_OLD_snapshot_attempt(product: str = "NQ", max_age_s: fl
 
 def _try_polygon_futures(product: str, timeframe: Timeframe,
                           force_refresh: bool) -> pd.DataFrame | None:
-    """Polygon front-month futures as the PREFERRED live source.
+    """Polygon front-month futures via the new clean client
+    (bot.polygon_data). Returns a recent OHLCV frame or None.
 
-    Returns a sane, recent OHLCV frame, or None — None means 'fall through
-    to yfinance'. Every failure mode (no key, error, too few bars, stale
-    frame) returns None, so wiring Polygon in can only help the bot, never
-    break it: a bad Polygon response silently defers to the old path.
+    The new client REJECTS stale frames internally -- if the latest
+    bar would be more than 60 minutes old, it returns empty. So when
+    we get a non-empty frame back from get_bars(), it's fresh enough
+    to trust. The bot's bar-staleness guard provides a second layer
+    of defense on top.
     """
     if not _polygon_key() or timeframe not in ("1min", "5min", "1hr"):
         return None
     try:
-        df = download_polygon_futures(product, timeframe,
-                                        force_refresh=force_refresh)
+        from bot.polygon_data import client as _polygon_client
+        df = _polygon_client().get_bars(timeframe=timeframe)
     except Exception as e:
-        logger.warning(f"polygon {product} {timeframe}: {e!r} — using yfinance")
+        logger.warning(f"polygon_data {product} {timeframe}: {e!r}")
         return None
-    if df is None or len(df) < 150:
+    if df is None or df.empty:
         return None
-    now = pd.Timestamp.now(tz="UTC")
-    age_days = (now - df.index[-1]).total_seconds() / 86400
-    if age_days > 4:   # dead contract / plan delay — don't trade stale data
-        logger.warning(f"polygon {product}: last bar {age_days:.1f}d old "
-                          f"— using yfinance")
+    if len(df) < 5:
+        logger.info(f"polygon_data {product} {timeframe}: only {len(df)} "
+                    f"bars (need >=5) -- skipping")
         return None
-    logger.info(f"polygon {product} {timeframe}: {len(df)} bars (live source)")
+    logger.info(f"polygon_data {product} {timeframe}: {len(df)} bars "
+                f"(live source)")
     return df
 
 

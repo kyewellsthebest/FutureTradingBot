@@ -62,67 +62,30 @@ _polygon_last_age_log = 0.0
 
 
 def _fetch_polygon() -> tuple[float, float, float] | None:
-    """Polygon front-month NQ futures — the freshest source available.
+    """Polygon front-month MNQ snapshot via the new clean client
+    (bot.polygon_data). Returns (price, high, low) or None to fall
+    through to next source in _CHAIN.
 
-    Returns (price, high, low) or None to fall through. Logs the data age
-    every few minutes so the plan's REAL delay is visible in the logs
-    rather than guessed at — a real-time plan reads a few minutes, a
-    delayed plan reads ~15+.
+    The new client REJECTS stale prices internally (>300s old) and
+    returns None instead. So this function never gets a frozen
+    9-hour-old value -- if we get something back, it's fresh.
 
-    REFUSES to return data more than POLYGON_MAX_PRICE_AGE_S seconds old
-    (default 120s = 2 min). Without this guard the polygon_latest_quote
-    fallback path returns whatever the last aggregate bar's close was,
-    even if that bar is 9 hours old -- producing a frozen price display
-    that looks live but isn't. Falling through to None lets _CHAIN try
-    the next source.
+    Returns price for both high/low since the snapshot is a single
+    tick, not a bar. PriceMonitor.snapshot_and_reset() accumulates
+    H/L from the tick stream during the poll interval anyway.
     """
-    global _polygon_last_age_log
     try:
-        from research.data_loader import polygon_latest_quote
-        # Track MNQ (the micro contract user actually trades) not NQ
-        # (the big contract). They follow the same Nasdaq-100 index but
-        # trade in separate orderbooks and can diverge 2-15pt during
-        # thin liquidity overnight -- when the bot was on NQ and the
-        # broker filled on MNQ, every bracket was anchored to the wrong
-        # contract. Override with POLYGON_CONTRACT env var if needed.
-        product = os.environ.get("POLYGON_CONTRACT", "MNQ")
-        q = polygon_latest_quote(product, max_age_s=1.0)
+        from bot.polygon_data import get_snapshot_price
+        q = get_snapshot_price()
     except Exception as e:
-        logger.debug(f"polygon live fetch failed: {e!r}")
+        logger.debug(f"polygon_data snapshot failed: {e!r}")
         return None
     if q is None:
         return None
-    price, high, low, age = q
-    # Reject stale prices. The reseller plan has been observed serving
-    # quotes >9h old without any error. Returning those would lie to
-    # the dashboard and the strategy.
-    max_age = float(os.environ.get("POLYGON_MAX_PRICE_AGE_S", "120"))
-    if age > max_age:
-        if time.time() - _polygon_last_age_log > 60:
-            _polygon_last_age_log = time.time()
-            logger.warning(f"polygon price rejected: age {age/60:.1f}min "
-                           f"> threshold {max_age/60:.1f}min. Falling "
-                           f"through to next source.")
-        return None
-    now = time.time()
-    if now - _polygon_last_age_log > 300:
-        _polygon_last_age_log = now
-        # New thresholds match the snapshot endpoint's real-time
-        # capability: sub-second on the Futures Advanced plan, minutes
-        # on the aggregate fallback. >60s strongly suggests we're
-        # falling back to 5-min bars; >12 min means truly delayed.
-        if age > 720:        # > 12 min: confirmed delayed plan
-            logger.warning(f"polygon live quote {age/60:.0f} min old — this "
-                           f"plan is DELAYED, not real-time")
-        elif age > 60:       # 1-12 min: snapshot likely failed, on aggs fallback
-            logger.warning(f"polygon live quote {age/60:.1f} min old — snapshot "
-                           f"endpoint not returning data; running on 5-min bar "
-                           f"fallback. Check Futures Advanced plan is active.")
-        elif age > 5:        # 5-60s: working but throttled
-            logger.info(f"polygon live quote {age:.1f}s old (real-time, throttled)")
-        else:
-            logger.info(f"polygon live quote {age:.1f}s old (real-time)")
-    return price, high, low
+    price, age = q
+    if age > 5:
+        logger.info(f"polygon snapshot {age:.1f}s old (real-time)")
+    return price, price, price
 
 
 def _fetch_cnbc() -> tuple[float, float, float] | None:
