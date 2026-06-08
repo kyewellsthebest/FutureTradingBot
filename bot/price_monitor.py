@@ -407,6 +407,13 @@ class PriceMonitor:
         deliver T (trade) events. Also updates the in-memory price/ts
         with the bar close so latest()/api_price report the most
         recent minute's close."""
+        if not (PRICE_MIN <= c <= PRICE_MAX):
+            if not hasattr(self, "_last_ws_bar_oor_log") or \
+                    time.time() - getattr(self, "_last_ws_bar_oor_log", 0) > 30:
+                self._last_ws_bar_oor_log = time.time()
+                logger.warning(f"WS AM-bar rejected: close={c} out of "
+                               f"range [{PRICE_MIN},{PRICE_MAX}]")
+            return
         with self._lock:
             self._price = c
             self._ts = ts_utc
@@ -496,6 +503,14 @@ class PriceMonitor:
         with self._lock:
             if self._price is None:
                 return None
+            if not (PRICE_MIN <= self._price <= PRICE_MAX):
+                logger.warning(f"snapshot_and_reset(): clearing out-of-"
+                               f"range cached price {self._price}")
+                self._price = None
+                self._high = None
+                self._low = None
+                self._ts = None
+                return None
             snap = PriceSnapshot(
                 price=self._price,
                 high=self._high if self._high is not None else self._price,
@@ -509,10 +524,25 @@ class PriceMonitor:
             return snap
 
     def latest(self) -> PriceSnapshot | None:
-        """Return current snapshot without mutating extremes. Since the
-        source chain is Polygon-only, any non-None return is real-time."""
+        """Return current snapshot without mutating extremes.
+
+        Validates the cached price against PRICE_MIN/PRICE_MAX on read.
+        If a bad value got cached before the sanity gates were added
+        (or via a future source that bypasses them), this guarantees
+        the consumer never sees it. Clears _price when out-of-range
+        so subsequent polls have to re-populate from a valid source.
+        """
         with self._lock:
             if self._price is None:
+                return None
+            if not (PRICE_MIN <= self._price <= PRICE_MAX):
+                logger.warning(f"latest(): clearing out-of-range cached "
+                               f"price {self._price} "
+                               f"[{PRICE_MIN},{PRICE_MAX}]")
+                self._price = None
+                self._high = None
+                self._low = None
+                self._ts = None
                 return None
             return PriceSnapshot(
                 price=self._price,
