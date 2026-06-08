@@ -469,6 +469,7 @@ def polygon_futures_snapshot(product: str = "NQ") -> Optional[tuple[float, float
     import json as _json
     import time as _time
     import urllib.request
+    import urllib.error
 
     key = _polygon_key()
     if not key:
@@ -479,17 +480,41 @@ def polygon_futures_snapshot(product: str = "NQ") -> Optional[tuple[float, float
         f"https://api.polygon.io/futures/v1/snapshot/{tk}",
         f"https://api.polygon.io/futures/v1/last/trade/{tk}",
         f"https://api.polygon.io/futures/v1/last/quote/{tk}",
+        # v3 universal snapshot (newer Polygon API path -- some plans
+        # only expose snapshots through here)
+        f"https://api.polygon.io/v3/snapshot?ticker={tk}",
+        # v3 reference snapshot for the contract
+        f"https://api.polygon.io/v3/reference/futures/contracts/{tk}",
     )
 
     for base in endpoints:
-        url = f"{base}?apiKey={key}"
+        # Build URL: v3/snapshot already has ?ticker=, others append apiKey.
+        if "?" in base:
+            url = f"{base}&apiKey={key}"
+        else:
+            url = f"{base}?apiKey={key}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "hftbot/1.0"})
             with urllib.request.urlopen(req, timeout=5) as resp:
-                if resp.status != 200:
+                status = resp.status
+                body = resp.read().decode("utf-8", errors="replace")
+                logger.info(f"polygon snapshot {tk} {base.split('polygon.io')[-1]}: "
+                            f"status={status} body[:400]={body[:400]!r}")
+                if status != 200:
                     continue
-                data = _json.loads(resp.read().decode("utf-8"))
-        except Exception:
+                data = _json.loads(body)
+        except urllib.error.HTTPError as e:
+            err_body = ""
+            try:
+                err_body = e.read().decode("utf-8", errors="replace")[:400]
+            except Exception:
+                pass
+            logger.warning(f"polygon snapshot {tk} {base.split('polygon.io')[-1]}: "
+                           f"HTTP {e.code} body={err_body!r}")
+            continue
+        except Exception as e:
+            logger.warning(f"polygon snapshot {tk} {base.split('polygon.io')[-1]}: "
+                           f"failed {e!r}")
             continue
         # Polygon returns variable shapes -- try the common ones. The "results"
         # wrapper is standard for v3, but v1 futures uses bare objects.

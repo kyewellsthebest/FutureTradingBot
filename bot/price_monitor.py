@@ -68,6 +68,13 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     every few minutes so the plan's REAL delay is visible in the logs
     rather than guessed at — a real-time plan reads a few minutes, a
     delayed plan reads ~15+.
+
+    REFUSES to return data more than POLYGON_MAX_PRICE_AGE_S seconds old
+    (default 120s = 2 min). Without this guard the polygon_latest_quote
+    fallback path returns whatever the last aggregate bar's close was,
+    even if that bar is 9 hours old -- producing a frozen price display
+    that looks live but isn't. Falling through to None lets _CHAIN try
+    the next source.
     """
     global _polygon_last_age_log
     try:
@@ -86,6 +93,17 @@ def _fetch_polygon() -> tuple[float, float, float] | None:
     if q is None:
         return None
     price, high, low, age = q
+    # Reject stale prices. The reseller plan has been observed serving
+    # quotes >9h old without any error. Returning those would lie to
+    # the dashboard and the strategy.
+    max_age = float(os.environ.get("POLYGON_MAX_PRICE_AGE_S", "120"))
+    if age > max_age:
+        if time.time() - _polygon_last_age_log > 60:
+            _polygon_last_age_log = time.time()
+            logger.warning(f"polygon price rejected: age {age/60:.1f}min "
+                           f"> threshold {max_age/60:.1f}min. Falling "
+                           f"through to next source.")
+        return None
     now = time.time()
     if now - _polygon_last_age_log > 300:
         _polygon_last_age_log = now
@@ -170,18 +188,26 @@ def _fetch_csv() -> tuple[float, float, float] | None:
 
 _CHAIN = [
     ("polygon",    _fetch_polygon),
+    ("yf_fast",    _fetch_yf_fast),
 ]
-# Polygon-only by design. Previous chain included CNBC (15min delayed),
-# yfinance (1-15min delayed), and a CSV cache (days/weeks old). Those
-# fallbacks caused the dashboard NQ price to flicker between two values
-# whenever Polygon missed a poll -- the bot would briefly anchor on a
-# delayed source, then snap back to real-time. Triggered runaway P&L
-# because brackets attached to stale prices.
+# Polygon is the primary source. Pre-weekend the chain was Polygon-
+# only by design (to prevent dashboard flicker between real-time vs
+# delayed sources). That worked while Polygon delivered. As of this
+# weekend Polygon's reseller stopped serving fresh data for futures
+# aggregates, leaving _CHAIN with nothing usable and the dashboard
+# stuck on whatever value was cached when WS last delivered a tick.
 #
-# If Polygon is down, _poll_once returns nothing and latest()/snapshot
-# return None. The bot's bracket forwarder already refuses to trade on
-# None price, so we cleanly skip trades during outages instead of using
-# wrong data.
+# yfinance fast_info is added as a SECOND-CHANCE source -- it only
+# runs when _fetch_polygon returns None (which now happens on stale
+# data thanks to POLYGON_MAX_PRICE_AGE_S). yfinance NQ=F is 15min
+# delayed but a 15min-old price that ticks is infinitely more useful
+# than a 9h-old price that's frozen.
+#
+# Bracket forwarder still refuses to trade on stale data (10pt
+# divergence kill-switch), so the worst case from yfinance fallback
+# is the dashboard shows a 15min-delayed value -- the bot's broker
+# calls are still gated by the WS tick (when present) or skipped
+# entirely.
 
 
 class _TickBarAggregator:
