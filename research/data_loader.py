@@ -16,6 +16,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -151,15 +152,39 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False,
     # NQ as the historical reference series.
     product = os.environ.get("POLYGON_CONTRACT", "NQ") if live_only else "NQ"
     pf = _try_polygon_futures(product, timeframe, force_refresh)
-    if pf is not None:
-        return pf
-    if live_only:
-        # The live bot path -- Polygon or nothing. Empty frame signals
-        # the caller to skip this refresh tick instead of using delayed
-        # yfinance data or synthesizing random walks.
+    if pf is not None and not pf.empty:
+        # Stale-Polygon escape hatch (live_only). On the user's reseller
+        # plan the futures aggs endpoint returns 200 OK with bars
+        # ending ~9-13h ago and never updates within a session. If the
+        # latest Polygon bar is more than 15min behind real time, drop
+        # to yfinance instead -- yfinance NQ=F is 15min delayed but
+        # that's still 50x fresher than the broken Polygon response.
+        # The bot's PriceMonitor still uses Polygon WS for the live
+        # tick when available; this fallback only affects historical
+        # bars used for impulse + HTF trend detection.
+        if live_only:
+            try:
+                _latest = pf.index[-1]
+                _age_min = (datetime.now(timezone.utc)
+                             - _latest.to_pydatetime()).total_seconds() / 60
+                _max_stale = float(os.environ.get("POLYGON_MAX_STALE_MIN", "15"))
+                if _age_min > _max_stale:
+                    logger.warning(
+                        f"{timeframe}: Polygon latest bar is {_age_min:.0f}min "
+                        f"stale (> {_max_stale:.0f}min threshold); falling "
+                        f"through to yfinance NQ=F for fresher historical bars")
+                    # Don't return pf; fall through to yfinance below.
+                else:
+                    return pf
+            except Exception as e:
+                logger.debug(f"Polygon staleness check skipped: {e!r}")
+                return pf
+        else:
+            return pf
+    if live_only and (pf is None or pf.empty):
         logger.warning(f"{timeframe}: Polygon unavailable in live_only "
-                       f"mode -- returning empty frame")
-        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+                       f"mode -- attempting yfinance fallback")
+        # Fall through to yfinance below instead of returning empty.
 
     interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
     path = cache_path(timeframe)
@@ -355,6 +380,65 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
     df = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close", "volume"]
                         ).set_index("ts").sort_index()
     df = df[~df.index.duplicated(keep="last")]
+
+    # Bar-staleness check. Observed on user's plan: this endpoint can
+    # return 200 OK with bars ending 9+ hours ago even when the
+    # contract is actively trading. Without time-range params Polygon
+    # seems to anchor the response window to some past cutoff. If the
+    # latest bar is >10min stale, retry once with explicit from/to
+    # dates spanning today's session -- forces Polygon to give us a
+    # different (hopefully current) window.
+    import time as _time
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    latest_ts = df.index[-1]
+    age_min = (_dt.now(_tz.utc) - latest_ts.to_pydatetime()).total_seconds() / 60
+    if age_min > 10:
+        logger.warning(f"polygon futures {tk} {timeframe}: latest bar is "
+                       f"{age_min:.0f}min stale; retrying with explicit "
+                       f"from/to range")
+        # Try with explicit time range: from 1 day ago to 1 day in future.
+        # Polygon accepts ISO date strings or unix milliseconds for these
+        # params depending on the endpoint version; try ms (most reliable).
+        now_ms = int(_time.time() * 1000)
+        from_ms = now_ms - 24 * 60 * 60 * 1000
+        to_ms = now_ms + 60 * 60 * 1000
+        url2 = (f"https://api.polygon.io/futures/v1/aggs/{tk}"
+                f"?resolution={resolution}&limit=50000"
+                f"&from={from_ms}&to={to_ms}"
+                f"&order=desc&apiKey={key}")
+        try:
+            req2 = urllib.request.Request(url2, headers={"User-Agent": "hftbot/1.0"})
+            with urllib.request.urlopen(req2, timeout=30) as resp2:
+                data2 = _json.loads(resp2.read().decode("utf-8"))
+            results2 = data2.get("results") or []
+            if results2:
+                rows2 = []
+                for r in results2:
+                    try:
+                        ts = pd.Timestamp(int(r["window_start"]), unit="ns", tz="UTC")
+                        rows2.append((ts, float(r["open"]), float(r["high"]),
+                                       float(r["low"]), float(r["close"]),
+                                       float(r.get("volume", 0))))
+                    except Exception:
+                        continue
+                if rows2:
+                    df2 = pd.DataFrame(rows2, columns=["ts", "open", "high",
+                                                       "low", "close", "volume"]
+                                       ).set_index("ts").sort_index()
+                    df2 = df2[~df2.index.duplicated(keep="last")]
+                    new_latest = df2.index[-1]
+                    new_age_min = (_dt.now(_tz.utc) - new_latest.to_pydatetime()
+                                   ).total_seconds() / 60
+                    logger.info(f"polygon futures {tk} {timeframe} retry: "
+                                f"{len(df2)} bars, latest {new_age_min:.1f}min old")
+                    if new_age_min < age_min:
+                        # Merge windowed result over the historical -- new
+                        # data wins for any overlapping timestamps.
+                        df = pd.concat([df, df2])
+                        df = df[~df.index.duplicated(keep="last")].sort_index()
+        except Exception as e:
+            logger.warning(f"polygon futures {tk} retry failed: {e!r}")
+
     try:
         _write_cache(df, path)
     except Exception:
