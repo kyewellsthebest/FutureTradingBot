@@ -163,15 +163,20 @@ def _fetch_csv() -> tuple[float, float, float] | None:
 
 _CHAIN = [
     ("polygon",    _fetch_polygon),
-    ("yf_fast",    _fetch_yf_fast),
 ]
-# Sanity range for a valid MNQ/NQ price. Anything outside this band
-# is bogus and gets rejected before it touches the cached state.
-# Observed: yfinance briefly returned 2899.72 (10x too low) during a
-# data-feed glitch; Polygon's universal snapshot endpoint can
-# occasionally surface a non-price numeric field if the response
-# shape is unfamiliar. Either way, rejecting out-of-range values
-# stops the bot from displaying / trading on nonsense.
+# Polygon only. Pre-weekend this was Polygon-only and worked. After
+# weekend Polygon's reseller broke, and I added yfinance as a fall-
+# back -- but yfinance NQ=F sometimes returns prices for unrelated
+# symbols (observed: NQ=F returning 2899.72 and 4375.53, neither
+# even close to a real MNQ price). That polluted the cache and
+# displayed garbage. Reverted to Polygon-only.
+#
+# If Polygon is unavailable: _CHAIN returns nothing, _price stays
+# None, dashboard shows "--". That's honest. Nothing gets traded.
+
+# Sanity range for a valid MNQ/NQ price. Defense-in-depth guard --
+# polygon_data already checks but a future source might not. Anything
+# outside this band gets rejected before it touches cached state.
 PRICE_MIN = float(os.environ.get("PRICE_SANITY_MIN", "15000"))
 PRICE_MAX = float(os.environ.get("PRICE_SANITY_MAX", "60000"))
 # Polygon is the primary source. Pre-weekend the chain was Polygon-

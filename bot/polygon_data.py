@@ -187,6 +187,17 @@ class PolygonData:
                                 f"in payload keys={list(r.keys())}")
                 continue
 
+            # SANITY: NQ/MNQ index futures trade in ~18k-45k. Anything
+            # outside the band is a non-price field we accidentally
+            # picked up (volume, change %, contract count, ...).
+            sanity_min = float(os.environ.get("PRICE_SANITY_MIN", "15000"))
+            sanity_max = float(os.environ.get("PRICE_SANITY_MAX", "60000"))
+            if not (sanity_min <= price <= sanity_max):
+                logger.warning(f"snapshot {tk}: price {price} out of "
+                                f"plausible range [{sanity_min},{sanity_max}]"
+                                f" -- likely wrong field; ignoring")
+                continue
+
             age_s = (time.time() - ts_ns / 1e9) if ts_ns else 0.0
             if age_s > 300:
                 logger.warning(f"snapshot {tk}: price {price} is "

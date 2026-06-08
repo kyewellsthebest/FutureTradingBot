@@ -153,37 +153,15 @@ def download_nq(timeframe: Timeframe, *, force_refresh: bool = False,
     product = os.environ.get("POLYGON_CONTRACT", "NQ") if live_only else "NQ"
     pf = _try_polygon_futures(product, timeframe, force_refresh)
     if pf is not None and not pf.empty:
-        # Stale-Polygon escape hatch (live_only). On the user's reseller
-        # plan the futures aggs endpoint returns 200 OK with bars
-        # ending ~9-13h ago and never updates within a session. If the
-        # latest Polygon bar is more than 15min behind real time, drop
-        # to yfinance instead -- yfinance NQ=F is 15min delayed but
-        # that's still 50x fresher than the broken Polygon response.
-        # The bot's PriceMonitor still uses Polygon WS for the live
-        # tick when available; this fallback only affects historical
-        # bars used for impulse + HTF trend detection.
-        if live_only:
-            try:
-                _latest = pf.index[-1]
-                _age_min = (datetime.now(timezone.utc)
-                             - _latest.to_pydatetime()).total_seconds() / 60
-                _max_stale = float(os.environ.get("POLYGON_MAX_STALE_MIN", "15"))
-                if _age_min > _max_stale:
-                    logger.warning(
-                        f"{timeframe}: Polygon latest bar is {_age_min:.0f}min "
-                        f"stale (> {_max_stale:.0f}min threshold); falling "
-                        f"through to yfinance NQ=F for fresher historical bars")
-                    # Don't return pf; fall through to yfinance below.
-                else:
-                    return pf
-            except Exception as e:
-                logger.debug(f"Polygon staleness check skipped: {e!r}")
-                return pf
-        else:
-            return pf
-    if live_only and (pf is None or pf.empty):
+        return pf
+    # Polygon failed AND we're in live_only mode -- return empty so
+    # the bot's bar pipeline knows there's no fresh data to evaluate
+    # against. The WS-built tick_bars in PriceMonitor is the primary
+    # current-bar source; this REST path only bootstraps history.
+    if live_only:
         logger.warning(f"{timeframe}: Polygon unavailable in live_only "
-                       f"mode -- attempting yfinance fallback")
+                       f"mode -- returning empty (no yfinance fallback)")
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
         # Fall through to yfinance below instead of returning empty.
 
     interval, period, _, ttl = TIMEFRAME_CONFIG[timeframe]
