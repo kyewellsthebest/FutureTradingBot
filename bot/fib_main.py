@@ -449,6 +449,32 @@ class FibRuntime:
         in_trade = self.state.active_trade is not None
 
         # ------------------------------------------------------------------
+        # PRICE-INVALID HARD STOP
+        # ------------------------------------------------------------------
+        # When PriceMonitor has no valid price (sanity-rejected source
+        # output or just no data) we MUST NOT fire any new trades. The
+        # symptom we're protecting against: bot's cached price is a
+        # garbage value (e.g. 10239 when real MNQ is 29000), strategy
+        # detects setups against real WS bars, paper books at strategy
+        # prices, broker call gets blocked by 10pt divergence but the
+        # paper account hallucinates an 86-trade winning streak that
+        # doesn't exist on the broker. Hard-skip everything strategy-
+        # related when latest() is None.
+        #
+        # The strategy / broker forwarder already has its own kill-
+        # switches but they only protect the BROKER. Paper still
+        # books unless we gate here.
+        if self.monitor.latest() is None:
+            if not hasattr(self, "_last_price_invalid_log") or \
+                    time.time() - getattr(self, "_last_price_invalid_log", 0) > 30:
+                self._last_price_invalid_log = time.time()
+                logger.warning("PRICE INVALID: monitor.latest() is None -- "
+                               "skipping all strategy eval and entries. "
+                               "Bot will resume when a valid price arrives.")
+            self.last_error = "price_invalid_paused"
+            return
+
+        # ------------------------------------------------------------------
         # TICK-LEVEL ENTRY TRIGGER
         # ------------------------------------------------------------------
         # If there are pending pullback setups armed by a previously

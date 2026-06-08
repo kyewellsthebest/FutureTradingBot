@@ -531,15 +531,31 @@ class PriceMonitor:
     def latest(self) -> PriceSnapshot | None:
         """Return current snapshot without mutating extremes.
 
-        Validates the cached price against PRICE_MIN/PRICE_MAX on read.
-        If a bad value got cached before the sanity gates were added
-        (or via a future source that bypasses them), this guarantees
-        the consumer never sees it. Clears _price when out-of-range
-        so subsequent polls have to re-populate from a valid source.
+        Validates the cached price against PRICE_MIN/PRICE_MAX AND
+        the timestamp age. If price is out-of-range OR older than
+        STALE_AFTER_S, returns None and clears the cache so future
+        callers can't see the bad value either.
+
+        Without the age check, a value cached just before the source
+        stopped delivering would persist indefinitely (the 28989-all-
+        day bug). Combined with the sanity range, this guarantees
+        latest() returns either a fresh in-range price or None.
         """
+        STALE_AFTER_S = float(os.environ.get("PRICE_STALE_AFTER_S", "60"))
         with self._lock:
             if self._price is None:
                 return None
+            # Age check
+            if self._ts is not None:
+                age = (datetime.now(timezone.utc) - self._ts).total_seconds()
+                if age > STALE_AFTER_S:
+                    logger.warning(f"latest(): clearing stale cached "
+                                   f"price {self._price} (age {age:.0f}s)")
+                    self._price = None
+                    self._high = None
+                    self._low = None
+                    self._ts = None
+                    return None
             if not (PRICE_MIN <= self._price <= PRICE_MAX):
                 logger.warning(f"latest(): clearing out-of-range cached "
                                f"price {self._price} "
