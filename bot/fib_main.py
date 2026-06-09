@@ -53,7 +53,15 @@ def __getattr__(name):
     raise AttributeError(f"module 'fib_main' has no attribute {name!r}")
 LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_fib.log"
 
-SHADOW_MODE = os.environ.get("BOT_SHADOW_MODE", "1") == "1"
+def _is_shadow_mode() -> bool:
+    """Re-read BOT_SHADOW_MODE on every call instead of using a
+    module-level constant. A constant captured at import time stays
+    stale if the env changes mid-run (Railway env edit, restart with
+    different config, etc.) -- and the silent-shadow-broker-skip bug
+    that hid 88 paper trades from TradersPost is exactly the symptom.
+
+    Returns True if shadow mode is on (paper only, no broker call)."""
+    return os.environ.get("BOT_SHADOW_MODE", "1") == "1"
 N_MNQ = int(os.environ.get("FIB_N_MNQ", str(DEFAULT_SIZE)))
 # Execution cost overrides (Lucid 50K Pro / Tradovate prop-firm defaults).
 # These override the paper account's legacy market-order constants. Tune
@@ -359,7 +367,7 @@ class FibRuntime:
                 logger.warning(f"migrated commission accounting on {migrated} historical trade(s)")
         except Exception as e:
             logger.warning(f"commission migration failed (non-fatal): {e}")
-        mode = "SHADOW (no orders)" if SHADOW_MODE else "LIVE"
+        mode = "SHADOW (no orders)" if _is_shadow_mode() else "LIVE"
         logger.info(f"[fib_main] starting — {mode} mode, "
                     f"strategy=Fib 50% (1-min setup + 5-min HTF trend), "
                     f"size={N_MNQ} MNQ default, "
@@ -734,7 +742,7 @@ class FibRuntime:
                 adverse_slip_pts=ADVERSE_SLIP_PTS,
                 commission_per_mnq_rt=COMM_PER_MNQ_RT,
             )
-            tag = "SHADOW" if SHADOW_MODE else "LIVE"
+            tag = "SHADOW" if _is_shadow_mode() else "LIVE"
             logger.info(f"[{tag} OPEN] {trade.side} {trade.n_mnq} MNQ "
                         f"@ {trade.entry_px:.2f}  stop={trade.stop_px:.2f} "
                         f"tgt={trade.target_px:.2f}")
@@ -767,55 +775,88 @@ class FibRuntime:
             # the 0.618 pullback level on the closed bar -- that's why
             # on_new_1m_bar returned this trade). The broker handles
             # everything else.
-            if SHADOW_MODE:
+            # === BROKER FORWARDING GATES (with explicit logging) ===
+            # Every gate that blocks the broker call now logs WHICH
+            # gate fired and with what values. Previously several of
+            # these were silent skips, which is how 88 paper trades
+            # got booked while the broker tab showed "0 signals".
+            shadow_on = _is_shadow_mode()
+            logger.info(f"[broker gate 1/4 SHADOW_MODE] env={shadow_on} "
+                        f"(env var BOT_SHADOW_MODE="
+                        f"{os.environ.get('BOT_SHADOW_MODE', '<unset>')!r})")
+            if shadow_on:
                 logger.info(f"[SHADOW] not forwarding to broker: "
                             f"{trade.side} {trade.n_mnq} MARKET")
-            elif self.traderspost is not None:
-                try:
-                    op = self.account.state.open_position
-                    db_id = getattr(op, "db_id", None) if op else None
-                    setup_ref = (f"acct{self.account_id}_"
-                                 f"{db_id or 'noid'}_"
-                                 f"{int(now.timestamp())}")
-                    # Kill-switch: skip if live price is too far from
-                    # strategy's view -- indicates stale/bad data, not a
-                    # real setup. With Polygon WS giving sub-second ticks
-                    # this should almost never trigger in practice.
-                    live_snap = self.monitor.latest()
-                    if live_snap is None:
-                        logger.warning(
-                            "[traderspost SKIP] no live price (Polygon "
-                            f"outage?) -- refusing entry")
-                        return
-                    divergence = abs(trade.entry_px - live_snap.price)
-                    if divergence > 10.0:
-                        logger.error(
-                            f"[traderspost SKIP] strategy/live divergence "
-                            f"{divergence:.1f}pt "
-                            f"(strategy={trade.entry_px:.2f} vs "
-                            f"live={live_snap.price:.2f}) -- bad data, "
-                            f"not entering")
-                        return
-                    logger.info(
-                        f"[traderspost SEND BRACKET] {trade.side} "
-                        f"{trade.n_mnq} entry={trade.entry_px:.2f} "
-                        f"stop={trade.stop_px:.2f} tgt={trade.target_px:.2f} "
-                        f"(live={live_snap.price:.2f})")
-                    self.traderspost.submit_open(
-                        side=trade.side, qty=trade.n_mnq,
-                        entry_price=trade.entry_px,
-                        stop_price=trade.stop_px,
-                        target_price=trade.target_px,
-                        setup_id=setup_ref,
-                    )
-                    self._open_trade_ref = setup_ref
-                    self._broker_entry_ts = now
-                    self._broker_stop_px = trade.stop_px
-                    self._broker_target_px = trade.target_px
-                    self._broker_side = trade.side
-                    self._broker_target_sent = True
-                except Exception as te:
-                    logger.warning(f"traderspost submit_open failed: {te!r}")
+                return
+
+            logger.info(f"[broker gate 2/4 traderspost init] "
+                        f"client={self.traderspost is not None}")
+            if self.traderspost is None:
+                logger.error("[traderspost SKIP] client not initialised "
+                             "-- check TRADERSPOST_WEBHOOK_URL env var")
+                return
+
+            try:
+                op = self.account.state.open_position
+                db_id = getattr(op, "db_id", None) if op else None
+                setup_ref = (f"acct{self.account_id}_"
+                             f"{db_id or 'noid'}_"
+                             f"{int(now.timestamp())}")
+                live_snap = self.monitor.latest()
+                logger.info(f"[broker gate 3/4 live_price] snap="
+                            f"{'None' if live_snap is None else f'{live_snap.price:.2f}'}")
+                if live_snap is None:
+                    logger.warning(
+                        "[traderspost SKIP] no live price (Polygon "
+                        f"outage?) -- refusing entry")
+                    return
+                divergence = abs(trade.entry_px - live_snap.price)
+                # Divergence threshold raised from 10pt to 30pt. The bot's
+                # bracket is a LIMIT order at strategy.entry_px -- if the
+                # market doesn't actually hit that price, TradersPost auto-
+                # cancels in 60s and no money is lost. The 10pt threshold
+                # was rejecting legitimate setups where the live tick had
+                # already moved a few points past the pullback level. 30pt
+                # still catches the catastrophic stale-data scenario
+                # (218pt gap from the prior session reopen) without
+                # blocking normal intra-minute price movement.
+                divergence_max = float(os.environ.get(
+                    "TRADERSPOST_MAX_DIVERGENCE_PT", "30"))
+                logger.info(f"[broker gate 4/4 divergence] "
+                            f"strategy={trade.entry_px:.2f} "
+                            f"live={live_snap.price:.2f} "
+                            f"diff={divergence:.1f}pt "
+                            f"limit={divergence_max:.1f}pt")
+                if divergence > divergence_max:
+                    logger.error(
+                        f"[traderspost SKIP] strategy/live divergence "
+                        f"{divergence:.1f}pt > {divergence_max:.1f}pt "
+                        f"(strategy={trade.entry_px:.2f} vs "
+                        f"live={live_snap.price:.2f}) -- bad data, "
+                        f"not entering")
+                    return
+
+                # All gates passed -- send the order
+                logger.info(
+                    f"[traderspost SEND BRACKET] {trade.side} "
+                    f"{trade.n_mnq} entry={trade.entry_px:.2f} "
+                    f"stop={trade.stop_px:.2f} tgt={trade.target_px:.2f} "
+                    f"(live={live_snap.price:.2f})")
+                self.traderspost.submit_open(
+                    side=trade.side, qty=trade.n_mnq,
+                    entry_price=trade.entry_px,
+                    stop_price=trade.stop_px,
+                    target_price=trade.target_px,
+                    setup_id=setup_ref,
+                )
+                self._open_trade_ref = setup_ref
+                self._broker_entry_ts = now
+                self._broker_stop_px = trade.stop_px
+                self._broker_target_px = trade.target_px
+                self._broker_side = trade.side
+                self._broker_target_sent = True
+            except Exception as te:
+                logger.warning(f"traderspost submit_open failed: {te!r}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
@@ -828,7 +869,7 @@ class FibRuntime:
             self.account._close(exit_px_raw=record["exit_px"],
                                 reason=record["exit_reason"],
                                 adverse=adverse, now=now)
-            tag = "SHADOW" if SHADOW_MODE else "LIVE"
+            tag = "SHADOW" if _is_shadow_mode() else "LIVE"
             logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
                         f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
             # BROKER EXIT POLICY -- bare-minimum integration
@@ -913,7 +954,7 @@ class FibRuntime:
                     logger.debug(f"calendar status failed: {e!r}")
             blob = {
                 "ts": datetime.now(timezone.utc).isoformat(),
-                "mode": "shadow" if SHADOW_MODE else "live",
+                "mode": "shadow" if _is_shadow_mode() else "live",
                 "lifetime_stats": lifetime,
                 "strategy": "Fib 50% (1-min entries + 5-min HTF trend filter)",
                 "bars_1m_source": self._bars_1m_source,
