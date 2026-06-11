@@ -240,6 +240,80 @@ def api_reconcile(ref):
     })
 
 
+@app.route("/api/tradovate_diag")
+def api_tradovate_diag():
+    """Self-test for the Tradovate integration: runs auth + account
+    list and returns the result as JSON. Hit this from a browser to
+    verify env vars are correct before we wire the bot to Tradovate.
+
+    Successful response:
+      {
+        "configured": true,
+        "auth_ok": true,
+        "cluster": "demo",
+        "user_id": 12345,
+        "has_market_data": true,
+        "has_live": false,
+        "expires_in_min": 89,
+        "accounts": [
+          {"id": 1830371, "name": "Real dosh", "active": true},
+          {"id": ..., "name": "DEMO7295004", "active": true}
+        ],
+        "selected_account_id": ...
+      }
+    """
+    try:
+        from bot.tradovate_client import TradovateSession, _is_demo
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = TradovateSession()
+    if not sess.is_configured:
+        import os as _os
+        present = {
+            k: bool(_os.environ.get(k))
+            for k in ("TRADOVATE_USERNAME", "TRADOVATE_PASSWORD",
+                      "TRADOVATE_APP_ID", "TRADOVATE_APP_VERSION",
+                      "TRADOVATE_CID", "TRADOVATE_DEVICE_ID",
+                      "TRADOVATE_API_SECRET", "TRADOVATE_DEMO")
+        }
+        return jsonify({
+            "configured": False,
+            "error": "credentials missing",
+            "env_vars_present": present,
+        })
+    tokens = sess.authenticate()
+    if tokens is None:
+        return jsonify({
+            "configured": True,
+            "auth_ok": False,
+            "cluster": "demo" if _is_demo() else "live",
+            "error": ("Authentication failed -- check Railway logs for "
+                      "the Tradovate response (search 'Tradovate auth')."),
+        })
+    accts = sess.account_list()
+    selected = sess.get_account_id()
+    return jsonify({
+        "configured": True,
+        "auth_ok": True,
+        "cluster": "demo" if _is_demo() else "live",
+        "user_id": tokens.user_id,
+        "has_market_data": tokens.has_market_data,
+        "has_live": tokens.has_live,
+        "expires_in_min": round((tokens.expires_at - __import__("time").time()) / 60, 1),
+        "accounts": [
+            {
+                "id": a.get("id"),
+                "name": a.get("name"),
+                "type": a.get("accountType"),
+                "active": a.get("active"),
+                "legal_status": a.get("legalStatus"),
+            }
+            for a in accts
+        ],
+        "selected_account_id": selected,
+    })
+
+
 @app.route("/api/diag")
 def api_diag():
     """Server-side diagnostic — tells you whether the BOT process (not just
