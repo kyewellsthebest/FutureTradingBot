@@ -240,6 +240,112 @@ def api_reconcile(ref):
     })
 
 
+@app.route("/api/tradovate_account")
+def api_tradovate_account():
+    """Live account snapshot from Tradovate: balance, equity, daily P&L.
+    Used to populate the Performance tab and the topbar balance."""
+    try:
+        from bot.tradovate_client import TradovateSession
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = TradovateSession()
+    if not sess.is_configured:
+        return jsonify({"configured": False})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "error": "no_account_id"})
+    # /cashBalance/getCashBalanceSnapshot gives current cash position
+    status, snap = sess._rest("POST", "/cashBalance/getCashBalanceSnapshot",
+                                body={"accountId": int(acct_id)})
+    # /accountRiskStatus/list gives liquidation/risk state
+    rs_status, rs_data = sess._rest("GET", "/accountRiskStatus/list")
+    # /account/item gives account metadata
+    a_status, acct_data = sess._rest("GET", "/account/item",
+                                       params={"id": int(acct_id)})
+    return jsonify({
+        "configured": True,
+        "account_id": acct_id,
+        "account": acct_data if a_status == 200 else None,
+        "cash_snapshot": snap if status == 200 else None,
+        "risk_status": rs_data if rs_status == 200 else None,
+    })
+
+
+@app.route("/api/tradovate_position")
+def api_tradovate_position():
+    """Current open position(s) on the Tradovate account. Used to
+    populate the Live tab's Active Trade card."""
+    try:
+        from bot.tradovate_client import TradovateSession
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = TradovateSession()
+    if not sess.is_configured:
+        return jsonify({"configured": False})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "error": "no_account_id"})
+    # /position/list returns all positions for the user; filter by account
+    status, positions = sess._rest("GET", "/position/list")
+    if status != 200 or not isinstance(positions, list):
+        return jsonify({
+            "configured": True,
+            "account_id": acct_id,
+            "positions": [],
+            "error": f"http_{status}",
+        })
+    # Tradovate positions list ALL positions across all accounts; filter
+    # to the active account and to those with non-zero netPos.
+    filtered = []
+    for p in positions:
+        if not isinstance(p, dict):
+            continue
+        if p.get("accountId") != acct_id:
+            continue
+        if not p.get("netPos"):  # 0 or None
+            continue
+        filtered.append(p)
+    return jsonify({
+        "configured": True,
+        "account_id": acct_id,
+        "positions": filtered,
+    })
+
+
+@app.route("/api/tradovate_trades")
+def api_tradovate_trades():
+    """Recent fills (executed orders) on the Tradovate account. Used
+    to populate the Trades tab."""
+    try:
+        from bot.tradovate_client import TradovateSession
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = TradovateSession()
+    if not sess.is_configured:
+        return jsonify({"configured": False})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "error": "no_account_id"})
+    # /fill/list returns recent fills; we filter by accountId
+    status, fills = sess._rest("GET", "/fill/list")
+    if status != 200 or not isinstance(fills, list):
+        return jsonify({
+            "configured": True,
+            "account_id": acct_id,
+            "fills": [],
+            "error": f"http_{status}",
+        })
+    # Filter to active account and keep last 30 newest first
+    own = [f for f in fills
+           if isinstance(f, dict) and f.get("accountId") == acct_id]
+    own.sort(key=lambda f: f.get("timestamp", ""), reverse=True)
+    return jsonify({
+        "configured": True,
+        "account_id": acct_id,
+        "fills": own[:30],
+    })
+
+
 @app.route("/api/tradovate_diag")
 def api_tradovate_diag():
     """Self-test for the Tradovate integration: runs auth + account
@@ -386,6 +492,8 @@ def api_diag():
         # the bot is stuck on delayed REST aggregates.
         out["polygon_ws"] = snap.get("polygon_ws", {"enabled": False})
         out["ws_tick_bars"] = snap.get("ws_tick_bars", 0)
+        # Tradovate market data health
+        out["tradovate_md"] = snap.get("tradovate_md", {"enabled": False})
     except Exception as e:
         out["snapshot"] = {"error": str(e)}
     # Try to read Lucid state directly — if the bot ever ran, applied_reset_serial

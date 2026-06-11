@@ -1044,6 +1044,9 @@ class FibRuntime:
                 "polygon_ws": (self.monitor._ws_client.health()
                                if getattr(self.monitor, "_ws_client", None)
                                else {"enabled": False}),
+                "tradovate_md": (self.monitor._tradovate_md.health()
+                                  if getattr(self.monitor, "_tradovate_md", None)
+                                  else {"enabled": False}),
                 # WS-built bar count -- needs >=35 closed bars before
                 # the strategy can fall back to it when REST aggs is
                 # stale. Surface so user can watch warmup progress.
