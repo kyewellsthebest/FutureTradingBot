@@ -347,23 +347,10 @@ class LucidAccount(PaperAccount):
         # The trade just closed — update Lucid state with the realized P&L
         pnl = float(result.get("pnl", 0.0))
         self.lucid.today_pnl += pnl
-        # Auto-pause when total profit first crosses the challenge profit
-        # target. The user wants to manually decide whether to keep trading
-        # past the target (and risk reversing the pass) or stop and enjoy
-        # the eligible state. Disarms after firing; re-arms on reset.
-        try:
-            total_profit = self.lucid.cum_pnl_closed_days + self.lucid.today_pnl
-            if (self.lucid.auto_pause_armed
-                    and total_profit >= PROFIT_TARGET_PASS):
-                self.lucid.auto_pause_armed = False
-                from bot.account_ctx import set_paused
-                set_paused(True, reason="profit_target_hit")
-                logger.warning(
-                    f"[AUTO-PAUSE] profit target hit: total +${total_profit:.2f} "
-                    f">= ${PROFIT_TARGET_PASS:.0f}. Bot paused; resume from "
-                    f"dashboard when ready.")
-        except Exception as e:
-            logger.warning(f"auto-pause check failed (non-fatal): {e!r}")
+        # Auto-pause at $3k profit DISABLED per user request. Was a
+        # Lucid funded-account feature to lock in the eval pass; not
+        # relevant once we're trading on a personal Tradovate account
+        # where there's no challenge to pass.
         # Microscalp accounting: hold time
         try:
             entry_t = pd.Timestamp(result.get("entry_time") or "")

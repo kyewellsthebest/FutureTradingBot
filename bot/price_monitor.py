@@ -330,6 +330,10 @@ class PriceMonitor:
         # if the WS dies we still get updates every POLL_SECONDS.
         self._ws_client = None
         self._ws_started: bool = False
+        # Tradovate market-data subscriber -- when configured, replaces
+        # Polygon as the primary live tick source. Same on_ws_tick
+        # callback so downstream (cached price, tick_bars) is identical.
+        self._tradovate_md = None
         # Tick->bar aggregator. Builds 1-min OHLC bars from incoming WS
         # ticks so the strategy has a live bar source when Polygon's
         # REST aggs endpoint is returning stale data. Exposed for the
@@ -341,13 +345,45 @@ class PriceMonitor:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop.clear()
-        # Spin up the WS subscriber first. If it fails to start (no
-        # POLYGON_API key, websocket-client not installed, etc) it
-        # returns False and we keep REST polling as the sole source.
+        # Spin up the Tradovate market data WS FIRST. When this delivers
+        # ticks they go through _on_ws_tick (same code path as Polygon),
+        # which populates tick_bars and the cached price. Polygon stays
+        # as a fallback so if Tradovate hiccups the bot still has data.
+        self._start_tradovate_md()
         self._start_ws()
         self._thread = threading.Thread(target=self._loop,
                                          name="PriceMonitor", daemon=True)
         self._thread.start()
+
+    def _start_tradovate_md(self) -> None:
+        """Spawn the Tradovate market data subscriber. Returns silently
+        if Tradovate credentials aren't set -- Polygon stays the source."""
+        try:
+            from bot.tradovate_client import TradovateSession
+            from bot.tradovate_md import TradovateMarketData
+            sess = TradovateSession()
+            if not sess.is_configured:
+                logger.info("tradovate_md: credentials not set, skipping")
+                self._tradovate_md = None
+                return
+            # Resolve the symbol Tradovate expects. The MNQ June 2026
+            # contract is "MNQM6" on CME short format.
+            from research.data_loader import polygon_front_month
+            product = os.environ.get("POLYGON_CONTRACT", "MNQ")
+            symbol = os.environ.get("TRADOVATE_SYMBOL",
+                                     polygon_front_month(product))
+            self._tradovate_md = TradovateMarketData(
+                session=sess, symbol=symbol, on_tick=self._on_ws_tick)
+            started = self._tradovate_md.start()
+            if started:
+                logger.info(f"tradovate_md started for {symbol}")
+            else:
+                logger.warning("tradovate_md failed to start -- falling "
+                               "back to Polygon")
+        except Exception as e:
+            logger.warning(f"tradovate_md init failed: {e!r} -- falling back "
+                           f"to Polygon")
+            self._tradovate_md = None
 
     def _start_ws(self) -> None:
         """Spawn the Polygon WS subscriber on the front-month ticker.
@@ -389,7 +425,14 @@ class PriceMonitor:
             self._price = price
             self._ts = ts_utc
             self._poll_count += 1
-            self.last_source = "polygon_ws"
+            # Tag the source based on which subscriber is alive. Both
+            # Polygon and Tradovate route through _on_ws_tick; we look
+            # at recent tick timestamps to figure out which one fired.
+            if (self._tradovate_md is not None
+                    and self._tradovate_md.tick_count > 0):
+                self.last_source = "tradovate_md"
+            else:
+                self.last_source = "polygon_ws"
             # Accumulate intra-snapshot extremes from tick stream (same
             # contract as the REST path -- snapshot_and_reset() consumes
             # and resets them).
@@ -438,6 +481,11 @@ class PriceMonitor:
         if self._ws_client is not None:
             try:
                 self._ws_client.stop()
+            except Exception:
+                pass
+        if self._tradovate_md is not None:
+            try:
+                self._tradovate_md.stop()
             except Exception:
                 pass
         if self._thread:

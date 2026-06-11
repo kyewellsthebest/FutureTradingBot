@@ -248,6 +248,25 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"traderspost init failed: {e!r}"
             self.traderspost = None
+        # Tradovate direct broker client -- preferred when configured.
+        # When tradovate is available, broker forwarding goes through
+        # the Tradovate REST API instead of TradersPost. Same market
+        # data feed (Tradovate WS) and same execution venue eliminates
+        # paper-vs-broker divergence at the source.
+        try:
+            from bot.tradovate_client import TradovateSession
+            from bot.tradovate_orders import TradovateOrders
+            self.tradovate_session = TradovateSession()
+            if self.tradovate_session.is_configured:
+                self.tradovate_orders = TradovateOrders(self.tradovate_session)
+                logger.info("Tradovate broker active (env vars configured)")
+            else:
+                self.tradovate_orders = None
+                logger.info("Tradovate broker not configured; using TradersPost")
+        except Exception as e:
+            self.last_error = f"tradovate init failed: {e!r}"
+            self.tradovate_session = None
+            self.tradovate_orders = None
         # Economic calendar -- pulled from Forex Factory's free XML feed
         # every 6h. Used by pullback_strategy to skip entries 5min before
         # / 15min after big USD releases (CPI, FOMC, NFP, PCE, GDP, Powell,
@@ -789,11 +808,16 @@ class FibRuntime:
                             f"{trade.side} {trade.n_mnq} MARKET")
                 return
 
-            logger.info(f"[broker gate 2/4 traderspost init] "
-                        f"client={self.traderspost is not None}")
-            if self.traderspost is None:
-                logger.error("[traderspost SKIP] client not initialised "
-                             "-- check TRADERSPOST_WEBHOOK_URL env var")
+            # Route through Tradovate if available, else TradersPost.
+            use_tradovate = self.tradovate_orders is not None
+            broker_name = "tradovate" if use_tradovate else "traderspost"
+            broker_client_ok = (self.tradovate_orders is not None
+                                 if use_tradovate
+                                 else self.traderspost is not None)
+            logger.info(f"[broker gate 2/4 {broker_name} init] "
+                        f"client={broker_client_ok}")
+            if not broker_client_ok:
+                logger.error(f"[{broker_name} SKIP] client not initialised")
                 return
 
             try:
@@ -807,19 +831,9 @@ class FibRuntime:
                             f"{'None' if live_snap is None else f'{live_snap.price:.2f}'}")
                 if live_snap is None:
                     logger.warning(
-                        "[traderspost SKIP] no live price (Polygon "
-                        f"outage?) -- refusing entry")
+                        f"[{broker_name} SKIP] no live price -- refusing entry")
                     return
                 divergence = abs(trade.entry_px - live_snap.price)
-                # Divergence threshold raised from 10pt to 30pt. The bot's
-                # bracket is a LIMIT order at strategy.entry_px -- if the
-                # market doesn't actually hit that price, TradersPost auto-
-                # cancels in 60s and no money is lost. The 10pt threshold
-                # was rejecting legitimate setups where the live tick had
-                # already moved a few points past the pullback level. 30pt
-                # still catches the catastrophic stale-data scenario
-                # (218pt gap from the prior session reopen) without
-                # blocking normal intra-minute price movement.
                 divergence_max = float(os.environ.get(
                     "TRADERSPOST_MAX_DIVERGENCE_PT", "30"))
                 logger.info(f"[broker gate 4/4 divergence] "
@@ -829,26 +843,48 @@ class FibRuntime:
                             f"limit={divergence_max:.1f}pt")
                 if divergence > divergence_max:
                     logger.error(
-                        f"[traderspost SKIP] strategy/live divergence "
-                        f"{divergence:.1f}pt > {divergence_max:.1f}pt "
-                        f"(strategy={trade.entry_px:.2f} vs "
-                        f"live={live_snap.price:.2f}) -- bad data, "
-                        f"not entering")
+                        f"[{broker_name} SKIP] divergence "
+                        f"{divergence:.1f}pt > {divergence_max:.1f}pt")
                     return
 
                 # All gates passed -- send the order
-                logger.info(
-                    f"[traderspost SEND BRACKET] {trade.side} "
-                    f"{trade.n_mnq} entry={trade.entry_px:.2f} "
-                    f"stop={trade.stop_px:.2f} tgt={trade.target_px:.2f} "
-                    f"(live={live_snap.price:.2f})")
-                self.traderspost.submit_open(
-                    side=trade.side, qty=trade.n_mnq,
-                    entry_price=trade.entry_px,
-                    stop_price=trade.stop_px,
-                    target_price=trade.target_px,
-                    setup_id=setup_ref,
-                )
+                stop_pts = abs(trade.entry_px - trade.stop_px)
+                target_pts = abs(trade.target_px - trade.entry_px)
+                if use_tradovate:
+                    # Resolve symbol the same way the WS subscriber did.
+                    from research.data_loader import polygon_front_month
+                    symbol = os.environ.get(
+                        "TRADOVATE_SYMBOL",
+                        polygon_front_month(
+                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    logger.info(
+                        f"[tradovate SEND BRACKET] {trade.side} "
+                        f"{trade.n_mnq} {symbol} stop={stop_pts:.2f}pt "
+                        f"target={target_pts:.2f}pt (live={live_snap.price:.2f})")
+                    result = self.tradovate_orders.submit_market_with_bracket(
+                        side=trade.side, qty=trade.n_mnq, symbol=symbol,
+                        stop_pts=stop_pts, target_pts=target_pts,
+                        setup_ref=setup_ref,
+                    )
+                    if not result.ok:
+                        logger.error(f"[tradovate order REJECTED] {result.error}")
+                        return
+                    logger.info(f"[tradovate order ACCEPTED] order_id="
+                                f"{result.order_id}")
+                else:
+                    logger.info(
+                        f"[traderspost SEND BRACKET] {trade.side} "
+                        f"{trade.n_mnq} entry={trade.entry_px:.2f} "
+                        f"stop={trade.stop_px:.2f} tgt={trade.target_px:.2f} "
+                        f"(live={live_snap.price:.2f})")
+                    self.traderspost.submit_open(
+                        side=trade.side, qty=trade.n_mnq,
+                        entry_price=trade.entry_px,
+                        stop_price=trade.stop_px,
+                        target_price=trade.target_px,
+                        setup_id=setup_ref,
+                    )
+
                 self._open_trade_ref = setup_ref
                 self._broker_entry_ts = now
                 self._broker_stop_px = trade.stop_px
@@ -856,7 +892,7 @@ class FibRuntime:
                 self._broker_side = trade.side
                 self._broker_target_sent = True
             except Exception as te:
-                logger.warning(f"traderspost submit_open failed: {te!r}")
+                logger.warning(f"broker submit failed: {te!r}")
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
@@ -898,8 +934,31 @@ class FibRuntime:
                 pass  # broker never got the open; nothing to close
             elif reason in ("stop", "target"):
                 logger.info(
-                    f"[traderspost CLOSE skip] {reason} owned by broker "
-                    f"OCO bracket -- subscription handles it at fill price")
+                    f"[broker CLOSE skip] {reason} owned by broker "
+                    f"OCO bracket -- exchange handles it at fill price")
+            elif self.tradovate_orders is not None:
+                # Tradovate path: timeout/manual close -> market flatten
+                try:
+                    from research.data_loader import polygon_front_month
+                    symbol = os.environ.get(
+                        "TRADOVATE_SYMBOL",
+                        polygon_front_month(
+                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    result = self.tradovate_orders.submit_market_close(
+                        side=record.get("side", "LONG"),
+                        qty=record.get("n_mnq", 1),
+                        symbol=symbol,
+                        setup_ref=self._open_trade_ref,
+                    )
+                    if result.ok:
+                        logger.info(
+                            f"[tradovate CLOSE OK] order_id={result.order_id} "
+                            f"reason={reason}")
+                    else:
+                        logger.warning(
+                            f"[tradovate CLOSE FAIL] {result.error}")
+                except Exception as te:
+                    logger.warning(f"tradovate close failed: {te!r}")
             elif self.traderspost is not None:
                 # timeout / manual / auto-DLL: bracket has no equivalent,
                 # send the market close to flatten.
@@ -976,7 +1035,8 @@ class FibRuntime:
                 # either qualifies as real-time. Anything else (none,
                 # fallback name) is not.
                 "price_realtime": self.monitor.last_source in
-                                   ("polygon_ws", "polygon_ws_am", "polygon"),
+                                   ("tradovate_md", "polygon_ws",
+                                    "polygon_ws_am", "polygon"),
                 # WS health: tells the user whether Polygon's WebSocket is
                 # actually delivering ticks. tick_count=0 several minutes
                 # after start = plan likely doesn't include futures real-
