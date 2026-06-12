@@ -338,7 +338,9 @@ def api_tradovate_trades():
     rows = []
     debug = {"attempts": []}
 
-    # Attempt 1: /fill/list filtered by accountId
+    # Attempt 1: /fill/list -- the canonical fill source.
+    # Fills do NOT carry accountId; the API already scopes to the
+    # authenticated user's accounts. We take them all.
     try:
         st, fills = sess._rest("GET", "/fill/list")
         debug["attempts"].append({"endpoint": "/fill/list",
@@ -347,9 +349,9 @@ def api_tradovate_trades():
                                               if isinstance(fills, list)
                                               else "non-list")})
         if st == 200 and isinstance(fills, list):
-            own = [f for f in fills if isinstance(f, dict)
-                   and f.get("accountId") == acct_id]
-            for f in own:
+            for f in fills:
+                if not isinstance(f, dict):
+                    continue
                 rows.append({
                     "time": f.get("timestamp"),
                     "action": f.get("action"),
@@ -357,6 +359,7 @@ def api_tradovate_trades():
                     "price": f.get("price"),
                     "order_id": f.get("orderId"),
                     "fill_id": f.get("id"),
+                    "contract_id": f.get("contractId"),
                     "source": "fill/list",
                 })
     except Exception as e:
@@ -425,14 +428,21 @@ def api_tradovate_trades():
 
     # Re-shape into the "fills" structure the frontend already
     # consumes -- it expects: timestamp, action, qty, price, orderId, id.
-    fills_for_ui = [{
-        "timestamp": r.get("time"),
-        "action": r.get("action"),
-        "qty": r.get("qty"),
-        "price": r.get("price"),
-        "orderId": r.get("order_id"),
-        "id": r.get("fill_id") or r.get("order_id"),
-    } for r in rows[:200]]
+    # Skip rows with no price (canceled orders show up here from
+    # /order/list but have no fill price -- not useful to display).
+    fills_for_ui = []
+    for r in rows[:200]:
+        if r.get("price") is None:
+            continue
+        fills_for_ui.append({
+            "timestamp": r.get("time"),
+            "action": r.get("action"),
+            "qty": r.get("qty"),
+            "price": r.get("price"),
+            "orderId": r.get("order_id"),
+            "id": r.get("fill_id") or r.get("order_id"),
+            "contractId": r.get("contract_id"),
+        })
 
     return jsonify({
         "configured": True,
