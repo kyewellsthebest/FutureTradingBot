@@ -145,46 +145,16 @@
       <div class="grid">
         <div class="card">
           <div class="card-header">
-            Bot Health <span id="health-banner">checking…</span>
+            Diagnostic Bundle
+            <button class="btn-dl btn-dl-primary"
+                    id="btn-dl-bundle-quick"
+                    data-dl="bundle" data-ext="json"
+                    style="float:right;margin-top:-4px">
+              ⬇ Download
+            </button>
           </div>
           <div class="card-body kv-list">
-            <div class="kv-row"><span>Process verdict</span><b id="health-verdict" class="muted">checking…</b></div>
-            <div class="kv-row"><span>Market status</span><b id="health-market">—</b></div>
-            <div class="kv-row"><span>1-min bar source</span><b id="health-bar-source">—</b></div>
-            <div class="kv-row"><span>Last price update</span><b id="health-price-ts">—</b></div>
-            <div class="kv-row"><span>Snapshot age (in-memory)</span><b id="health-snap-age">—</b></div>
-            <div class="kv-row"><span>Snapshot age (on-disk)</span><b id="health-file-age" class="muted">—</b></div>
-            <div class="kv-row"><span>Lucid reset serial</span><b id="health-reset-serial" class="muted">—</b></div>
-            <div class="kv-row"><span>Cycles since start</span><b id="health-cycle">0</b></div>
-            <div class="kv-row"><span>Bars processed (session)</span><b id="health-bars">0</b></div>
-            <div class="kv-row"><span>Signals fired (session)</span><b id="health-fired">0</b></div>
-            <div class="kv-row"><span>Signals blocked (session)</span><b id="health-blocked">0</b></div>
-            <div class="kv-row"><span>Setups currently armed</span><b id="health-pending">0</b></div>
-            <div class="kv-row"><span>Last error</span><b id="health-error" class="muted">none</b></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">Sim Baseline vs Live · Drift Monitor</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Sim return / mo</span><b class="pos" id="strat-baseline-ret">+27.04%</b></div>
-            <div class="kv-row"><span>Live return / mo (annualised)</span><b id="live-ret-mo">—</b></div>
-            <div class="kv-row"><span>Sim max DD</span><b id="strat-baseline-dd">$875 (1.75%)</b></div>
-            <div class="kv-row"><span>Live current DD</span><b id="live-dd">—</b></div>
-            <div class="kv-row"><span>Sim WR / RR</span><b id="strat-baseline-wrrr">43.0% / 1.65</b></div>
-            <div class="kv-row"><span>Live WR / RR</span><b id="live-wr-rr">—</b></div>
-            <div class="kv-row"><span>Sim trades / mo</span><b id="strat-baseline-tradesmo">~3,000</b></div>
-            <div class="kv-row"><span>Live trades / mo (annualised)</span><b id="live-trades-mo">—</b></div>
-            <div class="kv-row"><span>Drift verdict</span><b id="live-drift" class="muted">need ≥30 trades to compare</b></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid">
-        <div class="card">
-          <div class="card-header">Shadow Engine · Parallel observer</div>
-          <div class="card-body kv-list" id="shadow-summary">
-            <div class="muted">Shadow engine not yet running.</div>
+            <div class="kv-row"><span>Everything in one JSON — paste into chat when something looks off.</span></div>
           </div>
         </div>
       </div>
@@ -197,102 +167,6 @@
           NQ · 1-min · Pullback Impulse (5pt impulse over 4 bars → 0.618 retrace)
         </div>
         <div id="chart-container" class="chart-container"></div>
-      </div>
-    </section>
-
-    <!-- ─── STRATEGY ───────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-broker">
-      <!-- Status strip: at-a-glance is broker working? -->
-      <div class="grid grid-3">
-        <div class="card">
-          <div class="card-header">TradersPost Connection</div>
-          <div class="card-body">
-            <div class="big-stat" id="broker-status">—</div>
-            <div class="big-stat-label" id="broker-status-sub">Initializing…</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Signals (last hour)</div>
-          <div class="card-body">
-            <div class="big-stat" id="broker-signals-count">—</div>
-            <div class="big-stat-label">
-              <span id="broker-signals-ok" class="pos">0 ok</span> ·
-              <span id="broker-signals-fail" class="neg">0 fail</span>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Open Trade Ref</div>
-          <div class="card-body">
-            <div class="big-stat mono small" id="broker-current-ref">none</div>
-            <div class="big-stat-label" id="broker-current-status">no active trade</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Paper vs broker reconciliation -->
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">Paper vs Broker · Today</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Dashboard "TODAY" (paper)</span><b id="recon-paper-today">—</b></div>
-            <div class="kv-row"><span>Dashboard trades today</span><b id="recon-paper-trades">—</b></div>
-            <div class="kv-row"><span>Broker signals sent today</span><b id="recon-broker-sent">—</b></div>
-            <div class="kv-row"><span>Broker signals OK today</span><b id="recon-broker-ok">—</b></div>
-            <div class="kv-row"><span>Broker signals failed today</span><b id="recon-broker-fail">—</b></div>
-            <div class="kv-row"><span>Open / target / close ratio</span><b id="recon-broker-kinds" class="mono">—</b></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Subscription Required Config</div>
-          <div class="card-body kv-list small-muted">
-            <div class="kv-row"><span>Entry order type</span><b>Market</b></div>
-            <div class="kv-row"><span>Stop loss type</span><b>Stop Market</b></div>
-            <div class="kv-row"><span>Stop loss amount</span><b>$12 / contract</b></div>
-            <div class="kv-row"><span>Take profit amount</span><b>$24 / contract</b></div>
-            <div class="kv-row"><span>Allow override: quantity</span><b>Yes</b></div>
-            <div class="kv-row"><span>Allow override: stop loss</span><b class="neg">No</b></div>
-            <div class="kv-row"><span>Allow override: take profit</span><b class="neg">No</b></div>
-            <div class="kv-row"><span>Reject if signal older than</span><b>empty</b></div>
-            <div class="kv-row"><span>Cancel open exit after delay</span><b>empty</b></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live audit feed -->
-      <div class="card">
-        <div class="card-header">
-          Audit Feed · last 20 broker interactions
-          <button class="btn-period" id="btn-refresh-audit" style="float:right;margin-top:-4px">⟳ Refresh</button>
-        </div>
-        <div class="card-body" style="padding: 0;">
-          <div class="table-wrap">
-            <table class="data-table" id="broker-audit-table">
-              <thead><tr>
-                <th>Time</th>
-                <th>Kind</th>
-                <th>Ref</th>
-                <th>Status</th>
-                <th>Action / Qty</th>
-                <th>Response</th>
-              </tr></thead>
-              <tbody><tr><td colspan="6" class="muted center" style="padding: 24px;">No audit entries yet. Will populate on first trade after deploy.</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reference (collapsed) -->
-      <div class="card">
-        <div class="card-header">Strategy Reference</div>
-        <div class="card-body kv-list">
-          <div class="kv-row"><span>Strategy</span><b>Pullback Impulse (1-min bars)</b></div>
-          <div class="kv-row"><span>Entry</span><b>MARKET when price touches 0.618 retracement</b></div>
-          <div class="kv-row"><span>Stop</span><b>6 pt from broker fill (subscription owns)</b></div>
-          <div class="kv-row"><span>Target</span><b>12 pt from broker fill (subscription owns)</b></div>
-          <div class="kv-row"><span>Default size</span><b>2 MNQ</b></div>
-          <div class="kv-row"><span>Cooldown / max hold</span><b>60 s / 10 min</b></div>
-        </div>
       </div>
     </section>
 
@@ -386,73 +260,33 @@
       </div>
     </section>
 
-    <!-- ─── FUNDED ─────────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-funded">
-      <div class="grid grid-3">
-        <div class="card">
-          <div class="card-header">Account Balance</div>
-          <div class="card-body">
-            <div class="big-stat" id="funded-balance">$50,000</div>
-            <div class="big-stat-label">vs start <span id="funded-pnl">$0</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Trail Floor</div>
-          <div class="card-body">
-            <div class="big-stat" id="funded-trail">$48,000</div>
-            <div class="big-stat-label">Buffer: <span id="funded-buffer">$2,000</span></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Daily Loss Limit</div>
-          <div class="card-body">
-            <div class="big-stat" id="funded-dll">$0 / $1,200</div>
-            <div class="progress"><div class="progress-fill" id="funded-dll-bar"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" id="funded-payout-card">
-        <div class="card-header">Payout Readiness</div>
-        <div class="card-body">
-          <div class="big-stat" id="funded-payout-status">—</div>
-          <div class="big-stat-label" id="funded-payout-sub">—</div>
-          <div class="kv-list" style="margin-top:14px">
-            <div class="kv-row"><span>Total profit so far</span><b id="funded-total-profit">—</b></div>
-            <div class="kv-row"><span>Biggest single day</span><b id="funded-worst-day">—</b></div>
-            <div class="kv-row"><span>That day's share of total</span><b id="funded-worst-share">—</b></div>
-            <div class="kv-row"><span>Threshold</span><b>40.00%</b></div>
-            <div class="kv-row"><span>Headroom needed (other days)</span><b id="funded-headroom">—</b></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">Lucid 50K Pro Compliance</div>
-        <div class="card-body kv-list">
-          <div class="kv-row"><span>Bot size (current)</span><b>2 MNQ / 5 MNQ cap</b></div>
-          <div class="kv-row"><span>Peak EOD balance</span><b id="funded-peak">—</b></div>
-          <div class="kv-row"><span>Trail locked?</span><b id="funded-locked">—</b></div>
-          <div class="kv-row"><span>Days traded</span><b id="funded-days">—</b></div>
-          <div class="kv-row"><span>Today's share of total</span><b id="funded-consist">—</b></div>
-          <div class="kv-row"><span>Microscalp ratio (30-day)</span><b id="funded-micro">—</b></div>
-        </div>
-      </div>
-    </section>
-
     <!-- ─── TRADES ─────────────────────────────────────────────────────── -->
     <section class="tabpane" id="pane-trades">
       <div class="card">
-        <div class="card-header">Recent Trades</div>
+        <div class="card-header">Recent Trades — Tradovate (paired round-trips)</div>
         <div class="card-body" style="padding: 0;">
           <div class="table-wrap">
             <table class="data-table" id="trades-table">
               <thead><tr>
-                <th>Time</th><th>Side</th><th>MNQ</th>
+                <th>Time</th><th>Side</th><th>Qty</th>
                 <th>Entry</th><th>Exit</th><th>Reason</th>
                 <th>Hold</th><th>P&L</th>
               </tr></thead>
-              <tbody><tr><td colspan="8" class="muted center" style="padding: 24px;">No trades yet.</td></tr></tbody>
+              <tbody><tr><td colspan="8" class="muted center" style="padding: 24px;">No completed broker trades yet.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Raw Broker Fills — last 30 executions</div>
+        <div class="card-body" style="padding: 0;">
+          <div class="table-wrap">
+            <table class="data-table" id="fills-table">
+              <thead><tr>
+                <th>Time</th><th>Action</th><th>Qty</th>
+                <th>Price</th><th>Order ID</th><th>Fill ID</th>
+              </tr></thead>
+              <tbody><tr><td colspan="6" class="muted center" style="padding: 24px;">No fills yet.</td></tr></tbody>
             </table>
           </div>
         </div>

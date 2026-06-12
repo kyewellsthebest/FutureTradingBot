@@ -71,7 +71,7 @@ _HTF_K = int(os.environ.get("BOT_HTF_K", "30"))
 #   P(positive)=100%, P(>=10%)=100%, P(>=20%)=99.6%
 #   P(blow $2K trail)=0.2%  (was 0.1% at target=12, negligible change)
 # ============================================================================
-DEFAULT_SIZE = 2                  # 2 MNQ fixed — worst sim day -$489 vs $1,200 DLL
+DEFAULT_SIZE = 1                  # 1 MNQ default for live -- conservative; bump via FIB_N_MNQ env if scaling on a funded account
 IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
 IMPULSE_WINDOW_BARS = 4           # impulse measured across last 4 closed 1-min bars
 PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range

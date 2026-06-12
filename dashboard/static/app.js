@@ -605,8 +605,11 @@ async function pollTradovateTrades() {
     const r = await fetch(af("/api/tradovate_trades"));
     if (!r.ok) return;
     state.tradovateTrades = await r.json();
-    // Re-render the trades table now that we have fresh broker data
+    // Re-render the trades + fills tables now that we have fresh broker data
     try { renderTradesTable(); } catch (e) {}
+    // Re-render the Performance graphs if user is on that tab so analytics
+    // reflect actual broker results.
+    try { renderPerformanceGraphs(); } catch (e) {}
   } catch (e) {}
 }
 setInterval(pollTradovateAccount, 5_000);
@@ -1098,54 +1101,64 @@ function renderFunded(d) {
 
 // ---- Trades tab ----------------------------------------------------------
 function renderTradesTable() {
+  // Tradovate-only. Two tables now:
+  //   1) trades-table: paired round-trips (entry + exit + P&L)
+  //   2) fills-table:  raw individual fills as they come out of /fill/list
+  // Both read EXCLUSIVELY from state.tradovateTrades.fills so the user
+  // sees real broker data with actual fill prices (not synthesized
+  // strategy-intent prices). No paper fallback.
   const tbody = document.querySelector("#trades-table tbody");
-  // Prefer REAL Tradovate fills when available. Each fill is a single
-  // execution (entry OR exit); we pair them up into round-trip trades.
-  // Falls back to paper trades if Tradovate isn't returning fills yet.
+  const fillsTbody = document.querySelector("#fills-table tbody");
   const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
-  if (tvFills.length > 0) {
-    const trades = pairFillsIntoTrades(tvFills);
-    if (trades.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="muted">'
-        + 'No completed broker trades yet (have ' + tvFills.length
-        + ' fill(s) waiting to pair).</td></tr>';
-      return;
+
+  // ---- Raw fills table -------------------------------------------------
+  if (fillsTbody) {
+    if (tvFills.length === 0) {
+      fillsTbody.innerHTML = '<tr><td colspan="6" class="muted center" '
+        + 'style="padding:24px;">No broker fills yet.</td></tr>';
+    } else {
+      fillsTbody.innerHTML = tvFills.map(f => {
+        const actClass = (f.action || "").toLowerCase() === "buy"
+                          ? "side-long" : "side-short";
+        const px = (f.price != null) ? Number(f.price).toFixed(2) : "—";
+        return `<tr>
+          <td>${new Date(f.timestamp).toLocaleString()}</td>
+          <td class="${actClass}"><b>${f.action ?? "—"}</b></td>
+          <td>${f.qty ?? "—"}</td>
+          <td>${px}</td>
+          <td class="mono small">${f.orderId ?? "—"}</td>
+          <td class="mono small">${f.id ?? "—"}</td>
+        </tr>`;
+      }).join("");
     }
-    tbody.innerHTML = trades.map(t => {
-      const sideClass = t.side === "LONG" ? "side-long" : "side-short";
-      const pnlClass = t.pnl >= 0 ? "pos" : "neg";
-      return `<tr>
-        <td>${new Date(t.ts).toLocaleString()}</td>
-        <td class="${sideClass}"><b>${t.side}</b></td>
-        <td>${t.qty}</td>
-        <td>${t.entry_px.toFixed(2)}</td>
-        <td>${t.exit_px.toFixed(2)}</td>
-        <td>${t.exit_reason || 'broker'}</td>
-        <td>${fmtHold(t.hold_s)}</td>
-        <td class="${pnlClass}">${fmtUsd(t.pnl)}</td>
-      </tr>`;
-    }).join("");
+  }
+
+  // ---- Paired round-trip trades table ----------------------------------
+  if (!tbody) return;
+  if (tvFills.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
+      + 'style="padding:24px;">No completed broker trades yet.</td></tr>';
     return;
   }
-  // Fall back to paper trades.
-  const trades = (state.data && state.data.recent_trades) || [];
-  if (!trades.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">No trades yet.</td></tr>';
+  const trades = pairFillsIntoTrades(tvFills);
+  if (trades.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
+      + 'style="padding:24px;">' + tvFills.length + ' fill(s) on the broker '
+      + 'but no round-trips closed yet — see Raw Broker Fills below.</td></tr>';
     return;
   }
   tbody.innerHTML = trades.map(t => {
-    const pnl = t.pnl_usd ?? 0;
     const sideClass = t.side === "LONG" ? "side-long" : "side-short";
-    const pnlClass = pnl >= 0 ? "pos" : "neg";
+    const pnlClass = t.pnl >= 0 ? "pos" : "neg";
     return `<tr>
       <td>${new Date(t.ts).toLocaleString()}</td>
       <td class="${sideClass}"><b>${t.side}</b></td>
-      <td>${t.n_mnq}</td>
-      <td>${(t.entry_px ?? 0).toFixed(2)}</td>
-      <td>${(t.exit_px ?? 0).toFixed(2)}</td>
-      <td>${t.exit_reason}</td>
+      <td>${t.qty}</td>
+      <td>${t.entry_px.toFixed(2)}</td>
+      <td>${t.exit_px.toFixed(2)}</td>
+      <td>${t.exit_reason || 'broker'}</td>
       <td>${fmtHold(t.hold_s)}</td>
-      <td class="${pnlClass}">${fmtUsd(pnl)}</td>
+      <td class="${pnlClass}">${fmtUsd(t.pnl)}</td>
     </tr>`;
   }).join("");
 }
@@ -1206,9 +1219,11 @@ function pairFillsIntoTrades(fills) {
         ts: f.timestamp,
         side: pos.side,
         qty: close_qty,
+        n_mnq: close_qty,           // perf panels read n_mnq
         entry_px: entry_avg,
         exit_px: exit_avg,
         pnl: pnl,
+        pnl_usd: pnl,                // perf panels read pnl_usd
         hold_s: (exit_t - entry_t) / 1000,
         exit_reason: "broker",
       });
@@ -1431,18 +1446,21 @@ function renderPerformanceGraphs() {
       if (_allTradesCache.trades) _renderPerfPanels(_allTradesCache.trades);
     });
   });
-  // Draw immediately with whatever's cached so the tab isn't blank on open
-  const cached = _allTradesCache.trades
+  // Use Tradovate fills as the source of truth for Performance analytics.
+  // Falls back to paper trades only if Tradovate hasn't returned anything
+  // yet (first-load gap before pollTradovateTrades hits).
+  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
+  let perfTrades;
+  if (tvFills.length > 0) {
+    perfTrades = pairFillsIntoTrades(tvFills);
+    // pairFillsIntoTrades returns newest-first; perf panels want oldest-first
+    // for the equity curve to read left-to-right correctly.
+    perfTrades = perfTrades.slice().reverse();
+  } else {
+    perfTrades = _allTradesCache.trades
                  || (state.data && state.data.recent_trades) || [];
-  _renderPerfPanels(cached);
-  // Background refresh
-  if (Date.now() - _allTradesCache.ts < 30_000) return;
-  _allTradesCache.ts = Date.now();
-  fetch(af("/api/all_trades")).then(r => r.json()).then(trades => {
-    if (!Array.isArray(trades)) return;
-    _allTradesCache.trades = trades;
-    _renderPerfPanels(trades);
-  }).catch(() => {});
+  }
+  _renderPerfPanels(perfTrades);
 }
 
 function _attachTooltip(canvasId, tooltipId) {
