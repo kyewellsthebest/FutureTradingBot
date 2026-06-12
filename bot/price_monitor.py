@@ -390,13 +390,14 @@ class PriceMonitor:
         Returns silently if WS isn't available -- bot keeps running on
         REST poll as before.
 
-        Skipped when Tradovate is configured -- the user wants live
-        price tracked through Tradovate only, not Polygon. Set env
-        POLYGON_ALWAYS=1 to force Polygon WS to start anyway (e.g.
-        for redundancy comparison)."""
-        if (self._tradovate_md is not None
-                and os.environ.get("POLYGON_ALWAYS", "0") != "1"):
-            logger.info("polygon WS skipped (Tradovate is primary source)")
+        Started as a FALLBACK alongside Tradovate. If Tradovate
+        delivers ticks, _on_ws_tick tags last_source = 'tradovate_md'
+        and Polygon's ticks effectively go unused (they share the
+        same callback but Tradovate's are more frequent). If
+        Tradovate is silent for >60s, Polygon kicks in automatically.
+        Set POLYGON_SKIP=1 to force Polygon off entirely."""
+        if os.environ.get("POLYGON_SKIP", "0") == "1":
+            logger.info("polygon WS skipped (POLYGON_SKIP=1)")
             self._ws_client = None
             self._ws_started = False
             return
@@ -507,12 +508,17 @@ class PriceMonitor:
             self._stop.wait(POLL_SECONDS)
 
     def _poll_once(self) -> None:
-        # Skip the REST poll entirely when Tradovate WS is the
-        # primary source -- the user explicitly wants Polygon
-        # disabled. The Tradovate WS delivers sub-second ticks and
-        # we don't want stale REST data overwriting them.
+        # Skip the REST poll when Tradovate WS is delivering ticks --
+        # the Tradovate WS gives sub-second freshness and the REST
+        # aggregate would stomp on it with stale data. Threshold:
+        # 60s since last Tradovate tick. If Tradovate is silent
+        # longer than that, REST takes over until Tradovate recovers.
+        # Set POLYGON_SKIP=1 to disable REST polling entirely.
+        if os.environ.get("POLYGON_SKIP", "0") == "1":
+            return
         if (self._tradovate_md is not None
-                and os.environ.get("POLYGON_ALWAYS", "0") != "1"):
+                and self._tradovate_md._last_tick_ts is not None
+                and time.time() - self._tradovate_md._last_tick_ts < 60.0):
             return
         # If the WS subscriber is ticking, skip the REST poll -- the
         # WS is sub-second fresh and the REST aggregate would just

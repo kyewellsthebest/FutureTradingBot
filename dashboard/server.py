@@ -819,14 +819,11 @@ def api_price():
     except Exception as e:
         logger.debug(f"/api/price snapshot read failed: {e}")
 
-    # FALLBACK: hit Polygon directly via the clean client -- BUT only
-    # if Tradovate isn't configured. User explicitly wants Polygon
-    # disabled when Tradovate is the broker. Set POLYGON_ALWAYS=1 in
-    # env to force this fallback to run anyway.
+    # FALLBACK: hit Polygon directly via the clean client. Runs
+    # when the bot's snapshot doesn't have a recent price (e.g.
+    # Tradovate WS is silent). Set POLYGON_SKIP=1 to disable.
     import os as _os
-    _tradovate_active = (_os.environ.get("TRADOVATE_API_SECRET")
-                          and _os.environ.get("POLYGON_ALWAYS", "0") != "1")
-    if not _tradovate_active:
+    if _os.environ.get("POLYGON_SKIP", "0") != "1":
         try:
             from bot.polygon_data import get_snapshot_price
             q = get_snapshot_price()

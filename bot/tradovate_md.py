@@ -119,9 +119,12 @@ class TradovateMarketData:
         now = time.time()
         return {
             "symbol": self.symbol,
+            "resolved_symbol": self._resolved_symbol,
+            "contract_id": self._contract_id,
             "connected": bool(self.connected),
             "subscribed": bool(self._subscribed),
             "tick_count": int(self.tick_count),
+            "frames_seen": getattr(self, "_frames_seen", 0),
             "last_tick_age_s": (round(now - self._last_tick_ts, 1)
                                  if self._last_tick_ts else None),
             "last_error": self.last_error,
