@@ -613,12 +613,14 @@ setInterval(pollTradovateTrades, 10_000);
 pollTradovateAccount();
 pollTradovatePosition();
 pollTradovateTrades();
-// 100ms price-only poll. The user wants tick-level visibility -- every
-// poll fetches Polygon directly (max_age_s=0.1 on the server) and the
-// price card flashes green/red on each direction change. Network cost
-// is one tiny JSON GET every 100ms (~10/sec); server-side hits
-// polygon_latest_quote which has its own rate-limit handling.
-setInterval(pollPriceOnly, 100);
+// Price display poll. Was 100ms which was overwhelming both the
+// browser (animation never completed -- restart-from-0 flicker)
+// AND the backend (10 req/sec hitting the bot's snapshot file).
+// The bot's INTERNAL price (used for trading) updates via the
+// WebSocket tick stream at sub-second cadence regardless of how
+// often the dashboard polls. Polling at 10s means smooth display
+// without overheating the rendering or producing dash-flicker.
+setInterval(pollPriceOnly, 10_000);
 poll(); pollCandles(); pollTrades();
 
 // Lightweight price-only poll. Hits /api/price (Polygon-only, no
