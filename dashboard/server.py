@@ -403,9 +403,12 @@ def api_tradovate_reset_all():
 
     # Write a reset-pending flag with the starting balance. The bot's
     # next cycle reads this and re-initializes lucid state to match.
+    # Bot expects: line 1 = ISO timestamp, line 2 = float balance.
     try:
         flag = base / "reset_pending.flag"
-        flag.write_text(f"starting_balance={starting_balance}\n")
+        from datetime import datetime as _dt, timezone as _tz
+        flag.write_text(f"{_dt.now(_tz.utc).isoformat()}\n"
+                        f"{starting_balance}\n")
     except Exception as e:
         errors.append(f"reset_pending.flag: {e!r}")
 

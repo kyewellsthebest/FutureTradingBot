@@ -37,7 +37,24 @@ from typing import Callable, Optional
 
 logger = logging.getLogger("tradovate_md")
 
-WS_URL = "wss://md.tradovateapi.com/v1/websocket"
+import os as _os
+
+# Tradovate market data WebSocket endpoints. For demo cluster
+# accounts, the demo market data feed (md-demo) is what serves
+# simulated ticks. For live accounts, the live market data feed
+# (md) is the real exchange tape. Many users confuse these.
+#
+# Order of preference: env override -> demo-aware default.
+def _md_ws_url() -> str:
+    explicit = _os.environ.get("TRADOVATE_MD_WS")
+    if explicit:
+        return explicit
+    is_demo = _os.environ.get("TRADOVATE_DEMO", "true").lower() in ("true", "1", "yes")
+    if is_demo:
+        # Demo cluster has its own market data endpoint
+        return "wss://md-demo.tradovateapi.com/v1/websocket"
+    return "wss://md.tradovateapi.com/v1/websocket"
+
 HEARTBEAT_INTERVAL_S = 2.0
 BACKOFF_INITIAL_S = 1.0
 BACKOFF_MAX_S = 30.0
@@ -145,7 +162,9 @@ class TradovateMarketData:
             raise RuntimeError("auth failed")
         md_token = tokens.md_access_token
 
-        self._ws = websocket.create_connection(WS_URL, timeout=10)
+        url = _md_ws_url()
+        logger.info(f"tradovate_md: connecting to {url}")
+        self._ws = websocket.create_connection(url, timeout=10)
         self._ws.settimeout(5)
 
         # Step 1: Receive the open frame 'o'
@@ -297,31 +316,41 @@ class TradovateMarketData:
     def _process_frame(self, raw: str) -> None:
         if not raw:
             return
+        # VERBOSE: log first N frames of every type so we can see what
+        # Tradovate is actually sending us. Without this we're flying
+        # blind when tick_count stays at 0.
+        self._frames_seen = getattr(self, "_frames_seen", 0) + 1
+        if self._frames_seen <= 20:
+            logger.info(f"tradovate_md frame #{self._frames_seen} ({len(raw)} "
+                        f"bytes): {raw[:500]!r}")
         prefix = raw[0]
         if prefix == "h":
-            # Server heartbeat -- nothing to do
             return
         if prefix == "o":
-            # Re-open shouldn't happen mid-session but log it
             logger.debug(f"tradovate_md: open frame in pump: {raw[:80]!r}")
             return
         if prefix == "c":
             logger.warning(f"tradovate_md: close frame: {raw[:200]!r}")
             return
         if prefix != "a":
-            logger.debug(f"tradovate_md: unknown frame prefix {prefix!r}: "
-                         f"{raw[:80]!r}")
+            logger.info(f"tradovate_md: unknown frame prefix {prefix!r}: "
+                        f"{raw[:200]!r}")
             return
         try:
             messages = json.loads(raw[1:])
         except Exception as e:
-            logger.debug(f"tradovate_md: JSON decode failed on frame: {e!r}")
+            logger.warning(f"tradovate_md: JSON decode failed on frame: "
+                           f"{e!r} raw={raw[:200]!r}")
             return
         if not isinstance(messages, list):
             messages = [messages]
         for msg in messages:
             if not isinstance(msg, dict):
                 continue
+            # Log first few of each event type so we know what's arriving
+            ev = msg.get("e")
+            if ev and ev != "md" and self._frames_seen <= 30:
+                logger.info(f"tradovate_md non-md event: {msg!r}")
             self._handle_message(msg)
 
     def _handle_message(self, msg: dict) -> None:
