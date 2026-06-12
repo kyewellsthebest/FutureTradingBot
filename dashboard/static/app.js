@@ -1101,64 +1101,29 @@ function renderFunded(d) {
 
 // ---- Trades tab ----------------------------------------------------------
 function renderTradesTable() {
-  // Tradovate-only. Two tables now:
-  //   1) trades-table: paired round-trips (entry + exit + P&L)
-  //   2) fills-table:  raw individual fills as they come out of /fill/list
-  // Both read EXCLUSIVELY from state.tradovateTrades.fills so the user
-  // sees real broker data with actual fill prices (not synthesized
-  // strategy-intent prices). No paper fallback.
+  // ONE table: raw broker fills (each row = one execution).
+  // User explicitly asked for just "the brokers trade" -- no paper
+  // fallback, no synthesized round-trip pairing. What you see is
+  // exactly what Tradovate's /fill/deps returned for this account.
   const tbody = document.querySelector("#trades-table tbody");
-  const fillsTbody = document.querySelector("#fills-table tbody");
-  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
-
-  // ---- Raw fills table -------------------------------------------------
-  if (fillsTbody) {
-    if (tvFills.length === 0) {
-      fillsTbody.innerHTML = '<tr><td colspan="6" class="muted center" '
-        + 'style="padding:24px;">No broker fills yet.</td></tr>';
-    } else {
-      fillsTbody.innerHTML = tvFills.map(f => {
-        const actClass = (f.action || "").toLowerCase() === "buy"
-                          ? "side-long" : "side-short";
-        const px = (f.price != null) ? Number(f.price).toFixed(2) : "—";
-        return `<tr>
-          <td>${new Date(f.timestamp).toLocaleString()}</td>
-          <td class="${actClass}"><b>${f.action ?? "—"}</b></td>
-          <td>${f.qty ?? "—"}</td>
-          <td>${px}</td>
-          <td class="mono small">${f.orderId ?? "—"}</td>
-          <td class="mono small">${f.id ?? "—"}</td>
-        </tr>`;
-      }).join("");
-    }
-  }
-
-  // ---- Paired round-trip trades table ----------------------------------
   if (!tbody) return;
+  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
   if (tvFills.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
-      + 'style="padding:24px;">No completed broker trades yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted center" '
+      + 'style="padding:24px;">No broker fills yet.</td></tr>';
     return;
   }
-  const trades = pairFillsIntoTrades(tvFills);
-  if (trades.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
-      + 'style="padding:24px;">' + tvFills.length + ' fill(s) on the broker '
-      + 'but no round-trips closed yet — see Raw Broker Fills below.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = trades.map(t => {
-    const sideClass = t.side === "LONG" ? "side-long" : "side-short";
-    const pnlClass = t.pnl >= 0 ? "pos" : "neg";
+  tbody.innerHTML = tvFills.map(f => {
+    const actClass = (f.action || "").toLowerCase() === "buy"
+                      ? "side-long" : "side-short";
+    const px = (f.price != null) ? Number(f.price).toFixed(2) : "—";
     return `<tr>
-      <td>${new Date(t.ts).toLocaleString()}</td>
-      <td class="${sideClass}"><b>${t.side}</b></td>
-      <td>${t.qty}</td>
-      <td>${t.entry_px.toFixed(2)}</td>
-      <td>${t.exit_px.toFixed(2)}</td>
-      <td>${t.exit_reason || 'broker'}</td>
-      <td>${fmtHold(t.hold_s)}</td>
-      <td class="${pnlClass}">${fmtUsd(t.pnl)}</td>
+      <td>${new Date(f.timestamp).toLocaleString()}</td>
+      <td class="${actClass}"><b>${f.action ?? "—"}</b></td>
+      <td>${f.qty ?? "—"}</td>
+      <td>${px}</td>
+      <td class="mono small">${f.orderId ?? "—"}</td>
+      <td class="mono small">${f.id ?? "—"}</td>
     </tr>`;
   }).join("");
 }

@@ -314,8 +314,14 @@ def api_tradovate_position():
 
 @app.route("/api/tradovate_trades")
 def api_tradovate_trades():
-    """Recent fills (executed orders) on the Tradovate account. Used
-    to populate the Trades tab."""
+    """Recent broker fills on the active Tradovate account. Powers
+    the Trades tab + Performance analytics.
+
+    Uses /fill/deps?masterid={accountId} which returns fills owned by
+    a specific account. /fill/list (no params) was returning empty
+    even when /position/list confirmed 47+ trades had happened --
+    Tradovate's REST surface treats the two endpoints differently.
+    """
     try:
         from bot.tradovate_client import get_session
     except Exception as e:
@@ -326,23 +332,33 @@ def api_tradovate_trades():
     acct_id = sess.get_account_id()
     if acct_id is None:
         return jsonify({"configured": True, "error": "no_account_id"})
-    # /fill/list returns recent fills; we filter by accountId
-    status, fills = sess._rest("GET", "/fill/list")
+    # /fill/deps with masterid returns fills for the specified account.
+    status, fills = sess._rest("GET", "/fill/deps",
+                                params={"masterid": int(acct_id)})
     if status != 200 or not isinstance(fills, list):
-        return jsonify({
-            "configured": True,
-            "account_id": acct_id,
-            "fills": [],
-            "error": f"http_{status}",
-        })
-    # Filter to active account and keep last 30 newest first
-    own = [f for f in fills
-           if isinstance(f, dict) and f.get("accountId") == acct_id]
-    own.sort(key=lambda f: f.get("timestamp", ""), reverse=True)
+        # Fall back to /fill/list (returns all fills user has access to)
+        status2, fills2 = sess._rest("GET", "/fill/list")
+        if status2 == 200 and isinstance(fills2, list):
+            fills = [f for f in fills2
+                     if isinstance(f, dict) and f.get("accountId") == acct_id]
+        else:
+            return jsonify({
+                "configured": True,
+                "account_id": acct_id,
+                "fills": [],
+                "error": f"http_{status}",
+            })
+    # Newest first, cap at 100 for the table
+    fills_sorted = sorted(
+        [f for f in fills if isinstance(f, dict)],
+        key=lambda f: f.get("timestamp", ""),
+        reverse=True,
+    )
     return jsonify({
         "configured": True,
         "account_id": acct_id,
-        "fills": own[:30],
+        "fills": fills_sorted[:100],
+        "total_count": len(fills),
     })
 
 
