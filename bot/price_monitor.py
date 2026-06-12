@@ -388,7 +388,18 @@ class PriceMonitor:
     def _start_ws(self) -> None:
         """Spawn the Polygon WS subscriber on the front-month ticker.
         Returns silently if WS isn't available -- bot keeps running on
-        REST poll as before."""
+        REST poll as before.
+
+        Skipped when Tradovate is configured -- the user wants live
+        price tracked through Tradovate only, not Polygon. Set env
+        POLYGON_ALWAYS=1 to force Polygon WS to start anyway (e.g.
+        for redundancy comparison)."""
+        if (self._tradovate_md is not None
+                and os.environ.get("POLYGON_ALWAYS", "0") != "1"):
+            logger.info("polygon WS skipped (Tradovate is primary source)")
+            self._ws_client = None
+            self._ws_started = False
+            return
         try:
             from bot.polygon_ws import PolygonWSClient
             from research.data_loader import polygon_front_month
@@ -401,8 +412,7 @@ class PriceMonitor:
                 on_bar=self._on_ws_bar)
             self._ws_started = self._ws_client.start()
         except Exception as e:
-            logger.warning(f"polygon WS init failed: {e!r} -- "
-                           f"falling back to REST-only polling")
+            logger.warning(f"polygon WS init failed: {e!r}")
             self._ws_client = None
             self._ws_started = False
 
@@ -497,6 +507,13 @@ class PriceMonitor:
             self._stop.wait(POLL_SECONDS)
 
     def _poll_once(self) -> None:
+        # Skip the REST poll entirely when Tradovate WS is the
+        # primary source -- the user explicitly wants Polygon
+        # disabled. The Tradovate WS delivers sub-second ticks and
+        # we don't want stale REST data overwriting them.
+        if (self._tradovate_md is not None
+                and os.environ.get("POLYGON_ALWAYS", "0") != "1"):
+            return
         # If the WS subscriber is ticking, skip the REST poll -- the
         # WS is sub-second fresh and the REST aggregate would just
         # stomp on it with a 30-60s old close. Threshold: 10s since
