@@ -314,13 +314,15 @@ def api_tradovate_position():
 
 @app.route("/api/tradovate_trades")
 def api_tradovate_trades():
-    """Recent broker fills on the active Tradovate account. Powers
-    the Trades tab + Performance analytics.
+    """Recent broker activity on the active Tradovate account.
 
-    Uses /fill/deps?masterid={accountId} which returns fills owned by
-    a specific account. /fill/list (no params) was returning empty
-    even when /position/list confirmed 47+ trades had happened --
-    Tradovate's REST surface treats the two endpoints differently.
+    Strategy: try multiple endpoints to find one that returns data.
+    Tradovate's REST surface treats /fill/list, /fill/deps and
+    /order/list differently depending on account type. We fall back
+    through them so we always show SOMETHING when activity exists.
+
+    Returns rows with: time, action (Buy/Sell), qty, price,
+    order_id, source (which endpoint returned it).
     """
     try:
         from bot.tradovate_client import get_session
@@ -332,33 +334,112 @@ def api_tradovate_trades():
     acct_id = sess.get_account_id()
     if acct_id is None:
         return jsonify({"configured": True, "error": "no_account_id"})
-    # /fill/deps with masterid returns fills for the specified account.
-    status, fills = sess._rest("GET", "/fill/deps",
-                                params={"masterid": int(acct_id)})
-    if status != 200 or not isinstance(fills, list):
-        # Fall back to /fill/list (returns all fills user has access to)
-        status2, fills2 = sess._rest("GET", "/fill/list")
-        if status2 == 200 and isinstance(fills2, list):
-            fills = [f for f in fills2
-                     if isinstance(f, dict) and f.get("accountId") == acct_id]
-        else:
-            return jsonify({
-                "configured": True,
-                "account_id": acct_id,
-                "fills": [],
-                "error": f"http_{status}",
-            })
-    # Newest first, cap at 100 for the table
-    fills_sorted = sorted(
-        [f for f in fills if isinstance(f, dict)],
-        key=lambda f: f.get("timestamp", ""),
-        reverse=True,
-    )
+
+    rows = []
+    debug = {"attempts": []}
+
+    # Attempt 1: /fill/list filtered by accountId
+    try:
+        st, fills = sess._rest("GET", "/fill/list")
+        debug["attempts"].append({"endpoint": "/fill/list",
+                                    "status": st,
+                                    "count": (len(fills)
+                                              if isinstance(fills, list)
+                                              else "non-list")})
+        if st == 200 and isinstance(fills, list):
+            own = [f for f in fills if isinstance(f, dict)
+                   and f.get("accountId") == acct_id]
+            for f in own:
+                rows.append({
+                    "time": f.get("timestamp"),
+                    "action": f.get("action"),
+                    "qty": f.get("qty"),
+                    "price": f.get("price"),
+                    "order_id": f.get("orderId"),
+                    "fill_id": f.get("id"),
+                    "source": "fill/list",
+                })
+    except Exception as e:
+        debug["attempts"].append({"endpoint": "/fill/list", "error": repr(e)})
+
+    # Attempt 2: /fill/deps with the account ID as master
+    if not rows:
+        try:
+            st, fills = sess._rest("GET", "/fill/deps",
+                                    params={"masterid": int(acct_id)})
+            debug["attempts"].append({"endpoint": "/fill/deps",
+                                        "status": st,
+                                        "count": (len(fills)
+                                                  if isinstance(fills, list)
+                                                  else "non-list")})
+            if st == 200 and isinstance(fills, list):
+                for f in fills:
+                    if not isinstance(f, dict):
+                        continue
+                    rows.append({
+                        "time": f.get("timestamp"),
+                        "action": f.get("action"),
+                        "qty": f.get("qty"),
+                        "price": f.get("price"),
+                        "order_id": f.get("orderId"),
+                        "fill_id": f.get("id"),
+                        "source": "fill/deps",
+                    })
+        except Exception as e:
+            debug["attempts"].append({"endpoint": "/fill/deps", "error": repr(e)})
+
+    # Attempt 3: /order/list filtered to filled orders.
+    # Orders have avgPrice + filledQty so we can show completed trades
+    # even when /fill/* endpoints return empty.
+    if not rows:
+        try:
+            st, orders = sess._rest("GET", "/order/list")
+            debug["attempts"].append({"endpoint": "/order/list",
+                                        "status": st,
+                                        "count": (len(orders)
+                                                  if isinstance(orders, list)
+                                                  else "non-list")})
+            if st == 200 and isinstance(orders, list):
+                for o in orders:
+                    if not isinstance(o, dict):
+                        continue
+                    if o.get("accountId") != acct_id:
+                        continue
+                    # Only filled orders count as trades
+                    if o.get("ordStatus") not in ("Filled", "Completed"):
+                        continue
+                    rows.append({
+                        "time": o.get("timestamp"),
+                        "action": o.get("action"),
+                        "qty": o.get("orderQty") or o.get("filledQty"),
+                        "price": o.get("avgPrice") or o.get("price"),
+                        "order_id": o.get("id"),
+                        "fill_id": None,
+                        "source": "order/list",
+                    })
+        except Exception as e:
+            debug["attempts"].append({"endpoint": "/order/list", "error": repr(e)})
+
+    # Newest first
+    rows.sort(key=lambda r: r.get("time") or "", reverse=True)
+
+    # Re-shape into the "fills" structure the frontend already
+    # consumes -- it expects: timestamp, action, qty, price, orderId, id.
+    fills_for_ui = [{
+        "timestamp": r.get("time"),
+        "action": r.get("action"),
+        "qty": r.get("qty"),
+        "price": r.get("price"),
+        "orderId": r.get("order_id"),
+        "id": r.get("fill_id") or r.get("order_id"),
+    } for r in rows[:200]]
+
     return jsonify({
         "configured": True,
         "account_id": acct_id,
-        "fills": fills_sorted[:100],
-        "total_count": len(fills),
+        "fills": fills_for_ui,
+        "total_count": len(rows),
+        "debug": debug,
     })
 
 
@@ -1871,6 +1952,57 @@ def _build_config_payload():
     return out
 
 
+def _collect_tradovate_snapshot() -> dict:
+    """Hit every Tradovate-related diagnostic endpoint in one go and
+    return the merged JSON. Used by the bundle download so the user
+    can send ONE file that has everything we'd otherwise ask them to
+    screenshot one URL at a time."""
+    out = {}
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return {"error": f"tradovate client import failed: {e!r}"}
+    sess = get_session()
+    if not sess.is_configured:
+        return {"configured": False}
+
+    # Each call wrapped so one failure doesn't kill the whole bundle.
+    def _safe(label, fn):
+        try:
+            out[label] = fn()
+        except Exception as e:
+            out[label] = {"error": repr(e)}
+
+    _safe("auth_diag", lambda: {
+        "configured": True,
+        "cluster": ("demo" if os.environ.get("TRADOVATE_DEMO", "true").lower()
+                              in ("true", "1", "yes") else "live"),
+        "user_id": (sess.get_tokens().user_id if sess.get_tokens() else None),
+    })
+    _safe("account_list", lambda: sess.account_list())
+    _safe("account_id", lambda: sess.get_account_id())
+    acct_id = sess.get_account_id()
+
+    if acct_id is not None:
+        _safe("cash_balance",
+               lambda: sess._rest("POST",
+                                    "/cashBalance/getCashBalanceSnapshot",
+                                    body={"accountId": int(acct_id)}))
+        _safe("position_list",
+               lambda: sess._rest("GET", "/position/list"))
+        _safe("order_list_raw",
+               lambda: sess._rest("GET", "/order/list"))
+        _safe("fill_list_raw",
+               lambda: sess._rest("GET", "/fill/list"))
+        _safe("fill_deps_raw",
+               lambda: sess._rest("GET", "/fill/deps",
+                                    params={"masterid": int(acct_id)}))
+        _safe("risk_status",
+               lambda: sess._rest("GET", "/accountRiskStatus/list"))
+
+    return out
+
+
 def _build_code_state_payload():
     """Git SHA + hash of every Python file in bot/ and engine/ so I can
     tell if anyone manually edited live code, and identify regressions."""
@@ -2070,6 +2202,10 @@ def api_download(kind: str):
             payload["recent_trades"] = rows
         except Exception as e:
             payload["recent_trades_error"] = repr(e)
+        # NEW: include the full set of Tradovate diagnostic endpoints
+        # so the user only has to download one file instead of
+        # screenshotting 6 different URLs every time something looks off.
+        payload["tradovate"] = _collect_tradovate_snapshot()
         return _json_resp(payload, f"{base_name}_bundle.json")
 
     if kind == "health":
