@@ -137,11 +137,53 @@ class TradovateOrders:
         logger.info(f"[tradovate placeoso RESULT] status={status} "
                     f"resp={str(resp)[:500]!r}")
         result = self._parse_order_response(status, resp)
+        # CRITICAL SAFETY: do NOT fall back to a naked market order. If
+        # the bracket fails, we refuse the trade entirely. Previously we
+        # silently dropped to /order/placeorder (no bracket) which left
+        # positions running naked -- one of those naked positions ran
+        # 107pt against the bot for -$428 unrealized before being
+        # caught. Better to skip a trade than open a stop-less one.
         if not result.ok:
-            logger.warning(f"[tradovate placeoso FAILED] {result.error} "
-                           f"-- falling back to plain placeorder (no bracket)")
-            return self.submit_market(side=side, qty=qty, symbol=symbol,
-                                       setup_ref=setup_ref)
+            logger.error(
+                f"[tradovate placeoso FAILED] {result.error}: "
+                f"{str(result.response)[:300]!r} -- REFUSING TRADE "
+                f"rather than open without bracket. Check the response "
+                f"body above to debug the bracket format.")
+        else:
+            # Verify the bracket children IDs are present. placeoso
+            # should return oso1Id and oso2Id pointing at the stop and
+            # target child orders. If they're missing, the parent
+            # placed but no bracket attached -- still naked.
+            resp_dict = result.response if isinstance(result.response, dict) else {}
+            oso1 = resp_dict.get("oso1Id")
+            oso2 = resp_dict.get("oso2Id")
+            if not oso1 or not oso2:
+                logger.error(
+                    f"[tradovate placeoso INCOMPLETE] parent order_id="
+                    f"{result.order_id} placed but bracket children "
+                    f"missing (oso1Id={oso1!r} oso2Id={oso2!r}). "
+                    f"Position is NAKED. Sending immediate flatten via "
+                    f"liquidateposition.")
+                # Emergency: flatten the naked parent right away rather
+                # than leave it running. Better to take 0-1pt slippage
+                # than risk a runaway like the -$428 position.
+                try:
+                    self.session._rest(
+                        "POST", "/order/liquidateposition",
+                        body={
+                            "accountSpec": self._account_spec(),
+                            "accountId": int(self.account_id),
+                            "symbol": symbol,
+                            "admin": False,
+                            "isAutomated": True,
+                        })
+                except Exception as e:
+                    logger.error(f"emergency liquidate failed: {e!r}")
+                return OrderResult(
+                    ok=False, order_id=result.order_id,
+                    status_code=result.status_code,
+                    response=resp_dict,
+                    error="bracket_missing_flattened")
         return result
 
     # ------------------------------------------------------------------

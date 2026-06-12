@@ -362,6 +362,94 @@ def api_tradovate_trades():
     })
 
 
+@app.route("/api/tradovate_flatten_all", methods=["GET", "POST"])
+def api_tradovate_flatten_all():
+    """EMERGENCY: close all open positions on the Tradovate account
+    and cancel ALL working orders. Use when something looks wrong
+    and you want to flatten everything immediately.
+
+    Calls /order/liquidateposition for each open position, plus
+    /order/cancelorder for each working order returned by
+    /order/list (filtered to the active account).
+    """
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"error": "credentials missing"}), 400
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"error": "no_account_id"}), 400
+
+    results = {"closed_positions": [], "cancelled_orders": [], "errors": []}
+
+    # Get all open positions for this account
+    p_status, positions = sess._rest("GET", "/position/list")
+    if p_status == 200 and isinstance(positions, list):
+        for p in positions:
+            if not isinstance(p, dict):
+                continue
+            if p.get("accountId") != acct_id:
+                continue
+            if not p.get("netPos"):  # 0 or None -> no position
+                continue
+            # Get the contract symbol -- /position only has contractId,
+            # need /contract/item for the name.
+            cid = p.get("contractId")
+            c_status, contract = sess._rest(
+                "GET", "/contract/item", params={"id": int(cid)})
+            symbol = (contract.get("name")
+                      if c_status == 200 and isinstance(contract, dict)
+                      else None)
+            if not symbol:
+                results["errors"].append(
+                    f"could not resolve symbol for contractId={cid}")
+                continue
+            # Flatten this contract
+            l_status, l_resp = sess._rest(
+                "POST", "/order/liquidateposition",
+                body={
+                    "accountSpec": sess.creds.username,
+                    "accountId": int(acct_id),
+                    "symbol": symbol,
+                    "admin": False,
+                    "isAutomated": True,
+                })
+            results["closed_positions"].append({
+                "symbol": symbol,
+                "netPos": p.get("netPos"),
+                "status": l_status,
+                "response": str(l_resp)[:200],
+            })
+
+    # Cancel all working orders on this account
+    o_status, orders = sess._rest("GET", "/order/list")
+    if o_status == 200 and isinstance(orders, list):
+        for o in orders:
+            if not isinstance(o, dict):
+                continue
+            if o.get("accountId") != acct_id:
+                continue
+            # Working order states: PendingNew, Working, Suspended
+            if o.get("ordStatus") not in ("Working", "PendingNew", "Suspended"):
+                continue
+            order_id = o.get("id")
+            if not order_id:
+                continue
+            c_status, c_resp = sess._rest(
+                "POST", "/order/cancelorder",
+                body={"orderId": int(order_id), "isAutomated": True})
+            results["cancelled_orders"].append({
+                "order_id": order_id,
+                "status": c_status,
+                "response": str(c_resp)[:200],
+            })
+
+    return jsonify(results)
+
+
 @app.route("/api/tradovate_test_order", methods=["GET", "POST"])
 def api_tradovate_test_order():
     """Manual test order: places a small market order on the demo
