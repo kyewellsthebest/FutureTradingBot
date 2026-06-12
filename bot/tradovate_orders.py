@@ -188,15 +188,59 @@ class TradovateOrders:
                              qty: int,
                              symbol: str,
                              setup_ref: Optional[str] = None) -> OrderResult:
-        """Send opposite-side market order to flatten a position. Used
-        for the 10-min timeout exit since the OCO bracket has no
-        timeout equivalent."""
-        # Opposite direction of the open
-        close_side = "SHORT" if side == "LONG" else "LONG"
-        return self.submit_market(
-            side=close_side, qty=qty, symbol=symbol,
-            setup_ref=(f"{setup_ref}-close" if setup_ref else None),
-        )
+        """Flatten an open position AND cancel any working orders for it.
+
+        Uses /order/liquidateposition rather than placeorder for two
+        reasons:
+
+        1. ATOMIC FLATTEN + BRACKET CANCEL. After placeoso, the stop
+           and target child orders sit as pending working orders. If
+           we send a plain opposite market via placeorder to flatten,
+           the bracket children remain active -- when price later hits
+           one of those levels it opens a NEW position in the bracket
+           direction. liquidateposition cancels all working orders on
+           the contract AND sends a flatten market in one call.
+
+        2. Tradovate handles the size automatically; we don't have to
+           re-derive qty from the position record.
+
+        Used for timeout exits (10-min max hold). For stop/target,
+        the OCO bracket handles it server-side and we never call this.
+        """
+        account_id = self.account_id
+        if account_id is None:
+            return OrderResult(ok=False, order_id=None, status_code=None,
+                                response={}, error="no_account_id")
+
+        body = {
+            "accountSpec": self._account_spec(),
+            "accountId": int(account_id),
+            "symbol": symbol,
+            "admin": False,
+            "isAutomated": True,
+        }
+        if setup_ref:
+            body["text"] = (setup_ref + "-flat")[:64]
+
+        logger.info(f"[tradovate liquidateposition] {symbol}")
+        logger.info(f"[tradovate liquidateposition BODY] {json.dumps(body)}")
+        status, resp = self.session._rest(
+            "POST", "/order/liquidateposition", body=body)
+        logger.info(f"[tradovate liquidateposition RESULT] status={status} "
+                    f"resp={str(resp)[:500]!r}")
+        result = self._parse_order_response(status, resp)
+        if not result.ok:
+            # FALLBACK: drop to plain placeorder (opposite side market).
+            # Leaves bracket children active but at least flattens the
+            # naked position immediately.
+            logger.warning(f"[tradovate liquidateposition FAILED] "
+                           f"{result.error} -- falling back to placeorder")
+            close_side = "SHORT" if side == "LONG" else "LONG"
+            return self.submit_market(
+                side=close_side, qty=qty, symbol=symbol,
+                setup_ref=(f"{setup_ref}-close" if setup_ref else None),
+            )
+        return result
 
     # ------------------------------------------------------------------
     # Internals
