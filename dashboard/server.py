@@ -386,9 +386,19 @@ def api_tradovate_test_order():
     # Tradovate API expects side as "LONG"/"SHORT" in our wrapper
     side_strat = "LONG" if side.lower() == "buy" else "SHORT"
     if use_bracket:
+        # For the test endpoint, get current market price as entry
+        # estimate from PriceMonitor's snapshot (or fall back to a
+        # default if not available).
+        try:
+            from bot.polygon_data import get_snapshot_price
+            q = get_snapshot_price()
+            entry_estimate = float(q[0]) if q else 29500.0
+        except Exception:
+            entry_estimate = 29500.0
         result = orders.submit_market_with_bracket(
             side=side_strat, qty=qty, symbol=symbol,
             stop_pts=6.0, target_pts=12.0,
+            entry_estimate=entry_estimate,
             setup_ref="manual_test")
     else:
         result = orders.submit_market(

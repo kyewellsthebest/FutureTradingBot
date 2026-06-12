@@ -66,15 +66,23 @@ class TradovateOrders:
                                     symbol: str,         # e.g. "MNQM6"
                                     stop_pts: float,     # 6.0
                                     target_pts: float,   # 12.0
+                                    entry_estimate: float,  # current market
                                     setup_ref: Optional[str] = None
                                     ) -> OrderResult:
-        """Place a market entry with an OCO bracket attached at fill.
+        """Place a market entry with an OCO bracket via /order/placeoso.
 
-        Uses /order/placeOSO: parent = market entry, children = OCO
-        of (stop-market, limit-target). Both children are GTC and
-        sized to match the parent. The exchange attaches the bracket
-        relative to the actual fill price -- not the price we specify
-        -- so slippage on entry doesn't leave the bracket mis-anchored.
+        Tradovate's placeoso accepts a parent order with two child
+        bracket orders in `bracket1` and `bracket2` fields. Children
+        use ABSOLUTE PRICES (stopPrice for Stop, price for Limit),
+        not offsets. Both children inherit qty from the parent and
+        form an OCO pair server-side -- when one fills, the other
+        is auto-cancelled.
+
+        entry_estimate: the bot's current best guess at where the
+        market order will fill (typically the live tick price). The
+        bracket stop/target are placed relative to this. With sub-
+        second WS data the estimate is usually within 1-2 ticks of
+        the actual fill, which is fine for a 6pt stop / 12pt target.
         """
         account_id = self.account_id
         if account_id is None:
@@ -84,11 +92,14 @@ class TradovateOrders:
         action = "Buy" if side == "LONG" else "Sell"
         opposite_action = "Sell" if side == "LONG" else "Buy"
 
-        # For market orders we don't specify the entry price -- the
-        # exchange fills at current bid/ask. The bracket children use
-        # PRICE OFFSETS in points relative to fill, which Tradovate
-        # supports via the priceOffset field on stopLossBracket /
-        # takeProfitBracket parameters.
+        # Compute absolute bracket prices relative to the entry estimate
+        if side == "LONG":
+            stop_price = _tick_round(entry_estimate - float(stop_pts))
+            target_price = _tick_round(entry_estimate + float(target_pts))
+        else:
+            stop_price = _tick_round(entry_estimate + float(stop_pts))
+            target_price = _tick_round(entry_estimate - float(target_pts))
+
         body = {
             "accountSpec": self._account_spec(),
             "accountId": int(account_id),
@@ -97,20 +108,20 @@ class TradovateOrders:
             "orderQty": int(qty),
             "orderType": "Market",
             "isAutomated": True,
-            # Server-side bracket -- broker attaches at fill price.
-            # priceOffset is in TICKS for stop/target. MNQ tick = 0.25,
-            # so 6pt stop = 24 ticks, 12pt target = 48 ticks.
-            "bracket": {
-                "stopLossBracket": {
-                    "action": opposite_action,
-                    "orderType": "Stop",
-                    "priceOffset": float(stop_pts) * (-1 if side == "LONG" else 1),
-                },
-                "takeProfitBracket": {
-                    "action": opposite_action,
-                    "orderType": "Limit",
-                    "priceOffset": float(target_pts) * (1 if side == "LONG" else -1),
-                },
+            # bracket1 + bracket2 form an OCO server-side. When the
+            # parent (market entry) fills, both children are activated.
+            # When either child fills, the other is auto-cancelled.
+            "bracket1": {
+                "action": opposite_action,
+                "orderType": "Stop",
+                "stopPrice": stop_price,
+                "isAutomated": True,
+            },
+            "bracket2": {
+                "action": opposite_action,
+                "orderType": "Limit",
+                "price": target_price,
+                "isAutomated": True,
             },
         }
         if setup_ref:
@@ -118,19 +129,14 @@ class TradovateOrders:
 
         logger.info(
             f"[tradovate placeoso] {action} {qty} {symbol} MARKET "
-            f"stop={stop_pts}pt target={target_pts}pt ref={setup_ref!r}")
+            f"entry~={entry_estimate:.2f} stop@{stop_price:.2f} "
+            f"target@{target_price:.2f} ref={setup_ref!r}")
         logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")
 
         status, resp = self.session._rest("POST", "/order/placeoso", body=body)
         logger.info(f"[tradovate placeoso RESULT] status={status} "
                     f"resp={str(resp)[:500]!r}")
         result = self._parse_order_response(status, resp)
-        # FALLBACK: if placeoso doesn't work (endpoint not recognized or
-        # bracket format wrong), drop to a plain market order. Catches
-        # the case where Tradovate's REST surface has changed names or
-        # the bracket sub-object expects a different shape. Better to
-        # have a position without a bracket than no position at all --
-        # the bot's 10-min timeout will close it as a safety net.
         if not result.ok:
             logger.warning(f"[tradovate placeoso FAILED] {result.error} "
                            f"-- falling back to plain placeorder (no bracket)")

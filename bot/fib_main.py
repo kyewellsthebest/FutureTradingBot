@@ -864,6 +864,7 @@ class FibRuntime:
                     result = self.tradovate_orders.submit_market_with_bracket(
                         side=trade.side, qty=trade.n_mnq, symbol=symbol,
                         stop_pts=stop_pts, target_pts=target_pts,
+                        entry_estimate=float(live_snap.price),
                         setup_ref=setup_ref,
                     )
                     if not result.ok:
