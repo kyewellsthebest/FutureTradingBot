@@ -1339,17 +1339,28 @@ function _filterByPeriod(trades, period) {
   if (period === "all" || !trades || !trades.length) return trades || [];
   if (period === "today") {
     // Browser local date -- matches the top-bar kpi-trades-today counter.
+    // This filters out the historical demo-account losses from earlier
+    // resets, so "Today" actually means today's trades.
     const todayStr = new Date().toDateString();
     return trades.filter(t => new Date(t.ts).toDateString() === todayStr);
   }
-  const lastT = new Date(trades[trades.length - 1].ts).getTime();
-  if (period === "week")  return trades.filter(t => new Date(t.ts).getTime() >= lastT - 7*86400000);
-  if (period === "month") return trades.filter(t => new Date(t.ts).getTime() >= lastT - 30*86400000);
+  if (period === "week") {
+    const cutoff = Date.now() - 7 * 86400000;
+    return trades.filter(t => new Date(t.ts).getTime() >= cutoff);
+  }
+  if (period === "month") {
+    const cutoff = Date.now() - 30 * 86400000;
+    return trades.filter(t => new Date(t.ts).getTime() >= cutoff);
+  }
   return trades;
 }
 function _renderPerfPanels(allTrades) {
-  _renderLifetimeSummary(allTrades);
+  // Filter by selected period FIRST, then feed everything (summary +
+  // charts) the same filtered slice. Previously the top summary used
+  // ALL trades while only the charts used the filter -- so "Today"
+  // mode showed a $50k account's lifetime drawdown in the summary.
   const filtered = _filterByPeriod(allTrades, _perfPeriod);
+  _renderLifetimeSummary(filtered);
   drawEquityCurve(filtered);
   drawMonthlyPnl(filtered);
   drawHoldHistogram(filtered);
@@ -1408,7 +1419,19 @@ function renderPerformanceGraphs() {
       _perfPeriod = btn.dataset.period;
       document.querySelectorAll(".btn-period").forEach(b =>
         b.classList.toggle("active", b === btn));
-      if (_allTradesCache.trades) _renderPerfPanels(_allTradesCache.trades);
+      // Update the P&L label to reflect the selected period.
+      const lbl = document.getElementById("lifetime-pnl-label");
+      if (lbl) {
+        const labels = {
+          today: "P&L (today)",
+          week: "P&L (last 7d)",
+          month: "P&L (last 30d)",
+          all: "P&L (all-time)",
+        };
+        lbl.textContent = labels[_perfPeriod] || "P&L";
+      }
+      // Re-render with the latest data source (Tradovate when available)
+      renderPerformanceGraphs();
     });
   });
   // Use Tradovate fills as the source of truth for Performance analytics.
