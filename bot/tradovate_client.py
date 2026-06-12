@@ -297,6 +297,63 @@ class TradovateSession:
                     f"name={accts[0].get('name')!r}")
         return self._account_id
 
+    # ----- Contract lookup ------------------------------------------------
+
+    def find_contract(self, root: str = "MNQ") -> Optional[dict]:
+        """Resolve the FRONT-MONTH contract for a product root using
+        Tradovate's /contract/suggest endpoint. Returns the contract
+        dict (with 'id' and 'name') or None.
+
+        WHY this matters: market data WebSocket subscription needs
+        either the numeric contract ID or the EXACT contract name that
+        Tradovate has on file. CME short format ('MNQM6') is the bot's
+        internal convention but Tradovate's API may use the longer
+        'MNQM2026' format or only accept the numeric ID. /contract/suggest
+        returns whatever Tradovate considers canonical, so we use that.
+
+        Caches result so steady-state calls don't hammer the REST API.
+        """
+        if hasattr(self, "_contract_cache"):
+            cached = self._contract_cache.get(root)
+            if cached is not None:
+                return cached
+        else:
+            self._contract_cache: dict = {}
+
+        # /contract/suggest?t=<text>&l=<limit> returns a list of contract
+        # entities whose name starts with the search text. We ask for
+        # ~20 to ensure we see all listed expirations.
+        status, results = self._rest(
+            "GET", "/contract/suggest", params={"t": root, "l": 20})
+        if status != 200 or not isinstance(results, list):
+            logger.warning(f"Tradovate contract/suggest({root!r}) -> "
+                           f"status={status} body[:300]={str(results)[:300]!r}")
+            return None
+        # Filter to active futures matching our root, pick soonest expiration.
+        candidates = []
+        for c in results:
+            if not isinstance(c, dict):
+                continue
+            name = str(c.get("name", ""))
+            if not name.startswith(root):
+                continue
+            # Prefer entries that have a maturityMonthYear or expiration date
+            candidates.append(c)
+        if not candidates:
+            logger.warning(f"Tradovate contract/suggest({root!r}): no "
+                           f"matching contracts found. Sample: "
+                           f"{[c.get('name') for c in results[:5]]!r}")
+            return None
+        # Pick the contract whose name is shortest (front-month convention)
+        # and which is the earliest expiring. /contract/suggest typically
+        # returns in expiration order with closest first.
+        chosen = candidates[0]
+        self._contract_cache[root] = chosen
+        logger.info(f"Tradovate front-month for {root}: name={chosen.get('name')!r} "
+                    f"id={chosen.get('id')!r} "
+                    f"expiry={chosen.get('lastTradingDay') or chosen.get('maturityMonthYear')!r}")
+        return chosen
+
 
 # ---------------------------------------------------------------------------
 # Self-test entrypoint: lets us verify auth with `python -m bot.tradovate_client`

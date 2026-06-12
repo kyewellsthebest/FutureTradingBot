@@ -51,10 +51,12 @@ class TradovateMarketData:
 
     def __init__(self,
                  session,             # TradovateSession
-                 symbol: str,         # e.g. "MNQM6" (CME short)
-                 on_tick: Callable[[float, datetime], None]) -> None:
+                 symbol: str,         # initial hint, e.g. "MNQM6"
+                 on_tick: Callable[[float, datetime], None],
+                 product_root: str = "MNQ") -> None:
         self.session = session
-        self.symbol = symbol
+        self.symbol = symbol      # may be overridden after contract lookup
+        self.product_root = product_root
         self.on_tick = on_tick
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -62,6 +64,11 @@ class TradovateMarketData:
         self._last_tick_ts: Optional[float] = None
         self._next_req_id: int = 1
         self._subscribed: bool = False
+        # The actual contract used for subscription (resolved via
+        # /contract/suggest at connect time). Could be the original
+        # short name or the longer canonical name Tradovate prefers.
+        self._resolved_symbol: Optional[str] = None
+        self._contract_id: Optional[int] = None
         self.tick_count: int = 0
         self.connected: bool = False
         self.last_error: Optional[str] = None
@@ -155,14 +162,54 @@ class TradovateMarketData:
         if not self._auth_succeeded(auth_resp):
             raise RuntimeError(f"auth rejected: {auth_resp[:200]!r}")
 
-        # Step 4: Subscribe to live quotes for our symbol
-        sub_body = json.dumps({"symbol": self.symbol})
+        # Step 4: Resolve the contract via REST. /contract/suggest gives us
+        # the canonical name Tradovate has on file, which may differ from
+        # our internal CME-short convention. Also gets the numeric ID
+        # which is the most reliable subscription key.
+        contract = self.session.find_contract(self.product_root)
+        if contract is None:
+            # Fall back to the symbol we were given (may still work)
+            sub_symbol = self.symbol
+            self._resolved_symbol = self.symbol
+            self._contract_id = None
+            logger.warning(f"tradovate_md: contract lookup failed for "
+                           f"{self.product_root!r}, trying symbol="
+                           f"{self.symbol!r} as-is")
+        else:
+            self._resolved_symbol = contract.get("name") or self.symbol
+            self._contract_id = contract.get("id")
+            # Prefer the numeric ID -- most reliable per the API docs
+            # which show symbol can be either a string or contract ID.
+            sub_symbol = (int(self._contract_id) if self._contract_id
+                          else self._resolved_symbol)
+            logger.info(f"tradovate_md: subscribing with symbol="
+                        f"{sub_symbol!r} (resolved name="
+                        f"{self._resolved_symbol!r}, id={self._contract_id!r})")
+
+        # Step 5: Subscribe to live quotes for the resolved symbol
+        sub_body = json.dumps({"symbol": sub_symbol})
         sub_msg = self._build_request("md/subscribeQuote", "", sub_body)
         self._ws.send(sub_msg)
         sub_resp = self._ws.recv()
-        logger.info(f"tradovate_md: subscribeQuote response={sub_resp[:200]!r}")
+        logger.info(f"tradovate_md: subscribeQuote response={sub_resp[:300]!r}")
         if not self._sub_succeeded(sub_resp):
-            raise RuntimeError(f"subscribeQuote rejected: {sub_resp[:200]!r}")
+            # If first attempt failed, try the OTHER format (name vs ID)
+            alt_symbol = (self._resolved_symbol
+                          if isinstance(sub_symbol, int)
+                          else self._contract_id)
+            if alt_symbol:
+                logger.warning(f"tradovate_md: retrying with alt symbol "
+                               f"{alt_symbol!r}")
+                sub_body = json.dumps({"symbol": alt_symbol})
+                sub_msg = self._build_request("md/subscribeQuote", "", sub_body)
+                self._ws.send(sub_msg)
+                sub_resp = self._ws.recv()
+                logger.info(f"tradovate_md: retry response={sub_resp[:300]!r}")
+                if not self._sub_succeeded(sub_resp):
+                    raise RuntimeError(f"subscribeQuote rejected (both "
+                                        f"attempts): {sub_resp[:200]!r}")
+            else:
+                raise RuntimeError(f"subscribeQuote rejected: {sub_resp[:200]!r}")
         self._subscribed = True
         self.connected = True
         self.last_error = None
