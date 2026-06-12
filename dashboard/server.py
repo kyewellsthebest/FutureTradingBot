@@ -346,6 +346,80 @@ def api_tradovate_trades():
     })
 
 
+@app.route("/api/tradovate_reset_all", methods=["GET", "POST"])
+def api_tradovate_reset_all():
+    """One-click reset for the Tradovate-direct setup.
+
+    Wipes:
+      - paper trades (the historical 1,971/161 noise from before
+        Tradovate was wired)
+      - lucid account state
+      - dashboard snapshot
+      - signal events
+
+    Initializes paper account to the live Tradovate demo balance
+    (or $50,000 fallback) so the dashboard's reference matches
+    reality from cycle 1 onward.
+
+    No password gate since the user explicitly asked for "reset
+    everything completely". This is a single-user demo dashboard.
+    """
+    import shutil as _shutil
+    from bot.account_ctx import data_dir
+    base = data_dir()
+    starting_balance = 50_000.0
+    # Try to read live Tradovate balance to set the paper account's
+    # starting equity to match.
+    try:
+        from bot.tradovate_client import TradovateSession
+        sess = TradovateSession()
+        if sess.is_configured:
+            acct_id = sess.get_account_id()
+            if acct_id is not None:
+                status, snap = sess._rest(
+                    "POST", "/cashBalance/getCashBalanceSnapshot",
+                    body={"accountId": int(acct_id)})
+                if status == 200 and isinstance(snap, dict):
+                    bal = snap.get("totalCashValue") or snap.get("cashBalance")
+                    if isinstance(bal, (int, float)) and bal > 0:
+                        starting_balance = float(bal)
+    except Exception as e:
+        logger.debug(f"tradovate balance fetch for reset failed: {e!r}")
+
+    errors = []
+    try:
+        persistence.wipe_all_trades()
+    except Exception as e:
+        errors.append(f"wipe_all_trades: {e!r}")
+    for fname in ("dashboard_data.json", "lucid_account.json",
+                   "signal_events.json", "paper_trades.db",
+                   "manual_pause.json", "traderspost_audit.jsonl"):
+        try:
+            p = base / fname
+            if p.exists():
+                p.unlink()
+        except Exception as e:
+            errors.append(f"{fname}: {e!r}")
+
+    # Write a reset-pending flag with the starting balance. The bot's
+    # next cycle reads this and re-initializes lucid state to match.
+    try:
+        flag = base / "reset_pending.flag"
+        flag.write_text(f"starting_balance={starting_balance}\n")
+    except Exception as e:
+        errors.append(f"reset_pending.flag: {e!r}")
+
+    return jsonify({
+        "ok": len(errors) == 0,
+        "starting_balance": starting_balance,
+        "source": "tradovate_demo_balance" if starting_balance != 50_000.0
+                  else "fallback_50k",
+        "errors": errors,
+        "note": ("Reset complete. Refresh the dashboard in 30s to see "
+                 "fresh state. The bot will start fresh on its next cycle."),
+    })
+
+
 @app.route("/api/tradovate_diag")
 def api_tradovate_diag():
     """Self-test for the Tradovate integration: runs auth + account

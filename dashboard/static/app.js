@@ -2,7 +2,9 @@
    Polls /api/data (full snapshot) every 5s. Renders all tabs from one blob. */
 
 const POLL_MS = 5000;
-let state = { data: null, candles: null, trades: null };
+let state = { data: null, candles: null, trades: null,
+              tradovate: null, tradovateTrades: null,
+              tradovatePosition: null };
 let chart = null, candleSeries = null;
 
 // Multi-account: every API request is namespaced by ?account=N. The
@@ -582,6 +584,35 @@ async function pollTrades() {
 setInterval(poll, POLL_MS);
 setInterval(pollCandles, 30_000);
 setInterval(pollTrades, 15_000);
+
+// Tradovate broker data: account snapshot, open position, recent fills.
+async function pollTradovateAccount() {
+  try {
+    const r = await fetch(af("/api/tradovate_account"));
+    if (!r.ok) return;
+    state.tradovate = await r.json();
+  } catch (e) { /* swallow */ }
+}
+async function pollTradovatePosition() {
+  try {
+    const r = await fetch(af("/api/tradovate_position"));
+    if (!r.ok) return;
+    state.tradovatePosition = await r.json();
+  } catch (e) {}
+}
+async function pollTradovateTrades() {
+  try {
+    const r = await fetch(af("/api/tradovate_trades"));
+    if (!r.ok) return;
+    state.tradovateTrades = await r.json();
+  } catch (e) {}
+}
+setInterval(pollTradovateAccount, 5_000);
+setInterval(pollTradovatePosition, 3_000);
+setInterval(pollTradovateTrades, 10_000);
+pollTradovateAccount();
+pollTradovatePosition();
+pollTradovateTrades();
 // 100ms price-only poll. The user wants tick-level visibility -- every
 // poll fetches Polygon directly (max_age_s=0.1 on the server) and the
 // price card flashes green/red on each direction change. Network cost
@@ -644,24 +675,46 @@ function renderTopbar(d) {
   } else {
     setText("kpi-price", "—");
   }
-  const acc = d.lucid_account || {};
-  const bal = acc.balance ?? 50000;
+  // Balance: prefer the live Tradovate broker balance over paper.
+  // _tradovateAcct is populated by pollTradovateAccount() (every 5s).
+  // Falls back to paper account if Tradovate isn't configured/responding.
+  let bal;
+  if (state.tradovate && state.tradovate.cash_snapshot &&
+      typeof state.tradovate.cash_snapshot.totalCashValue === "number") {
+    bal = state.tradovate.cash_snapshot.totalCashValue;
+  } else if (state.tradovate && state.tradovate.cash_snapshot &&
+             typeof state.tradovate.cash_snapshot.cashBalance === "number") {
+    bal = state.tradovate.cash_snapshot.cashBalance;
+  } else {
+    const acc = d.lucid_account || {};
+    bal = acc.balance ?? 50000;
+  }
   animateNumber("kpi-balance", bal, fmtUsdPlain);
-  // Today's P&L and trade count -- computed from the FULL trades cache
-  // using BROWSER LOCAL date (not server NY date). User is in AEST, so
-  // their "today" is the AEST calendar day. NY-date filter was missing
-  // the trades from before NY midnight (= 2pm AEST) and showing 68 when
-  // 183 was the right number.
-  const allT = _allTradesCache.trades || [];
-  const todayStr = new Date().toDateString();
-  const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
-  const today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+  // Today's P&L: from Tradovate when available (open + realized).
+  let today = 0;
+  let todayTradesCount = 0;
+  if (state.tradovate && state.tradovate.cash_snapshot) {
+    const cs = state.tradovate.cash_snapshot;
+    today = (cs.openPnL || 0) + (cs.realizedPnL || 0);
+  } else {
+    const allT = _allTradesCache.trades || [];
+    const todayStr = new Date().toDateString();
+    const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
+    today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+    todayTradesCount = todayTrades.length;
+  }
+  // For trades count when Tradovate, use the live fills list.
+  if (state.tradovateTrades && Array.isArray(state.tradovateTrades.fills)) {
+    const todayStr = new Date().toDateString();
+    todayTradesCount = state.tradovateTrades.fills
+      .filter(f => new Date(f.timestamp).toDateString() === todayStr).length;
+  }
   const todayEl = document.getElementById("kpi-today");
   if (todayEl) {
     todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
   }
   animateNumber("kpi-today", today, fmtUsd);
-  animateNumber("kpi-trades-today", todayTrades.length, (n) => String(Math.round(n)));
+  animateNumber("kpi-trades-today", todayTradesCount, (n) => String(Math.round(n)));
   // Background-refresh the cache so kpi numbers stay live even if the
   // user never opens the Performance tab.
   if (Date.now() - _allTradesCache.ts > 30_000) {
