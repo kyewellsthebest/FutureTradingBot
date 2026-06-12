@@ -359,9 +359,9 @@ class PriceMonitor:
         """Spawn the Tradovate market data subscriber. Returns silently
         if Tradovate credentials aren't set -- Polygon stays the source."""
         try:
-            from bot.tradovate_client import TradovateSession
+            from bot.tradovate_client import get_session
             from bot.tradovate_md import TradovateMarketData
-            sess = TradovateSession()
+            sess = get_session()
             if not sess.is_configured:
                 logger.info("tradovate_md: credentials not set, skipping")
                 self._tradovate_md = None

@@ -254,9 +254,9 @@ class FibRuntime:
         # data feed (Tradovate WS) and same execution venue eliminates
         # paper-vs-broker divergence at the source.
         try:
-            from bot.tradovate_client import TradovateSession
+            from bot.tradovate_client import get_session
             from bot.tradovate_orders import TradovateOrders
-            self.tradovate_session = TradovateSession()
+            self.tradovate_session = get_session()
             if self.tradovate_session.is_configured:
                 self.tradovate_orders = TradovateOrders(self.tradovate_session)
                 logger.info("Tradovate broker active (env vars configured)")

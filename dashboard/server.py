@@ -245,10 +245,10 @@ def api_tradovate_account():
     """Live account snapshot from Tradovate: balance, equity, daily P&L.
     Used to populate the Performance tab and the topbar balance."""
     try:
-        from bot.tradovate_client import TradovateSession
+        from bot.tradovate_client import get_session
     except Exception as e:
         return jsonify({"error": f"client import failed: {e!r}"}), 500
-    sess = TradovateSession()
+    sess = get_session()
     if not sess.is_configured:
         return jsonify({"configured": False})
     acct_id = sess.get_account_id()
@@ -276,10 +276,10 @@ def api_tradovate_position():
     """Current open position(s) on the Tradovate account. Used to
     populate the Live tab's Active Trade card."""
     try:
-        from bot.tradovate_client import TradovateSession
+        from bot.tradovate_client import get_session
     except Exception as e:
         return jsonify({"error": f"client import failed: {e!r}"}), 500
-    sess = TradovateSession()
+    sess = get_session()
     if not sess.is_configured:
         return jsonify({"configured": False})
     acct_id = sess.get_account_id()
@@ -317,10 +317,10 @@ def api_tradovate_trades():
     """Recent fills (executed orders) on the Tradovate account. Used
     to populate the Trades tab."""
     try:
-        from bot.tradovate_client import TradovateSession
+        from bot.tradovate_client import get_session
     except Exception as e:
         return jsonify({"error": f"client import failed: {e!r}"}), 500
-    sess = TradovateSession()
+    sess = get_session()
     if not sess.is_configured:
         return jsonify({"configured": False})
     acct_id = sess.get_account_id()
@@ -371,8 +371,8 @@ def api_tradovate_reset_all():
     # Try to read live Tradovate balance to set the paper account's
     # starting equity to match.
     try:
-        from bot.tradovate_client import TradovateSession
-        sess = TradovateSession()
+        from bot.tradovate_client import get_session
+        sess = get_session()
         if sess.is_configured:
             acct_id = sess.get_account_id()
             if acct_id is not None:
@@ -446,10 +446,10 @@ def api_tradovate_diag():
       }
     """
     try:
-        from bot.tradovate_client import TradovateSession, _is_demo
+        from bot.tradovate_client import get_session, _is_demo
     except Exception as e:
         return jsonify({"error": f"client import failed: {e!r}"}), 500
-    sess = TradovateSession()
+    sess = get_session()
     if not sess.is_configured:
         import os as _os
         present = {

@@ -356,6 +356,31 @@ class TradovateSession:
 
 
 # ---------------------------------------------------------------------------
+# Module-level singleton -- shared auth state across all threads
+# ---------------------------------------------------------------------------
+# Many threads in the bot (MD WebSocket, order placement, dashboard
+# endpoints) each need a Tradovate session. If each creates its own
+# instance, each runs authenticate() against Tradovate's heavily
+# rate-limited /auth/accesstokenrequest endpoint and they collide --
+# the MD thread was stuck on RuntimeError("auth failed") while the
+# dashboard's diag endpoint reported auth_ok=true because they were
+# racing for tokens. Singleton -> everyone shares cached tokens, auth
+# happens once per token lifetime (~80 min).
+import threading as _threading
+_session_singleton: Optional[TradovateSession] = None
+_session_lock = _threading.Lock()
+
+
+def get_session() -> TradovateSession:
+    """Process-wide shared TradovateSession. Lazy-inits on first call."""
+    global _session_singleton
+    with _session_lock:
+        if _session_singleton is None:
+            _session_singleton = TradovateSession()
+        return _session_singleton
+
+
+# ---------------------------------------------------------------------------
 # Self-test entrypoint: lets us verify auth with `python -m bot.tradovate_client`
 # ---------------------------------------------------------------------------
 

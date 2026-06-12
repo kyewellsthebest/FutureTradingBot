@@ -39,21 +39,14 @@ logger = logging.getLogger("tradovate_md")
 
 import os as _os
 
-# Tradovate market data WebSocket endpoints. For demo cluster
-# accounts, the demo market data feed (md-demo) is what serves
-# simulated ticks. For live accounts, the live market data feed
-# (md) is the real exchange tape. Many users confuse these.
-#
-# Order of preference: env override -> demo-aware default.
+# Tradovate market data WebSocket. The market data feed runs on
+# md.tradovateapi.com for BOTH live and demo clusters -- it's the
+# same exchange tape, the cluster split (live vs demo) only applies
+# to auth/orders/account ops. The mdAccessToken returned at auth
+# time is what gates demo vs live data entitlement.
 def _md_ws_url() -> str:
-    explicit = _os.environ.get("TRADOVATE_MD_WS")
-    if explicit:
-        return explicit
-    is_demo = _os.environ.get("TRADOVATE_DEMO", "true").lower() in ("true", "1", "yes")
-    if is_demo:
-        # Demo cluster has its own market data endpoint
-        return "wss://md-demo.tradovateapi.com/v1/websocket"
-    return "wss://md.tradovateapi.com/v1/websocket"
+    return _os.environ.get("TRADOVATE_MD_WS",
+                            "wss://md.tradovateapi.com/v1/websocket")
 
 HEARTBEAT_INTERVAL_S = 2.0
 BACKOFF_INITIAL_S = 1.0
