@@ -346,6 +346,67 @@ def api_tradovate_trades():
     })
 
 
+@app.route("/api/tradovate_test_order", methods=["GET", "POST"])
+def api_tradovate_test_order():
+    """Manual test order: places a small market order on the demo
+    account to verify the broker integration. Use to debug "paper
+    booked but broker has nothing" symptoms.
+
+    Default: BUY 1 MNQ MARKET (no bracket).
+    Override: ?side=Buy|Sell &qty=1 &bracket=1 &symbol=MNQM6
+
+    With ?bracket=1 it uses placeoso with a 6pt stop / 12pt target
+    bracket. Without, it sends a bare market order via placeorder.
+
+    Returns the full Tradovate response so we can see exactly what
+    the API said.
+    """
+    try:
+        from bot.tradovate_client import get_session
+        from bot.tradovate_orders import TradovateOrders
+    except Exception as e:
+        return jsonify({"error": f"import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"error": "credentials missing"}), 400
+
+    # Resolve symbol the same way the WS subscriber did
+    try:
+        from research.data_loader import polygon_front_month
+        default_symbol = polygon_front_month(
+            os.environ.get("POLYGON_CONTRACT", "MNQ"))
+    except Exception:
+        default_symbol = "MNQM6"
+    symbol = request.args.get("symbol", default_symbol)
+    side = request.args.get("side", "Buy")  # Buy or Sell
+    qty = int(request.args.get("qty", "1"))
+    use_bracket = request.args.get("bracket", "0") == "1"
+
+    orders = TradovateOrders(sess)
+    # Tradovate API expects side as "LONG"/"SHORT" in our wrapper
+    side_strat = "LONG" if side.lower() == "buy" else "SHORT"
+    if use_bracket:
+        result = orders.submit_market_with_bracket(
+            side=side_strat, qty=qty, symbol=symbol,
+            stop_pts=6.0, target_pts=12.0,
+            setup_ref="manual_test")
+    else:
+        result = orders.submit_market(
+            side=side_strat, qty=qty, symbol=symbol,
+            setup_ref="manual_test")
+    return jsonify({
+        "submitted": {
+            "side": side, "qty": qty, "symbol": symbol,
+            "bracket": use_bracket,
+        },
+        "ok": result.ok,
+        "order_id": result.order_id,
+        "status_code": result.status_code,
+        "error": result.error,
+        "response": result.response,
+    })
+
+
 @app.route("/api/tradovate_reset_all", methods=["GET", "POST"])
 def api_tradovate_reset_all():
     """One-click reset for the Tradovate-direct setup.

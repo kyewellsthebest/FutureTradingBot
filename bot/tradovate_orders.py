@@ -18,6 +18,7 @@ violate exchange policies."
 """
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -116,11 +117,26 @@ class TradovateOrders:
             body["text"] = setup_ref[:64]  # Tradovate caps user text
 
         logger.info(
-            f"[tradovate placeOSO] {action} {qty} {symbol} MARKET "
+            f"[tradovate placeoso] {action} {qty} {symbol} MARKET "
             f"stop={stop_pts}pt target={target_pts}pt ref={setup_ref!r}")
+        logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")
 
-        status, resp = self.session._rest("POST", "/order/placeOSO", body=body)
-        return self._parse_order_response(status, resp)
+        status, resp = self.session._rest("POST", "/order/placeoso", body=body)
+        logger.info(f"[tradovate placeoso RESULT] status={status} "
+                    f"resp={str(resp)[:500]!r}")
+        result = self._parse_order_response(status, resp)
+        # FALLBACK: if placeoso doesn't work (endpoint not recognized or
+        # bracket format wrong), drop to a plain market order. Catches
+        # the case where Tradovate's REST surface has changed names or
+        # the bracket sub-object expects a different shape. Better to
+        # have a position without a bracket than no position at all --
+        # the bot's 10-min timeout will close it as a safety net.
+        if not result.ok:
+            logger.warning(f"[tradovate placeoso FAILED] {result.error} "
+                           f"-- falling back to plain placeorder (no bracket)")
+            return self.submit_market(side=side, qty=qty, symbol=symbol,
+                                       setup_ref=setup_ref)
+        return result
 
     # ------------------------------------------------------------------
     # Fallback: simple market order (no bracket -- use only when the
@@ -150,8 +166,11 @@ class TradovateOrders:
         if setup_ref:
             body["text"] = setup_ref[:64]
 
-        logger.info(f"[tradovate placeOrder] {action} {qty} {symbol} MARKET")
+        logger.info(f"[tradovate placeorder] {action} {qty} {symbol} MARKET")
+        logger.info(f"[tradovate placeorder BODY] {json.dumps(body)}")
         status, resp = self.session._rest("POST", "/order/placeorder", body=body)
+        logger.info(f"[tradovate placeorder RESULT] status={status} "
+                    f"resp={str(resp)[:500]!r}")
         return self._parse_order_response(status, resp)
 
     # ------------------------------------------------------------------
