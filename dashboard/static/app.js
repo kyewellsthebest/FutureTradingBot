@@ -605,6 +605,8 @@ async function pollTradovateTrades() {
     const r = await fetch(af("/api/tradovate_trades"));
     if (!r.ok) return;
     state.tradovateTrades = await r.json();
+    // Re-render the trades table now that we have fresh broker data
+    try { renderTradesTable(); } catch (e) {}
   } catch (e) {}
 }
 setInterval(pollTradovateAccount, 5_000);
@@ -1097,6 +1099,35 @@ function renderFunded(d) {
 // ---- Trades tab ----------------------------------------------------------
 function renderTradesTable() {
   const tbody = document.querySelector("#trades-table tbody");
+  // Prefer REAL Tradovate fills when available. Each fill is a single
+  // execution (entry OR exit); we pair them up into round-trip trades.
+  // Falls back to paper trades if Tradovate isn't returning fills yet.
+  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
+  if (tvFills.length > 0) {
+    const trades = pairFillsIntoTrades(tvFills);
+    if (trades.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">'
+        + 'No completed broker trades yet (have ' + tvFills.length
+        + ' fill(s) waiting to pair).</td></tr>';
+      return;
+    }
+    tbody.innerHTML = trades.map(t => {
+      const sideClass = t.side === "LONG" ? "side-long" : "side-short";
+      const pnlClass = t.pnl >= 0 ? "pos" : "neg";
+      return `<tr>
+        <td>${new Date(t.ts).toLocaleString()}</td>
+        <td class="${sideClass}"><b>${t.side}</b></td>
+        <td>${t.qty}</td>
+        <td>${t.entry_px.toFixed(2)}</td>
+        <td>${t.exit_px.toFixed(2)}</td>
+        <td>${t.exit_reason || 'broker'}</td>
+        <td>${fmtHold(t.hold_s)}</td>
+        <td class="${pnlClass}">${fmtUsd(t.pnl)}</td>
+      </tr>`;
+    }).join("");
+    return;
+  }
+  // Fall back to paper trades.
   const trades = (state.data && state.data.recent_trades) || [];
   if (!trades.length) {
     tbody.innerHTML = '<tr><td colspan="8" class="muted">No trades yet.</td></tr>';
@@ -1117,6 +1148,79 @@ function renderTradesTable() {
       <td class="${pnlClass}">${fmtUsd(pnl)}</td>
     </tr>`;
   }).join("");
+}
+
+// Pair Tradovate fills (each fill is a single execution) into
+// completed round-trip trades for the Trades tab display.
+// Algorithm:
+//   - Sort fills oldest -> newest
+//   - Walk them, accumulating into open positions per contractId
+//   - When net position returns to 0, emit a completed trade with
+//     entry_px = avg fill price of the opening leg, exit_px = avg
+//     fill price of the closing leg, pnl = (exit-entry) * qty * mult
+// MNQ multiplier = $2/pt. We only need the user-visible breakdown
+// (entry, exit, side, pnl, time) for the table.
+function pairFillsIntoTrades(fills) {
+  const sorted = fills.slice().sort((a, b) =>
+    new Date(a.timestamp) - new Date(b.timestamp));
+  const trades = [];
+  // Group by contractId
+  const positions = {};  // contractId -> { side, qty, entry_total, entry_qty, entry_ts }
+  for (const f of sorted) {
+    const cid = f.contractId;
+    const px = f.price;
+    const q = Math.abs(f.qty || 0);
+    const isBuy = (f.action === "Buy");
+    if (!positions[cid]) {
+      // Opening a new position
+      positions[cid] = {
+        side: isBuy ? "LONG" : "SHORT",
+        qty: q,
+        entry_total: px * q,
+        entry_qty: q,
+        entry_ts: f.timestamp,
+        contractId: cid,
+      };
+      continue;
+    }
+    const pos = positions[cid];
+    const closing = (pos.side === "LONG" && !isBuy) ||
+                    (pos.side === "SHORT" && isBuy);
+    if (!closing) {
+      // Adding to position
+      pos.entry_total += px * q;
+      pos.entry_qty += q;
+      pos.qty += q;
+    } else {
+      // Reducing / closing the position
+      const close_qty = Math.min(q, pos.qty);
+      const entry_avg = pos.entry_total / pos.entry_qty;
+      const exit_avg = px;
+      const pnl_pts = pos.side === "LONG" ? (exit_avg - entry_avg)
+                                            : (entry_avg - exit_avg);
+      const MNQ_MULT = 2;  // $2/pt
+      const pnl = pnl_pts * MNQ_MULT * close_qty;
+      const entry_t = new Date(pos.entry_ts);
+      const exit_t = new Date(f.timestamp);
+      trades.push({
+        ts: f.timestamp,
+        side: pos.side,
+        qty: close_qty,
+        entry_px: entry_avg,
+        exit_px: exit_avg,
+        pnl: pnl,
+        hold_s: (exit_t - entry_t) / 1000,
+        exit_reason: "broker",
+      });
+      pos.qty -= close_qty;
+      if (pos.qty === 0) {
+        delete positions[cid];
+      }
+    }
+  }
+  // Newest first for the table
+  trades.reverse();
+  return trades.slice(0, 50);
 }
 
 // ---- Chart tab -----------------------------------------------------------
