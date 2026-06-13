@@ -419,8 +419,24 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
 
 
 def _setup_key(setup: FibSetup) -> tuple:
-    """Dedup key — same impulse high/low/side = same setup."""
-    return (round(setup.impulse_high, 1), round(setup.impulse_low, 1), setup.side)
+    """Dedup key -- two setups within ~3pt entry of each other on the
+    same side are treated as ONE setup.
+
+    Previously keyed on (impulse_high, impulse_low, side) which let
+    setups detected on consecutive bars BOTH stay pending if their
+    impulse extremes drifted by even 1 tick. Two near-identical
+    setups would then both fire when price reached the shared entry
+    zone -- the broker received 2 orders (= 2 MNQ open) while the
+    paper account only booked 1. Every dual-fire stop-out doubled
+    the broker's loss without affecting paper accounting, which is
+    the main paper-vs-broker leak the user has been chasing.
+
+    Rounding entry to the nearest 3pt collapses near-identical
+    setups to the same key so the dedup in on_new_1m_bar catches
+    them as duplicates."""
+    BUCKET_PTS = 3.0
+    entry_bucket = round(setup.pullback_entry / BUCKET_PTS) * BUCKET_PTS
+    return (round(entry_bucket, 1), setup.side)
 
 
 # ============================================================================
