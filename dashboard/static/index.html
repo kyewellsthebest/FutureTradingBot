@@ -41,6 +41,14 @@
               title="Pause new entries on this account. Active trade is NOT closed."
               data-paused="0">⏸ Pause</button>
       <span class="badge badge-paused" id="badge-paused" hidden>PAUSED</span>
+      <!-- Data source toggle: swap every tab between broker reality
+           (Tradovate FillPairs / Positions / CashBalance) and paper
+           (strategy's expected outcome). Default is BROKER. -->
+      <button class="btn-data-source" id="data-source-toggle"
+              title="Click to switch between broker and paper data."
+              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
+        📡 BROKER
+      </button>
     </div>
     <div class="topbar-stats">
       <div class="kpi">

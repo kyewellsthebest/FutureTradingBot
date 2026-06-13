@@ -12,10 +12,45 @@ let chart = null, candleSeries = null;
 // user on whichever account they were viewing.
 let currentAccount = localStorage.getItem("hftbot.account") || "1";
 
-// Account-aware fetch wrapper — appends ?account=N to the URL.
+// Data source: "broker" pulls trades + position + stats from Tradovate
+// (the real broker reality). "paper" reads from the bot's paper account
+// (the strategy's expected outcome). Default: broker -- user explicitly
+// requested all stats reflect broker reality.
+let dataSource = localStorage.getItem("hftbot.dataSource") || "broker";
+
+// Account-aware fetch wrapper — appends ?account=N and the active
+// data source to the URL.
 function af(url) {
   const sep = url.includes("?") ? "&" : "?";
-  return url + sep + "account=" + encodeURIComponent(currentAccount);
+  return url + sep + "account=" + encodeURIComponent(currentAccount)
+    + "&source=" + encodeURIComponent(dataSource);
+}
+
+function setDataSource(src) {
+  if (src !== "broker" && src !== "paper") return;
+  dataSource = src;
+  localStorage.setItem("hftbot.dataSource", src);
+  // Invalidate the all-trades cache so the Performance tab re-fetches
+  // with the new source on its next paint.
+  try { _allTradesCache = { trades: null, ts: 0 }; } catch (e) {}
+  // Force every poller to refresh with the new source
+  try { poll(); } catch (e) {}
+  try { pollTrades(); } catch (e) {}
+  try { pollBrokerStats(); } catch (e) {}
+  try { pollBrokerPosition(); } catch (e) {}
+  try { renderTradesTable(); } catch (e) {}
+  try { renderPerformanceGraphs(); } catch (e) {}
+  // Update the visual indicator
+  const btn = document.getElementById("data-source-toggle");
+  if (btn) {
+    btn.textContent = src === "broker" ? "📡 BROKER" : "📋 PAPER";
+    btn.title = src === "broker"
+      ? "Showing data from Tradovate broker (real fills). Click to switch to paper."
+      : "Showing paper-account expectations. Click to switch to broker (real fills).";
+  }
+  // Mark all paper-only sections with a visual indicator when in
+  // broker mode. Subtle so the user knows what they're looking at.
+  document.body.dataset.dataSource = src;
 }
 // Per-account strategy / sim baseline display values. Only the legacy
 // account 1 is live; accounts 2/3 were removed by user request.
@@ -123,7 +158,42 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(pollPauseStatus, 5000);
   _wireResetButton();
   _wireDownloadButtons();
+  // Initialize the data source toggle to show the persisted value
+  setDataSource(dataSource);
+  // Periodically refresh broker stats + position
+  pollBrokerStats();
+  pollBrokerPosition();
+  setInterval(pollBrokerStats, 10_000);
+  setInterval(pollBrokerPosition, 5_000);
 });
+
+// Broker stats polling. Stores the latest /api/broker/stats response
+// so the topbar balance + Performance tab can read from it. Runs every
+// 10s independent of the main poll so broker reality is always fresh.
+async function pollBrokerStats() {
+  try {
+    const r = await fetch(af("/api/broker/stats"));
+    if (!r.ok) return;
+    state.brokerStats = await r.json();
+    // Update topbar balance immediately if we're in broker mode
+    if (dataSource === "broker" && state.brokerStats) {
+      const bal = state.brokerStats.balance || state.brokerStats.net_liq;
+      if (bal != null) animateNumber("kpi-balance", bal, fmtUsdPlain);
+      const today = (state.brokerStats.summary || {}).total_pnl;
+      if (today != null) animateNumber("kpi-today", today, fmtUsd);
+    }
+  } catch (e) {}
+}
+
+// Broker position polling. /api/broker/position returns the open
+// position from Tradovate (with stop/target enrichment).
+async function pollBrokerPosition() {
+  try {
+    const r = await fetch(af("/api/broker/position"));
+    if (!r.ok) return;
+    state.brokerPos = await r.json();
+  } catch (e) {}
+}
 
 // ---- Admin: Reset account ------------------------------------------------
 async function _doResetAccount() {
@@ -731,7 +801,17 @@ function renderTopbar(d) {
     }).catch(() => {});
   }
   const fib = d.fib || {};
-  const at = fib.active_trade;
+  // Position display: in broker mode, prefer the live broker position
+  // from /position/list (state.brokerPos). In paper mode, use the
+  // bot's active_trade. This keeps the topbar consistent with the
+  // selected data source.
+  let at = fib.active_trade;
+  if (dataSource === "broker" && state.brokerPos && state.brokerPos.position) {
+    at = {
+      side: state.brokerPos.position.side,
+      n_mnq: state.brokerPos.position.qty,
+    };
+  }
   const posText = at ? `${at.side} ${at.n_mnq}` : "FLAT";
   setText("kpi-position", posText);
   const posEl = document.getElementById("kpi-position");
@@ -762,34 +842,56 @@ function renderLive(d) {
   const fib = d.fib || {};
   const acc = d.lucid_account || {};
 
-  // active trade card
+  // active trade card. In broker mode, prefer the live broker
+  // position (from /api/broker/position) over paper's active_trade.
   const activeBox = document.getElementById("live-active");
-  if (fib.active_trade) {
-    const a = fib.active_trade;
+  let brokerActive = null;
+  if (dataSource === "broker" && state.brokerPos &&
+      state.brokerPos.position) {
+    const p = state.brokerPos.position;
+    brokerActive = {
+      side: p.side,
+      n_mnq: p.qty,
+      entry_px: p.entry_px || 0,
+      stop_px: p.stop_px || 0,
+      target_px: p.target_px || 0,
+      unrealized_pnl_usd: p.open_pnl || null,
+      unrealized_pnl_pts: null,
+      current_price: d.price,
+      hold_s: null,
+      _broker: true,
+    };
+  }
+  const a = brokerActive || fib.active_trade;
+  if (a) {
     const unrealised = a.unrealized_pnl_usd;
     const unrealisedPts = a.unrealized_pnl_pts;
     const cur = a.current_price ?? d.price;
     const hasLive = unrealised !== undefined && unrealised !== null && !isNaN(unrealised);
     const pnlClass = hasLive ? (unrealised >= 0 ? "pos" : "neg") : "";
     const boxClass = hasLive && unrealised < 0 ? "live-pnl-box neg" : "live-pnl-box";
+    const srcTag = a._broker ? '<span class="badge" style="background:rgba(99,179,237,0.15);color:#63b3ed">📡 BROKER</span>' : '';
     const liveBlock = hasLive ? `
       <div class="${boxClass}">
-        <div class="live-pnl-label">Unrealised P&L</div>
+        <div class="live-pnl-label">Unrealised P&L ${srcTag}</div>
         <div class="live-pnl-value ${pnlClass}">${fmtUsd(unrealised)}</div>
         <div class="live-pnl-sub">
-          ${unrealisedPts >= 0 ? "+" : ""}${(unrealisedPts ?? 0).toFixed(2)} pts
+          ${unrealisedPts != null ? ((unrealisedPts >= 0 ? "+" : "") + unrealisedPts.toFixed(2) + " pts") : ""}
           ${cur ? " · last " + cur.toFixed(2) : ""}
         </div>
       </div>` : "";
+    const heldRow = a.hold_s != null
+      ? `<div class="kv-row"><span>Held</span><b>${fmtHold(a.hold_s)}</b></div>`
+      : "";
     activeBox.innerHTML = `
       ${liveBlock}
       <div class="kv-list">
         <div class="kv-row"><span>Side</span><b class="${a.side === 'LONG' ? 'kpi-value pos' : 'kpi-value neg'}">${a.side}</b></div>
         <div class="kv-row"><span>Size</span><b>${a.n_mnq} MNQ</b></div>
-        <div class="kv-row"><span>Entry</span><b>${a.entry_px.toFixed(2)}</b></div>
-        <div class="kv-row"><span>Stop</span><b>${a.stop_px.toFixed(2)}</b></div>
-        <div class="kv-row"><span>Target</span><b>${a.target_px.toFixed(2)}</b></div>
-        <div class="kv-row"><span>Held</span><b>${fmtHold(a.hold_s)}</b></div>
+        <div class="kv-row"><span>Entry</span><b>${(a.entry_px || 0).toFixed(2)}</b></div>
+        <div class="kv-row"><span>Stop</span><b>${(a.stop_px || 0).toFixed(2)}</b></div>
+        <div class="kv-row"><span>Target</span><b>${(a.target_px || 0).toFixed(2)}</b></div>
+        ${heldRow}
       </div>`;
   } else {
     activeBox.innerHTML = '<div class="muted">No open position.</div>';

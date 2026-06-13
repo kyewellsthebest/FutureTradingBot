@@ -312,6 +312,426 @@ def api_tradovate_position():
     })
 
 
+# ============================================================================
+# BROKER-BACKED ENDPOINTS
+# These pull EVERYTHING from Tradovate's REST/WS, not paper.
+# Used by the Trades + Performance + Live tabs when the user wants
+# to see broker reality. Each returns rows in the dashboard's existing
+# "paper trade" shape so the frontend can render them identically.
+# Reference: Tradovate API docs entity model -- FillPair (round-trip
+# closed trades), Position (current open), CashBalance (realized PnL).
+# ============================================================================
+
+
+def _broker_pnl_pts(buy_px: float, sell_px: float) -> float:
+    """Points P&L for a round trip. Buyer side is always +/- (sell-buy)
+    in market terms; whether the trader is LONG or SHORT is encoded in
+    which fill came first (LONG = buy first, SHORT = sell first)."""
+    return float(sell_px) - float(buy_px)
+
+
+def _broker_pnl_usd(pts: float, qty: int, side: str,
+                     dollars_per_point: float = 2.0) -> float:
+    """Convert points to USD for MNQ ($2/pt). Sign flips for SHORT."""
+    sign = 1.0 if (side or "").upper() == "LONG" else -1.0
+    return float(pts) * float(qty) * dollars_per_point * sign
+
+
+def _collect_broker_trades(sess, acct_id: int,
+                            limit: int = 1000) -> list:
+    """Build the paper-shape trade list from Tradovate FillPairs.
+
+    Tradovate represents each round-trip as a FillPair record with
+    buyFillId / sellFillId. To reconstruct a "trade":
+      - Look up buyFill + sellFill in /fill/list for timestamps + orderIds
+      - The earlier fill is the ENTRY; the later one is the EXIT
+      - Side = LONG if entry is the buy, SHORT if entry is the sell
+      - entry_px = entry fill price; exit_px = exit fill price
+      - Determine exit_reason from the exit order's type+text (Stop
+        market => "stop", Limit => "target", Market => "manual"/"timeout")
+    """
+    # FillPair -- all closed round trips on this account
+    fp_status, fill_pairs = sess._rest("GET", "/fillPair/list")
+    if fp_status != 200 or not isinstance(fill_pairs, list):
+        return []
+    # Fills -- timestamps + orderIds
+    f_status, fills = sess._rest("GET", "/fill/list")
+    fill_by_id = {}
+    if f_status == 200 and isinstance(fills, list):
+        for f in fills:
+            if isinstance(f, dict) and f.get("id") is not None:
+                fill_by_id[int(f["id"])] = f
+    # Orders -- exit_reason inference via orderType
+    o_status, orders = sess._rest("GET", "/order/list")
+    order_by_id = {}
+    if o_status == 200 and isinstance(orders, list):
+        for o in orders:
+            if isinstance(o, dict) and o.get("id") is not None:
+                order_by_id[int(o["id"])] = o
+
+    rows = []
+    for fp in fill_pairs:
+        if not isinstance(fp, dict):
+            continue
+        bf = fill_by_id.get(int(fp.get("buyFillId") or 0)) or {}
+        sf = fill_by_id.get(int(fp.get("sellFillId") or 0)) or {}
+        buy_ts = bf.get("timestamp")
+        sell_ts = sf.get("timestamp")
+        # Skip pairs we can't time-order
+        if not buy_ts or not sell_ts:
+            continue
+        try:
+            bts_dt = pd.Timestamp(buy_ts)
+            sts_dt = pd.Timestamp(sell_ts)
+            if bts_dt.tz is None:
+                bts_dt = bts_dt.tz_localize("UTC")
+            else:
+                bts_dt = bts_dt.tz_convert("UTC")
+            if sts_dt.tz is None:
+                sts_dt = sts_dt.tz_localize("UTC")
+            else:
+                sts_dt = sts_dt.tz_convert("UTC")
+        except Exception:
+            continue
+        # Determine side: whichever fill was FIRST is the entry.
+        if bts_dt <= sts_dt:
+            side = "LONG"
+            entry_ts, exit_ts = bts_dt, sts_dt
+            entry_fill, exit_fill = bf, sf
+            entry_px = float(fp.get("buyPrice") or 0)
+            exit_px = float(fp.get("sellPrice") or 0)
+        else:
+            side = "SHORT"
+            entry_ts, exit_ts = sts_dt, bts_dt
+            entry_fill, exit_fill = sf, bf
+            entry_px = float(fp.get("sellPrice") or 0)
+            exit_px = float(fp.get("buyPrice") or 0)
+        qty = int(fp.get("qty") or 1)
+        pts_diff = _broker_pnl_pts(entry_px, exit_px) if side == "LONG" \
+                    else _broker_pnl_pts(exit_px, entry_px)
+        # MNQ commission: ~$0.74 round-trip on the free plan
+        comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
+        pnl_usd = (pts_diff * qty * 2.0) - (comm_rt * qty)
+        # Infer exit reason from the exit order's type + text
+        exit_order_id = exit_fill.get("orderId")
+        exit_reason = "broker"
+        exit_order = order_by_id.get(int(exit_order_id or 0)) or {}
+        otype = exit_order.get("orderType", "")
+        text = (exit_order.get("text") or "").lower()
+        if otype == "Stop" or "stop" in text:
+            exit_reason = "stop"
+        elif otype == "Limit":
+            exit_reason = "target"
+        elif otype == "Market":
+            if "flat" in text or "timeout" in text or "close" in text:
+                exit_reason = "timeout"
+            else:
+                exit_reason = "manual"
+        rows.append({
+            "ts": exit_ts.isoformat(),
+            "entry_ts": entry_ts.isoformat(),
+            "entry_time": entry_ts.isoformat(),
+            "exit_time": exit_ts.isoformat(),
+            "side": side,
+            "qty": qty,
+            "n_mnq": qty,
+            "entry_px": round(entry_px, 4),
+            "exit_px": round(exit_px, 4),
+            "pnl_usd": round(pnl_usd, 2),
+            "pnl": round(pnl_usd, 2),
+            "pnl_pts": round(pts_diff, 4),
+            "exit_reason": exit_reason,
+            "hold_s": (exit_ts - entry_ts).total_seconds(),
+            "commission": round(comm_rt * qty, 2),
+            "source": "broker_fillpair",
+            "position_id": fp.get("positionId"),
+            "broker_buy_fill_id": fp.get("buyFillId"),
+            "broker_sell_fill_id": fp.get("sellFillId"),
+            "buy_price": fp.get("buyPrice"),
+            "sell_price": fp.get("sellPrice"),
+            "active": fp.get("active"),
+        })
+    # Newest-last (chronological) -- the equity-curve renderer walks
+    # left-to-right and assumes chronological order.
+    rows.sort(key=lambda r: r.get("ts") or "")
+    return rows[-limit:]
+
+
+@app.route("/api/broker/trades")
+def api_broker_trades():
+    """All closed trades from the broker's FillPair table -- the
+    SINGLE SOURCE OF TRUTH for what actually happened.
+
+    Returns the same shape as /api/all_trades so the Performance tab
+    + equity curve + Trades tab can swap to this endpoint with zero
+    rendering changes. Each row carries source='broker_fillpair' so
+    the UI can tag it.
+    """
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"configured": False, "trades": []})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "trades": [],
+                         "error": "no_account_id"})
+    rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+    return jsonify(rows)
+
+
+@app.route("/api/broker/stats")
+def api_broker_stats():
+    """Performance stats from broker reality.
+
+    Computed entirely from FillPairs + CashBalance. Includes:
+      - balance (current net liq), realized P&L, open P&L
+      - trade counts, win rate, profit factor, avg win/loss
+      - peak balance + max drawdown
+      - per-day breakdown (for the daily P&L chart)
+    """
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"configured": False})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "error": "no_account_id"})
+
+    # ---- balance / open / realized ----
+    cb_status, cb = sess._rest(
+        "POST", "/cashBalance/getCashBalanceSnapshot",
+        body={"accountId": int(acct_id)})
+    balance = realized = open_pnl = net_liq = None
+    starting = None
+    week_realized = None
+    if cb_status == 200 and isinstance(cb, dict):
+        balance = cb.get("totalCashValue")
+        net_liq = cb.get("netLiq")
+        open_pnl = cb.get("openPnL")
+        realized = cb.get("realizedPnL")
+        week_realized = cb.get("weekRealizedPnL")
+        starting = cb.get("netLiqSOD") or cb.get("totalCashValueSOD")
+
+    # ---- trade stats from FillPairs ----
+    trades = _collect_broker_trades(sess, acct_id, limit=100_000)
+    n = len(trades)
+    wins = sum(1 for t in trades if (t.get("pnl_usd") or 0) > 0)
+    losses = sum(1 for t in trades if (t.get("pnl_usd") or 0) < 0)
+    total_pnl = sum((t.get("pnl_usd") or 0) for t in trades)
+    gross_win = sum((t.get("pnl_usd") or 0) for t in trades
+                     if (t.get("pnl_usd") or 0) > 0)
+    gross_loss = sum((t.get("pnl_usd") or 0) for t in trades
+                      if (t.get("pnl_usd") or 0) < 0)
+    avg_win = (gross_win / wins) if wins else 0.0
+    avg_loss = (gross_loss / losses) if losses else 0.0
+    pf = (gross_win / abs(gross_loss)) if gross_loss else None
+    win_rate = (wins / n * 100) if n else 0.0
+
+    # ---- equity curve + drawdown ----
+    cum = 0.0
+    peak = 0.0
+    max_dd = 0.0
+    equity_curve = []
+    for t in trades:
+        cum += float(t.get("pnl_usd") or 0)
+        if cum > peak:
+            peak = cum
+        dd = peak - cum
+        if dd > max_dd:
+            max_dd = dd
+        equity_curve.append({
+            "ts": t.get("ts"),
+            "cum_pnl": round(cum, 2),
+            "trade_pnl": float(t.get("pnl_usd") or 0),
+        })
+
+    # ---- per-NY-day breakdown ----
+    from collections import defaultdict
+    from research.signal_filters import NY_TZ
+    by_day = defaultdict(lambda: {"n": 0, "pnl": 0.0, "wins": 0})
+    for t in trades:
+        et = t.get("exit_time")
+        if not et:
+            continue
+        try:
+            ts = pd.Timestamp(et)
+            if ts.tz is None:
+                ts = ts.tz_localize("UTC")
+            else:
+                ts = ts.tz_convert("UTC")
+            ny_date = ts.tz_convert(NY_TZ).date().isoformat()
+        except Exception:
+            continue
+        d = by_day[ny_date]
+        d["n"] += 1
+        pnl = float(t.get("pnl_usd") or 0)
+        d["pnl"] += pnl
+        if pnl > 0:
+            d["wins"] += 1
+    daily = [{"date": k, "n": v["n"], "wins": v["wins"],
+                "win_rate": round(v["wins"] / v["n"] * 100, 1)
+                            if v["n"] else 0,
+                "pnl": round(v["pnl"], 2)}
+              for k, v in sorted(by_day.items())]
+
+    return jsonify({
+        "configured": True,
+        "account_id": acct_id,
+        "balance": balance,
+        "net_liq": net_liq,
+        "starting": starting,
+        "realized_pnl": realized,
+        "open_pnl": open_pnl,
+        "week_realized": week_realized,
+        "summary": {
+            "n_trades": n,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": round(win_rate, 1),
+            "total_pnl": round(total_pnl, 2),
+            "gross_win": round(gross_win, 2),
+            "gross_loss": round(gross_loss, 2),
+            "avg_win": round(avg_win, 2),
+            "avg_loss": round(avg_loss, 2),
+            "profit_factor": round(pf, 2) if pf is not None else None,
+            "peak_pnl": round(peak, 2),
+            "max_drawdown": round(max_dd, 2),
+        },
+        "equity_curve": equity_curve,
+        "daily": daily,
+    })
+
+
+@app.route("/api/broker/position")
+def api_broker_position():
+    """Live position(s) on the broker, enriched with stop/target levels
+    from the working OCO bracket children.
+
+    Returns a single 'position' shape compatible with the Live tab's
+    Active Trade card.
+    """
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"configured": False, "position": None})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "position": None,
+                         "error": "no_account_id"})
+    # ---- /position/list ----
+    p_status, positions = sess._rest("GET", "/position/list")
+    open_pos = None
+    if p_status == 200 and isinstance(positions, list):
+        for p in positions:
+            if not isinstance(p, dict):
+                continue
+            if p.get("accountId") != acct_id:
+                continue
+            if not p.get("netPos"):
+                continue
+            open_pos = p
+            break
+    if open_pos is None:
+        return jsonify({"configured": True, "account_id": acct_id,
+                         "position": None})
+    # ---- Enrich with bracket levels from working orders ----
+    o_status, orders = sess._rest("GET", "/order/list")
+    contract_id = open_pos.get("contractId")
+    stop_px = target_px = None
+    bracket_orders = []
+    if o_status == 200 and isinstance(orders, list):
+        # Need orderVersion for prices -- Order entity doesn't have them
+        for o in orders:
+            if not isinstance(o, dict):
+                continue
+            if o.get("contractId") != contract_id:
+                continue
+            if o.get("ordStatus") != "Working":
+                continue
+            oid = o.get("id")
+            try:
+                ov_status, ov_list = sess._rest(
+                    "GET", "/orderVersion/deps",
+                    params={"masterid": int(oid)})
+                latest = None
+                if ov_status == 200 and isinstance(ov_list, list) and ov_list:
+                    latest = max(ov_list,
+                                  key=lambda d: d.get("id", 0)
+                                  if isinstance(d, dict) else 0)
+                if not isinstance(latest, dict):
+                    continue
+                otype = latest.get("orderType")
+                px = latest.get("price")
+                spx = latest.get("stopPrice")
+                bracket_orders.append({
+                    "order_id": oid,
+                    "type": otype,
+                    "price": px,
+                    "stop_price": spx,
+                    "action": o.get("action"),
+                })
+                if otype == "Stop" and spx is not None:
+                    stop_px = float(spx)
+                elif otype == "Limit" and px is not None:
+                    target_px = float(px)
+            except Exception:
+                continue
+    net_pos = open_pos.get("netPos") or 0
+    side = "LONG" if net_pos > 0 else "SHORT"
+    return jsonify({
+        "configured": True,
+        "account_id": acct_id,
+        "position": {
+            "side": side,
+            "qty": abs(int(net_pos)),
+            "entry_px": open_pos.get("avgEntryPrice")
+                         or open_pos.get("netPrice")
+                         or open_pos.get("prevPrice"),
+            "stop_px": stop_px,
+            "target_px": target_px,
+            "open_pnl": open_pos.get("openPnL"),
+            "timestamp": open_pos.get("timestamp"),
+            "contract_id": contract_id,
+            "bracket_orders": bracket_orders,
+            "raw": open_pos,
+        },
+    })
+
+
+@app.route("/api/broker/last_trades")
+def api_broker_last_trades():
+    """Last N broker trades for the Trades tab. Same shape as
+    /api/last_trades but sourced from FillPair instead of paper."""
+    try:
+        from bot.tradovate_client import get_session
+    except Exception as e:
+        return jsonify({"error": f"client import failed: {e!r}"}), 500
+    sess = get_session()
+    if not sess.is_configured:
+        return jsonify({"configured": False, "trades": []})
+    acct_id = sess.get_account_id()
+    if acct_id is None:
+        return jsonify({"configured": True, "trades": [],
+                         "error": "no_account_id"})
+    try:
+        n = int(request.args.get("n", "50"))
+    except Exception:
+        n = 50
+    rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+    # Return newest-first (Trades tab convention)
+    rows = list(reversed(rows))[:n]
+    return jsonify(rows)
+
+
 @app.route("/api/tradovate_trades")
 def api_tradovate_trades():
     """Recent broker activity on the active Tradovate account.
@@ -1328,7 +1748,104 @@ def api_strategy_levels():
 
 @app.route("/api/live_position")
 def api_live_position():
-    """Open-position state with live unrealized P&L vs the latest price."""
+    """Open-position state with live unrealized P&L vs the latest price.
+
+    Pass ?source=broker to read the position from Tradovate's
+    /position/list (the broker's view of what's actually open) instead
+    of the paper account.
+    """
+    source = (request.args.get("source") or "paper").lower()
+    if source == "broker":
+        try:
+            from bot.tradovate_client import get_session
+            sess = get_session()
+            if sess.is_configured:
+                acct_id = sess.get_account_id()
+                state = persistence.load_dashboard()
+                px = state.get("price")
+                if acct_id is not None:
+                    p_status, positions = sess._rest("GET", "/position/list")
+                    open_pos = None
+                    if p_status == 200 and isinstance(positions, list):
+                        for p in positions:
+                            if not isinstance(p, dict):
+                                continue
+                            if p.get("accountId") != acct_id:
+                                continue
+                            if not p.get("netPos"):
+                                continue
+                            open_pos = p
+                            break
+                    if open_pos is None:
+                        return jsonify({"in_trade": False, "price": px,
+                                         "source": "broker"})
+                    # Bracket lookup for stop/target
+                    o_status, orders = sess._rest("GET", "/order/list")
+                    stop_px = target_px = None
+                    contract_id = open_pos.get("contractId")
+                    if o_status == 200 and isinstance(orders, list):
+                        for o in orders:
+                            if not isinstance(o, dict):
+                                continue
+                            if o.get("contractId") != contract_id:
+                                continue
+                            if o.get("ordStatus") != "Working":
+                                continue
+                            oid = o.get("id")
+                            try:
+                                ov_s, ov = sess._rest(
+                                    "GET", "/orderVersion/deps",
+                                    params={"masterid": int(oid)})
+                                if ov_s == 200 and isinstance(ov, list) and ov:
+                                    latest = max(ov,
+                                                  key=lambda d: d.get("id", 0)
+                                                  if isinstance(d, dict) else 0)
+                                    otype = latest.get("orderType")
+                                    if otype == "Stop":
+                                        sp = latest.get("stopPrice")
+                                        if sp is not None:
+                                            stop_px = float(sp)
+                                    elif otype == "Limit":
+                                        lp = latest.get("price")
+                                        if lp is not None:
+                                            target_px = float(lp)
+                            except Exception:
+                                pass
+                    net_pos = open_pos.get("netPos") or 0
+                    side = "LONG" if net_pos > 0 else "SHORT"
+                    qty = abs(int(net_pos))
+                    entry = (open_pos.get("avgEntryPrice")
+                             or open_pos.get("netPrice") or 0)
+                    entry = float(entry or 0)
+                    stop = float(stop_px or 0)
+                    tgt = float(target_px or 0)
+                    dpp = 2.0
+                    if side == "LONG":
+                        pts_pnl = (px - entry) if px else 0
+                    else:
+                        pts_pnl = (entry - px) if px else 0
+                    unrealized = pts_pnl * dpp * qty
+                    span = abs(tgt - stop) if stop and tgt else 0
+                    progress = (max(0.0, min(1.0,
+                                  abs(px - stop) / span))
+                                  if (span > 0 and px) else 0.5)
+                    if side == "SHORT" and span > 0:
+                        progress = 1 - progress
+                    return jsonify({
+                        "in_trade": True,
+                        "source": "broker",
+                        "signal": "tradovate",
+                        "side": side, "qty": qty,
+                        "entry_px": entry, "stop_px": stop,
+                        "target_px": tgt,
+                        "current_px": px,
+                        "unrealized_usd": round(unrealized, 2),
+                        "progress": progress,
+                        "open_pnl_broker": open_pos.get("openPnL"),
+                    })
+        except Exception as e:
+            logger.warning(f"broker live position: {e!r}")
+        # Fall through to paper
     state = persistence.load_dashboard()
     acct = state.get("account") or {}
     op = acct.get("open_position")
@@ -1536,6 +2053,24 @@ def _filter_trades_since_reset(rows, cutoff=None):
 
 @app.route("/api/trades")
 def api_trades():
+    """Recent trades for the dashboard's main chart / Trades tab.
+
+    Pass ?source=broker to read broker FillPairs instead of paper.
+    Default is paper for backwards compat with bookmarks; the frontend
+    appends source=broker automatically when the user is in broker mode.
+    """
+    source = (request.args.get("source") or "paper").lower()
+    if source == "broker":
+        try:
+            from bot.tradovate_client import get_session
+            sess = get_session()
+            if sess.is_configured:
+                acct_id = sess.get_account_id()
+                if acct_id is not None:
+                    rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+                    return jsonify(list(reversed(rows))[:200])
+        except Exception as e:
+            logger.warning(f"broker trades fallback: {e!r}")
     # Load extra so the post-cutoff filter still has at least 200 rows.
     rows = persistence.load_trades(limit=2000)
     return jsonify(_filter_trades_since_reset(rows)[:200])
@@ -1548,7 +2083,27 @@ def api_all_trades():
     equity curve / monthly P&L / hold-time histogram / win-loss distribution
     aggregate over the FULL history (not just the 30-deep recent_trades
     deque), AND only count trades fired by the active strategy version
-    (filtered by lucid_account.started_at)."""
+    (filtered by lucid_account.started_at).
+
+    Pass ?source=broker to return broker FillPair rows instead of paper
+    rows. The Performance tab uses this so charts/stats reflect what
+    the broker ACTUALLY executed, not paper expectations.
+    """
+    source = (request.args.get("source") or "paper").lower()
+    if source == "broker":
+        try:
+            from bot.tradovate_client import get_session
+            sess = get_session()
+            if sess.is_configured:
+                acct_id = sess.get_account_id()
+                if acct_id is not None:
+                    return jsonify(
+                        _collect_broker_trades(sess, acct_id,
+                                                 limit=100_000))
+        except Exception as e:
+            logger.warning(f"broker trades fallback: {e!r}")
+        # Fall through to paper if broker unavailable -- never show
+        # an empty dashboard when paper history exists.
     rows = persistence.load_trades(limit=100_000, only_closed=True)
     # Cutoff: only count trades since the most recent RESET_SERIAL bump.
     # Without this, pre-upgrade trades (older window=3 / target=10 params)
@@ -1613,7 +2168,24 @@ def api_all_trades():
 def api_last_trades():
     """Last 100 trades for the live dashboard table + chart. Filtered to
     trades after the most recent reset so the Trades tab never shows
-    pre-reset history."""
+    pre-reset history.
+
+    Pass ?source=broker to read from Tradovate FillPairs (broker reality)
+    instead of paper. The Trades tab uses this so the user sees what
+    the BROKER actually executed.
+    """
+    source = (request.args.get("source") or "paper").lower()
+    if source == "broker":
+        try:
+            from bot.tradovate_client import get_session
+            sess = get_session()
+            if sess.is_configured:
+                acct_id = sess.get_account_id()
+                if acct_id is not None:
+                    rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+                    return jsonify(list(reversed(rows))[:100])
+        except Exception as e:
+            logger.warning(f"broker last_trades fallback: {e!r}")
     rows = persistence.load_trades(limit=2000)
     return jsonify(_filter_trades_since_reset(rows)[:100])
 

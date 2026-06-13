@@ -477,6 +477,26 @@ img, svg, canvas { max-width: 100%; }
 }
 .btn-pause:disabled { opacity: 0.55; cursor: wait; }
 
+.btn-data-source {
+  background: rgba(99, 179, 237, 0.10);
+  color: #63b3ed;
+  border: 1px solid rgba(99, 179, 237, 0.45);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--t-fast);
+  margin-left: 6px;
+}
+.btn-data-source:hover {
+  background: rgba(99, 179, 237, 0.20);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 179, 237, 0.25);
+}
+
 /* Topbar KPIs */
 .topbar-stats {
   display: flex;
