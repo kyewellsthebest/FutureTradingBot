@@ -1578,27 +1578,41 @@ function renderTradesTable() {
   // orders + fills + execution reports).
   const tbody = document.querySelector("#trades-table tbody");
   if (!tbody) return;
-  const trades = state.trades || [];
-  if (trades.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
-      + 'style="padding:24px;">No trades yet.</td></tr>';
-    // Also fix the header columns to match the new schema
-    const thead = document.querySelector("#trades-table thead tr");
-    if (thead) {
-      thead.innerHTML = `
-        <th>Exit Time</th><th>Side</th><th>Qty</th>
-        <th>Entry</th><th>Exit</th><th>P&L</th>
-        <th>Reason</th><th>Hold</th>`;
-    }
-    return;
-  }
-  // Update header
+  // Always set the header to the round-trip schema
   const thead = document.querySelector("#trades-table thead tr");
   if (thead) {
     thead.innerHTML = `
       <th>Exit Time</th><th>Side</th><th>Qty</th>
       <th>Entry</th><th>Exit</th><th>P&L</th>
       <th>Reason</th><th>Hold</th>`;
+  }
+  const trades = state.trades || [];
+  if (trades.length === 0) {
+    // Broker mode + no data: show actionable explanation, NOT
+    // a silent empty state. Otherwise the user assumes the bot
+    // hasn't traded (when actually broker REST is empty for
+    // structural reasons).
+    if (dataSource === "broker") {
+      const bs = state.brokerStats || {};
+      const realized = (bs.realized_pnl != null) ? bs.realized_pnl
+                       : ((bs.summary || {}).total_pnl);
+      const realizedStr = realized != null ? fmtUsd(realized) : "—";
+      const balance = bs.balance || bs.net_liq;
+      const balanceStr = balance != null ? fmtUsdPlain(balance) : "—";
+      tbody.innerHTML = `<tr><td colspan="8" class="muted center" style="padding:24px;line-height:1.6">
+        <div style="font-size:14px;color:#fbbf24;margin-bottom:8px">⚠️ No broker fills available via REST</div>
+        <div style="font-size:12px">Tradovate's /fillPair/list returned 0 rows. This is common on the demo account between sessions.</div>
+        <div style="margin-top:14px;font-size:12px">
+          Live broker realized P&L: <b>${realizedStr}</b><br>
+          Live broker balance: <b>${balanceStr}</b>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:#94a3b8">Live trades will appear here as they happen during market hours. Switch to PAPER for full strategy expectation history.</div>
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
+        + 'style="padding:24px;">No trades yet.</td></tr>';
+    }
+    return;
   }
   tbody.innerHTML = trades.map(t => {
     const sideClass = (t.side || "") === "LONG" ? "side-long" : "side-short";
@@ -1940,18 +1954,66 @@ function renderPerformanceGraphs() {
   // automatically swaps everything (equity curve, monthly P&L, hold
   // distribution, win/loss panels) between paper and broker.
   //
-  // Fallback hierarchy when the cache hasn't loaded yet:
-  //   1. _allTradesCache.trades       <-- preferred (source-aware)
-  //   2. legacy tradovate fills path  <-- old code path
-  //   3. recent_trades from snapshot  <-- last resort
+  // IMPORTANT: in BROKER mode we MUST NOT silently fall back to paper
+  // data when the cache is empty -- that gave the "+$186 even though
+  // account is in $1100 drawdown" bug. Instead show explicit zero
+  // metrics + a banner when broker data is unavailable.
   let perfTrades = _allTradesCache.trades;
   if (!perfTrades || perfTrades.length === 0) {
-    const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
-    if (tvFills.length > 0 && dataSource === "broker") {
-      perfTrades = pairFillsIntoTrades(tvFills).slice().reverse();
+    if (dataSource === "broker") {
+      // In broker mode, only use raw Tradovate fills as a backup --
+      // NEVER fall through to paper recent_trades, which causes the
+      // dashboard to display paper stats labeled as broker.
+      const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
+      if (tvFills.length > 0) {
+        perfTrades = pairFillsIntoTrades(tvFills).slice().reverse();
+      } else {
+        perfTrades = [];
+      }
     } else {
       perfTrades = (state.data && state.data.recent_trades) || [];
     }
+  }
+  // Show a broker-source banner so the user knows the data origin
+  const banner = document.getElementById("perf-source-banner");
+  if (banner) {
+    if (dataSource === "broker") {
+      if (perfTrades.length === 0) {
+        banner.innerHTML = `<div style="background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.35);padding:10px 14px;border-radius:6px;color:#fbbf24;margin-bottom:12px">
+          ⚠️ Broker has no historical fill data via REST (Tradovate's /fillPair/list returned 0 rows for this account). Stats below reflect broker cash balance only. Switch to PAPER for full strategy expectation history.
+        </div>`;
+      } else {
+        banner.innerHTML = `<div style="background:rgba(99,179,237,0.08);padding:6px 12px;border-radius:6px;color:#63b3ed;font-size:11px;margin-bottom:10px">📡 Showing ${perfTrades.length} broker-source trades</div>`;
+      }
+    } else {
+      banner.innerHTML = `<div style="background:rgba(255,255,255,0.04);padding:6px 12px;border-radius:6px;color:#94a3b8;font-size:11px;margin-bottom:10px">📋 Showing ${perfTrades.length} paper-strategy trades</div>`;
+    }
+  }
+  // In broker mode, if no trade-level data is available, override the
+  // headline P&L card with the live broker realized P&L instead of
+  // showing $0.
+  if (dataSource === "broker" && perfTrades.length === 0
+      && state.brokerStats && state.brokerStats.configured) {
+    _renderPerfPanels([]);
+    const s = state.brokerStats;
+    const sum = s.summary || {};
+    // Use realized P&L from cashBalance as the headline; falls back
+    // to summary.total_pnl which is computed from FillPairs.
+    const livePnl = (s.realized_pnl != null)
+      ? s.realized_pnl
+      : (sum.total_pnl || 0);
+    const balance = s.balance || s.net_liq || 0;
+    // Override the lifetime P&L card with broker reality
+    try {
+      const pnlEl = document.getElementById("lifetime-pnl");
+      const balEl = document.getElementById("lifetime-balance");
+      if (pnlEl) {
+        pnlEl.textContent = fmtUsd(livePnl);
+        pnlEl.className = livePnl >= 0 ? "big-stat pos" : "big-stat neg";
+      }
+      if (balEl) balEl.textContent = fmtUsdPlain(balance);
+    } catch (e) {}
+    return;
   }
   _renderPerfPanels(perfTrades);
 }

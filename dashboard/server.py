@@ -339,21 +339,21 @@ def _broker_pnl_usd(pts: float, qty: int, side: str,
 
 def _collect_broker_trades(sess, acct_id: int,
                             limit: int = 1000) -> list:
-    """Build the paper-shape trade list from Tradovate FillPairs.
+    """Build the paper-shape trade list from broker data.
 
-    Tradovate represents each round-trip as a FillPair record with
-    buyFillId / sellFillId. To reconstruct a "trade":
-      - Look up buyFill + sellFill in /fill/list for timestamps + orderIds
-      - The earlier fill is the ENTRY; the later one is the EXIT
-      - Side = LONG if entry is the buy, SHORT if entry is the sell
-      - entry_px = entry fill price; exit_px = exit fill price
-      - Determine exit_reason from the exit order's type+text (Stop
-        market => "stop", Limit => "target", Market => "manual"/"timeout")
+    PRIMARY SOURCE: Tradovate's FillPair entity (each row = one
+    round-trip with buyFillId, sellFillId, qty, buyPrice, sellPrice).
+
+    FALLBACK: When /fillPair/list is empty (Tradovate demo accounts
+    often return 0 rows here even when trades exist -- the
+    matching-engine's FillPair table seems session-bounded), we
+    reconstruct from /cashBalanceLog/deps which logs EVERY balance
+    change including realized P&L per closed trade. This gives us
+    accurate P&L history even when FillPair is unavailable -- though
+    we lose per-trade entry/exit prices in that fallback.
     """
     # FillPair -- all closed round trips on this account
     fp_status, fill_pairs = sess._rest("GET", "/fillPair/list")
-    if fp_status != 200 or not isinstance(fill_pairs, list):
-        return []
     # Fills -- timestamps + orderIds
     f_status, fills = sess._rest("GET", "/fill/list")
     fill_by_id = {}
@@ -370,89 +370,139 @@ def _collect_broker_trades(sess, acct_id: int,
                 order_by_id[int(o["id"])] = o
 
     rows = []
-    for fp in fill_pairs:
-        if not isinstance(fp, dict):
-            continue
-        bf = fill_by_id.get(int(fp.get("buyFillId") or 0)) or {}
-        sf = fill_by_id.get(int(fp.get("sellFillId") or 0)) or {}
-        buy_ts = bf.get("timestamp")
-        sell_ts = sf.get("timestamp")
-        # Skip pairs we can't time-order
-        if not buy_ts or not sell_ts:
-            continue
+    if (fp_status == 200 and isinstance(fill_pairs, list)
+            and len(fill_pairs) > 0):
+        for fp in fill_pairs:
+            if not isinstance(fp, dict):
+                continue
+            bf = fill_by_id.get(int(fp.get("buyFillId") or 0)) or {}
+            sf = fill_by_id.get(int(fp.get("sellFillId") or 0)) or {}
+            buy_ts = bf.get("timestamp")
+            sell_ts = sf.get("timestamp")
+            if not buy_ts or not sell_ts:
+                continue
+            try:
+                bts_dt = pd.Timestamp(buy_ts)
+                sts_dt = pd.Timestamp(sell_ts)
+                if bts_dt.tz is None:
+                    bts_dt = bts_dt.tz_localize("UTC")
+                else:
+                    bts_dt = bts_dt.tz_convert("UTC")
+                if sts_dt.tz is None:
+                    sts_dt = sts_dt.tz_localize("UTC")
+                else:
+                    sts_dt = sts_dt.tz_convert("UTC")
+            except Exception:
+                continue
+            if bts_dt <= sts_dt:
+                side = "LONG"
+                entry_ts, exit_ts = bts_dt, sts_dt
+                entry_fill, exit_fill = bf, sf
+                entry_px = float(fp.get("buyPrice") or 0)
+                exit_px = float(fp.get("sellPrice") or 0)
+            else:
+                side = "SHORT"
+                entry_ts, exit_ts = sts_dt, bts_dt
+                entry_fill, exit_fill = sf, bf
+                entry_px = float(fp.get("sellPrice") or 0)
+                exit_px = float(fp.get("buyPrice") or 0)
+            qty = int(fp.get("qty") or 1)
+            pts_diff = _broker_pnl_pts(entry_px, exit_px) if side == "LONG" \
+                        else _broker_pnl_pts(exit_px, entry_px)
+            comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
+            pnl_usd = (pts_diff * qty * 2.0) - (comm_rt * qty)
+            exit_order_id = exit_fill.get("orderId")
+            exit_reason = "broker"
+            exit_order = order_by_id.get(int(exit_order_id or 0)) or {}
+            otype = exit_order.get("orderType", "")
+            text = (exit_order.get("text") or "").lower()
+            if otype == "Stop" or "stop" in text:
+                exit_reason = "stop"
+            elif otype == "Limit":
+                exit_reason = "target"
+            elif otype == "Market":
+                if "flat" in text or "timeout" in text or "close" in text:
+                    exit_reason = "timeout"
+                else:
+                    exit_reason = "manual"
+            rows.append({
+                "ts": exit_ts.isoformat(),
+                "entry_ts": entry_ts.isoformat(),
+                "entry_time": entry_ts.isoformat(),
+                "exit_time": exit_ts.isoformat(),
+                "side": side,
+                "qty": qty,
+                "n_mnq": qty,
+                "entry_px": round(entry_px, 4),
+                "exit_px": round(exit_px, 4),
+                "pnl_usd": round(pnl_usd, 2),
+                "pnl": round(pnl_usd, 2),
+                "pnl_pts": round(pts_diff, 4),
+                "exit_reason": exit_reason,
+                "hold_s": (exit_ts - entry_ts).total_seconds(),
+                "commission": round(comm_rt * qty, 2),
+                "source": "broker_fillpair",
+                "position_id": fp.get("positionId"),
+                "broker_buy_fill_id": fp.get("buyFillId"),
+                "broker_sell_fill_id": fp.get("sellFillId"),
+                "buy_price": fp.get("buyPrice"),
+                "sell_price": fp.get("sellPrice"),
+                "active": fp.get("active"),
+            })
+
+    # FALLBACK: /fillPair/list came back empty. Reconstruct trades
+    # from /cashBalanceLog/deps -- Tradovate logs every balance change
+    # there, so each closed trade leaves a P&L delta row. We lose
+    # entry/exit prices in this path but keep the P&L history which
+    # is what the Performance tab actually needs for equity curve +
+    # win rate + drawdown.
+    if not rows:
         try:
-            bts_dt = pd.Timestamp(buy_ts)
-            sts_dt = pd.Timestamp(sell_ts)
-            if bts_dt.tz is None:
-                bts_dt = bts_dt.tz_localize("UTC")
-            else:
-                bts_dt = bts_dt.tz_convert("UTC")
-            if sts_dt.tz is None:
-                sts_dt = sts_dt.tz_localize("UTC")
-            else:
-                sts_dt = sts_dt.tz_convert("UTC")
-        except Exception:
-            continue
-        # Determine side: whichever fill was FIRST is the entry.
-        if bts_dt <= sts_dt:
-            side = "LONG"
-            entry_ts, exit_ts = bts_dt, sts_dt
-            entry_fill, exit_fill = bf, sf
-            entry_px = float(fp.get("buyPrice") or 0)
-            exit_px = float(fp.get("sellPrice") or 0)
-        else:
-            side = "SHORT"
-            entry_ts, exit_ts = sts_dt, bts_dt
-            entry_fill, exit_fill = sf, bf
-            entry_px = float(fp.get("sellPrice") or 0)
-            exit_px = float(fp.get("buyPrice") or 0)
-        qty = int(fp.get("qty") or 1)
-        pts_diff = _broker_pnl_pts(entry_px, exit_px) if side == "LONG" \
-                    else _broker_pnl_pts(exit_px, entry_px)
-        # MNQ commission: ~$0.74 round-trip on the free plan
-        comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
-        pnl_usd = (pts_diff * qty * 2.0) - (comm_rt * qty)
-        # Infer exit reason from the exit order's type + text
-        exit_order_id = exit_fill.get("orderId")
-        exit_reason = "broker"
-        exit_order = order_by_id.get(int(exit_order_id or 0)) or {}
-        otype = exit_order.get("orderType", "")
-        text = (exit_order.get("text") or "").lower()
-        if otype == "Stop" or "stop" in text:
-            exit_reason = "stop"
-        elif otype == "Limit":
-            exit_reason = "target"
-        elif otype == "Market":
-            if "flat" in text or "timeout" in text or "close" in text:
-                exit_reason = "timeout"
-            else:
-                exit_reason = "manual"
-        rows.append({
-            "ts": exit_ts.isoformat(),
-            "entry_ts": entry_ts.isoformat(),
-            "entry_time": entry_ts.isoformat(),
-            "exit_time": exit_ts.isoformat(),
-            "side": side,
-            "qty": qty,
-            "n_mnq": qty,
-            "entry_px": round(entry_px, 4),
-            "exit_px": round(exit_px, 4),
-            "pnl_usd": round(pnl_usd, 2),
-            "pnl": round(pnl_usd, 2),
-            "pnl_pts": round(pts_diff, 4),
-            "exit_reason": exit_reason,
-            "hold_s": (exit_ts - entry_ts).total_seconds(),
-            "commission": round(comm_rt * qty, 2),
-            "source": "broker_fillpair",
-            "position_id": fp.get("positionId"),
-            "broker_buy_fill_id": fp.get("buyFillId"),
-            "broker_sell_fill_id": fp.get("sellFillId"),
-            "buy_price": fp.get("buyPrice"),
-            "sell_price": fp.get("sellPrice"),
-            "active": fp.get("active"),
-        })
-    # Newest-last (chronological) -- the equity-curve renderer walks
-    # left-to-right and assumes chronological order.
+            cb_status, cb_log = sess._rest(
+                "GET", "/cashBalanceLog/deps",
+                params={"masterid": int(acct_id)})
+            if cb_status == 200 and isinstance(cb_log, list):
+                # Each row -- amount = balance delta from this event.
+                # Filter to entries with non-zero amount (trade-related).
+                comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
+                for ev in cb_log:
+                    if not isinstance(ev, dict):
+                        continue
+                    amount = ev.get("amount")
+                    if amount is None or float(amount) == 0:
+                        continue
+                    ts = ev.get("timestamp")
+                    try:
+                        ts_dt = pd.Timestamp(ts)
+                        if ts_dt.tz is None:
+                            ts_dt = ts_dt.tz_localize("UTC")
+                        else:
+                            ts_dt = ts_dt.tz_convert("UTC")
+                    except Exception:
+                        continue
+                    pnl_usd = float(amount)
+                    rows.append({
+                        "ts": ts_dt.isoformat(),
+                        "entry_ts": ts_dt.isoformat(),
+                        "entry_time": ts_dt.isoformat(),
+                        "exit_time": ts_dt.isoformat(),
+                        "side": "LONG" if pnl_usd >= 0 else "SHORT",
+                        "qty": 1,
+                        "n_mnq": 1,
+                        "entry_px": None,
+                        "exit_px": None,
+                        "pnl_usd": round(pnl_usd, 2),
+                        "pnl": round(pnl_usd, 2),
+                        "pnl_pts": None,
+                        "exit_reason": "broker_cbl",
+                        "hold_s": 0,
+                        "commission": comm_rt,
+                        "source": "broker_cashbalancelog",
+                        "transaction_type": ev.get("transactionType"),
+                    })
+        except Exception as e:
+            logger.warning(f"cashBalanceLog fallback failed: {e!r}")
+
     rows.sort(key=lambda r: r.get("ts") or "")
     return rows[-limit:]
 
