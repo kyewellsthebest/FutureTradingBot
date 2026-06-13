@@ -742,6 +742,184 @@ def api_diagnostics_apply_slip():
         return jsonify({"error": repr(e)}), 500
 
 
+@app.route("/api/diagnostics/polygon_readiness")
+def api_polygon_readiness():
+    """Tells the user when it's safe to cancel Polygon.
+
+    Reads BOT_BAR_SOURCE + Tradovate bar fetch stats and computes:
+      - hours since last Tradovate failure (or fallback)
+      - traffic-light status (RED < 1h, AMBER < 24h, GREEN >= 24h)
+      - total successes / failures since bot start
+
+    Threshold for "safe to cancel": GREEN for 48 hours continuous.
+    """
+    out = {
+        "bar_source_env": os.environ.get("BOT_BAR_SOURCE", "polygon"),
+        "polygon_api_key_set": bool(
+            os.environ.get("POLYGON_API")
+            or os.environ.get("POLYGON_API_KEY")),
+        "tradovate_demo": os.environ.get("TRADOVATE_DEMO", "true"),
+    }
+    try:
+        from bot.tradovate_bars import get_stats
+        stats = get_stats()
+        out.update(stats)
+        now = time.time()
+        for k in ("last_tradovate_success_ts",
+                   "last_tradovate_failure_ts",
+                   "last_polygon_fallback_ts",
+                   "first_call_ts"):
+            v = stats.get(k)
+            out[k.replace("_ts", "_age_h")] = (
+                round((now - v) / 3600.0, 2) if v else None)
+        # Light status
+        last_bad = stats.get("last_polygon_fallback_ts") or stats.get("last_tradovate_failure_ts")
+        if not last_bad and stats.get("tradovate_success_count", 0) > 0:
+            out["status"] = "GREEN"
+            out["recommendation"] = ("No fallbacks observed. Safe to keep "
+                                       "BOT_BAR_SOURCE=tradovate. After 48h "
+                                       "of GREEN you can cancel Polygon.")
+        else:
+            age_h = ((now - last_bad) / 3600.0) if last_bad else None
+            if age_h is None:
+                out["status"] = "GREY"
+                out["recommendation"] = ("No bar fetches recorded yet -- "
+                                           "wait for market hours.")
+            elif age_h < 1:
+                out["status"] = "RED"
+                out["recommendation"] = ("Tradovate had a recent failure "
+                                           "-- keep Polygon until stable.")
+            elif age_h < 24:
+                out["status"] = "AMBER"
+                out["recommendation"] = ("Tradovate had a fallback in the "
+                                           "last 24h. Wait longer before "
+                                           "cancelling Polygon.")
+            else:
+                out["status"] = "GREEN"
+                out["recommendation"] = (f"Last fallback {age_h:.1f}h ago. "
+                                           f"If this stays >48h, cancel "
+                                           f"Polygon.")
+    except Exception as e:
+        out["error"] = repr(e)
+    return jsonify(out)
+
+
+@app.route("/api/diagnostics/tick_replay")
+def api_diagnostics_tick_replay():
+    """Tick stream around a given time window. Used by the trade
+    detail modal to replay price action around an entry/exit.
+
+    Query params:
+      ts_from  -- ISO timestamp or epoch seconds (start)
+      ts_to    -- ISO timestamp or epoch seconds (end)
+      pad_s    -- seconds to pad on each side (default 30)
+    """
+    try:
+        from bot.tick_history import get_tick_history
+        history = get_tick_history()
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+    ticks_all = history.get("ticks_tail") or []
+    try:
+        ts_from = request.args.get("ts_from")
+        ts_to = request.args.get("ts_to")
+        pad = float(request.args.get("pad_s", "30"))
+
+        def _to_epoch(v):
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except Exception:
+                pass
+            try:
+                return pd.Timestamp(v).timestamp()
+            except Exception:
+                return None
+
+        a = _to_epoch(ts_from)
+        b = _to_epoch(ts_to)
+        if a is None or b is None:
+            return jsonify({"error": "invalid ts_from/ts_to"}), 400
+        a -= pad
+        b += pad
+        filtered = [t for t in ticks_all
+                     if isinstance(t, dict)
+                     and t.get("ts") is not None
+                     and a <= t["ts"] <= b]
+        # Stats per source
+        by_src = {}
+        for t in filtered:
+            s = t.get("src", "?")
+            by_src.setdefault(s, 0)
+            by_src[s] += 1
+        return jsonify({
+            "n": len(filtered),
+            "ts_from_epoch": a,
+            "ts_to_epoch": b,
+            "by_source": by_src,
+            "ticks": filtered,
+        })
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+
+
+@app.route("/api/diagnostics/bracket_ab")
+def api_diagnostics_bracket_ab():
+    """Hypothetical A/B: what would total P&L look like with the
+    OPPOSITE setting of BRACKET_SLIP_PRE_ADJUST? Pure read-only
+    analysis -- doesn't change anything.
+
+    Method:
+      - Pull all closed paper trades since last reset (broker analog
+        is FillPair history but paper has the correct stop/target
+        anchor for the counterfactual).
+      - For each STOP trade, compute the alternate P&L:
+          - If pre-adjust ON now: alternate fill = stop_px +/- slip
+            (broker without pre-adjust)
+          - If pre-adjust OFF now: alternate fill = stop_px (broker
+            with pre-adjust)
+      - For TARGET / TIMEOUT trades: no change.
+      - Sum the delta over the trade history.
+    """
+    cur_adjust = (os.environ.get("BRACKET_SLIP_PRE_ADJUST", "false")
+                    .lower() in ("true", "1", "yes"))
+    try:
+        slip = float(os.environ.get("PAPER_STOP_SLIP_PTS", "0.5"))
+    except Exception:
+        slip = 0.5
+    rows = _filter_trades_since_reset(persistence.load_trades(
+        limit=10_000, only_closed=True))
+    stop_trades = [r for r in rows if r.get("exit_reason") == "stop"]
+    # MNQ $2/pt, qty assumed from row
+    delta_per_stop = slip * 2.0  # absolute dollar impact per stop trade
+    if cur_adjust:
+        # Currently better. Hypothetical = current - delta * qty
+        sign = -1
+        msg = ("Currently ENABLED. If disabled, each stop trade would "
+                f"lose an extra ${delta_per_stop:.2f}/contract.")
+    else:
+        sign = +1
+        msg = ("Currently DISABLED. If enabled, each stop trade would "
+                f"save ${delta_per_stop:.2f}/contract.")
+    n_stop = len(stop_trades)
+    total_qty = sum(int(r.get("qty") or 0) for r in stop_trades)
+    delta_total = sign * delta_per_stop * total_qty
+    cur_pnl = sum(float(r.get("pnl") or 0) for r in rows)
+    alt_pnl = cur_pnl + delta_total
+    return jsonify({
+        "current_setting": cur_adjust,
+        "slip_pts": slip,
+        "n_stop_trades": n_stop,
+        "total_stop_qty": total_qty,
+        "delta_per_stop_per_contract": round(delta_per_stop, 2),
+        "delta_total_alternative": round(delta_total, 2),
+        "current_total_pnl": round(cur_pnl, 2),
+        "alternative_total_pnl": round(alt_pnl, 2),
+        "recommendation": msg,
+    })
+
+
 @app.route("/api/diagnostics/check")
 def api_diagnostics_check():
     """Lightweight version of the consistency check for the dashboard's
@@ -2895,6 +3073,16 @@ def _build_diagnostic_extras() -> dict:
             extras["tradovate_user_ws"] = {"unavailable": "no ws instance"}
     except Exception as e:
         extras["tradovate_user_ws"] = {"error": repr(e)}
+    # Tradovate bar fetch stats -- powers the Polygon-cancel readiness
+    # card and tells us whether Tradovate is reliable enough yet.
+    try:
+        from bot.tradovate_bars import get_stats as _bar_stats, health as _bar_h
+        extras["tradovate_bars"] = {
+            "stats": _bar_stats(),
+            "health": _bar_h(),
+        }
+    except Exception as e:
+        extras["tradovate_bars"] = {"error": repr(e)}
     # Auto consistency check: scan the bundle for known divergence
     # patterns and surface them as actionable findings.
     try:

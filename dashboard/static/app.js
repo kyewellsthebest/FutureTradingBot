@@ -167,10 +167,14 @@ document.addEventListener("DOMContentLoaded", () => {
   pollBrokerPosition();
   pollHealthCheck();
   pollSlipCalibration();
+  pollPolygonReadiness();
+  pollBracketAB();
   setInterval(pollBrokerStats, 10_000);
   setInterval(pollBrokerPosition, 5_000);
   setInterval(pollHealthCheck, 30_000);
   setInterval(pollSlipCalibration, 60_000);
+  setInterval(pollPolygonReadiness, 60_000);
+  setInterval(pollBracketAB, 60_000);
 });
 
 // Broker stats polling. Stores the latest /api/broker/stats response
@@ -325,6 +329,76 @@ async function applySlipRecommendation(value) {
   }
 }
 
+// Polygon cancel readiness card. Tells the user when it's safe to
+// cancel their $200/mo Polygon subscription.
+async function pollPolygonReadiness() {
+  const box = document.getElementById("polygon-readiness-body");
+  if (!box) return;
+  try {
+    const r = await fetch(af("/api/diagnostics/polygon_readiness"));
+    if (!r.ok) {
+      box.innerHTML = '<div class="muted">Unavailable</div>';
+      return;
+    }
+    const d = await r.json();
+    const statusColors = {
+      GREEN: "#10d4a8", AMBER: "#fbbf24", RED: "#ef5350", GREY: "#94a3b8",
+    };
+    const statusIcons = {
+      GREEN: "🟢", AMBER: "🟡", RED: "🔴", GREY: "⚪",
+    };
+    const color = statusColors[d.status] || "#94a3b8";
+    const icon = statusIcons[d.status] || "•";
+    const lastFb = d.last_polygon_fallback_age_h;
+    const lastSuccess = d.last_tradovate_success_age_h;
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="font-size:28px">${icon}</span>
+        <span style="font-size:18px;font-weight:700;color:${color}">${d.status}</span>
+      </div>
+      <div style="color:#cbd5e1;font-size:13px;margin-bottom:10px">${d.recommendation || ""}</div>
+      <div class="kv-list">
+        <div class="kv-row"><span>BOT_BAR_SOURCE</span><b>${d.bar_source_env || "?"}</b></div>
+        <div class="kv-row"><span>Tradovate successes</span><b>${d.tradovate_success_count || 0}</b></div>
+        <div class="kv-row"><span>Tradovate failures</span><b class="${(d.tradovate_failure_count || 0) > 0 ? 'neg' : 'pos'}">${d.tradovate_failure_count || 0}</b></div>
+        <div class="kv-row"><span>Last success</span><b>${lastSuccess !== null && lastSuccess !== undefined ? lastSuccess.toFixed(1) + "h ago" : "—"}</b></div>
+        <div class="kv-row"><span>Last Polygon fallback</span><b>${lastFb !== null && lastFb !== undefined ? lastFb.toFixed(1) + "h ago" : "never"}</b></div>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="neg">${e.message || e}</div>`;
+  }
+}
+
+// Bracket pre-adjust A/B comparator. Shows the user how much the
+// BRACKET_SLIP_PRE_ADJUST setting is currently saving or costing.
+async function pollBracketAB() {
+  const box = document.getElementById("bracket-ab-body");
+  if (!box) return;
+  try {
+    const r = await fetch(af("/api/diagnostics/bracket_ab"));
+    if (!r.ok) {
+      box.innerHTML = '<div class="muted">Unavailable</div>';
+      return;
+    }
+    const d = await r.json();
+    const cur = d.current_setting ? "🟢 ON" : "⚪ OFF";
+    const deltaCls = d.delta_total_alternative >= 0 ? "pos" : "neg";
+    box.innerHTML = `
+      <div class="kv-list">
+        <div class="kv-row"><span>BRACKET_SLIP_PRE_ADJUST</span><b>${cur}</b></div>
+        <div class="kv-row"><span>Slip pts used</span><b>${d.slip_pts}</b></div>
+        <div class="kv-row"><span>Stop trades counted</span><b>${d.n_stop_trades}</b></div>
+        <div class="kv-row"><span>Total stop contracts</span><b>${d.total_stop_qty}</b></div>
+        <div class="kv-row"><span>Current total P&L</span><b>${fmtUsd(d.current_total_pnl)}</b></div>
+        <div class="kv-row"><span>Alternative total P&L</span><b class="${deltaCls}">${fmtUsd(d.alternative_total_pnl)}</b></div>
+        <div class="kv-row"><span>Delta vs alternative</span><b class="${deltaCls}">${fmtUsd(d.delta_total_alternative)}</b></div>
+      </div>
+      <div class="muted small" style="margin-top:8px">${d.recommendation || ""}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="neg">${e.message || e}</div>`;
+  }
+}
+
 // Broker performance summary on the Live tab.
 function renderBrokerPerfSummary() {
   const box = document.getElementById("broker-perf-summary");
@@ -405,6 +479,45 @@ async function showTradeDetail(setupRef) {
     const erRows = ers.map(er =>
       `<tr><td>${er.execType}</td><td>${er.ordStatus}</td><td>${er.lastQty || ""}</td><td>${er.lastPx || ""}</td><td>${er.avgPx || ""}</td><td>${er.rejectReason || ""}</td></tr>`
     ).join("");
+    // Tick replay -- pull ticks around the trade window so we can
+    // see the actual price action surrounding the entry/exit.
+    let firstFillTs = null, lastFillTs = null;
+    for (const f of fills) {
+      const t = new Date(f.timestamp).getTime() / 1000;
+      if (firstFillTs === null || t < firstFillTs) firstFillTs = t;
+      if (lastFillTs === null || t > lastFillTs) lastFillTs = t;
+    }
+    let tickHtml = '<div class="muted">No tick window available</div>';
+    if (firstFillTs && lastFillTs) {
+      try {
+        const tr = await fetch(af(`/api/diagnostics/tick_replay?ts_from=${firstFillTs}&ts_to=${lastFillTs}&pad_s=30`));
+        const td = await tr.json();
+        const ticks = td.ticks || [];
+        const polyN = (td.by_source && td.by_source.polygon) || 0;
+        const tradN = (td.by_source && td.by_source.tradovate) || 0;
+        if (ticks.length > 0) {
+          const head = `<div class="muted" style="margin-bottom:6px">
+            ${ticks.length} ticks (polygon: ${polyN}, tradovate: ${tradN})
+          </div>`;
+          const trRows = ticks.slice(0, 200).map(t => {
+            const ts = new Date(t.ts * 1000).toISOString().substring(11, 23);
+            return `<tr>
+              <td style="color:#94a3b8">${ts}</td>
+              <td>${t.px}</td>
+              <td>${t.bid != null ? t.bid : "—"}</td>
+              <td>${t.ask != null ? t.ask : "—"}</td>
+              <td><span class="muted">${t.src}</span></td>
+            </tr>`;
+          }).join("");
+          tickHtml = head + `<table class="data-table">
+            <thead><tr><th>Time</th><th>Last</th><th>Bid</th><th>Ask</th><th>Src</th></tr></thead>
+            <tbody>${trRows}</tbody></table>`;
+          if (ticks.length > 200) {
+            tickHtml += `<div class="muted small">(showing first 200 of ${ticks.length})</div>`;
+          }
+        }
+      } catch (e) { /* keep default html */ }
+    }
     body.innerHTML = `
       <h3 style="margin:0 0 12px 0">setup_ref: <code>${setupRef}</code></h3>
       <details open style="margin-bottom:14px">
@@ -428,12 +541,16 @@ async function showTradeDetail(setupRef) {
           <tbody>${fillRows || '<tr><td colspan="5" class="muted center">no fills</td></tr>'}</tbody>
         </table>
       </details>
-      <details>
+      <details style="margin-bottom:14px">
         <summary><b>📡 Execution reports (${ers.length})</b></summary>
         <table class="data-table" style="margin-top:8px">
           <thead><tr><th>execType</th><th>status</th><th>lastQty</th><th>lastPx</th><th>avgPx</th><th>reject</th></tr></thead>
           <tbody>${erRows || '<tr><td colspan="6" class="muted center">no exec reports</td></tr>'}</tbody>
         </table>
+      </details>
+      <details>
+        <summary><b>🎬 Tick replay (30s pad around entry/exit)</b></summary>
+        <div style="margin-top:8px">${tickHtml}</div>
       </details>`;
   } catch (e) {
     body.innerHTML = `<div class="neg">Error: ${e.message || e}</div>`;
@@ -1818,19 +1935,23 @@ function renderPerformanceGraphs() {
       renderPerformanceGraphs();
     });
   });
-  // Use Tradovate fills as the source of truth for Performance analytics.
-  // Falls back to paper trades only if Tradovate hasn't returned anything
-  // yet (first-load gap before pollTradovateTrades hits).
-  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
-  let perfTrades;
-  if (tvFills.length > 0) {
-    perfTrades = pairFillsIntoTrades(tvFills);
-    // pairFillsIntoTrades returns newest-first; perf panels want oldest-first
-    // for the equity curve to read left-to-right correctly.
-    perfTrades = perfTrades.slice().reverse();
-  } else {
-    perfTrades = _allTradesCache.trades
-                 || (state.data && state.data.recent_trades) || [];
+  // Primary source: _allTradesCache, which is fed by /api/all_trades?
+  // source=<paper|broker> -- so the user's data-source toggle
+  // automatically swaps everything (equity curve, monthly P&L, hold
+  // distribution, win/loss panels) between paper and broker.
+  //
+  // Fallback hierarchy when the cache hasn't loaded yet:
+  //   1. _allTradesCache.trades       <-- preferred (source-aware)
+  //   2. legacy tradovate fills path  <-- old code path
+  //   3. recent_trades from snapshot  <-- last resort
+  let perfTrades = _allTradesCache.trades;
+  if (!perfTrades || perfTrades.length === 0) {
+    const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
+    if (tvFills.length > 0 && dataSource === "broker") {
+      perfTrades = pairFillsIntoTrades(tvFills).slice().reverse();
+    } else {
+      perfTrades = (state.data && state.data.recent_trades) || [];
+    }
   }
   _renderPerfPanels(perfTrades);
 }

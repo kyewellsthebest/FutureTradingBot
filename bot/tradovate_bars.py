@@ -55,6 +55,31 @@ logger = logging.getLogger("tradovate_bars")
 _CACHE: dict = {}  # (symbol, interval, n) -> (ts_loaded, dataframe)
 _CACHE_LOCK = threading.Lock()
 
+# Stats for the Polygon Readiness card. Track every Tradovate WS
+# success / failure so the dashboard can tell the user whether it's
+# safe to cancel Polygon yet.
+_STATS = {
+    "tradovate_success_count": 0,
+    "tradovate_failure_count": 0,
+    "last_tradovate_success_ts": None,
+    "last_tradovate_failure_ts": None,
+    "last_polygon_fallback_ts": None,
+    "first_call_ts": None,
+}
+_STATS_LOCK = threading.Lock()
+
+
+def get_stats() -> dict:
+    """Snapshot of fetch stats for the diagnostic bundle + dashboard."""
+    with _STATS_LOCK:
+        return dict(_STATS)
+
+
+def mark_polygon_fallback() -> None:
+    """Called by data_loader when it falls back to Polygon."""
+    with _STATS_LOCK:
+        _STATS["last_polygon_fallback_ts"] = time.time()
+
 
 def _cache_ttl() -> float:
     return float(os.environ.get("TRADOVATE_BAR_CACHE_TTL_S", "30"))
@@ -103,6 +128,9 @@ def get_bars(symbol: str, interval: str = "1m",
     import pandas as pd
     key = (symbol, interval, n)
     now = time.time()
+    with _STATS_LOCK:
+        if _STATS["first_call_ts"] is None:
+            _STATS["first_call_ts"] = now
     with _CACHE_LOCK:
         cached = _CACHE.get(key)
     if cached and (now - cached[0]) < _cache_ttl():
@@ -112,8 +140,14 @@ def get_bars(symbol: str, interval: str = "1m",
     except Exception as e:
         logger.warning(f"tradovate_bars {symbol} {interval} n={n}: "
                        f"WS fetch failed: {e!r}")
+        with _STATS_LOCK:
+            _STATS["tradovate_failure_count"] += 1
+            _STATS["last_tradovate_failure_ts"] = now
         return None
     if not bars:
+        with _STATS_LOCK:
+            _STATS["tradovate_failure_count"] += 1
+            _STATS["last_tradovate_failure_ts"] = now
         return None
     df = pd.DataFrame(bars)
     df.set_index("timestamp", inplace=True)
@@ -125,6 +159,9 @@ def get_bars(symbol: str, interval: str = "1m",
         df.index = df.index.tz_convert("UTC")
     with _CACHE_LOCK:
         _CACHE[key] = (now, df)
+    with _STATS_LOCK:
+        _STATS["tradovate_success_count"] += 1
+        _STATS["last_tradovate_success_ts"] = now
     return df
 
 

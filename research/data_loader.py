@@ -344,9 +344,19 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
                 return df
             logger.warning("BOT_BAR_SOURCE=tradovate returned no bars; "
                            "falling back to polygon")
+            try:
+                from bot.tradovate_bars import mark_polygon_fallback
+                mark_polygon_fallback()
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f"BOT_BAR_SOURCE=tradovate failed: {e!r}; "
                            f"falling back to polygon")
+            try:
+                from bot.tradovate_bars import mark_polygon_fallback
+                mark_polygon_fallback()
+            except Exception:
+                pass
 
     key = _polygon_key()
     if not key:
