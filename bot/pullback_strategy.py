@@ -138,12 +138,31 @@ def _news_blackout_reason(now: datetime, calendar) -> Optional[str]:
 
 
 def _in_lucid_closed_window(now: datetime) -> bool:
-    """True if `now` falls inside Lucid's no-trade window.
+    """True if `now` falls inside the broker's no-trade window.
 
-    Closed:
-      - Mon-Thu 16:45 ET to 18:00 ET   (daily maintenance break)
-      - Fri 16:45 ET through Sun 18:00 ET  (weekend close)
-    Returns False otherwise (open for entries)."""
+    Two modes (selected via BOT_TRADING_HOURS env var):
+
+      "cme" (DEFAULT)     -- respects only real CME futures hours:
+        - Mon-Thu 17:00 ET to 18:00 ET   (1hr daily maintenance break)
+        - Fri 17:00 ET through Sun 18:00 ET  (weekend close)
+
+      "lucid"             -- Lucid funded-account stricter rules:
+        - Mon-Thu 16:45 ET to 18:00 ET   (15min buffer before CME close)
+        - Fri 16:45 ET through Sun 18:00 ET  (weekend close, 15min buffer)
+
+      "always_open"       -- never blocks; trust whatever the broker accepts
+
+    User explicitly moved off Lucid funded to a personal Tradovate
+    demo account. CME hours are the real constraint, not Lucid's. The
+    bundle diagnostic showed 6+ hours of setups blocked by Lucid mode
+    even though personal Tradovate would have accepted them.
+
+    Returns False if outside the closed window (open for entries).
+    """
+    import os as _os
+    mode = _os.environ.get("BOT_TRADING_HOURS", "cme").lower()
+    if mode == "always_open":
+        return False
     try:
         ny = pd.Timestamp(now).tz_convert("America/New_York")
     except Exception:
@@ -151,10 +170,13 @@ def _in_lucid_closed_window(now: datetime) -> bool:
     dow = ny.weekday()   # 0=Mon ... 6=Sun
     hm = ny.hour * 60 + ny.minute
     OPEN = 18 * 60          # 18:00 ET = market open
-    CLOSE = 16 * 60 + 45    # 16:45 ET = Lucid mandatory close
+    if mode == "lucid":
+        CLOSE = 16 * 60 + 45    # 16:45 ET = Lucid mandatory close
+    else:                       # "cme" default
+        CLOSE = 17 * 60         # 17:00 ET = real CME daily close
     if dow == 5:                          # Saturday
         return True
-    if dow == 4 and hm >= CLOSE:          # Friday after 16:45 ET
+    if dow == 4 and hm >= CLOSE:          # Friday after close
         return True
     if dow == 6 and hm < OPEN:            # Sunday before 18:00 ET
         return True
