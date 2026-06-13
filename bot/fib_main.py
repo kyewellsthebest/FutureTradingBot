@@ -859,12 +859,17 @@ class FibRuntime:
                             os.environ.get("POLYGON_CONTRACT", "MNQ")))
                     logger.info(
                         f"[tradovate SEND BRACKET] {trade.side} "
-                        f"{trade.n_mnq} {symbol} stop={stop_pts:.2f}pt "
-                        f"target={target_pts:.2f}pt (live={live_snap.price:.2f})")
+                        f"{trade.n_mnq} {symbol} entry@{trade.entry_px:.2f} "
+                        f"stop={stop_pts:.2f}pt target={target_pts:.2f}pt "
+                        f"(live={live_snap.price:.2f})")
+                    # CRITICAL: pass the STRATEGY'S intended entry price
+                    # (the 0.618 pullback level) -- NOT the live tick.
+                    # The LIMIT order needs to fill at the strategy's
+                    # exact price so brackets anchor correctly.
                     result = self.tradovate_orders.submit_market_with_bracket(
                         side=trade.side, qty=trade.n_mnq, symbol=symbol,
                         stop_pts=stop_pts, target_pts=target_pts,
-                        entry_estimate=float(live_snap.price),
+                        entry_estimate=float(trade.entry_px),
                         setup_ref=setup_ref,
                     )
                     if not result.ok:
