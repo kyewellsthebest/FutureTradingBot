@@ -20,10 +20,30 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger("tradovate_orders")
+
+
+# Module-level audit log: every order placement attempt with full body +
+# response + parsed result. Bounded so we don't leak memory over a long
+# session. The dashboard's diagnostic bundle exports this verbatim so we
+# can reconstruct exactly what was sent vs what the broker returned.
+_AUDIT_LOG: "deque[dict]" = deque(maxlen=500)
+
+
+def get_audit_log() -> list:
+    """Return a copy of the order audit log (newest last)."""
+    return list(_AUDIT_LOG)
+
+
+def _audit(entry: dict) -> None:
+    entry = dict(entry)
+    entry.setdefault("ts", time.time())
+    _AUDIT_LOG.append(entry)
 
 
 # Per Tradovate API docs: round prices to product tick size (0.25 for
@@ -152,6 +172,21 @@ class TradovateOrders:
         logger.info(f"[tradovate placeoso RESULT] status={status} "
                     f"resp={str(resp)[:500]!r}")
         result = self._parse_order_response(status, resp)
+        _audit({
+            "kind": "placeoso",
+            "side": side, "qty": qty, "symbol": symbol,
+            "entry_estimate": float(entry_estimate),
+            "entry_price": entry_price,
+            "stop_price": stop_price, "target_price": target_price,
+            "stop_pts": float(stop_pts), "target_pts": float(target_pts),
+            "setup_ref": setup_ref,
+            "request_body": body,
+            "http_status": status,
+            "response": resp if isinstance(resp, dict) else {"_raw": str(resp)[:500]},
+            "parsed_ok": result.ok,
+            "parsed_order_id": result.order_id,
+            "parsed_error": result.error,
+        })
         # CRITICAL SAFETY: do NOT fall back to a naked market order. If
         # the bracket fails, we refuse the trade entirely. Previously we
         # silently dropped to /order/placeorder (no bracket) which left
@@ -179,26 +214,149 @@ class TradovateOrders:
             # but the orders don't actually exist on the matching
             # engine. Query each and log every field so we have
             # definitive evidence.
+            bracket_verification = {"oso1Id": oso1, "oso2Id": oso2,
+                                     "children": []}
             if oso1 and oso2:
+                # Per Tradovate API entity model:
+                #   Order      = {id, accountId, contractId, action, ordStatus,
+                #                 ocoId, parentId, linkedId, timestamp}
+                #                ^^ NO price, NO orderQty, NO stopPrice!
+                #   OrderVersion = {id, orderId, orderQty, orderType,
+                #                   price, stopPrice, timeInForce}
+                #                ^^ THIS is where the prices live.
+                # Previously we queried /order/item and logged
+                # qty/price/stopPrice as None for every child, hiding the
+                # fact that the bracket might have wrong values. Now we
+                # query /order/item for ordStatus AND /orderVersion/deps
+                # for the actual prices, and log both.
                 for label, child_id in (("STOP", oso1), ("TARGET", oso2)):
                     try:
-                        c_status, c_data = self.session._rest(
+                        # Order entity for status (Working/Filled/Rejected/Canceled)
+                        o_status, o_data = self.session._rest(
                             "GET", "/order/item", params={"id": int(child_id)})
-                        if c_status == 200 and isinstance(c_data, dict):
-                            logger.info(
-                                f"[bracket verify {label}] id={child_id} "
-                                f"action={c_data.get('action')} "
-                                f"orderType={c_data.get('orderType')} "
-                                f"qty={c_data.get('orderQty')} "
-                                f"price={c_data.get('price')} "
-                                f"stopPrice={c_data.get('stopPrice')} "
-                                f"status={c_data.get('ordStatus')}")
+                        # OrderVersion deps for the actual price/qty fields.
+                        # /orderVersion/deps?masterid=<orderId> returns ALL
+                        # OrderVersion rows for that order (initial + each
+                        # modification). We want the latest by id.
+                        v_status, v_data = self.session._rest(
+                            "GET", "/orderVersion/deps",
+                            params={"masterid": int(child_id)})
+                        latest_version = None
+                        if v_status == 200 and isinstance(v_data, list) and v_data:
+                            latest_version = max(
+                                v_data,
+                                key=lambda d: d.get("id", 0)
+                                if isinstance(d, dict) else 0)
+                        if o_status == 200 and isinstance(o_data, dict):
+                            ord_status = o_data.get("ordStatus")
+                            action_field = o_data.get("action")
+                            parent_id = o_data.get("parentId")
+                            oco_id = o_data.get("ocoId")
                         else:
-                            logger.error(
-                                f"[bracket verify {label} FAIL] id={child_id} "
-                                f"status={c_status} body={str(c_data)[:200]!r}")
+                            ord_status = action_field = parent_id = oco_id = None
+                        if isinstance(latest_version, dict):
+                            qty = latest_version.get("orderQty")
+                            otype = latest_version.get("orderType")
+                            px = latest_version.get("price")
+                            spx = latest_version.get("stopPrice")
+                            tif = latest_version.get("timeInForce")
+                        else:
+                            qty = otype = px = spx = tif = None
+                        logger.info(
+                            f"[bracket verify {label}] id={child_id} "
+                            f"action={action_field} orderType={otype} "
+                            f"qty={qty} price={px} stopPrice={spx} "
+                            f"tif={tif} ordStatus={ord_status} "
+                            f"parentId={parent_id} ocoId={oco_id} "
+                            f"order_http={o_status} version_http={v_status}")
+                        mismatch = None
+                        # Sanity: did the bracket attach at the right price?
+                        if label == "STOP" and spx is not None:
+                            if abs(float(spx) - stop_price) > 0.001:
+                                mismatch = (
+                                    f"STOP sent={stop_price} broker={spx}")
+                                logger.error(
+                                    f"[bracket MISMATCH STOP] sent={stop_price} "
+                                    f"broker={spx} -- bracket will fire at the "
+                                    f"WRONG level, this is the bug the user "
+                                    f"reported")
+                        if label == "TARGET" and px is not None:
+                            if abs(float(px) - target_price) > 0.001:
+                                mismatch = (
+                                    f"TARGET sent={target_price} broker={px}")
+                                logger.error(
+                                    f"[bracket MISMATCH TARGET] sent={target_price} "
+                                    f"broker={px} -- target will fire at the "
+                                    f"WRONG level")
+                        bracket_verification["children"].append({
+                            "label": label,
+                            "child_id": child_id,
+                            "order_http": o_status,
+                            "version_http": v_status,
+                            "action": action_field,
+                            "orderType": otype,
+                            "orderQty": qty,
+                            "price": px,
+                            "stopPrice": spx,
+                            "timeInForce": tif,
+                            "ordStatus": ord_status,
+                            "parentId": parent_id,
+                            "ocoId": oco_id,
+                            "mismatch": mismatch,
+                        })
                     except Exception as e:
                         logger.error(f"[bracket verify {label}] exception: {e!r}")
+                        bracket_verification["children"].append({
+                            "label": label, "child_id": child_id,
+                            "exception": repr(e),
+                        })
+            # Per Tradovate API PDF (Order entity, ordStatus enum):
+            #   "Working" = active in the matching engine
+            #   "Filled"  = already executed
+            #   "Canceled"/"Rejected"/"Expired"/"PendingCancel" = dead
+            # If either child is in a dead state, the bracket is broken
+            # (one side could fire but the other can't), so we must
+            # flatten the position rather than leave it running.
+            dead_states = {"Canceled", "Rejected", "Expired",
+                            "PendingCancel"}
+            bad_child = None
+            for c in bracket_verification.get("children", []):
+                # Mismatched price = bracket fires at wrong level = bad
+                if c.get("mismatch"):
+                    bad_child = ("mismatch", c)
+                    break
+                # Dead ordStatus = bracket child won't trigger = bad
+                if c.get("ordStatus") in dead_states:
+                    bad_child = ("dead_status", c)
+                    break
+            if bad_child and oso1 and oso2:
+                reason, c = bad_child
+                logger.error(
+                    f"[tradovate placeoso BAD BRACKET] reason={reason} "
+                    f"child={c} -- flattening position immediately to "
+                    f"avoid runaway")
+                try:
+                    self.session._rest(
+                        "POST", "/order/liquidateposition",
+                        body={
+                            "accountSpec": self._account_spec(),
+                            "accountId": int(self.account_id),
+                            "symbol": symbol,
+                            "admin": False,
+                            "isAutomated": True,
+                        })
+                except Exception as e:
+                    logger.error(f"emergency liquidate failed: {e!r}")
+                if _AUDIT_LOG:
+                    _AUDIT_LOG[-1]["bracket_verification"] = bracket_verification
+                    _AUDIT_LOG[-1]["emergency_flatten"] = {
+                        "reason": reason, "child": c,
+                    }
+                return OrderResult(
+                    ok=False, order_id=result.order_id,
+                    status_code=result.status_code,
+                    response=resp_dict,
+                    error=f"bracket_{reason}_flattened")
             if not oso1 or not oso2:
                 logger.error(
                     f"[tradovate placeoso INCOMPLETE] parent order_id="
@@ -226,6 +384,11 @@ class TradovateOrders:
                     status_code=result.status_code,
                     response=resp_dict,
                     error="bracket_missing_flattened")
+            # Attach the bracket verification to the most recent audit
+            # entry so the dashboard bundle includes children prices +
+            # any MISMATCH we detected.
+            if _AUDIT_LOG:
+                _AUDIT_LOG[-1]["bracket_verification"] = bracket_verification
         return result
 
     # ------------------------------------------------------------------
@@ -261,7 +424,19 @@ class TradovateOrders:
         status, resp = self.session._rest("POST", "/order/placeorder", body=body)
         logger.info(f"[tradovate placeorder RESULT] status={status} "
                     f"resp={str(resp)[:500]!r}")
-        return self._parse_order_response(status, resp)
+        result = self._parse_order_response(status, resp)
+        _audit({
+            "kind": "placeorder",
+            "side": side, "qty": qty, "symbol": symbol,
+            "setup_ref": setup_ref,
+            "request_body": body,
+            "http_status": status,
+            "response": resp if isinstance(resp, dict) else {"_raw": str(resp)[:500]},
+            "parsed_ok": result.ok,
+            "parsed_order_id": result.order_id,
+            "parsed_error": result.error,
+        })
+        return result
 
     # ------------------------------------------------------------------
     # Flat (manual close, used for timeout exits)
@@ -313,6 +488,17 @@ class TradovateOrders:
         logger.info(f"[tradovate liquidateposition RESULT] status={status} "
                     f"resp={str(resp)[:500]!r}")
         result = self._parse_order_response(status, resp)
+        _audit({
+            "kind": "liquidateposition",
+            "side": side, "qty": qty, "symbol": symbol,
+            "setup_ref": setup_ref,
+            "request_body": body,
+            "http_status": status,
+            "response": resp if isinstance(resp, dict) else {"_raw": str(resp)[:500]},
+            "parsed_ok": result.ok,
+            "parsed_order_id": result.order_id,
+            "parsed_error": result.error,
+        })
         if not result.ok:
             # FALLBACK: drop to plain placeorder (opposite side market).
             # Leaves bracket children active but at least flattens the
@@ -340,9 +526,35 @@ class TradovateOrders:
             return OrderResult(ok=False, order_id=None, status_code=status,
                                 response=resp if isinstance(resp, dict) else {},
                                 error=err)
+        # CRITICAL: Tradovate's PlaceOrderResult / PlaceOsoResult / PlaceOcoResult
+        # schemas ALL return HTTP 200 even on rejection. The rejection
+        # signal is the `failureReason` field. Per the API PDF:
+        #   PlaceOsoResult = {
+        #     "failureReason": <enum: MaxOrderQty/NoOrderId/AccountClosed/
+        #                       LiquidationOnly/InvalidPrice/RiskCheckFailed/
+        #                       Unauthorized/OtherExecProviderError/...>,
+        #     "failureText":  <human-readable>,
+        #     "orderId":      <int -- parent order, present on SUCCESS only>,
+        #     "oso1Id":       <int -- bracket child 1, success only>,
+        #     "oso2Id":       <int -- bracket child 2, success only>,
+        #   }
+        # We were treating any 200 as success, so silent rejections looked
+        # OK and the bot moved on thinking it had a position when it didn't
+        # (or worse, parent placed but children rejected leaving naked).
+        if isinstance(resp, dict):
+            failure_reason = resp.get("failureReason")
+            failure_text = resp.get("failureText")
+            if failure_reason:
+                err = f"{failure_reason}: {failure_text}" if failure_text else str(failure_reason)
+                logger.warning(f"[tradovate order REJECTED by API] "
+                               f"failureReason={failure_reason!r} "
+                               f"failureText={failure_text!r} "
+                               f"resp={str(resp)[:300]!r}")
+                return OrderResult(ok=False, order_id=None, status_code=status,
+                                    response=resp, error=err)
         # Tradovate /order/placeorder returns {"orderId": <int>, ...}
-        # Tradovate /order/placeOSO returns {"orderId": <int>, ...} as well
-        # (the parent order's ID; children are linked server-side)
+        # Tradovate /order/placeoso returns {"orderId": <int>, "oso1Id": <int>,
+        # "oso2Id": <int>} on success (parent + 2 children)
         order_id = None
         if isinstance(resp, dict):
             order_id = resp.get("orderId") or resp.get("id")

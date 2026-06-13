@@ -1998,6 +1998,9 @@ def _collect_tradovate_snapshot() -> dict:
                lambda: sess._rest("POST",
                                     "/cashBalance/getCashBalanceSnapshot",
                                     body={"accountId": int(acct_id)}))
+        _safe("cash_balance_history",
+               lambda: sess._rest("GET", "/cashBalanceLog/deps",
+                                    params={"masterid": int(acct_id)}))
         _safe("position_list",
                lambda: sess._rest("GET", "/position/list"))
         _safe("order_list_raw",
@@ -2007,8 +2010,81 @@ def _collect_tradovate_snapshot() -> dict:
         _safe("fill_deps_raw",
                lambda: sess._rest("GET", "/fill/deps",
                                     params={"masterid": int(acct_id)}))
+        # Per Tradovate API PDF (entity model section), THESE are the
+        # endpoints with ground-truth broker activity. They're the answer
+        # to "what really happened on the matching engine".
+        #
+        # /executionReport/list -- every event the matching engine
+        # generated for our orders (New/PartialFill/Fill/Cancelled/
+        # Rejected/Expired/...). Contains rejectReason which tells us
+        # WHY an order was refused. Without these, we have to guess from
+        # ordStatus changes alone.
+        _safe("execution_report_list",
+               lambda: sess._rest("GET", "/executionReport/list"))
+        # /fillPair/list -- round-trip pairs (buyFill + sellFill matched
+        # together). buyPrice + sellPrice show actual entry + exit
+        # prices for each closed trade. This is what the BROKER's
+        # P&L is calculated from -- compare against paper P&L to
+        # find the discrepancy.
+        _safe("fill_pair_list",
+               lambda: sess._rest("GET", "/fillPair/list"))
+        # /orderVersion/list -- every Order's current OrderVersion row.
+        # Order entity has no price/qty; OrderVersion is where the
+        # actual numbers live. Without these, "what price did we
+        # actually send?" is unanswerable from the bundle.
+        _safe("order_version_list",
+               lambda: sess._rest("GET", "/orderVersion/list"))
+        # Per-order detail: for each order in order_list_raw, pull the
+        # full OrderVersion chain so we can see modifications (initial
+        # price -> any cancel-replace -> final). Crucial for spotting
+        # cases where Tradovate altered an order after submission.
+        try:
+            ord_status, ord_list = sess._rest("GET", "/order/list")
+            if ord_status == 200 and isinstance(ord_list, list):
+                detail = []
+                # Cap at most recent 50 orders to avoid massive bundles
+                for o in ord_list[-50:]:
+                    oid = o.get("id") if isinstance(o, dict) else None
+                    if not oid:
+                        continue
+                    try:
+                        vs, vd = sess._rest(
+                            "GET", "/orderVersion/deps",
+                            params={"masterid": int(oid)})
+                        detail.append({
+                            "order_id": oid,
+                            "order": o,
+                            "version_http": vs,
+                            "versions": vd if isinstance(vd, list) else [],
+                        })
+                    except Exception as e:
+                        detail.append({"order_id": oid, "error": repr(e)})
+                out["per_order_versions"] = detail
+        except Exception as e:
+            out["per_order_versions"] = {"error": repr(e)}
         _safe("risk_status",
                lambda: sess._rest("GET", "/accountRiskStatus/list"))
+        # /contract/find for our trading symbol -- contract spec
+        # (tick size, value per tick, status). Verifies we're trading
+        # the right contract and our tick rounding matches Tradovate's
+        # tick size.
+        try:
+            sym = os.environ.get("FUTURES_SYMBOL", "MNQ")
+            cur_status, cur_data = sess._rest(
+                "GET", "/contract/find", params={"name": sym})
+            out["contract_find"] = {"http": cur_status, "data": cur_data}
+        except Exception as e:
+            out["contract_find"] = {"error": repr(e)}
+
+    # Bot's own audit log of every order placement attempt. Includes
+    # the EXACT request body sent, raw response, parsed result, and
+    # bracket verification with mismatch flags. This is the single
+    # most useful artifact for diagnosing entry/bracket bugs.
+    try:
+        from bot.tradovate_orders import get_audit_log
+        out["bot_audit_log"] = get_audit_log()
+    except Exception as e:
+        out["bot_audit_log"] = {"error": repr(e)}
 
     return out
 
@@ -2134,6 +2210,210 @@ def _build_daily_csv():
     return buf.getvalue()
 
 
+def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
+    """Side-by-side paper-vs-broker reconciliation.
+
+    For each closed paper trade (since reset cutoff), find the nearest
+    Tradovate fill pair and compute the divergence. This is the SINGLE
+    most useful artifact for diagnosing the paper-vs-broker leak: it
+    shows exactly which trades had bracket mismatches, slipped fills,
+    or wrong exit prices.
+
+    Outputs per-trade:
+      {paper_entry, paper_exit, paper_pnl,
+       broker_entry, broker_exit, broker_pnl,
+       entry_slip, exit_slip, pnl_delta, exec_reports}
+    """
+    out = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "rows": [],
+        "summary": {},
+    }
+    try:
+        paper = _filter_trades_since_reset(persistence.load_trades(
+            limit=10_000, only_closed=True))
+    except Exception as e:
+        out["error"] = f"load_trades failed: {e!r}"
+        return out
+
+    # Pull broker artifacts from the snapshot we already collected
+    def _list_of(key):
+        v = tradovate_snap.get(key)
+        if isinstance(v, tuple) and len(v) == 2:
+            # _rest returns (status, body)
+            v = v[1]
+        return v if isinstance(v, list) else []
+
+    fill_pairs = _list_of("fill_pair_list")
+    fills = _list_of("fill_list_raw")
+    exec_reports = _list_of("execution_report_list")
+
+    # Index ExecutionReports by orderId for fast lookup
+    er_by_order = {}
+    for er in exec_reports:
+        if isinstance(er, dict):
+            oid = er.get("orderId")
+            if oid:
+                er_by_order.setdefault(int(oid), []).append(er)
+
+    # Build a chronological list of fill pairs as (ts, pair_dict)
+    pair_times = []
+    for fp in fill_pairs:
+        if not isinstance(fp, dict):
+            continue
+        # FillPair has buyFillId + sellFillId; look up fills for ts
+        bf = None
+        sf = None
+        for f in fills:
+            if not isinstance(f, dict):
+                continue
+            if f.get("id") == fp.get("buyFillId"):
+                bf = f
+            elif f.get("id") == fp.get("sellFillId"):
+                sf = f
+        # Approximate the trade's open ts as earlier of the two fills
+        ts_open = None
+        ts_close = None
+        if bf and sf:
+            bts = bf.get("timestamp")
+            sts = sf.get("timestamp")
+            try:
+                bts_dt = pd.Timestamp(bts).tz_convert("UTC") \
+                    if pd.Timestamp(bts).tz else pd.Timestamp(bts).tz_localize("UTC")
+                sts_dt = pd.Timestamp(sts).tz_convert("UTC") \
+                    if pd.Timestamp(sts).tz else pd.Timestamp(sts).tz_localize("UTC")
+                ts_open = min(bts_dt, sts_dt)
+                ts_close = max(bts_dt, sts_dt)
+            except Exception:
+                pass
+        pair_times.append({
+            "pair": fp, "buy_fill": bf, "sell_fill": sf,
+            "ts_open": ts_open, "ts_close": ts_close,
+        })
+
+    # For each paper trade, find the broker pair whose ts_close is
+    # closest to the paper exit_time (within 5 min window).
+    used = set()
+    matched_pnl_delta = 0.0
+    total_paper = 0.0
+    total_broker = 0.0
+    matched = 0
+    unmatched = 0
+    for t in paper:
+        et = t.get("exit_time")
+        side = t.get("side")
+        try:
+            et_dt = pd.Timestamp(et).tz_convert("UTC") \
+                if pd.Timestamp(et).tz else pd.Timestamp(et).tz_localize("UTC")
+        except Exception:
+            et_dt = None
+        best = None
+        best_dt = None
+        for idx, pt in enumerate(pair_times):
+            if idx in used:
+                continue
+            if pt["ts_close"] is None or et_dt is None:
+                continue
+            dt = abs((pt["ts_close"] - et_dt).total_seconds())
+            if dt > 300:  # 5-minute window
+                continue
+            if best_dt is None or dt < best_dt:
+                best = idx
+                best_dt = dt
+        row = {
+            "paper_entry_time": t.get("entry_time"),
+            "paper_exit_time": et,
+            "paper_side": side,
+            "paper_qty": t.get("qty"),
+            "paper_entry_px": t.get("entry_px"),
+            "paper_exit_px": t.get("exit_px"),
+            "paper_stop_px": t.get("stop_px"),
+            "paper_target_px": t.get("target_px"),
+            "paper_pnl": t.get("pnl"),
+            "paper_exit_reason": t.get("exit_reason"),
+            "matched": False,
+        }
+        if best is not None:
+            used.add(best)
+            pt = pair_times[best]
+            fp = pt["pair"]
+            buy_px = fp.get("buyPrice")
+            sell_px = fp.get("sellPrice")
+            row["matched"] = True
+            row["match_delta_seconds"] = best_dt
+            row["broker_buy_price"] = buy_px
+            row["broker_sell_price"] = sell_px
+            row["broker_qty"] = fp.get("qty")
+            row["broker_active"] = fp.get("active")
+            row["broker_position_id"] = fp.get("positionId")
+            row["broker_buy_fill_ts"] = (
+                pt["buy_fill"].get("timestamp") if pt["buy_fill"] else None)
+            row["broker_sell_fill_ts"] = (
+                pt["sell_fill"].get("timestamp") if pt["sell_fill"] else None)
+            # Calculate broker entry vs exit by side
+            if side and side.upper() == "LONG":
+                broker_entry = buy_px
+                broker_exit = sell_px
+            else:
+                broker_entry = sell_px
+                broker_exit = buy_px
+            row["broker_entry_px"] = broker_entry
+            row["broker_exit_px"] = broker_exit
+            try:
+                pts_diff = float(broker_exit) - float(broker_entry)
+                if side and side.upper() == "SHORT":
+                    pts_diff = -pts_diff
+                row["broker_pts"] = pts_diff
+                # MNQ: $2 per point per contract
+                row["broker_pnl_gross"] = pts_diff * 2.0 * float(fp.get("qty") or 1)
+            except Exception:
+                pass
+            # Slippage analysis
+            try:
+                row["entry_slip"] = (
+                    float(broker_entry) - float(t.get("entry_px") or 0))
+                row["exit_slip"] = (
+                    float(broker_exit) - float(t.get("exit_px") or 0))
+            except Exception:
+                pass
+            try:
+                row["pnl_delta"] = (
+                    float(row.get("broker_pnl_gross") or 0)
+                    - float(t.get("pnl") or 0))
+                matched_pnl_delta += row["pnl_delta"]
+                total_paper += float(t.get("pnl") or 0)
+                total_broker += float(row.get("broker_pnl_gross") or 0)
+            except Exception:
+                pass
+            # Find execution reports for the buyFill/sellFill orderIds
+            er_keys = set()
+            for f in (pt["buy_fill"], pt["sell_fill"]):
+                if isinstance(f, dict) and f.get("orderId"):
+                    er_keys.add(int(f["orderId"]))
+            ers = []
+            for k in er_keys:
+                ers.extend(er_by_order.get(k, []))
+            row["execution_reports"] = ers
+            matched += 1
+        else:
+            unmatched += 1
+        out["rows"].append(row)
+
+    out["summary"] = {
+        "paper_trades_count": len(paper),
+        "matched": matched,
+        "unmatched": unmatched,
+        "total_paper_pnl": round(total_paper, 2),
+        "total_broker_pnl": round(total_broker, 2),
+        "total_pnl_delta": round(matched_pnl_delta, 2),
+        "unmatched_broker_pairs": [
+            pt["pair"] for idx, pt in enumerate(pair_times)
+            if idx not in used
+        ],
+    }
+    return out
+
+
 def _build_decisions_payload():
     """Recent block reasons + signal stats. The 'why isn't it trading?'
     debugging payload."""
@@ -2215,7 +2495,37 @@ def api_download(kind: str):
         # NEW: include the full set of Tradovate diagnostic endpoints
         # so the user only has to download one file instead of
         # screenshotting 6 different URLs every time something looks off.
-        payload["tradovate"] = _collect_tradovate_snapshot()
+        tradovate_snap = _collect_tradovate_snapshot()
+        payload["tradovate"] = tradovate_snap
+        # Side-by-side paper-vs-broker reconciliation. Pairs each paper
+        # trade with the nearest broker fill pair and computes slippage
+        # + pnl delta. THIS IS THE ARTIFACT for diagnosing the
+        # paper-vs-broker leak.
+        try:
+            payload["reconciliation"] = _build_reconciliation_payload(
+                tradovate_snap)
+        except Exception as e:
+            payload["reconciliation_error"] = repr(e)
+        # Bot's market data snapshot at the time of the bundle (last
+        # tick, bid/ask, contract resolved). Lets us cross-check that
+        # the contract symbol matches what Tradovate has.
+        try:
+            from bot.tradovate_client import get_session as _gs
+            sess = _gs()
+            payload["resolved_contract"] = {
+                "symbol_env": os.environ.get("FUTURES_SYMBOL", "MNQ"),
+                "session_account_id": sess.get_account_id(),
+                "is_configured": sess.is_configured,
+            }
+        except Exception as e:
+            payload["resolved_contract"] = {"error": repr(e)}
+        # Dashboard live snapshot (fib_main's last cycle output: pending
+        # setups, live price, bias, signals). Pairs with bot_audit_log to
+        # explain WHY each placeoso happened.
+        try:
+            payload["live_snapshot"] = persistence.load_dashboard()
+        except Exception as e:
+            payload["live_snapshot_error"] = repr(e)
         return _json_resp(payload, f"{base_name}_bundle.json")
 
     if kind == "health":
@@ -2295,6 +2605,29 @@ def api_download(kind: str):
         except Exception as e:
             data = {"error": repr(e)}
         return _json_resp(data, f"{base_name}_tradovate.json")
+    if kind == "tradovate_full":
+        # Full Tradovate diagnostic dump: every entity table the API
+        # PDF says is useful for reconciliation. Heavier than the
+        # standalone tradovate dump.
+        return _json_resp(_collect_tradovate_snapshot(),
+                            f"{base_name}_tradovate_full.json")
+    if kind == "reconcile":
+        # Paper-vs-broker side-by-side. Separated from bundle so the
+        # user can grab it quickly to see slippage + missed brackets.
+        return _json_resp(
+            _build_reconciliation_payload(_collect_tradovate_snapshot()),
+            f"{base_name}_reconcile.json")
+    if kind == "audit_log":
+        # Bot's audit of every placeoso/placeorder/liquidate attempt
+        # with full request body + raw response + parsed result +
+        # bracket verification. Tiny file, immediately actionable.
+        try:
+            from bot.tradovate_orders import get_audit_log
+            data = {"ts": datetime.now(timezone.utc).isoformat(),
+                    "entries": get_audit_log()}
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_audit_log.json")
     if kind == "traderspost":
         try:
             from engine.brokers.traderspost import traderspost_status

@@ -324,6 +324,32 @@
 
       <!-- Hidden: bundle always includes verification. Kept to satisfy app.js. -->
       <input type="checkbox" id="dl-include-verify" checked hidden />
+
+      <!-- Standalone targeted diagnostic downloads: paper-vs-broker
+           reconciliation, full Tradovate dump, bot's order audit log. -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">Targeted diagnostic downloads</div>
+        <div class="card-body">
+          <p style="margin-top:0;color:var(--muted)">
+            Smaller, focused dumps for diagnosing specific problems.
+            Use these when you don't need the full bundle.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:10px">
+            <button class="btn-dl" data-dl="reconcile" data-ext="json"
+                    title="Per-trade side-by-side: paper expected vs broker actual, with slip + pnl delta">
+              ⬇ Paper-vs-broker reconciliation
+            </button>
+            <button class="btn-dl" data-dl="audit_log" data-ext="json"
+                    title="Every placeoso/placeorder attempt with exact body sent + raw response + bracket verification">
+              ⬇ Bot order audit log
+            </button>
+            <button class="btn-dl" data-dl="tradovate_full" data-ext="json"
+                    title="Full Tradovate dump: orders, fills, fillPairs, executionReports, orderVersions, positions, cash">
+              ⬇ Tradovate full diagnostic
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
   </main>
