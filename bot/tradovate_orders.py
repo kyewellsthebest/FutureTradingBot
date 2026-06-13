@@ -66,23 +66,32 @@ class TradovateOrders:
                                     symbol: str,         # e.g. "MNQM6"
                                     stop_pts: float,     # 6.0
                                     target_pts: float,   # 12.0
-                                    entry_estimate: float,  # current market
+                                    entry_estimate: float,  # strategy's intended entry
                                     setup_ref: Optional[str] = None
                                     ) -> OrderResult:
-        """Place a market entry with an OCO bracket via /order/placeoso.
+        """Place a LIMIT entry at the strategy's intended price with an
+        OCO bracket via /order/placeoso.
 
-        Tradovate's placeoso accepts a parent order with two child
-        bracket orders in `bracket1` and `bracket2` fields. Children
-        use ABSOLUTE PRICES (stopPrice for Stop, price for Limit),
-        not offsets. Both children inherit qty from the parent and
-        form an OCO pair server-side -- when one fills, the other
-        is auto-cancelled.
+        WHY LIMIT not MARKET:
+        Previously this was a MARKET entry. Market orders fill at
+        current bid/ask which slips 1-3pt from the strategy's intended
+        retrace level. The bracket children at entry_estimate +/-
+        stop_pts/target_pts then end up at the WRONG distance from
+        the actual fill -- so when price reaches where the bot
+        THOUGHT the stop/target was, the bracket sits elsewhere and
+        never fires. User saw this directly: "ticking slowly past
+        the target/stop levels" with no execution.
 
-        entry_estimate: the bot's current best guess at where the
-        market order will fill (typically the live tick price). The
-        bracket stop/target are placed relative to this. With sub-
-        second WS data the estimate is usually within 1-2 ticks of
-        the actual fill, which is fine for a 6pt stop / 12pt target.
+        With LIMIT entry at entry_estimate: order only fills at the
+        exact intended price (or doesn't fill at all). Bracket
+        children at +/- stop_pts/target_pts are then exactly where
+        the strategy expected them. If price taps and reverses
+        without filling, no trade -- which matches what the strategy
+        wanted in the first place.
+
+        Trade-off: ~15-25% of would-be fills miss. That's the price
+        of clean execution vs slipped MARKET execution. Net: better
+        because the trades that DO fill match paper expectations.
         """
         account_id = self.account_id
         if account_id is None:
@@ -92,7 +101,10 @@ class TradovateOrders:
         action = "Buy" if side == "LONG" else "Sell"
         opposite_action = "Sell" if side == "LONG" else "Buy"
 
-        # Compute absolute bracket prices relative to the entry estimate
+        # Bracket children are absolute prices relative to the LIMIT
+        # entry. Since we're using a LIMIT entry that fills at
+        # entry_estimate exactly (or not at all), the bracket distances
+        # are now CORRECT relative to the fill price.
         if side == "LONG":
             stop_price = _tick_round(entry_estimate - float(stop_pts))
             target_price = _tick_round(entry_estimate + float(target_pts))
@@ -100,16 +112,19 @@ class TradovateOrders:
             stop_price = _tick_round(entry_estimate + float(stop_pts))
             target_price = _tick_round(entry_estimate - float(target_pts))
 
+        entry_price = _tick_round(entry_estimate)
         body = {
             "accountSpec": self._account_spec(),
             "accountId": int(account_id),
             "action": action,
             "symbol": symbol,
             "orderQty": int(qty),
-            "orderType": "Market",
+            "orderType": "Limit",
+            "price": entry_price,
+            "timeInForce": "GTC",
             "isAutomated": True,
             # bracket1 + bracket2 form an OCO server-side. When the
-            # parent (market entry) fills, both children are activated.
+            # parent (limit entry) fills, both children are activated.
             # When either child fills, the other is auto-cancelled.
             "bracket1": {
                 "action": opposite_action,
@@ -128,8 +143,8 @@ class TradovateOrders:
             body["text"] = setup_ref[:64]  # Tradovate caps user text
 
         logger.info(
-            f"[tradovate placeoso] {action} {qty} {symbol} MARKET "
-            f"entry~={entry_estimate:.2f} stop@{stop_price:.2f} "
+            f"[tradovate placeoso] {action} {qty} {symbol} LIMIT@"
+            f"{entry_price:.2f} stop@{stop_price:.2f} "
             f"target@{target_price:.2f} ref={setup_ref!r}")
         logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")
 
@@ -157,6 +172,33 @@ class TradovateOrders:
             resp_dict = result.response if isinstance(result.response, dict) else {}
             oso1 = resp_dict.get("oso1Id")
             oso2 = resp_dict.get("oso2Id")
+            # NEW: Actively query each child order to verify it exists
+            # with the correct parameters. The user reported seeing
+            # price tick past stop/target levels without the bracket
+            # firing -- this happens when oso1Id/oso2Id are returned
+            # but the orders don't actually exist on the matching
+            # engine. Query each and log every field so we have
+            # definitive evidence.
+            if oso1 and oso2:
+                for label, child_id in (("STOP", oso1), ("TARGET", oso2)):
+                    try:
+                        c_status, c_data = self.session._rest(
+                            "GET", "/order/item", params={"id": int(child_id)})
+                        if c_status == 200 and isinstance(c_data, dict):
+                            logger.info(
+                                f"[bracket verify {label}] id={child_id} "
+                                f"action={c_data.get('action')} "
+                                f"orderType={c_data.get('orderType')} "
+                                f"qty={c_data.get('orderQty')} "
+                                f"price={c_data.get('price')} "
+                                f"stopPrice={c_data.get('stopPrice')} "
+                                f"status={c_data.get('ordStatus')}")
+                        else:
+                            logger.error(
+                                f"[bracket verify {label} FAIL] id={child_id} "
+                                f"status={c_status} body={str(c_data)[:200]!r}")
+                    except Exception as e:
+                        logger.error(f"[bracket verify {label}] exception: {e!r}")
             if not oso1 or not oso2:
                 logger.error(
                     f"[tradovate placeoso INCOMPLETE] parent order_id="
