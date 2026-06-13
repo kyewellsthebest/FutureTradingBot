@@ -335,6 +335,20 @@ class FibRuntime:
         self._pending_parent_orders: list = []
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
+        # Spin up the Tradovate user WS for real-time fill events. The
+        # bot can survive without it (falls back to the +0.5/2/5/15s
+        # REST poll above), but with it we see fills in <100ms.
+        try:
+            if self.tradovate_session is not None:
+                from bot.tradovate_user_ws import TradovateUserWS
+                self.tradovate_user_ws = TradovateUserWS(self.tradovate_session)
+                started = self.tradovate_user_ws.start()
+                logger.info(f"tradovate_user_ws started={started}")
+            else:
+                self.tradovate_user_ws = None
+        except Exception as e:
+            logger.warning(f"tradovate_user_ws init failed: {e!r}")
+            self.tradovate_user_ws = None
 
     def _hydrate_recent_trades(self) -> None:
         """Load the last 30 closed trades from persistence so the Trades
@@ -440,8 +454,10 @@ class FibRuntime:
         trade timeline. NEVER blocks paper, NEVER cancels orders,
         NEVER reduces trades. Pure read-only diagnostic.
 
-        Schedule: poll at +0.5s, +2s, +5s, +15s after submit. After
-        15s the entry has either filled or won't; we stop polling.
+        Two paths:
+          1. If the user WS is connected, look up the parent order
+             in the live ExecutionReport buffer -- arrives in <100ms.
+          2. Otherwise REST poll at +0.5s, +2s, +5s, +15s.
 
         Goal: by the time the bot enters _on_trade_close, we know
         from the timeline whether the broker actually filled or
@@ -451,12 +467,45 @@ class FibRuntime:
         if not self._pending_parent_orders or self.tradovate_orders is None:
             return
         from bot.trade_timeline import add_event as _tl
+        # First pass: check the live user WS event buffer for fills on
+        # any pending parents. This catches fills the instant the
+        # matching engine reports them, well before the REST poll
+        # schedule would trigger.
+        ws_fills_by_order = {}
+        try:
+            if getattr(self, "tradovate_user_ws", None) is not None:
+                ws = self.tradovate_user_ws
+                if ws.connected:
+                    for er in ws.get_exec_reports(limit=200):
+                        oid = er.get("orderId")
+                        if oid is not None:
+                            ws_fills_by_order[int(oid)] = er
+        except Exception:
+            pass
         now_ts = time.time()
         keep = []
         # Check intervals: at most one poll per tick to avoid burning
         # rate budget. Stops after 15s.
         for entry in self._pending_parent_orders:
             age = now_ts - entry["submitted_at"]
+            # WS shortcut: if we have a live exec report showing this
+            # parent filled/rejected, record it and move on. The REST
+            # poll is the safety net.
+            pid = entry.get("parent_order_id")
+            if pid is not None and int(pid) in ws_fills_by_order:
+                er = ws_fills_by_order[int(pid)]
+                ord_status = er.get("ordStatus")
+                exec_type = er.get("execType")
+                _tl(entry["setup_ref"], "broker_ws_event",
+                     exec_type=exec_type, ord_status=ord_status,
+                     avg_px=er.get("avgPx"),
+                     last_qty=er.get("lastQty"),
+                     last_px=er.get("lastPx"),
+                     reject_reason=er.get("rejectReason"),
+                     ws_age_s=round(age, 3))
+                if ord_status in {"Filled", "Rejected", "Canceled", "Expired"}:
+                    # No more polling needed -- WS gave us the answer.
+                    continue
             check_schedule = (0.5, 2.0, 5.0, 15.0)
             checks_done = entry.get("checks_done", 0)
             should_check = (

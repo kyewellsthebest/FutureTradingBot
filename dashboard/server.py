@@ -2192,7 +2192,132 @@ def _build_diagnostic_extras() -> dict:
         extras["log_tail"] = _read_log_tail(50_000)
     except Exception as e:
         extras["log_tail"] = {"error": repr(e)}
+    # Tradovate user WebSocket state + recent real-time events
+    # (ExecutionReport, Fill, Order, Position, CashBalance updates).
+    # If this is healthy, fill detection latency drops from ~500ms
+    # (REST poll) to <100ms (WS push).
+    try:
+        from bot.tradovate_user_ws import get_user_ws
+        ws = get_user_ws()
+        if ws is not None:
+            extras["tradovate_user_ws"] = {
+                "health": ws.health(),
+                "recent_events": ws.get_recent_events(100),
+                "recent_fills": ws.get_fills(50),
+                "recent_exec_reports": ws.get_exec_reports(50),
+            }
+        else:
+            extras["tradovate_user_ws"] = {"unavailable": "no ws instance"}
+    except Exception as e:
+        extras["tradovate_user_ws"] = {"error": repr(e)}
+    # Auto consistency check: scan the bundle for known divergence
+    # patterns and surface them as actionable findings.
+    try:
+        extras["consistency_check"] = _run_consistency_check(extras)
+    except Exception as e:
+        extras["consistency_check"] = {"error": repr(e)}
     return extras
+
+
+def _run_consistency_check(extras: dict) -> dict:
+    """Scan the diagnostic data for known divergence patterns. Returns
+    a list of findings the user (and the assistant) can act on without
+    having to manually inspect the whole bundle. RED flags are
+    actionable, AMBER flags are heuristics, GREEN flags are good
+    confirmations.
+    """
+    findings = []
+
+    def _add(level: str, code: str, msg: str, **detail):
+        findings.append({"level": level, "code": code,
+                          "message": msg, **detail})
+
+    # ---- Price diff ----
+    pd_hist = extras.get("price_diff_history") or {}
+    if isinstance(pd_hist, dict):
+        if pd_hist.get("n", 0) >= 50:
+            abs_mean = pd_hist.get("abs_mean", 0.0)
+            p95 = pd_hist.get("p95", 0.0)
+            if abs(abs_mean) > 0.5:
+                _add("RED", "price_diff_high",
+                     f"Polygon vs Tradovate mean diff = {abs_mean}pt "
+                     f"(p95 {p95}pt). Strategy may fire on prices "
+                     f"broker never sees.")
+            elif abs(abs_mean) > 0.15:
+                _add("AMBER", "price_diff_moderate",
+                     f"Polygon vs Tradovate mean diff = {abs_mean}pt.")
+            else:
+                _add("GREEN", "price_diff_ok",
+                     f"Polygon vs Tradovate aligned (abs_mean {abs_mean}pt)")
+
+    # ---- Slip calibration ----
+    slip = extras.get("slip_calibration") or {}
+    if isinstance(slip, dict) and slip.get("n_samples"):
+        rec = slip.get("recommended_PAPER_STOP_SLIP_PTS")
+        cur = slip.get("current_env_value")
+        if rec is not None and cur is not None:
+            if abs(rec - cur) > 0.25:
+                _add("AMBER", "slip_recalibrate",
+                     f"Observed avg stop slip = {rec}pt but env says "
+                     f"{cur}pt. Update PAPER_STOP_SLIP_PTS.")
+            else:
+                _add("GREEN", "slip_aligned",
+                     f"PAPER_STOP_SLIP_PTS ({cur}) matches observed "
+                     f"({rec})")
+
+    # ---- WebSocket health ----
+    ws_state = extras.get("tradovate_user_ws") or {}
+    if isinstance(ws_state, dict):
+        h = ws_state.get("health") or {}
+        if h.get("connected") and h.get("subscribed"):
+            _add("GREEN", "user_ws_live",
+                 f"User WS connected, {h.get('frames_seen', 0)} frames "
+                 f"seen.")
+        elif ws_state.get("unavailable"):
+            _add("AMBER", "user_ws_unavailable",
+                 "User WS not initialized -- fills polled by REST "
+                 "(higher latency).")
+        else:
+            _add("AMBER", "user_ws_disconnected",
+                 f"User WS not connected: last_error={h.get('last_error')!r}")
+
+    # ---- REST latency ----
+    runtime = extras.get("bot_runtime") or {}
+    poly = (runtime.get("polygon_ws") or {}) if isinstance(runtime, dict) else {}
+    if isinstance(poly, dict):
+        if poly.get("connected") is False:
+            _add("RED", "polygon_ws_down",
+                 "Polygon WS disconnected.")
+
+    # ---- Decision log ----
+    decisions = extras.get("strategy_decisions") or []
+    if isinstance(decisions, list):
+        blocks = [d for d in decisions if d.get("event") == "entry_blocked"]
+        if blocks:
+            from collections import Counter
+            reasons = Counter(d.get("reason") for d in blocks)
+            top = reasons.most_common(3)
+            _add("AMBER", "entries_blocked",
+                 f"{len(blocks)} blocked entries in log. Top reasons: "
+                 f"{top}")
+
+    # ---- Process ----
+    proc = extras.get("process") or {}
+    if isinstance(proc, dict) and isinstance(proc.get("rss_kb"), (int, float)):
+        rss_mb = proc["rss_kb"] / 1024
+        if rss_mb > 1500:
+            _add("AMBER", "high_memory",
+                 f"Bot RSS = {rss_mb:.1f} MB -- watch for OOM.")
+
+    return {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "n_findings": len(findings),
+        "by_level": {
+            lvl: sum(1 for f in findings if f["level"] == lvl)
+            for lvl in ("RED", "AMBER", "GREEN")
+        },
+        "findings": findings,
+    }
 
 
 def _read_log_tail(max_bytes: int) -> dict:

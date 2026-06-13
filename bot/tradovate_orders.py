@@ -173,9 +173,61 @@ class TradovateOrders:
             f"target@{target_price:.2f} ref={setup_ref!r}")
         logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")
 
-        status, resp = self.session._rest("POST", "/order/placeoso", body=body)
-        logger.info(f"[tradovate placeoso RESULT] status={status} "
-                    f"resp={str(resp)[:500]!r}")
+        # Auto-retry on transient failures. Tradovate's placeoso can
+        # return failureReason values like "TimeoutAtMatchingEngine",
+        # "QueueFull", "Throttled", "Pending", or HTTP 500/502/503 on
+        # ephemeral matching-engine glitches. Without retry, a one-off
+        # 200ms blip wipes out the entry entirely. With retry, we
+        # recover automatically.
+        #
+        # NEVER retries on:
+        #   - Permanent failures (InvalidPrice, AccountClosed,
+        #     Unauthorized, RiskCheckFailed, MaxOrderQty, etc.)
+        #   - HTTP 4xx other than 429
+        # Retry budget: 3 attempts, exponential backoff 0.2s/0.5s/1.0s.
+        # Total worst case ~1.7s -- still inside the strategy's window.
+        RETRYABLE_REASONS = {
+            "TimeoutAtMatchingEngine",
+            "OtherExecProviderError",
+            "QueueFull",
+            "Throttled",
+            "Pending",
+            "ServiceUnavailable",
+        }
+        backoff = [0.2, 0.5, 1.0]
+        status, resp = None, None
+        attempt = 0
+        last_failure_reason = None
+        while attempt < len(backoff) + 1:
+            status, resp = self.session._rest(
+                "POST", "/order/placeoso", body=body)
+            logger.info(f"[tradovate placeoso RESULT attempt={attempt}] "
+                        f"status={status} resp={str(resp)[:400]!r}")
+            # Success?
+            if status == 200 and isinstance(resp, dict):
+                fr = resp.get("failureReason")
+                if not fr:
+                    break
+                last_failure_reason = fr
+                if fr not in RETRYABLE_REASONS:
+                    logger.warning(
+                        f"[placeoso permanent failure] {fr} -- not retrying")
+                    break
+                logger.warning(
+                    f"[placeoso transient {fr}] retrying...")
+            elif status in (429, 500, 502, 503, 504, None):
+                logger.warning(
+                    f"[placeoso transient HTTP {status}] retrying...")
+                last_failure_reason = f"http_{status}"
+            else:
+                # Permanent HTTP error (400/401/403/404 etc)
+                logger.warning(
+                    f"[placeoso permanent HTTP {status}] not retrying")
+                break
+            if attempt < len(backoff):
+                import time as _t
+                _t.sleep(backoff[attempt])
+            attempt += 1
         result = self._parse_order_response(status, resp)
         _audit({
             "kind": "placeoso",
@@ -191,6 +243,8 @@ class TradovateOrders:
             "parsed_ok": result.ok,
             "parsed_order_id": result.order_id,
             "parsed_error": result.error,
+            "attempts": attempt + 1,
+            "last_transient_reason": last_failure_reason if attempt > 0 else None,
         })
         # CRITICAL SAFETY: do NOT fall back to a naked market order. If
         # the bracket fails, we refuse the trade entirely. Previously we
