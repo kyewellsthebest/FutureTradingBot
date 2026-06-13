@@ -707,6 +707,41 @@ def api_broker_position():
     })
 
 
+@app.route("/api/diagnostics/recommended_slip")
+def api_diagnostics_recommended_slip():
+    """Returns the slip_calibration block from the diagnostic extras
+    so the dashboard can show 'Apply recommended slip' on a button.
+    Always read-only -- the apply step writes a flag file the bot
+    consumes on the next reload."""
+    try:
+        return jsonify(_build_slip_calibration())
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+
+
+@app.route("/api/diagnostics/apply_slip", methods=["POST"])
+def api_diagnostics_apply_slip():
+    """Persist a new PAPER_STOP_SLIP_PTS recommendation to a flag file
+    the bot reads on startup. NOT an env var override (that would
+    require a Railway redeploy) -- this is a runtime override file
+    in BOT_DATA_DIR.
+    """
+    try:
+        body = request.get_json() or {}
+        value = float(body.get("value"))
+        if not (0 <= value <= 5):
+            return jsonify({"error": "value out of range"}), 400
+        from bot.account_ctx import data_dir as _acct_dir
+        flag = _acct_dir() / "slip_override.json"
+        flag.write_text(json.dumps({
+            "PAPER_STOP_SLIP_PTS": value,
+            "set_at": datetime.now(timezone.utc).isoformat(),
+        }))
+        return jsonify({"ok": True, "value": value, "path": str(flag)})
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+
+
 @app.route("/api/diagnostics/check")
 def api_diagnostics_check():
     """Lightweight version of the consistency check for the dashboard's

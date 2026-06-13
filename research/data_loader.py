@@ -310,9 +310,43 @@ def download_polygon_futures(product: str, timeframe: Timeframe = "5min", *,
               auto-constructed unless `ticker` is given explicitly.
     Uses /futures/v1/aggs/{ticker}?resolution=5_minute (confirmed working).
     window_start in the response is nanoseconds since epoch.
+
+    NEW: BOT_BAR_SOURCE env controls the data source. Default is
+    'polygon' for backwards compat. Set BOT_BAR_SOURCE=tradovate to
+    pull bars from Tradovate's chart WS (no Polygon dependency = can
+    cancel the $200/mo subscription). On Tradovate failure we fall
+    back to Polygon so a transient WS hiccup never starves the bot.
     """
     import json as _json
     import urllib.request
+
+    bar_source = os.environ.get("BOT_BAR_SOURCE", "polygon").lower()
+    if bar_source == "tradovate":
+        try:
+            from bot.tradovate_bars import get_bars as _tv_bars
+            from bot.tradovate_client import get_session
+            # Resolve to a Tradovate-canonical contract name
+            sess = get_session()
+            sym = None
+            if sess.is_configured:
+                contract = sess.find_contract(product)
+                if contract:
+                    sym = contract.get("name")
+            if not sym:
+                sym = ticker or polygon_front_month(product)
+            iv_map = {"1min": "1m", "5min": "5m", "1hr": "1h",
+                       "daily": "1d"}
+            iv = iv_map.get(timeframe, "5m")
+            # Same default sample size as Polygon path (~50K hits the
+            # daily cap; for warmup we typically only need ~500).
+            df = _tv_bars(symbol=sym, interval=iv, n=2000)
+            if df is not None and len(df) > 0:
+                return df
+            logger.warning("BOT_BAR_SOURCE=tradovate returned no bars; "
+                           "falling back to polygon")
+        except Exception as e:
+            logger.warning(f"BOT_BAR_SOURCE=tradovate failed: {e!r}; "
+                           f"falling back to polygon")
 
     key = _polygon_key()
     if not key:

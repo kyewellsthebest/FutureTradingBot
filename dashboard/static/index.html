@@ -191,11 +191,17 @@
       <!-- Live broker stats: balance, today, win rate, profit factor.
            Pulled from /api/broker/stats so the user has a quick view
            of broker reality without scrolling to Performance. -->
-      <div class="grid">
+      <div class="grid grid-2">
         <div class="card">
           <div class="card-header">📡 Broker Performance Summary</div>
           <div class="card-body" id="broker-perf-summary">
             <div class="muted">Loading broker stats…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">⚙️ Slip Auto-Calibration</div>
+          <div class="card-body" id="slip-calibration-body">
+            <div class="muted">Loading slip calibration…</div>
           </div>
         </div>
       </div>

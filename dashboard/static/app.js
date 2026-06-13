@@ -166,9 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
   pollBrokerStats();
   pollBrokerPosition();
   pollHealthCheck();
+  pollSlipCalibration();
   setInterval(pollBrokerStats, 10_000);
   setInterval(pollBrokerPosition, 5_000);
   setInterval(pollHealthCheck, 30_000);
+  setInterval(pollSlipCalibration, 60_000);
 });
 
 // Broker stats polling. Stores the latest /api/broker/stats response
@@ -242,6 +244,84 @@ async function pollHealthCheck() {
     box.innerHTML = summary + rowsHtml;
   } catch (e) {
     box.innerHTML = `<div class="neg">${e.message || e}</div>`;
+  }
+}
+
+// Slip calibration card: poll the dashboard endpoint, show the
+// recommendation + an "Apply" button that writes a runtime override
+// file in BOT_DATA_DIR (no Railway redeploy needed).
+async function pollSlipCalibration() {
+  const box = document.getElementById("slip-calibration-body");
+  if (!box) return;
+  try {
+    const r = await fetch(af("/api/diagnostics/recommended_slip"));
+    if (!r.ok) {
+      box.innerHTML = '<div class="muted">Slip calibration unavailable.</div>';
+      return;
+    }
+    const d = await r.json();
+    if (d.unavailable) {
+      box.innerHTML = `<div class="muted">${d.unavailable}</div>`;
+      return;
+    }
+    if (d.error) {
+      box.innerHTML = `<div class="neg">Error: ${d.error}</div>`;
+      return;
+    }
+    const rec = d.recommended_PAPER_STOP_SLIP_PTS;
+    const cur = d.current_env_value;
+    const n = d.n_samples;
+    const drift = (rec != null && cur != null) ? Math.abs(rec - cur) : 0;
+    const driftClass = drift > 0.25 ? "neg" : (drift > 0.1 ? "amber" : "pos");
+    const meanSlip = d.mean_slip_pts;
+    const medianSlip = d.median_slip_pts;
+    const p95Slip = d.p95_slip_pts;
+    box.innerHTML = `
+      <div class="kv-list">
+        <div class="kv-row"><span>Samples</span><b>${n}</b></div>
+        <div class="kv-row"><span>Mean observed slip</span><b>${meanSlip} pt</b></div>
+        <div class="kv-row"><span>Median</span><b>${medianSlip} pt</b></div>
+        <div class="kv-row"><span>p95</span><b>${p95Slip} pt</b></div>
+        <div class="kv-row"><span>Current PAPER_STOP_SLIP_PTS</span><b>${cur}</b></div>
+        <div class="kv-row"><span>Recommended</span><b class="${driftClass}">${rec} pt</b></div>
+      </div>
+      <button class="btn-dl btn-dl-primary"
+              onclick="applySlipRecommendation(${rec})"
+              style="margin-top:10px;width:100%">
+        ✓ Apply ${rec} as effective slip value
+      </button>
+      <div class="muted small" style="margin-top:6px">
+        Writes a runtime override to ${"BOT_DATA_DIR"}/slip_override.json.
+        Takes effect on next trade close (no redeploy).
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="neg">${e.message || e}</div>`;
+  }
+}
+
+async function applySlipRecommendation(value) {
+  if (typeof value !== "number" || isNaN(value)) {
+    alert("Invalid recommendation value");
+    return;
+  }
+  if (!confirm(`Apply PAPER_STOP_SLIP_PTS = ${value}? This affects paper P&L only (broker bracket unaffected).`)) {
+    return;
+  }
+  try {
+    const r = await fetch(af("/api/diagnostics/apply_slip"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      alert(`✓ Applied PAPER_STOP_SLIP_PTS = ${d.value}\nWritten to ${d.path}`);
+      pollSlipCalibration();
+    } else {
+      alert(`Error: ${d.error || "unknown"}`);
+    }
+  } catch (e) {
+    alert(`Error: ${e.message || e}`);
   }
 }
 

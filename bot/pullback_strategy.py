@@ -72,6 +72,30 @@ PAPER_SPREAD_PTS = float(
     os.environ.get("PAPER_SPREAD_PTS", "0.0"))
 
 
+def _read_slip_override() -> Optional[float]:
+    """If the dashboard's Apply button wrote a slip_override.json into
+    the account data dir, prefer it over the env var. Lets the user
+    auto-tune without a Railway redeploy."""
+    try:
+        from bot.account_ctx import data_dir as _acct_dir
+        p = _acct_dir() / "slip_override.json"
+        if p.exists():
+            import json as _json
+            d = _json.loads(p.read_text())
+            v = d.get("PAPER_STOP_SLIP_PTS")
+            if v is not None:
+                return float(v)
+    except Exception:
+        pass
+    return None
+
+
+def get_effective_stop_slip() -> float:
+    """Resolve the effective stop-slip value: override file > env var."""
+    ov = _read_slip_override()
+    return ov if ov is not None else PAPER_STOP_SLIP_PTS
+
+
 # -------- Decision log (entry block / fire reasons) --------
 # Every setup outcome (detected, blocked, fired, expired) gets a row
 # here with full snapshot. The dashboard bundle exports this so we can
@@ -675,13 +699,14 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
     # paper has historically ignored. This makes paper P&L track broker
     # P&L far more tightly. Set the env vars to 0 to disable.
     adj_exit_px = exit_px
-    if reason == "stop" and PAPER_STOP_SLIP_PTS > 0:
+    slip_value = get_effective_stop_slip()
+    if reason == "stop" and slip_value > 0:
         # Stop-market triggers at stop_px then fills at the NEXT bid/ask.
         # That fill is always WORSE than stop_px on the trader's side.
         if trade.side == "LONG":
-            adj_exit_px = exit_px - PAPER_STOP_SLIP_PTS
+            adj_exit_px = exit_px - slip_value
         else:
-            adj_exit_px = exit_px + PAPER_STOP_SLIP_PTS
+            adj_exit_px = exit_px + slip_value
     if reason == "timeout" and PAPER_SPREAD_PTS > 0:
         # Timeout exit is a flatten MARKET -> pays half-spread.
         half = PAPER_SPREAD_PTS / 2.0

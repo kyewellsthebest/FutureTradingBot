@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -148,11 +149,35 @@ class TradovateOrders:
         # entry. Since we're using a LIMIT entry that fills at
         # entry_estimate exactly (or not at all), the bracket distances
         # are now CORRECT relative to the fill price.
+        #
+        # OPT-IN: Slip-adjusted bracket. When BRACKET_SLIP_PRE_ADJUST=true,
+        # we pre-shift the stop_price TOWARD the entry by the observed
+        # slippage value (PAPER_STOP_SLIP_PTS). The matching engine
+        # triggers stop-market at the pre-shifted price; broker fill
+        # then slips back to where the strategy actually wanted the
+        # stop = paper expectation matches broker fill.
+        #
+        # Default is OFF -- this slightly reduces the actual stop
+        # distance (tighter risk), which can cause trades that would
+        # have recovered to get stopped out a tiny bit earlier. Enable
+        # only after seeing the slip_calibration recommendation in the
+        # bundle and confirming the observed slip is consistent.
+        slip_adjust = (os.environ.get("BRACKET_SLIP_PRE_ADJUST", "false")
+                        .lower() in ("true", "1", "yes"))
+        slip_pts = float(os.environ.get("PAPER_STOP_SLIP_PTS", "0.5"))
         if side == "LONG":
-            stop_price = _tick_round(entry_estimate - float(stop_pts))
+            stop_raw = entry_estimate - float(stop_pts)
+            if slip_adjust:
+                # Stop triggers higher; broker fills slipped down to
+                # match the strategy's intended stop level.
+                stop_raw += slip_pts
+            stop_price = _tick_round(stop_raw)
             target_price = _tick_round(entry_estimate + float(target_pts))
         else:
-            stop_price = _tick_round(entry_estimate + float(stop_pts))
+            stop_raw = entry_estimate + float(stop_pts)
+            if slip_adjust:
+                stop_raw -= slip_pts
+            stop_price = _tick_round(stop_raw)
             target_price = _tick_round(entry_estimate - float(target_pts))
 
         entry_price = _tick_round(entry_estimate)
