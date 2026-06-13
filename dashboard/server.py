@@ -2064,17 +2064,26 @@ def _collect_tradovate_snapshot() -> dict:
             out["per_order_versions"] = {"error": repr(e)}
         _safe("risk_status",
                lambda: sess._rest("GET", "/accountRiskStatus/list"))
-        # /contract/find for our trading symbol -- contract spec
-        # (tick size, value per tick, status). Verifies we're trading
-        # the right contract and our tick rounding matches Tradovate's
-        # tick size.
+        # Contract spec for the trading symbol. The bot's find_contract()
+        # resolves root -> front-month entity (tick size, value, status)
+        # via /contract/suggest. /contract/find?name=MNQ alone returns
+        # 404 because it wants the full contract name (e.g. MNQM6).
         try:
-            sym = os.environ.get("FUTURES_SYMBOL", "MNQ")
-            cur_status, cur_data = sess._rest(
-                "GET", "/contract/find", params={"name": sym})
-            out["contract_find"] = {"http": cur_status, "data": cur_data}
+            sym_root = os.environ.get("POLYGON_CONTRACT", "MNQ")
+            resolved = sess.find_contract(sym_root)
+            out["contract_resolved"] = resolved
+            if resolved and resolved.get("name"):
+                # Also pull tick/value spec via /contract/item
+                try:
+                    spec_status, spec_data = sess._rest(
+                        "GET", "/contract/item",
+                        params={"id": int(resolved["id"])})
+                    out["contract_spec"] = {"http": spec_status,
+                                              "data": spec_data}
+                except Exception as e:
+                    out["contract_spec"] = {"error": repr(e)}
         except Exception as e:
-            out["contract_find"] = {"error": repr(e)}
+            out["contract_resolved"] = {"error": repr(e)}
 
     # Bot's own audit log of every order placement attempt. Includes
     # the EXACT request body sent, raw response, parsed result, and

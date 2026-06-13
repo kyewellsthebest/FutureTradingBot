@@ -85,6 +85,44 @@ MIN_TARGET_HOLD_SECONDS = 10      # Lucid microscalp safety: target exits < 10s 
 MICROSCALP_HARD_THRESHOLD = 0.40  # circuit breaker if >40% of recent trades < MIN_TARGET_HOLD_SECONDS
 MICROSCALP_WINDOW_DAYS = 30
 
+# MNQ futures tick is 0.25. All entry/stop/target prices MUST be tick-
+# aligned or paper and broker will disagree on every fill: paper marks
+# itself filled when price taps the raw float (e.g. 29683.287), while
+# the broker LIMIT sits at the nearest tick (29683.25 or 29683.50) and
+# only fills there. That ~0.04-0.20pt offset compounds across 200 trades
+# into the paper-vs-broker leak the user is seeing.
+TICK_SIZE = 0.25
+
+
+def _tick_round(px: float, side: str, role: str) -> float:
+    """Round a price to MNQ's 0.25 tick.
+
+    role determines rounding direction so the trade is no easier than
+    intended:
+      - entry: round AWAY from current (toward the move) so the LIMIT
+        fills no easier than the strategy planned. LONG entry rounds
+        DOWN (price has to come further to fill); SHORT rounds UP.
+      - stop: round TOWARD the entry (smaller risk) so we never have
+        wider stop than designed. LONG stop rounds UP, SHORT rounds DOWN.
+      - target: round AWAY from entry (more profit needed) so we never
+        take a smaller target than designed. LONG target rounds UP,
+        SHORT rounds DOWN.
+    """
+    import math
+    n = float(px) / TICK_SIZE
+    if role == "entry":
+        # Make entry harder to fill (toward fill direction)
+        n = math.floor(n) if side == "LONG" else math.ceil(n)
+    elif role == "stop":
+        # Make stop tighter (toward entry)
+        n = math.ceil(n) if side == "LONG" else math.floor(n)
+    elif role == "target":
+        # Make target wider (away from entry)
+        n = math.ceil(n) if side == "LONG" else math.floor(n)
+    else:
+        n = round(n)
+    return round(n * TICK_SIZE, 2)
+
 # Lucid Allowed Trading Times -- per Lucid Help Center:
 #   "All positions must be closed by 4:45 PM EST, Monday through Friday"
 #   "Trading resumes at 6:00 PM EST, Sunday through Thursday"
@@ -396,6 +434,14 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
         pullback_entry = impulse_low + pull_pct * impulse_range
         stop_px = pullback_entry + effective_stop_pts
         target_px = pullback_entry - tgt_pts
+
+    # Tick-align so paper and broker agree on fill levels. Without this,
+    # paper fills at the raw float (e.g. 29683.287) but the broker LIMIT
+    # sits at 29683.25 -- they fill at different times and prices. This
+    # is one of the biggest paper-vs-broker divergence sources.
+    pullback_entry = _tick_round(pullback_entry, side, "entry")
+    stop_px = _tick_round(stop_px, side, "stop")
+    target_px = _tick_round(target_px, side, "target")
 
     # bar timestamps for chart placement
     try:
