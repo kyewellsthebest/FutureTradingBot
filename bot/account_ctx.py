@@ -10,13 +10,30 @@ existing single-account deployments keep working.
 """
 from __future__ import annotations
 import json
+import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
 _local = threading.local()
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_LEGACY_DATA = _PROJECT_ROOT / "data"
+
+
+def _resolve_legacy_data() -> Path:
+    """Resolve the base data directory in this priority order:
+       1. BOT_DATA_DIR env var (explicit, used on Railway with the
+          persistent volume mounted at /app/data)
+       2. <project_root>/data (legacy / local dev)
+    """
+    env_dir = os.environ.get("BOT_DATA_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    return _PROJECT_ROOT / "data"
+
+
+_LEGACY_DATA = _resolve_legacy_data()
 
 
 def set_account(account_id: str) -> None:
