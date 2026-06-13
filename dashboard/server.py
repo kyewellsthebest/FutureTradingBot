@@ -2095,7 +2095,49 @@ def _collect_tradovate_snapshot() -> dict:
     except Exception as e:
         out["bot_audit_log"] = {"error": repr(e)}
 
+    # REST latency stats per endpoint. Catches network hiccups that
+    # explain why an entry slipped (placeoso took 800ms -> price moved
+    # 1pt by the time the LIMIT was on the book).
+    try:
+        from bot.tradovate_client import get_latency_stats
+        out["rest_latency"] = get_latency_stats()
+    except Exception as e:
+        out["rest_latency"] = {"error": repr(e)}
+
     return out
+
+
+def _build_diagnostic_extras() -> dict:
+    """Bot-internal diagnostic data not tied to broker API: strategy
+    decision log, Polygon-vs-Tradovate price diff history, WS connection
+    state, tick history. Lives in its own helper because none of it
+    requires a Tradovate REST round-trip."""
+    extras = {}
+    # Strategy decision log: every setup detected / blocked / fired with
+    # full snapshot. This is THE artifact for answering "why didn't the
+    # bot trade right now" or "why did it fire that setup".
+    try:
+        from bot.pullback_strategy import get_decision_log
+        extras["strategy_decisions"] = get_decision_log()
+    except Exception as e:
+        extras["strategy_decisions"] = {"error": repr(e)}
+    # Polygon vs Tradovate live price diff. If consistently 0 it means
+    # the two feeds agree -- the strategy's decisions translate to
+    # broker reality. If non-zero, the strategy is firing on a price
+    # the broker never saw.
+    try:
+        from bot.price_diff_tracker import get_price_diff_history
+        extras["price_diff_history"] = get_price_diff_history()
+    except Exception as e:
+        extras["price_diff_history"] = {"unavailable": repr(e)}
+    # Tick history: last N ticks the strategy saw. Lets us replay
+    # exactly what the bot decided on.
+    try:
+        from bot.tick_history import get_tick_history
+        extras["tick_history"] = get_tick_history()
+    except Exception as e:
+        extras["tick_history"] = {"unavailable": repr(e)}
+    return extras
 
 
 def _build_code_state_payload():
@@ -2106,18 +2148,55 @@ def _build_code_state_payload():
     out = {"ts": datetime.now(timezone.utc).isoformat(),
             "git_sha": None, "git_dirty": None, "branch": None,
             "files": {}, "python_version": None}
-    try:
-        out["git_sha"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=str(ROOT.parent),
-            stderr=subprocess.DEVNULL).decode().strip()
-    except Exception:
-        pass
-    try:
-        out["branch"] = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(ROOT.parent),
-            stderr=subprocess.DEVNULL).decode().strip()
-    except Exception:
-        pass
+    # Railway/Heroku-style deploys often strip the git binary AND the
+    # .git directory, but the deploy SHA is exposed via env vars.
+    # Try those first, then fall back to reading .git/HEAD directly
+    # (Docker images sometimes have .git without the binary).
+    for env_key in ("RAILWAY_GIT_COMMIT_SHA", "SOURCE_VERSION",
+                     "HEROKU_SLUG_COMMIT", "GIT_COMMIT", "COMMIT_SHA"):
+        if os.environ.get(env_key):
+            out["git_sha"] = os.environ[env_key]
+            out["git_sha_source"] = f"env:{env_key}"
+            break
+    for env_key in ("RAILWAY_GIT_BRANCH", "HEROKU_BRANCH", "GIT_BRANCH",
+                     "BRANCH"):
+        if os.environ.get(env_key):
+            out["branch"] = os.environ[env_key]
+            break
+    if not out.get("git_sha"):
+        try:
+            out["git_sha"] = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=str(ROOT.parent),
+                stderr=subprocess.DEVNULL).decode().strip()
+            out["git_sha_source"] = "git_cmd"
+        except Exception:
+            pass
+    if not out.get("git_sha"):
+        # Last resort: read .git/HEAD ourselves
+        try:
+            head_path = ROOT.parent / ".git" / "HEAD"
+            if head_path.exists():
+                head = head_path.read_text().strip()
+                if head.startswith("ref:"):
+                    ref = head.split(" ", 1)[1].strip()
+                    ref_path = ROOT.parent / ".git" / ref
+                    if ref_path.exists():
+                        out["git_sha"] = ref_path.read_text().strip()
+                        out["branch"] = ref.replace("refs/heads/", "")
+                        out["git_sha_source"] = "head_file"
+                else:
+                    out["git_sha"] = head
+                    out["git_sha_source"] = "detached_head"
+        except Exception:
+            pass
+    if not out.get("branch"):
+        try:
+            out["branch"] = subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=str(ROOT.parent),
+                stderr=subprocess.DEVNULL).decode().strip()
+        except Exception:
+            pass
     try:
         st = subprocess.check_output(
             ["git", "status", "--porcelain"], cwd=str(ROOT.parent),
@@ -2506,6 +2585,12 @@ def api_download(kind: str):
         # screenshotting 6 different URLs every time something looks off.
         tradovate_snap = _collect_tradovate_snapshot()
         payload["tradovate"] = tradovate_snap
+        # Bot-internal diagnostic data (strategy decisions, tick history,
+        # Polygon-vs-Tradovate price diff). No broker round-trips.
+        try:
+            payload["diagnostics"] = _build_diagnostic_extras()
+        except Exception as e:
+            payload["diagnostics_error"] = repr(e)
         # Side-by-side paper-vs-broker reconciliation. Pairs each paper
         # trade with the nearest broker fill pair and computes slippage
         # + pnl delta. THIS IS THE ARTIFACT for diagnosing the
@@ -2637,6 +2722,11 @@ def api_download(kind: str):
         except Exception as e:
             data = {"error": repr(e)}
         return _json_resp(data, f"{base_name}_audit_log.json")
+    if kind == "diagnostics":
+        # Bot-internal diagnostic data: strategy decisions, tick history,
+        # price-diff samples. No broker round-trips.
+        return _json_resp(_build_diagnostic_extras(),
+                            f"{base_name}_diagnostics.json")
     if kind == "traderspost":
         try:
             from engine.brokers.traderspost import traderspost_status

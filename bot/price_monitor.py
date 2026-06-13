@@ -235,6 +235,14 @@ class _TickBarAggregator:
         return ts.replace(second=0, microsecond=0)
 
     def on_tick(self, price: float, ts: datetime) -> None:
+        # Capture every tick into the diagnostic ring buffer so the
+        # bundle can replay the price action around an entry/exit.
+        # Cheap: bounded deque append, no I/O.
+        try:
+            from bot.tick_history import record_tick
+            record_tick(price, src="polygon")
+        except Exception:
+            pass
         bucket = self._floor_minute(ts)
         with self._lock:
             if self._cur_start is None:

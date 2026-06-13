@@ -133,6 +133,11 @@ class TradovateOrders:
             target_price = _tick_round(entry_estimate - float(target_pts))
 
         entry_price = _tick_round(entry_estimate)
+        # TIF=Day: the LIMIT auto-expires at session close. Previously
+        # this was GTC, which left zombie LIMITs sitting overnight that
+        # could fill at the open next session at a stale price (way
+        # past the strategy's pullback level). Day TIF respects the
+        # strategy's "this setup is valid only in this session" intent.
         body = {
             "accountSpec": self._account_spec(),
             "accountId": int(account_id),
@@ -141,7 +146,7 @@ class TradovateOrders:
             "orderQty": int(qty),
             "orderType": "Limit",
             "price": entry_price,
-            "timeInForce": "GTC",
+            "timeInForce": "Day",
             "isAutomated": True,
             # bracket1 + bracket2 form an OCO server-side. When the
             # parent (limit entry) fills, both children are activated.
@@ -390,6 +395,62 @@ class TradovateOrders:
             if _AUDIT_LOG:
                 _AUDIT_LOG[-1]["bracket_verification"] = bracket_verification
         return result
+
+    # ------------------------------------------------------------------
+    # Post-submit operations: fill confirmation, cancel
+    # ------------------------------------------------------------------
+
+    def get_order_status(self, order_id: int) -> Optional[str]:
+        """Return the current ordStatus for an Order id, or None on
+        failure. Used to confirm whether a LIMIT entry actually filled.
+
+        ordStatus values per Tradovate API:
+          Pending, PendingNew, PendingCancel, PendingReplace,
+          Working, Filled, PartialFill (deprecated),
+          Canceled, Rejected, Expired, Suspended
+        """
+        try:
+            s, d = self.session._rest(
+                "GET", "/order/item", params={"id": int(order_id)})
+            if s == 200 and isinstance(d, dict):
+                return d.get("ordStatus")
+        except Exception:
+            pass
+        return None
+
+    def cancel_order(self, order_id: int) -> bool:
+        """Cancel a working order. Used by fib_main to kill stale
+        LIMIT entries that didn't fill within the strategy's window.
+
+        WHY this matters: a LIMIT sitting beyond the strategy's
+        intended window can fill on a later price reversion at a
+        time the strategy would never have wanted to open. That's
+        the "bot opened at the wrong moment" symptom users describe
+        when reviewing the broker tab.
+        """
+        try:
+            body = {
+                "orderId": int(order_id),
+                "isAutomated": True,
+            }
+            s, d = self.session._rest(
+                "POST", "/order/cancelorder", body=body)
+            ok = (s == 200 and isinstance(d, dict)
+                   and not d.get("failureReason"))
+            logger.info(f"[cancelorder] id={order_id} http={s} ok={ok} "
+                        f"resp={str(d)[:200]!r}")
+            _audit({
+                "kind": "cancelorder",
+                "order_id": int(order_id),
+                "request_body": body,
+                "http_status": s,
+                "response": d if isinstance(d, dict) else {"_raw": str(d)[:300]},
+                "parsed_ok": ok,
+            })
+            return ok
+        except Exception as e:
+            logger.error(f"[cancelorder] exception: {e!r}")
+            return False
 
     # ------------------------------------------------------------------
     # Fallback: simple market order (no bracket -- use only when the

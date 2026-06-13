@@ -34,11 +34,57 @@ import json
 import logging
 import os
 import time
+import time as _time
 import urllib.error
 import urllib.request
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
+
+
+# --------------------------------------------------------------------
+# REST latency metrics (module-level so the diag bundle can read them)
+# --------------------------------------------------------------------
+_LATENCY_BY_ENDPOINT: "dict[str, deque[float]]" = defaultdict(
+    lambda: deque(maxlen=200))
+_LATENCY_RECENT: "deque[dict]" = deque(maxlen=500)
+
+
+def _record_latency(method: str, path: str, ms: float,
+                     status: Optional[int]) -> None:
+    key = f"{method} {path.split('?', 1)[0]}"
+    _LATENCY_BY_ENDPOINT[key].append(ms)
+    _LATENCY_RECENT.append({
+        "ts": _time.time(), "endpoint": key,
+        "ms": round(ms, 1), "status": status,
+    })
+
+
+def get_latency_stats() -> dict:
+    """Return p50 / p95 / p99 latency per endpoint plus the most recent
+    calls. Used by the diagnostic bundle."""
+    import statistics
+    summary = {}
+    for ep, samples in _LATENCY_BY_ENDPOINT.items():
+        if not samples:
+            continue
+        s = list(samples)
+        s.sort()
+        n = len(s)
+        def _pct(p):
+            idx = min(n - 1, int(n * p / 100))
+            return round(s[idx], 1)
+        summary[ep] = {
+            "n": n,
+            "p50": _pct(50),
+            "p95": _pct(95),
+            "p99": _pct(99),
+            "max": round(s[-1], 1),
+            "mean": round(statistics.mean(s), 1),
+        }
+    return {"per_endpoint": summary,
+            "recent_calls": list(_LATENCY_RECENT)[-50:]}
 
 logger = logging.getLogger("tradovate")
 
@@ -252,15 +298,23 @@ class TradovateSession:
                 "User-Agent": "hftbot/1.0",
             },
         )
+        # Track wall-clock latency for every REST call. Used by the
+        # diagnostic bundle to spot slow endpoints / network hiccups.
+        # /order/placeoso latency in particular tells us if the bot's
+        # entry is slow enough that the matching price moved.
+        t_start = _time.monotonic()
+        status_for_metric = None
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 resp_body = resp.read().decode("utf-8", errors="replace")
+                status_for_metric = resp.status
                 return resp.status, json.loads(resp_body) if resp_body else {}
         except urllib.error.HTTPError as e:
             try:
                 err_body = e.read().decode("utf-8", errors="replace")
             except Exception:
                 err_body = ""
+            status_for_metric = e.code
             logger.warning(f"Tradovate {method} {path} -> HTTP {e.code}: "
                            f"{err_body[:300]!r}")
             try:
@@ -270,6 +324,9 @@ class TradovateSession:
         except Exception as e:
             logger.warning(f"Tradovate {method} {path} failed: {e!r}")
             return None, {"error": repr(e)}
+        finally:
+            ms = (_time.monotonic() - t_start) * 1000.0
+            _record_latency(method, path, ms, status_for_metric)
 
     def account_list(self) -> list[dict]:
         """Returns all accounts for the authenticated user."""

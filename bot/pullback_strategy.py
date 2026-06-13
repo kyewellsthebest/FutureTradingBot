@@ -53,6 +53,43 @@ _HTF_FILTER_ENV = os.environ.get("BOT_HTF_TREND_FILTER", "1") != "0"
 _HTF_K = int(os.environ.get("BOT_HTF_K", "30"))
 
 
+# -------- Slippage / spread modeling for paper P&L --------
+# Paper traditionally assumed exit at the exact stop_px and zero spread
+# cost. Broker reality:
+#   - STOP fills are stop-MARKET on touch -> next available bid/ask,
+#     consistently 0.25-1pt against the trader on MNQ during liquid
+#     hours; worse around news.
+#   - TARGET fills are LIMIT -> at the target level or better
+#     (queue priority matters but no slip).
+#   - Every entry pays half-spread (we cross the book by taking the
+#     opposite side) and every market exit pays half-spread too.
+# Default values are conservative -- override via env if your historical
+# fills show different numbers. Set both to 0 to restore the legacy
+# zero-cost paper model.
+PAPER_STOP_SLIP_PTS = float(
+    os.environ.get("PAPER_STOP_SLIP_PTS", "0.5"))
+PAPER_SPREAD_PTS = float(
+    os.environ.get("PAPER_SPREAD_PTS", "0.0"))
+
+
+# -------- Decision log (entry block / fire reasons) --------
+# Every setup outcome (detected, blocked, fired, expired) gets a row
+# here with full snapshot. The dashboard bundle exports this so we can
+# see WHY each potential trade did or didn't happen.
+_DECISION_LOG: "deque[dict]" = deque(maxlen=500)
+
+
+def _log_decision(event: str, **fields) -> None:
+    import time as _t
+    _DECISION_LOG.append({
+        "ts": _t.time(), "event": event, **fields,
+    })
+
+
+def get_decision_log() -> list:
+    return list(_DECISION_LOG)
+
+
 # ============================================================================
 # Strategy parameters (validated OOS-positive on NQ tick data + 24-mo OHLC)
 #
@@ -634,8 +671,32 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
     trade.exit_px = exit_px
     trade.exit_reason = reason
     hold_s = trade.hold_seconds(now)
-    pnl_pts = (trade.entry_px - exit_px) if trade.side == "SHORT" \
-              else (exit_px - trade.entry_px)
+    # Effective fill = bracket level, ADJUSTED for the broker realities
+    # paper has historically ignored. This makes paper P&L track broker
+    # P&L far more tightly. Set the env vars to 0 to disable.
+    adj_exit_px = exit_px
+    if reason == "stop" and PAPER_STOP_SLIP_PTS > 0:
+        # Stop-market triggers at stop_px then fills at the NEXT bid/ask.
+        # That fill is always WORSE than stop_px on the trader's side.
+        if trade.side == "LONG":
+            adj_exit_px = exit_px - PAPER_STOP_SLIP_PTS
+        else:
+            adj_exit_px = exit_px + PAPER_STOP_SLIP_PTS
+    if reason == "timeout" and PAPER_SPREAD_PTS > 0:
+        # Timeout exit is a flatten MARKET -> pays half-spread.
+        half = PAPER_SPREAD_PTS / 2.0
+        if trade.side == "LONG":
+            adj_exit_px = exit_px - half
+        else:
+            adj_exit_px = exit_px + half
+    pnl_pts = (trade.entry_px - adj_exit_px) if trade.side == "SHORT" \
+              else (adj_exit_px - trade.entry_px)
+    # Every entry pays half-spread (we crossed to take the LIMIT).
+    # Skip for target exits since the LIMIT fills at the level by def.
+    spread_cost_pts = 0.0
+    if PAPER_SPREAD_PTS > 0:
+        spread_cost_pts = PAPER_SPREAD_PTS / 2.0  # entry side only
+    pnl_pts -= spread_cost_pts
     pnl_usd = pnl_pts * trade.n_mnq * 2.0   # $2/pt per MNQ; commissions
                                             # handled in the account layer
     return {
@@ -643,6 +704,9 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
         "entry_ts": trade.entry_ts, "exit_ts": now,
         "side": trade.side, "n_mnq": trade.n_mnq,
         "entry_px": trade.entry_px, "exit_px": exit_px,
+        "adj_exit_px": adj_exit_px,
+        "slip_pts": round(abs(adj_exit_px - exit_px), 4),
+        "spread_cost_pts": spread_cost_pts,
         "stop_px": trade.stop_px, "target_px": trade.target_px,
         "exit_reason": reason, "hold_s": hold_s,
         "pnl_pts": pnl_pts, "pnl_usd": pnl_usd,
@@ -808,8 +872,23 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         # dedup against recent + pending
         already = (key in state.recent_used_setups or
                    any(_setup_key(s) == key for s in state.pending_setups if not s.used))
+        if already:
+            _log_decision("setup_dedup",
+                           side=new_setup.side,
+                           pullback_entry=new_setup.pullback_entry,
+                           stop_px=new_setup.stop_px_val,
+                           target_px=new_setup.target_px_val,
+                           htf_trend=htf_trend)
         if not already:
             state.pending_setups.append(new_setup)
+            _log_decision("setup_detected",
+                           side=new_setup.side,
+                           impulse_high=new_setup.impulse_high,
+                           impulse_low=new_setup.impulse_low,
+                           pullback_entry=new_setup.pullback_entry,
+                           stop_px=new_setup.stop_px_val,
+                           target_px=new_setup.target_px_val,
+                           htf_trend=htf_trend)
             logger.info("[SETUP] %s impulse=[%.2f,%.2f] pullback=%.2f stop=%.2f tgt=%.2f trend=%s",
                         new_setup.side, new_setup.impulse_low,
                         new_setup.impulse_high, new_setup.pullback_entry,
@@ -822,6 +901,10 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     # 5. FIRE armed setups
     if in_cooldown:
+        if state.pending_setups:
+            _log_decision("entry_blocked",
+                           reason="cooldown",
+                           pending_count=len(state.pending_setups))
         return None
     # Auto daily-loss limit -- self-imposed DLL well below Lucid's $1,200
     # so a bad regime can't blow the account before the user can react.
@@ -841,6 +924,9 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                 if not s.used:
                     s.last_block_reason = "manual_pause"
                     s.last_block_at = now
+            if state.pending_setups:
+                _log_decision("entry_blocked", reason="manual_pause",
+                               pending_count=len(state.pending_setups))
             return None
     except Exception:
         pass
@@ -850,6 +936,9 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             if not s.used:
                 s.last_block_reason = "post_streak_pause"
                 s.last_block_at = now
+        if state.pending_setups:
+            _log_decision("entry_blocked", reason="post_streak_pause",
+                           pending_count=len(state.pending_setups))
         return None
     if atr_blocked:
         # Low-ATR regime -- skip firing too. Setups already armed before
@@ -858,6 +947,9 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             if not s.used:
                 s.last_block_reason = "low_atr"
                 s.last_block_at = now
+        if state.pending_setups:
+            _log_decision("entry_blocked", reason="low_atr",
+                           pending_count=len(state.pending_setups))
         return None
     if lucid_blocked:
         # Tag pending setups so the dashboard can show "Lucid window closed"
@@ -866,6 +958,10 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             if not s.used:
                 s.last_block_reason = "lucid_trading_window_closed"
                 s.last_block_at = now
+        if state.pending_setups:
+            _log_decision("entry_blocked",
+                           reason="lucid_trading_window_closed",
+                           pending_count=len(state.pending_setups))
         return None
     if news_blackout is not None:
         # Tag pending setups so the dashboard can show the news reason
@@ -875,6 +971,10 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             if not s.used:
                 s.last_block_reason = news_blackout
                 s.last_block_at = now
+        if state.pending_setups:
+            _log_decision("entry_blocked", reason="news_blackout",
+                           event=news_blackout,
+                           pending_count=len(state.pending_setups))
         return None
 
     for setup in state.pending_setups:
@@ -895,6 +995,10 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         if not decision.allowed:
             if decision.reason != setup.last_block_reason:
                 logger.info("[BLOCKED] %s reason=%s", setup.side, decision.reason)
+                _log_decision("entry_blocked",
+                               reason=f"lucid_precheck:{decision.reason}",
+                               side=setup.side,
+                               pullback_entry=setup.pullback_entry)
             setup.last_block_reason = decision.reason
             setup.last_block_at = now
             continue
@@ -906,6 +1010,12 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         state.active_trade = new_trade
         setup.used = True
         state.recent_used_setups.append(_setup_key(setup))
+        _log_decision("trade_opened",
+                       side=setup.side, qty=size_to_use,
+                       entry_px=entry_px,
+                       stop_px=setup.stop_px_val,
+                       target_px=setup.target_px_val,
+                       source="bar")
         logger.info("[OPEN] %s %d MNQ @ %.2f  stop=%.2f tgt=%.2f",
                     setup.side, size_to_use, entry_px,
                     setup.stop_px_val, setup.target_px_val)
@@ -1025,6 +1135,12 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
     state.active_trade = new_trade
     fired.used = True
     state.recent_used_setups.append(_setup_key(fired))
+    _log_decision("trade_opened",
+                   side=fired.side, qty=size_to_use,
+                   entry_px=entry_px, live_px=live_price,
+                   stop_px=fired.stop_px_val,
+                   target_px=fired.target_px_val,
+                   source="tick")
     logger.info("[OPEN tick] %s %d MNQ pullback=%.2f live=%.2f "
                 "stop=%.2f tgt=%.2f",
                 fired.side, size_to_use, entry_px, live_price,
