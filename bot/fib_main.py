@@ -327,6 +327,14 @@ class FibRuntime:
         # SQLite trade log on construction so history survives restarts.
         self.recent_trades: deque = deque(maxlen=30)
         self._hydrate_recent_trades()
+        # Passive broker fill tracker. After every placeoso, append
+        # {setup_ref, parent_order_id, submitted_at, checks_done, ...}
+        # here. The poll runs on each _tick (PASSIVE -- we never block
+        # paper, never cancel the order, never reduce trades). Just tag
+        # the trade record with whether the broker actually filled.
+        self._pending_parent_orders: list = []
+        # Process start time for the diagnostic bundle's uptime stats.
+        self._started_at = time.time()
 
     def _hydrate_recent_trades(self) -> None:
         """Load the last 30 closed trades from persistence so the Trades
@@ -426,9 +434,82 @@ class FibRuntime:
             time.sleep(1)
 
     # ---- single tick ---------------------------------------------------
+    def _poll_pending_broker_orders(self) -> None:
+        """Passive broker fill tracker. Polls the parent order ID for
+        each recent placeoso to record actual fill status into the
+        trade timeline. NEVER blocks paper, NEVER cancels orders,
+        NEVER reduces trades. Pure read-only diagnostic.
+
+        Schedule: poll at +0.5s, +2s, +5s, +15s after submit. After
+        15s the entry has either filled or won't; we stop polling.
+
+        Goal: by the time the bot enters _on_trade_close, we know
+        from the timeline whether the broker actually filled or
+        not -- so the reconciliation can correctly attribute the
+        paper-vs-broker delta.
+        """
+        if not self._pending_parent_orders or self.tradovate_orders is None:
+            return
+        from bot.trade_timeline import add_event as _tl
+        now_ts = time.time()
+        keep = []
+        # Check intervals: at most one poll per tick to avoid burning
+        # rate budget. Stops after 15s.
+        for entry in self._pending_parent_orders:
+            age = now_ts - entry["submitted_at"]
+            check_schedule = (0.5, 2.0, 5.0, 15.0)
+            checks_done = entry.get("checks_done", 0)
+            should_check = (
+                checks_done < len(check_schedule)
+                and age >= check_schedule[checks_done]
+            )
+            if not should_check:
+                # Not due yet; keep waiting, unless we're past 15s
+                if age < 15.0:
+                    keep.append(entry)
+                else:
+                    _tl(entry["setup_ref"], "broker_poll_timeout",
+                         age_s=round(age, 1))
+                continue
+            try:
+                status = self.tradovate_orders.get_order_status(
+                    entry["parent_order_id"])
+            except Exception as e:
+                status = None
+                _tl(entry["setup_ref"], "broker_poll_error",
+                     parent_id=entry["parent_order_id"],
+                     error=repr(e))
+            _tl(entry["setup_ref"], "broker_poll",
+                 parent_id=entry["parent_order_id"],
+                 age_s=round(age, 1), check_num=checks_done + 1,
+                 ord_status=status)
+            entry["checks_done"] = checks_done + 1
+            if status == "Filled":
+                _tl(entry["setup_ref"], "broker_parent_filled",
+                     fill_age_s=round(age, 2))
+                # Filled -> stop polling this one.
+                continue
+            if status in {"Rejected", "Canceled", "Expired"}:
+                _tl(entry["setup_ref"], "broker_parent_dead",
+                     ord_status=status, age_s=round(age, 1))
+                continue
+            # Still working or unknown: keep polling
+            if age < 15.0:
+                keep.append(entry)
+            else:
+                _tl(entry["setup_ref"], "broker_poll_timeout",
+                     age_s=round(age, 1),
+                     final_status=status or "unknown")
+        self._pending_parent_orders = keep
+
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
+        # Passive broker-fill tracker. Read-only, no side effects.
+        try:
+            self._poll_pending_broker_orders()
+        except Exception as e:
+            logger.debug(f"broker poll: {e!r}")
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the
@@ -826,12 +907,21 @@ class FibRuntime:
                 setup_ref = (f"acct{self.account_id}_"
                              f"{db_id or 'noid'}_"
                              f"{int(now.timestamp())}")
+                # Begin the per-trade event timeline. Every state
+                # transition from here on is timestamped to setup_ref.
+                from bot.trade_timeline import add_event as _tl
+                _tl(setup_ref, "trade_open_started",
+                     side=trade.side, qty=trade.n_mnq,
+                     entry_px=trade.entry_px,
+                     stop_px=trade.stop_px,
+                     target_px=trade.target_px)
                 live_snap = self.monitor.latest()
                 logger.info(f"[broker gate 3/4 live_price] snap="
                             f"{'None' if live_snap is None else f'{live_snap.price:.2f}'}")
                 if live_snap is None:
                     logger.warning(
                         f"[{broker_name} SKIP] no live price -- refusing entry")
+                    _tl(setup_ref, "broker_skip", reason="no_live_price")
                     return
                 divergence = abs(trade.entry_px - live_snap.price)
                 divergence_max = float(os.environ.get(
@@ -845,6 +935,9 @@ class FibRuntime:
                     logger.error(
                         f"[{broker_name} SKIP] divergence "
                         f"{divergence:.1f}pt > {divergence_max:.1f}pt")
+                    _tl(setup_ref, "broker_skip", reason="divergence",
+                         strategy=trade.entry_px, live=live_snap.price,
+                         diff=divergence)
                     return
 
                 # All gates passed -- send the order
@@ -862,6 +955,10 @@ class FibRuntime:
                         f"{trade.n_mnq} {symbol} entry@{trade.entry_px:.2f} "
                         f"stop={stop_pts:.2f}pt target={target_pts:.2f}pt "
                         f"(live={live_snap.price:.2f})")
+                    _tl(setup_ref, "placeoso_sending",
+                         symbol=symbol, entry_px=trade.entry_px,
+                         stop_pts=stop_pts, target_pts=target_pts,
+                         live_px=live_snap.price)
                     # CRITICAL: pass the STRATEGY'S intended entry price
                     # (the 0.618 pullback level) -- NOT the live tick.
                     # The LIMIT order needs to fill at the strategy's
@@ -872,11 +969,25 @@ class FibRuntime:
                         entry_estimate=float(trade.entry_px),
                         setup_ref=setup_ref,
                     )
+                    _tl(setup_ref, "placeoso_result",
+                         ok=result.ok, order_id=result.order_id,
+                         http_status=result.status_code,
+                         error=result.error)
                     if not result.ok:
                         logger.error(f"[tradovate order REJECTED] {result.error}")
                         return
                     logger.info(f"[tradovate order ACCEPTED] order_id="
                                 f"{result.order_id}")
+                    # Stash for the passive fill-tracker.
+                    self._pending_parent_orders.append({
+                        "setup_ref": setup_ref,
+                        "parent_order_id": result.order_id,
+                        "submitted_at": time.time(),
+                        "checks_done": 0,
+                        "side": trade.side,
+                        "entry_px": float(trade.entry_px),
+                        "qty": trade.n_mnq,
+                    })
                 else:
                     logger.info(
                         f"[traderspost SEND BRACKET] {trade.side} "
@@ -914,6 +1025,16 @@ class FibRuntime:
             tag = "SHADOW" if _is_shadow_mode() else "LIVE"
             logger.info(f"[{tag} CLOSE] {record['side']} pnl=${record['pnl_usd']:+,.2f} "
                         f"hold={record['hold_s']:.1f}s reason={record['exit_reason']}")
+            # Timeline: paper-side close happened.
+            try:
+                from bot.trade_timeline import add_event as _tl
+                _tl(self._open_trade_ref, "paper_closed",
+                     reason=record.get("exit_reason"),
+                     exit_px=record.get("exit_px"),
+                     pnl_usd=record.get("pnl_usd"),
+                     hold_s=record.get("hold_s"))
+            except Exception:
+                pass
             # BROKER EXIT POLICY -- bare-minimum integration
             #
             # The subscription's OCO bracket (stop-market + take-profit

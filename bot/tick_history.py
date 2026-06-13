@@ -21,18 +21,28 @@ from typing import Optional
 
 _TICKS: "deque[dict]" = deque(maxlen=5000)
 
+# Latest tick per source -- read by the price-diff tracker to compare
+# Polygon vs Tradovate without coupling those modules directly.
+_LATEST_BY_SRC: dict = {}
+
+
+def latest_by_src(src: str) -> Optional[dict]:
+    return _LATEST_BY_SRC.get(src)
+
 
 def record_tick(px: float, *,
                  bid: Optional[float] = None,
                  ask: Optional[float] = None,
                  src: str = "polygon") -> None:
-    _TICKS.append({
+    rec = {
         "ts": time.time(),
         "px": round(float(px), 4),
         "bid": round(float(bid), 4) if bid is not None else None,
         "ask": round(float(ask), 4) if ask is not None else None,
         "src": src,
-    })
+    }
+    _TICKS.append(rec)
+    _LATEST_BY_SRC[src] = rec
 
 
 def get_tick_history() -> dict:

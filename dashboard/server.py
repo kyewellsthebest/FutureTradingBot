@@ -2110,8 +2110,9 @@ def _collect_tradovate_snapshot() -> dict:
 def _build_diagnostic_extras() -> dict:
     """Bot-internal diagnostic data not tied to broker API: strategy
     decision log, Polygon-vs-Tradovate price diff history, WS connection
-    state, tick history. Lives in its own helper because none of it
-    requires a Tradovate REST round-trip."""
+    state, tick history, trade timelines, slip self-calibration. Lives
+    in its own helper because none of it requires a Tradovate REST
+    round-trip."""
     extras = {}
     # Strategy decision log: every setup detected / blocked / fired with
     # full snapshot. This is THE artifact for answering "why didn't the
@@ -2137,7 +2138,178 @@ def _build_diagnostic_extras() -> dict:
         extras["tick_history"] = get_tick_history()
     except Exception as e:
         extras["tick_history"] = {"unavailable": repr(e)}
+    # Per-trade event timelines. Every state transition (setup detected
+    # -> placeoso sent -> broker poll #1/2/3/4 -> filled -> paper closed)
+    # timestamped to the setup_ref tag. Pairs with reconciliation rows.
+    try:
+        from bot.trade_timeline import get_timeline_all, get_summary
+        extras["trade_timelines"] = get_timeline_all()
+        extras["trade_timelines_summary"] = get_summary()
+    except Exception as e:
+        extras["trade_timelines"] = {"unavailable": repr(e)}
+    # Bot process uptime + cycle counters from the live snapshot.
+    try:
+        snap = persistence.load_dashboard()
+        extras["bot_runtime"] = {
+            "cycle": snap.get("cycle"),
+            "bars_processed": snap.get("bars_processed"),
+            "signals_fired": snap.get("signals_fired"),
+            "signals_blocked": snap.get("signals_blocked"),
+            "last_error": snap.get("last_error"),
+            "polygon_ws": snap.get("polygon_ws"),
+            "tradovate_md": snap.get("tradovate_md"),
+            "ws_tick_bars": snap.get("ws_tick_bars"),
+        }
+    except Exception as e:
+        extras["bot_runtime"] = {"error": repr(e)}
+    # Process info: pid, memory, started-at. Helps spot OOM kills /
+    # restarts.
+    try:
+        import os as _os
+        import resource as _resource
+        import time as _time
+        ru = _resource.getrusage(_resource.RUSAGE_SELF)
+        extras["process"] = {
+            "pid": _os.getpid(),
+            "rss_kb": ru.ru_maxrss,
+            "user_cpu_s": ru.ru_utime,
+            "sys_cpu_s": ru.ru_stime,
+            "now": _time.time(),
+        }
+    except Exception as e:
+        extras["process"] = {"error": repr(e)}
+    # Slip self-calibration: compute the actual avg stop-fill slip from
+    # broker FillPairs and recommend a PAPER_STOP_SLIP_PTS value. Don't
+    # auto-apply -- show on dashboard so the user decides.
+    try:
+        extras["slip_calibration"] = _build_slip_calibration()
+    except Exception as e:
+        extras["slip_calibration"] = {"error": repr(e)}
+    # Recent log tail. Pulled from the bot's logger if a file handler
+    # is configured, otherwise from /tmp/bot.log if it exists. Capped
+    # at ~50 KB so the bundle stays reasonable.
+    try:
+        extras["log_tail"] = _read_log_tail(50_000)
+    except Exception as e:
+        extras["log_tail"] = {"error": repr(e)}
     return extras
+
+
+def _read_log_tail(max_bytes: int) -> dict:
+    """Best-effort read of the last `max_bytes` of the bot's log file."""
+    import pathlib
+    candidates = [
+        os.environ.get("BOT_LOG_FILE"),
+        "/tmp/bot.log",
+        "/tmp/hftbot.log",
+        str(ROOT.parent / "bot.log"),
+    ]
+    for c in candidates:
+        if not c:
+            continue
+        p = pathlib.Path(c)
+        if not p.exists():
+            continue
+        try:
+            size = p.stat().st_size
+            with p.open("rb") as f:
+                if size > max_bytes:
+                    f.seek(size - max_bytes)
+                data = f.read().decode("utf-8", errors="replace")
+            return {"path": str(p), "bytes": len(data),
+                     "truncated": size > max_bytes,
+                     "tail": data}
+        except Exception as e:
+            return {"path": str(p), "error": repr(e)}
+    return {"unavailable": "no log file found"}
+
+
+def _build_slip_calibration() -> dict:
+    """Read actual broker fills and estimate the avg stop-fill slip.
+    The dashboard surfaces this as a recommendation -- the user decides
+    whether to update PAPER_STOP_SLIP_PTS to match.
+    """
+    out = {"ts": datetime.now(timezone.utc).isoformat()}
+    # Pull paper trades (with stop_px) and try to pair with broker fills
+    paper = _filter_trades_since_reset(persistence.load_trades(
+        limit=10_000, only_closed=True))
+    stop_trades = [t for t in paper if t.get("exit_reason") == "stop"]
+    out["paper_stop_count"] = len(stop_trades)
+    # Get broker fills from a fresh tradovate snapshot
+    try:
+        snap = _collect_tradovate_snapshot()
+    except Exception as e:
+        out["error"] = f"snap failed: {e!r}"
+        return out
+
+    def _list_of(key):
+        v = snap.get(key)
+        if isinstance(v, tuple) and len(v) == 2:
+            v = v[1]
+        return v if isinstance(v, list) else []
+
+    fills = _list_of("fill_list_raw")
+    if not fills:
+        out["unavailable"] = "no broker fills yet"
+        return out
+    # Match by time window (within 60s of paper exit_time)
+    slips = []
+    for t in stop_trades:
+        try:
+            et_dt = pd.Timestamp(t["exit_time"])
+            if et_dt.tz is None:
+                et_dt = et_dt.tz_localize("UTC")
+            else:
+                et_dt = et_dt.tz_convert("UTC")
+        except Exception:
+            continue
+        stop_px = float(t.get("stop_px") or 0)
+        side = (t.get("side") or "").upper()
+        if not stop_px or side not in ("LONG", "SHORT"):
+            continue
+        # Find broker fill nearest in time
+        for f in fills:
+            if not isinstance(f, dict):
+                continue
+            fts = f.get("timestamp")
+            try:
+                fts_dt = pd.Timestamp(fts)
+                if fts_dt.tz is None:
+                    fts_dt = fts_dt.tz_localize("UTC")
+                else:
+                    fts_dt = fts_dt.tz_convert("UTC")
+                if abs((fts_dt - et_dt).total_seconds()) > 60:
+                    continue
+            except Exception:
+                continue
+            fpx = f.get("price")
+            if fpx is None:
+                continue
+            # For LONG stop: broker SELLS at fpx <= stop_px (slip = stop - fpx)
+            # For SHORT stop: broker BUYS at fpx >= stop_px (slip = fpx - stop)
+            if side == "LONG":
+                slips.append(float(stop_px) - float(fpx))
+            else:
+                slips.append(float(fpx) - float(stop_px))
+            break
+    if not slips:
+        out["unavailable"] = "no matchable stop fills yet"
+        return out
+    slips.sort()
+    n = len(slips)
+    mean = sum(slips) / n
+    out.update({
+        "n_samples": n,
+        "mean_slip_pts": round(mean, 4),
+        "median_slip_pts": round(slips[n // 2], 4),
+        "p95_slip_pts": round(slips[min(n - 1, int(n * 0.95))], 4),
+        "min_slip_pts": round(slips[0], 4),
+        "max_slip_pts": round(slips[-1], 4),
+        "recommended_PAPER_STOP_SLIP_PTS": round(max(0.0, mean), 2),
+        "current_env_value": float(
+            os.environ.get("PAPER_STOP_SLIP_PTS", "0.5")),
+    })
+    return out
 
 
 def _build_code_state_payload():
@@ -2335,6 +2507,7 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
     fill_pairs = _list_of("fill_pair_list")
     fills = _list_of("fill_list_raw")
     exec_reports = _list_of("execution_report_list")
+    orders = _list_of("order_list_raw")
 
     # Index ExecutionReports by orderId for fast lookup
     er_by_order = {}
@@ -2343,6 +2516,40 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
             oid = er.get("orderId")
             if oid:
                 er_by_order.setdefault(int(oid), []).append(er)
+
+    # NEW: Build setup_ref -> [order_ids] mapping. Every order the bot
+    # submits is tagged with text=setup_ref (capped at 64 chars). We can
+    # therefore pair paper trades to broker orders EXACTLY by ref tag,
+    # instead of guessing by time-window proximity. This is a huge win
+    # for reconciliation accuracy.
+    order_ids_by_ref = {}
+    order_by_id = {}
+    for o in orders:
+        if not isinstance(o, dict):
+            continue
+        oid = o.get("id")
+        text = (o.get("text") or "").strip()
+        if oid is not None:
+            order_by_id[int(oid)] = o
+        if text and oid is not None:
+            order_ids_by_ref.setdefault(text, []).append(int(oid))
+    # Build fill-pair index by buyFillId/sellFillId -> their orderId
+    fill_by_id = {}
+    for f in fills:
+        if isinstance(f, dict) and f.get("id") is not None:
+            fill_by_id[int(f["id"])] = f
+    # Reverse-map: orderId -> [fill_pairs touching that order]
+    pair_by_order_id = {}
+    for fp in fill_pairs:
+        if not isinstance(fp, dict):
+            continue
+        for fk in ("buyFillId", "sellFillId"):
+            fid = fp.get(fk)
+            if fid is None:
+                continue
+            fill = fill_by_id.get(int(fid))
+            if isinstance(fill, dict) and fill.get("orderId") is not None:
+                pair_by_order_id.setdefault(int(fill["orderId"]), []).append(fp)
 
     # Build a chronological list of fill pairs as (ts, pair_dict)
     pair_times = []
@@ -2379,14 +2586,43 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
             "ts_open": ts_open, "ts_close": ts_close,
         })
 
-    # For each paper trade, find the broker pair whose ts_close is
-    # closest to the paper exit_time (within 5 min window).
-    used = set()
+    # Try to grab the timeline so we can attach the per-trade event
+    # log to each row -- the user can see the full timestamp chain
+    # without opening another file.
+    try:
+        from bot.trade_timeline import get_timeline_all
+        timelines = get_timeline_all()
+    except Exception:
+        timelines = {}
+
+    # For each paper trade, prefer exact match by setup_ref tag. The
+    # bot tags every order with text=setup_ref, so we can pair
+    # paper<->broker without ambiguity. Falls back to time-window
+    # only if no ref is found.
+    used = set()                # pair_times indices used
+    used_refs = set()           # setup_refs already matched
     matched_pnl_delta = 0.0
     total_paper = 0.0
     total_broker = 0.0
     matched = 0
     unmatched = 0
+    matched_by_ref = 0
+    matched_by_time = 0
+
+    def _pt_index_for_order_id(order_id):
+        """Return the pair_times index whose FillPair touches order_id."""
+        for idx, pt in enumerate(pair_times):
+            fp = pt["pair"]
+            for fk in ("buyFillId", "sellFillId"):
+                fid = fp.get(fk)
+                if fid is None:
+                    continue
+                fill = fill_by_id.get(int(fid))
+                if isinstance(fill, dict):
+                    if fill.get("orderId") == order_id:
+                        return idx
+        return None
+
     for t in paper:
         et = t.get("exit_time")
         side = t.get("side")
@@ -2395,19 +2631,67 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
                 if pd.Timestamp(et).tz else pd.Timestamp(et).tz_localize("UTC")
         except Exception:
             et_dt = None
+        # Reconstruct the setup_ref the bot would have tagged. The
+        # format is acct{aid}_{db_id}_{epoch_secs}, but the trade's
+        # entry_time gives us the secs. We can also try matching by
+        # any "setup_ref" field if persistence stored it.
+        ref_candidates = []
+        if t.get("setup_ref"):
+            ref_candidates.append(t["setup_ref"])
+        # If we have the trade db id, reconstruct
+        try:
+            tid = t.get("id")
+            et_secs = None
+            if t.get("entry_time"):
+                ets = pd.Timestamp(t["entry_time"])
+                et_secs = int(ets.timestamp())
+            for aid_key in ("account_id", "acct"):
+                aid_val = t.get(aid_key)
+                if aid_val and tid and et_secs:
+                    ref_candidates.append(f"acct{aid_val}_{tid}_{et_secs}")
+            # Best-effort scan: any timeline ref that matches the trade
+            # db id should also work
+            if tid:
+                for ref in timelines.keys():
+                    if f"_{tid}_" in ref:
+                        ref_candidates.append(ref)
+        except Exception:
+            pass
+
         best = None
         best_dt = None
-        for idx, pt in enumerate(pair_times):
-            if idx in used:
+        match_method = None
+
+        # Pass 1: exact setup_ref tag
+        for ref in ref_candidates:
+            if ref in used_refs:
                 continue
-            if pt["ts_close"] is None or et_dt is None:
-                continue
-            dt = abs((pt["ts_close"] - et_dt).total_seconds())
-            if dt > 300:  # 5-minute window
-                continue
-            if best_dt is None or dt < best_dt:
-                best = idx
-                best_dt = dt
+            ids = order_ids_by_ref.get(ref) or []
+            for oid in ids:
+                idx = _pt_index_for_order_id(oid)
+                if idx is not None and idx not in used:
+                    best = idx
+                    best_dt = 0
+                    match_method = f"ref:{ref}"
+                    used_refs.add(ref)
+                    break
+            if best is not None:
+                break
+
+        # Pass 2: time-window fallback
+        if best is None:
+            for idx, pt in enumerate(pair_times):
+                if idx in used:
+                    continue
+                if pt["ts_close"] is None or et_dt is None:
+                    continue
+                dt = abs((pt["ts_close"] - et_dt).total_seconds())
+                if dt > 300:
+                    continue
+                if best_dt is None or dt < best_dt:
+                    best = idx
+                    best_dt = dt
+                    match_method = "time_window"
         row = {
             "paper_entry_time": t.get("entry_time"),
             "paper_exit_time": et,
@@ -2419,8 +2703,16 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
             "paper_target_px": t.get("target_px"),
             "paper_pnl": t.get("pnl"),
             "paper_exit_reason": t.get("exit_reason"),
+            "ref_candidates": ref_candidates,
             "matched": False,
+            "match_method": match_method,
         }
+        # Attach timeline events for any matched ref
+        for ref in ref_candidates:
+            if ref in timelines:
+                row["timeline"] = timelines[ref]
+                row["setup_ref"] = ref
+                break
         if best is not None:
             used.add(best)
             pt = pair_times[best]
@@ -2483,6 +2775,10 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
                 ers.extend(er_by_order.get(k, []))
             row["execution_reports"] = ers
             matched += 1
+            if match_method and match_method.startswith("ref:"):
+                matched_by_ref += 1
+            else:
+                matched_by_time += 1
         else:
             unmatched += 1
         out["rows"].append(row)
@@ -2490,6 +2786,8 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
     out["summary"] = {
         "paper_trades_count": len(paper),
         "matched": matched,
+        "matched_by_setup_ref": matched_by_ref,
+        "matched_by_time_window": matched_by_time,
         "unmatched": unmatched,
         "total_paper_pnl": round(total_paper, 2),
         "total_broker_pnl": round(total_broker, 2),
@@ -2727,6 +3025,17 @@ def api_download(kind: str):
         # price-diff samples. No broker round-trips.
         return _json_resp(_build_diagnostic_extras(),
                             f"{base_name}_diagnostics.json")
+    if kind == "timeline":
+        # Standalone trade-event timeline. One row per setup_ref with
+        # the full chain of state transitions.
+        try:
+            from bot.trade_timeline import get_timeline_all, get_summary
+            data = {"ts": datetime.now(timezone.utc).isoformat(),
+                    "summary": get_summary(),
+                    "timelines": get_timeline_all()}
+        except Exception as e:
+            data = {"error": repr(e)}
+        return _json_resp(data, f"{base_name}_timeline.json")
     if kind == "traderspost":
         try:
             from engine.brokers.traderspost import traderspost_status

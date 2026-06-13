@@ -382,6 +382,33 @@ class TradovateMarketData:
             if self.tick_count <= 10 or self.tick_count % 500 == 0:
                 logger.info(f"tradovate_md tick #{self.tick_count} "
                             f"price={price} ts={ts_raw}")
+            # Record into the diagnostic tick buffer (with bid/ask if
+            # present) so the bundle has the broker's view of the tape.
+            try:
+                bid_entry = entries.get("Bid") if isinstance(entries, dict) else None
+                ask_entry = entries.get("Offer") if isinstance(entries, dict) else None
+                bid = bid_entry.get("price") if isinstance(bid_entry, dict) else None
+                ask = ask_entry.get("price") if isinstance(ask_entry, dict) else None
+                from bot.tick_history import record_tick
+                record_tick(float(price),
+                             bid=float(bid) if bid is not None else None,
+                             ask=float(ask) if ask is not None else None,
+                             src="tradovate")
+                # And compare to the latest Polygon tick to catch
+                # feed divergence in real time. The two modules don't
+                # know about each other -- we read the latest Polygon
+                # tick from the shared tick-history cache.
+                try:
+                    from bot.tick_history import latest_by_src
+                    poly = latest_by_src("polygon")
+                    if poly is not None:
+                        from bot.price_diff_tracker import record_sample
+                        record_sample(poly_px=poly["px"],
+                                       trad_px=float(price))
+                except Exception:
+                    pass
+            except Exception:
+                pass
             try:
                 self.on_tick(float(price), ts_utc)
             except Exception as cb_err:
