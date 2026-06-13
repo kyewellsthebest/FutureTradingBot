@@ -166,6 +166,39 @@
           </div>
         </div>
       </div>
+
+      <!-- Inline consistency check + live broker stats. Rendered from
+           /api/diagnostics/check so the user doesn't have to download
+           the bundle to spot issues. Green = all good, amber = check
+           when convenient, red = act now. -->
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            🧐 Auto Health Check
+            <button class="btn-dl"
+                    id="btn-refresh-health"
+                    style="float:right;margin-top:-4px;padding:4px 12px"
+                    onclick="pollHealthCheck()">
+              🔄 Refresh
+            </button>
+          </div>
+          <div class="card-body" id="health-check-body">
+            <div class="muted">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live broker stats: balance, today, win rate, profit factor.
+           Pulled from /api/broker/stats so the user has a quick view
+           of broker reality without scrolling to Performance. -->
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">📡 Broker Performance Summary</div>
+          <div class="card-body" id="broker-perf-summary">
+            <div class="muted">Loading broker stats…</div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ─── CHART ──────────────────────────────────────────────────────── -->
@@ -271,15 +304,21 @@
     <!-- ─── TRADES ─────────────────────────────────────────────────────── -->
     <section class="tabpane" id="pane-trades">
       <div class="card">
-        <div class="card-header">Broker Trades — Tradovate executions (last 100)</div>
+        <div class="card-header">
+          Trades · <span id="trades-source-label">📡 BROKER</span>
+          <span class="muted" style="float:right;font-size:11px;margin-top:4px">
+            Click any row for full timeline + matched orders/fills/exec reports
+          </span>
+        </div>
         <div class="card-body" style="padding: 0;">
           <div class="table-wrap">
             <table class="data-table" id="trades-table">
               <thead><tr>
-                <th>Time</th><th>Action</th><th>Qty</th>
-                <th>Price</th><th>Order ID</th><th>Fill ID</th>
+                <th>Exit Time</th><th>Side</th><th>Qty</th>
+                <th>Entry</th><th>Exit</th><th>P&L</th>
+                <th>Reason</th><th>Hold</th>
               </tr></thead>
-              <tbody><tr><td colspan="6" class="muted center" style="padding: 24px;">Loading broker fills…</td></tr></tbody>
+              <tbody><tr><td colspan="8" class="muted center" style="padding: 24px;">Loading trades…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -369,6 +408,16 @@
     </section>
 
   </main>
+
+  <!-- Trade detail modal: opens when a trade row is clicked.
+       Renders the full event timeline + matched broker orders + fills
+       + execution reports for that one trade. -->
+  <div id="trade-detail-modal" class="trade-modal" onclick="if(event.target===this)closeTradeDetail()">
+    <div class="trade-modal-inner">
+      <button class="trade-modal-close" onclick="closeTradeDetail()">✕</button>
+      <div id="trade-detail-body"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
 
 </div>
 <script src="/static/app.js" defer></script>

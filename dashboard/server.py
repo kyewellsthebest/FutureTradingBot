@@ -707,6 +707,84 @@ def api_broker_position():
     })
 
 
+@app.route("/api/diagnostics/check")
+def api_diagnostics_check():
+    """Lightweight version of the consistency check for the dashboard's
+    Auto Health Check card. Returns the same RED/AMBER/GREEN findings
+    as the bundle's consistency_check, but without dragging in the
+    full bundle (much faster)."""
+    try:
+        extras = _build_diagnostic_extras()
+        return jsonify(extras.get("consistency_check") or {})
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+
+
+@app.route("/api/broker/trade/<setup_ref>")
+def api_broker_trade_detail(setup_ref: str):
+    """Drill-down for one specific trade: its full event timeline,
+    matched broker fills, and the original orders. Used by the
+    Trades-tab modal so the user can click a trade and see exactly
+    what happened.
+
+    Inputs: setup_ref tag (the bot stamps it on every order). The
+    timeline module is keyed by setup_ref.
+    """
+    try:
+        from bot.trade_timeline import get_timeline
+        timeline = get_timeline(setup_ref)
+    except Exception as e:
+        timeline = []
+    out = {"setup_ref": setup_ref, "timeline": timeline}
+    # Find matching orders + fills + executionReports by text=setup_ref
+    try:
+        from bot.tradovate_client import get_session
+        sess = get_session()
+        if sess.is_configured:
+            o_status, orders = sess._rest("GET", "/order/list")
+            matched_orders = []
+            order_ids = []
+            if o_status == 200 and isinstance(orders, list):
+                for o in orders:
+                    if not isinstance(o, dict):
+                        continue
+                    text = (o.get("text") or "").strip()
+                    if text == setup_ref:
+                        matched_orders.append(o)
+                        if o.get("id") is not None:
+                            order_ids.append(int(o["id"]))
+            out["orders"] = matched_orders
+            # Fills for those orderIds
+            f_status, fills = sess._rest("GET", "/fill/list")
+            if f_status == 200 and isinstance(fills, list):
+                out["fills"] = [f for f in fills
+                                  if isinstance(f, dict)
+                                  and f.get("orderId") in order_ids]
+            # ExecutionReports for those orderIds
+            er_status, ers = sess._rest("GET", "/executionReport/list")
+            if er_status == 200 and isinstance(ers, list):
+                out["execution_reports"] = [
+                    er for er in ers
+                    if isinstance(er, dict)
+                    and er.get("orderId") in order_ids
+                ]
+            # OrderVersion for the prices on each order
+            ov_chain = []
+            for oid in order_ids:
+                try:
+                    vs, vd = sess._rest(
+                        "GET", "/orderVersion/deps",
+                        params={"masterid": int(oid)})
+                    if vs == 200 and isinstance(vd, list):
+                        ov_chain.append({"order_id": oid, "versions": vd})
+                except Exception:
+                    pass
+            out["order_versions"] = ov_chain
+    except Exception as e:
+        out["broker_error"] = repr(e)
+    return jsonify(out)
+
+
 @app.route("/api/broker/last_trades")
 def api_broker_last_trades():
     """Last N broker trades for the Trades tab. Same shape as

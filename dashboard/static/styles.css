@@ -497,6 +497,64 @@ img, svg, canvas { max-width: 100%; }
   box-shadow: 0 4px 12px rgba(99, 179, 237, 0.25);
 }
 
+/* Trade detail modal */
+.trade-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1000;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+}
+.trade-modal-inner {
+  background: var(--card-bg, #161e2e);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  padding: 24px 28px;
+  max-width: 920px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.trade-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.trade-modal-close:hover {
+  background: rgba(239, 83, 80, 0.20);
+  color: #ef5350;
+}
+.trade-modal details {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.trade-modal details summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* Make trade rows clickable */
+#trades-table tbody tr {
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+#trades-table tbody tr:hover {
+  background: rgba(99, 179, 237, 0.08);
+}
+
 /* Topbar KPIs */
 .topbar-stats {
   display: flex;

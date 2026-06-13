@@ -52,6 +52,29 @@ def _tick_round(px: float, tick: float = 0.25) -> float:
     return round(round(float(px) / tick) * tick, 2)
 
 
+def _is_marketable(side: str, entry_price: float,
+                    bid: Optional[float],
+                    ask: Optional[float]) -> Optional[bool]:
+    """Return True if a LIMIT @ entry_price would fill immediately given
+    the current bid/ask. None if bid/ask unknown.
+
+    For LONG (BUY LIMIT): fills when ask <= limit price.
+    For SHORT (SELL LIMIT): fills when bid >= limit price.
+
+    The reconciliation uses this to answer "did we expect this LIMIT
+    to fill instantly, or was it sitting waiting for the market to
+    come to us?"
+    """
+    try:
+        if side == "LONG" and ask is not None:
+            return float(ask) <= float(entry_price)
+        if side == "SHORT" and bid is not None:
+            return float(bid) >= float(entry_price)
+    except Exception:
+        pass
+    return None
+
+
 @dataclass
 class OrderResult:
     ok: bool
@@ -167,10 +190,37 @@ class TradovateOrders:
         if setup_ref:
             body["text"] = setup_ref[:64]  # Tradovate caps user text
 
+        # Capture market state at submit time so the audit log + bundle
+        # show the bid/ask spread when the order went in. This is pure
+        # diagnostic -- doesn't change the order, doesn't reduce trades.
+        # Used by the post-hoc reconciliation to answer "was this LIMIT
+        # marketable (ask <= entry for LONG)?" without guessing.
+        market_state = None
+        try:
+            from bot.tick_history import latest_by_src
+            tv = latest_by_src("tradovate") or {}
+            market_state = {
+                "tradovate_bid": tv.get("bid"),
+                "tradovate_ask": tv.get("ask"),
+                "tradovate_last": tv.get("px"),
+                "tradovate_age_s": (
+                    round(time.time() - tv.get("ts"), 3)
+                    if tv.get("ts") else None),
+                "spread_pts": (
+                    round(tv["ask"] - tv["bid"], 4)
+                    if tv.get("bid") is not None
+                    and tv.get("ask") is not None else None),
+                "marketable": _is_marketable(
+                    side, entry_price, tv.get("bid"), tv.get("ask")),
+            }
+        except Exception:
+            pass
+
         logger.info(
             f"[tradovate placeoso] {action} {qty} {symbol} LIMIT@"
             f"{entry_price:.2f} stop@{stop_price:.2f} "
-            f"target@{target_price:.2f} ref={setup_ref!r}")
+            f"target@{target_price:.2f} ref={setup_ref!r} "
+            f"market={market_state}")
         logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")
 
         # Auto-retry on transient failures. Tradovate's placeoso can
@@ -237,6 +287,7 @@ class TradovateOrders:
             "stop_price": stop_price, "target_price": target_price,
             "stop_pts": float(stop_pts), "target_pts": float(target_pts),
             "setup_ref": setup_ref,
+            "market_state": market_state,
             "request_body": body,
             "http_status": status,
             "response": resp if isinstance(resp, dict) else {"_raw": str(resp)[:500]},

@@ -48,6 +48,8 @@ function setDataSource(src) {
       ? "Showing data from Tradovate broker (real fills). Click to switch to paper."
       : "Showing paper-account expectations. Click to switch to broker (real fills).";
   }
+  const lbl = document.getElementById("trades-source-label");
+  if (lbl) lbl.textContent = src === "broker" ? "📡 BROKER" : "📋 PAPER";
   // Mark all paper-only sections with a visual indicator when in
   // broker mode. Subtle so the user knows what they're looking at.
   document.body.dataset.dataSource = src;
@@ -163,8 +165,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Periodically refresh broker stats + position
   pollBrokerStats();
   pollBrokerPosition();
+  pollHealthCheck();
   setInterval(pollBrokerStats, 10_000);
   setInterval(pollBrokerPosition, 5_000);
+  setInterval(pollHealthCheck, 30_000);
 });
 
 // Broker stats polling. Stores the latest /api/broker/stats response
@@ -182,6 +186,8 @@ async function pollBrokerStats() {
       const today = (state.brokerStats.summary || {}).total_pnl;
       if (today != null) animateNumber("kpi-today", today, fmtUsd);
     }
+    // Render the broker perf summary card on the Live tab
+    try { renderBrokerPerfSummary(); } catch (e) {}
   } catch (e) {}
 }
 
@@ -193,6 +199,170 @@ async function pollBrokerPosition() {
     if (!r.ok) return;
     state.brokerPos = await r.json();
   } catch (e) {}
+}
+
+// Auto health check. Renders RED/AMBER/GREEN findings on the Live tab.
+async function pollHealthCheck() {
+  const box = document.getElementById("health-check-body");
+  if (!box) return;
+  try {
+    const r = await fetch(af("/api/diagnostics/check"));
+    if (!r.ok) {
+      box.innerHTML = `<div class="muted">Health check unavailable (HTTP ${r.status})</div>`;
+      return;
+    }
+    const d = await r.json();
+    if (d.error) {
+      box.innerHTML = `<div class="neg">Error: ${d.error}</div>`;
+      return;
+    }
+    const findings = d.findings || [];
+    const by = d.by_level || {};
+    const summary = `
+      <div style="display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap">
+        <span class="badge" style="background:rgba(239,83,80,0.15);color:#ef5350;padding:4px 10px;border-radius:6px">${by.RED || 0} 🔴 RED</span>
+        <span class="badge" style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:4px 10px;border-radius:6px">${by.AMBER || 0} 🟡 AMBER</span>
+        <span class="badge" style="background:rgba(16,212,168,0.15);color:#10d4a8;padding:4px 10px;border-radius:6px">${by.GREEN || 0} 🟢 GREEN</span>
+      </div>`;
+    if (!findings.length) {
+      box.innerHTML = summary + '<div class="muted">No findings yet. Run the bot for a while and re-check.</div>';
+      return;
+    }
+    const rowsHtml = findings.map(f => {
+      const colors = {
+        RED: "#ef5350", AMBER: "#fbbf24", GREEN: "#10d4a8",
+      };
+      const icon = { RED: "🔴", AMBER: "🟡", GREEN: "🟢" }[f.level] || "•";
+      return `
+        <div style="border-left:3px solid ${colors[f.level]};padding:8px 12px;margin-bottom:6px;background:rgba(255,255,255,0.02);border-radius:0 6px 6px 0">
+          <div style="font-weight:600;color:${colors[f.level]}">${icon} ${f.code}</div>
+          <div style="font-size:12.5px;color:#cbd5e1;margin-top:2px">${f.message}</div>
+        </div>`;
+    }).join("");
+    box.innerHTML = summary + rowsHtml;
+  } catch (e) {
+    box.innerHTML = `<div class="neg">${e.message || e}</div>`;
+  }
+}
+
+// Broker performance summary on the Live tab.
+function renderBrokerPerfSummary() {
+  const box = document.getElementById("broker-perf-summary");
+  if (!box) return;
+  const s = state.brokerStats;
+  if (!s || !s.configured) {
+    box.innerHTML = '<div class="muted">Broker not configured.</div>';
+    return;
+  }
+  const sum = s.summary || {};
+  const balance = s.balance || s.net_liq || 0;
+  const totalPnL = sum.total_pnl || 0;
+  const wr = sum.win_rate || 0;
+  const pf = sum.profit_factor;
+  const dd = sum.max_drawdown || 0;
+  const n = sum.n_trades || 0;
+  const wins = sum.wins || 0;
+  const losses = sum.losses || 0;
+  const avgWin = sum.avg_win || 0;
+  const avgLoss = sum.avg_loss || 0;
+  const pnlClass = totalPnL >= 0 ? "pos" : "neg";
+  box.innerHTML = `
+    <div class="grid grid-3" style="gap:10px">
+      <div>
+        <div class="big-stat" style="color:${totalPnL >= 0 ? '#10d4a8' : '#ef5350'}">${fmtUsd(totalPnL)}</div>
+        <div class="big-stat-label">Total P&L</div>
+      </div>
+      <div>
+        <div class="big-stat">${fmtUsdPlain(balance)}</div>
+        <div class="big-stat-label">Balance</div>
+      </div>
+      <div>
+        <div class="big-stat">${n}</div>
+        <div class="big-stat-label">Trades</div>
+      </div>
+    </div>
+    <div class="kv-list" style="margin-top:10px">
+      <div class="kv-row"><span>Win rate</span><b>${wr.toFixed(1)}% (${wins}W / ${losses}L)</b></div>
+      <div class="kv-row"><span>Profit factor</span><b>${pf !== null && pf !== undefined ? pf.toFixed(2) : '—'}</b></div>
+      <div class="kv-row"><span>Avg win / loss</span><b>${fmtUsd(avgWin)} / ${fmtUsd(avgLoss)}</b></div>
+      <div class="kv-row"><span>Max drawdown</span><b class="neg">${fmtUsd(-Math.abs(dd))}</b></div>
+      <div class="kv-row"><span>Realized (today)</span><b>${fmtUsd(s.realized_pnl || 0)}</b></div>
+      <div class="kv-row"><span>Open P&L</span><b class="${(s.open_pnl || 0) >= 0 ? 'pos' : 'neg'}">${fmtUsd(s.open_pnl || 0)}</b></div>
+    </div>`;
+}
+
+// Click handler for any trade row -- opens a modal with the full
+// timeline + matched broker fills + execution reports.
+async function showTradeDetail(setupRef) {
+  if (!setupRef) {
+    alert("No setup_ref on this trade -- can't look up timeline.");
+    return;
+  }
+  const modal = document.getElementById("trade-detail-modal");
+  const body = document.getElementById("trade-detail-body");
+  if (!modal || !body) return;
+  modal.style.display = "flex";
+  body.innerHTML = '<div class="muted">Loading...</div>';
+  try {
+    const r = await fetch(af(`/api/broker/trade/${encodeURIComponent(setupRef)}`));
+    const d = await r.json();
+    const timeline = d.timeline || [];
+    const orders = d.orders || [];
+    const fills = d.fills || [];
+    const ers = d.execution_reports || [];
+    const tlRows = timeline.map(e => {
+      const t = new Date(e.ts * 1000).toISOString().substring(11, 23);
+      const extras = Object.keys(e).filter(k => k !== "ts" && k !== "event")
+        .map(k => `${k}=${JSON.stringify(e[k])}`).join("  ");
+      return `<tr><td style="color:#94a3b8">${t}</td><td><b>${e.event}</b></td><td style="font-family:monospace;font-size:11px">${extras}</td></tr>`;
+    }).join("");
+    const orderRows = orders.map(o =>
+      `<tr><td>${o.id}</td><td>${o.action}</td><td>${o.ordStatus}</td><td>${o.text || ""}</td></tr>`
+    ).join("");
+    const fillRows = fills.map(f =>
+      `<tr><td>${new Date(f.timestamp).toLocaleTimeString()}</td><td>${f.action}</td><td>${f.qty}</td><td>${f.price}</td><td>${f.orderId}</td></tr>`
+    ).join("");
+    const erRows = ers.map(er =>
+      `<tr><td>${er.execType}</td><td>${er.ordStatus}</td><td>${er.lastQty || ""}</td><td>${er.lastPx || ""}</td><td>${er.avgPx || ""}</td><td>${er.rejectReason || ""}</td></tr>`
+    ).join("");
+    body.innerHTML = `
+      <h3 style="margin:0 0 12px 0">setup_ref: <code>${setupRef}</code></h3>
+      <details open style="margin-bottom:14px">
+        <summary><b>📅 Event timeline (${timeline.length})</b></summary>
+        <table class="data-table" style="margin-top:8px">
+          <thead><tr><th>Time (UTC)</th><th>Event</th><th>Details</th></tr></thead>
+          <tbody>${tlRows || '<tr><td colspan="3" class="muted center">no events captured</td></tr>'}</tbody>
+        </table>
+      </details>
+      <details style="margin-bottom:14px">
+        <summary><b>📦 Orders (${orders.length})</b></summary>
+        <table class="data-table" style="margin-top:8px">
+          <thead><tr><th>ID</th><th>Action</th><th>Status</th><th>Text</th></tr></thead>
+          <tbody>${orderRows || '<tr><td colspan="4" class="muted center">no orders</td></tr>'}</tbody>
+        </table>
+      </details>
+      <details style="margin-bottom:14px">
+        <summary><b>💰 Fills (${fills.length})</b></summary>
+        <table class="data-table" style="margin-top:8px">
+          <thead><tr><th>Time</th><th>Action</th><th>Qty</th><th>Price</th><th>Order</th></tr></thead>
+          <tbody>${fillRows || '<tr><td colspan="5" class="muted center">no fills</td></tr>'}</tbody>
+        </table>
+      </details>
+      <details>
+        <summary><b>📡 Execution reports (${ers.length})</b></summary>
+        <table class="data-table" style="margin-top:8px">
+          <thead><tr><th>execType</th><th>status</th><th>lastQty</th><th>lastPx</th><th>avgPx</th><th>reject</th></tr></thead>
+          <tbody>${erRows || '<tr><td colspan="6" class="muted center">no exec reports</td></tr>'}</tbody>
+        </table>
+      </details>`;
+  } catch (e) {
+    body.innerHTML = `<div class="neg">Error: ${e.message || e}</div>`;
+  }
+}
+
+function closeTradeDetail() {
+  const m = document.getElementById("trade-detail-modal");
+  if (m) m.style.display = "none";
 }
 
 // ---- Admin: Reset account ------------------------------------------------
@@ -1203,29 +1373,61 @@ function renderFunded(d) {
 
 // ---- Trades tab ----------------------------------------------------------
 function renderTradesTable() {
-  // ONE table: raw broker fills (each row = one execution).
-  // User explicitly asked for just "the brokers trade" -- no paper
-  // fallback, no synthesized round-trip pairing. What you see is
-  // exactly what Tradovate's /fill/deps returned for this account.
+  // Renders ROUND-TRIP trades (each row = one entry+exit pair) from
+  // either paper or broker depending on dataSource. Both shapes have
+  // entry_px/exit_px/pnl_usd/side -- the UI is identical.
+  //
+  // Click any row to open the trade detail modal (timeline + matched
+  // orders + fills + execution reports).
   const tbody = document.querySelector("#trades-table tbody");
   if (!tbody) return;
-  const tvFills = (state.tradovateTrades && state.tradovateTrades.fills) || [];
-  if (tvFills.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted center" '
-      + 'style="padding:24px;">No broker fills yet.</td></tr>';
+  const trades = state.trades || [];
+  if (trades.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="muted center" '
+      + 'style="padding:24px;">No trades yet.</td></tr>';
+    // Also fix the header columns to match the new schema
+    const thead = document.querySelector("#trades-table thead tr");
+    if (thead) {
+      thead.innerHTML = `
+        <th>Exit Time</th><th>Side</th><th>Qty</th>
+        <th>Entry</th><th>Exit</th><th>P&L</th>
+        <th>Reason</th><th>Hold</th>`;
+    }
     return;
   }
-  tbody.innerHTML = tvFills.map(f => {
-    const actClass = (f.action || "").toLowerCase() === "buy"
-                      ? "side-long" : "side-short";
-    const px = (f.price != null) ? Number(f.price).toFixed(2) : "—";
-    return `<tr>
-      <td>${new Date(f.timestamp).toLocaleString()}</td>
-      <td class="${actClass}"><b>${f.action ?? "—"}</b></td>
-      <td>${f.qty ?? "—"}</td>
-      <td>${px}</td>
-      <td class="mono small">${f.orderId ?? "—"}</td>
-      <td class="mono small">${f.id ?? "—"}</td>
+  // Update header
+  const thead = document.querySelector("#trades-table thead tr");
+  if (thead) {
+    thead.innerHTML = `
+      <th>Exit Time</th><th>Side</th><th>Qty</th>
+      <th>Entry</th><th>Exit</th><th>P&L</th>
+      <th>Reason</th><th>Hold</th>`;
+  }
+  tbody.innerHTML = trades.map(t => {
+    const sideClass = (t.side || "") === "LONG" ? "side-long" : "side-short";
+    const entry = t.entry_px != null ? Number(t.entry_px).toFixed(2) : "—";
+    const exit = t.exit_px != null ? Number(t.exit_px).toFixed(2) : "—";
+    const pnl = t.pnl_usd != null ? t.pnl_usd : t.pnl;
+    const pnlClass = pnl >= 0 ? "pos" : "neg";
+    const pnlStr = pnl != null ? fmtUsd(pnl) : "—";
+    const exitTs = t.ts || t.exit_time;
+    const tsStr = exitTs ? new Date(exitTs).toLocaleString() : "—";
+    const holdStr = t.hold_s != null ? fmtHold(t.hold_s) : "—";
+    // setup_ref is on broker rows; for paper rows we synthesize from id
+    const ref = t.setup_ref
+                 || (t.id ? `acct${currentAccount}_${t.id}_${t.entry_ts ? Math.floor(new Date(t.entry_ts).getTime()/1000) : ""}` : "");
+    const sourceTag = t.source === "broker_fillpair"
+                       ? '<span class="muted" style="font-size:10px"> 📡</span>'
+                       : '';
+    return `<tr onclick="showTradeDetail('${ref}')">
+      <td>${tsStr}${sourceTag}</td>
+      <td class="${sideClass}"><b>${t.side ?? "—"}</b></td>
+      <td>${t.qty ?? t.n_mnq ?? "—"}</td>
+      <td>${entry}</td>
+      <td>${exit}</td>
+      <td class="${pnlClass}"><b>${pnlStr}</b></td>
+      <td>${t.exit_reason ?? "—"}</td>
+      <td>${holdStr}</td>
     </tr>`;
   }).join("");
 }
