@@ -51,7 +51,18 @@ def __getattr__(name):
     """Backward-compat for any code that imported DASHBOARD_PATH directly."""
     if name == "DASHBOARD_PATH": return _dashboard_path()
     raise AttributeError(f"module 'fib_main' has no attribute {name!r}")
-LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "bot_fib.log"
+# Log path resolves in this order:
+#   1. BOT_LOG_FILE env var (used on Railway with persistent volume)
+#   2. <repo>/logs/bot_fib.log (legacy / local dev)
+# When BOT_LOG_FILE points at a persistent volume (e.g. /app/data/bot.log)
+# the dashboard's diagnostic bundle can include the actual log tail
+# instead of reporting "unavailable".
+def _resolve_log_path() -> Path:
+    env_path = os.environ.get("BOT_LOG_FILE")
+    if env_path:
+        return Path(env_path)
+    return Path(__file__).resolve().parent.parent / "logs" / "bot_fib.log"
+LOG_PATH = _resolve_log_path()
 
 def _is_shadow_mode() -> bool:
     """Re-read BOT_SHADOW_MODE on every call instead of using a
@@ -75,10 +86,16 @@ COMM_PER_MNQ_RT = float(os.environ.get("FIB_COMM_PER_MNQ_RT", "0.74"))   # Lucid
 # Logging
 # ---------------------------------------------------------------------------
 def _setup_logging() -> None:
-    LOG_PATH.parent.mkdir(exist_ok=True)
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     if not logger.handlers:
-        h_file = logging.FileHandler(LOG_PATH)
+        # Use a rotating handler so the volume can't fill up. 5x 10 MB
+        # = 50 MB of recent history retained, oldest auto-truncated.
+        # Without rotation a long-running bot can fill the 500 MB
+        # volume with logs alone in a few weeks.
+        from logging.handlers import RotatingFileHandler
+        h_file = RotatingFileHandler(
+            LOG_PATH, maxBytes=10 * 1024 * 1024, backupCount=4)
         h_file.setFormatter(fmt)
         logger.addHandler(h_file)
         h_stream = logging.StreamHandler()

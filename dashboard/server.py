@@ -2321,17 +2321,36 @@ def _run_consistency_check(extras: dict) -> dict:
 
 
 def _read_log_tail(max_bytes: int) -> dict:
-    """Best-effort read of the last `max_bytes` of the bot's log file."""
+    """Best-effort read of the last `max_bytes` of the bot's log file.
+
+    Resolution order:
+      1. BOT_LOG_FILE env var
+      2. fib_main.LOG_PATH (the actual handler target)
+      3. Common Railway / local paths
+    """
     import pathlib
-    candidates = [
-        os.environ.get("BOT_LOG_FILE"),
+    candidates = [os.environ.get("BOT_LOG_FILE")]
+    try:
+        from bot.fib_main import LOG_PATH as _bot_log_path
+        candidates.append(str(_bot_log_path))
+    except Exception:
+        pass
+    # If a base log file is present + rotation backups exist, also
+    # surface the most recent backup so we don't lose history that
+    # just rotated out moments before the bundle was generated.
+    candidates += [
+        "/app/data/bot.log",
+        "/app/data/bot_fib.log",
+        str(ROOT.parent / "logs" / "bot_fib.log"),
         "/tmp/bot.log",
         "/tmp/hftbot.log",
         str(ROOT.parent / "bot.log"),
     ]
+    seen = set()
     for c in candidates:
-        if not c:
+        if not c or c in seen:
             continue
+        seen.add(c)
         p = pathlib.Path(c)
         if not p.exists():
             continue
@@ -2341,12 +2360,23 @@ def _read_log_tail(max_bytes: int) -> dict:
                 if size > max_bytes:
                     f.seek(size - max_bytes)
                 data = f.read().decode("utf-8", errors="replace")
+            # Look for sibling rotation files for additional context
+            rotation_siblings = []
+            for i in range(1, 5):
+                rp = pathlib.Path(f"{c}.{i}")
+                if rp.exists():
+                    rotation_siblings.append({
+                        "path": str(rp),
+                        "size": rp.stat().st_size,
+                    })
             return {"path": str(p), "bytes": len(data),
                      "truncated": size > max_bytes,
+                     "rotation_siblings": rotation_siblings,
                      "tail": data}
         except Exception as e:
             return {"path": str(p), "error": repr(e)}
-    return {"unavailable": "no log file found"}
+    return {"unavailable": "no log file found",
+            "checked_paths": [c for c in candidates if c]}
 
 
 def _build_slip_calibration() -> dict:
