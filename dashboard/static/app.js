@@ -40,16 +40,18 @@ function setDataSource(src) {
   try { pollBrokerPosition(); } catch (e) {}
   try { renderTradesTable(); } catch (e) {}
   try { renderPerformanceGraphs(); } catch (e) {}
-  // Update the visual indicator
+  // Update the visual indicator (new compact pill label only -- the
+  // verbose old design has been replaced)
+  const lblNew = document.getElementById("data-source-label");
+  if (lblNew) lblNew.textContent = src === "broker" ? "Broker" : "Paper";
   const btn = document.getElementById("data-source-toggle");
   if (btn) {
-    btn.textContent = src === "broker" ? "📡 BROKER" : "📋 PAPER";
     btn.title = src === "broker"
-      ? "Showing data from Tradovate broker (real fills). Click to switch to paper."
-      : "Showing paper-account expectations. Click to switch to broker (real fills).";
+      ? "Showing broker data. Click to switch to paper."
+      : "Showing paper data. Click to switch to broker.";
   }
-  const lbl = document.getElementById("trades-source-label");
-  if (lbl) lbl.textContent = src === "broker" ? "📡 BROKER" : "📋 PAPER";
+  const lblOld = document.getElementById("trades-source-label");
+  if (lblOld) lblOld.textContent = src === "broker" ? "Broker" : "Paper";
   // Mark all paper-only sections with a visual indicator when in
   // broker mode. Subtle so the user knows what they're looking at.
   document.body.dataset.dataSource = src;
@@ -1002,9 +1004,11 @@ async function pollCandles() {
     if (r.ok) {
       state.candles = await r.json();
       if (candleSeries && state.candles && Array.isArray(state.candles)) {
-        candleSeries.setData(state.candles);
-        updateChartMarkers();
-        updateTradeLineSegments();
+        // New design uses area series -- feed {time, value} from close
+        const areaData = state.candles.map(c => ({
+          time: c.time, value: c.close,
+        }));
+        candleSeries.setData(areaData);
       }
     }
   } catch (e) {}
@@ -1093,19 +1097,10 @@ async function pollPriceOnly() {
     if (candleSeries && state.candles && state.candles.length) {
       const last = state.candles[state.candles.length - 1];
       const newClose = +px;
-      const newHigh = Math.max(last.high, newClose);
-      const newLow  = Math.min(last.low,  newClose);
       try {
-        candleSeries.update({
-          time:  last.time,
-          open:  last.open,
-          high:  newHigh,
-          low:   newLow,
-          close: newClose,
-        });
-        // Persist in cache so the next /api/candles refresh doesn't
-        // overwrite a partial bar with a stale one.
-        last.high = newHigh; last.low = newLow; last.close = newClose;
+        // Area series wants {time, value}
+        candleSeries.update({ time: last.time, value: newClose });
+        last.close = newClose;
       } catch (e) { /* chart not ready yet */ }
     }
   } catch (e) { /* network blip — next tick will retry */ }
@@ -1113,11 +1108,21 @@ async function pollPriceOnly() {
 
 // ---- TOPBAR + LIVE ------------------------------------------------------
 function renderTopbar(d) {
-  // NQ price: animate smoothly between ticks, flash green/red on direction
+  // NQ price: animate smoothly between ticks, flash green/red on direction.
+  // Renders into BOTH the legacy compat shell (kpi-price) and the new
+  // Live page stat card (live-nq-price).
   if (typeof d.price === "number") {
     animateNumber("kpi-price", d.price, (n) => n.toFixed(2), true);
+    animateNumber("live-nq-price", d.price, (n) => n.toFixed(2), true);
   } else {
     setText("kpi-price", "—");
+    setText("live-nq-price", "—");
+  }
+  // Last update meta on the NQ card
+  if (d.ts) {
+    try {
+      setText("live-nq-meta", "updated " + new Date(d.ts).toLocaleTimeString());
+    } catch (e) {}
   }
   // Balance: prefer the live Tradovate broker balance over paper.
   // _tradovateAcct is populated by pollTradovateAccount() (every 5s).
@@ -1159,6 +1164,7 @@ function renderTopbar(d) {
   }
   animateNumber("kpi-today", today, fmtUsd);
   animateNumber("kpi-trades-today", todayTradesCount, (n) => String(Math.round(n)));
+  animateNumber("live-trades-today", todayTradesCount, (n) => String(Math.round(n)));
   // Background-refresh the cache so kpi numbers stay live even if the
   // user never opens the Performance tab.
   if (Date.now() - _allTradesCache.ts > 30_000) {
@@ -1725,24 +1731,34 @@ function pairFillsIntoTrades(fills) {
 const _setupLines = {};
 
 function initChart() {
-  const el = document.getElementById("chart-container");
+  // New design: smooth area chart on the Live page (live-mini-chart
+  // container). Lightweight & matches the StarAdmin clean aesthetic.
+  // Uses an area series instead of candles so the curve reads at a
+  // glance without visual noise.
+  const el = document.getElementById("live-mini-chart");
   if (!el || typeof LightweightCharts === "undefined") return;
   chart = LightweightCharts.createChart(el, {
-    layout: { background: { color: "#0c1320" }, textColor: "#a4b1c7" },
-    grid: { vertLines: { color: "rgba(255,255,255,0.04)" },
-            horzLines: { color: "rgba(255,255,255,0.04)" } },
-    timeScale: { borderColor: "rgba(255,255,255,0.1)" },
-    rightPriceScale: { borderColor: "rgba(255,255,255,0.1)" },
+    layout: { background: { color: "#ffffff" }, textColor: "#94a3b8" },
+    grid: { vertLines: { color: "rgba(15,23,42,0.04)" },
+            horzLines: { color: "rgba(15,23,42,0.04)" } },
+    timeScale: { borderColor: "rgba(15,23,42,0.06)" },
+    rightPriceScale: { borderColor: "rgba(15,23,42,0.06)" },
+    crosshair: { mode: 1 },
+    handleScroll: false, handleScale: false,
   });
-  candleSeries = chart.addCandlestickSeries({
-    upColor: "#22d39a", downColor: "#ff5470",
-    wickUpColor: "#22d39a", wickDownColor: "#ff5470",
-    borderVisible: false,
+  candleSeries = chart.addAreaSeries({
+    topColor: "rgba(79, 124, 245, 0.30)",
+    bottomColor: "rgba(79, 124, 245, 0.00)",
+    lineColor: "#4f7cf5",
+    lineWidth: 2,
   });
-  if (state.candles) candleSeries.setData(state.candles);
-  updateChartMarkers();
-  updateSetupLines();
-  updateTradeLineSegments();
+  if (state.candles) {
+    // The area series wants {time, value} -- map from OHLCV close
+    const areaData = state.candles.map(c => ({
+      time: c.time, value: c.close,
+    }));
+    candleSeries.setData(areaData);
+  }
   window.addEventListener("resize", () => {
     chart.resize(el.clientWidth, el.clientHeight);
   });
@@ -2221,7 +2237,7 @@ function drawEquityCurve(trades) {
   if (!trades.length) {
     const r = _setupCanvas("chart-equity"); if (!r) return;
     const { ctx, w, h } = r;
-    ctx.fillStyle = "#5d6b85"; ctx.font = "13px sans-serif";
+    ctx.fillStyle = "#94a3b8"; ctx.font = "13px Inter, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("No trades yet", w / 2, h / 2);
     return;
@@ -2245,20 +2261,20 @@ function drawEquityCurve(trades) {
   _animateChart("chart-equity", (ctx, w, h, progress) => {
     const yOf = (v) => h - padY - ((v - yMin) / range) * (h - 2 * padY);
 
-    // ── 1. Faint horizontal grid (5 evenly-spaced lines) ───────────
-    ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 1;
+    // ── 1. Faint horizontal grid ───────────────────────────────────
+    ctx.strokeStyle = "rgba(15,23,42,0.05)"; ctx.lineWidth = 1;
     for (let i = 1; i <= 4; i++) {
       const y = padY + (i / 5) * (h - 2 * padY);
       ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(w - padX, y); ctx.stroke();
     }
-    // ── 2. $50k start reference (dashed, faint) — only if in range ─
+    // ── 2. $50k start reference (dashed) ───────────────────────────
     if (50000 >= yMin && 50000 <= yMax) {
       const y50k = yOf(50000);
-      ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(15,23,42,0.12)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.setLineDash([3, 5]);
       ctx.moveTo(padX, y50k); ctx.lineTo(w - padX, y50k); ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = "#4a5775"; ctx.font = "10px sans-serif"; ctx.textAlign = "left";
+      ctx.fillStyle = "#94a3b8"; ctx.font = "10px Inter, sans-serif"; ctx.textAlign = "left";
       ctx.fillText("$50k", padX + 4, y50k - 4);
     }
 
@@ -2271,26 +2287,26 @@ function drawEquityCurve(trades) {
     const visible = xy.slice(0, visibleCount);
     const lastX = visible[visible.length - 1].x;
 
-    // ── 3. Filled area under the line (green gradient) ─────────────
+    // Determine line color from the trend (blue if profit, red if loss)
+    const lineColor = (points[points.length - 1].v >= 50000)
+      ? "#4f7cf5" : "#ef4444";
+    const fillBase = (points[points.length - 1].v >= 50000)
+      ? "79, 124, 245" : "239, 68, 68";
+
+    // ── 3. Filled area under the line ──────────────────────────────
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, "rgba(34, 211, 154, 0.55)");
-    gradient.addColorStop(0.5, "rgba(34, 211, 154, 0.18)");
-    gradient.addColorStop(1, "rgba(34, 211, 154, 0.0)");
+    gradient.addColorStop(0, `rgba(${fillBase}, 0.20)`);
+    gradient.addColorStop(1, `rgba(${fillBase}, 0.00)`);
     ctx.beginPath();
     visible.forEach(({ x, y }, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
     ctx.lineTo(lastX, h - padY); ctx.lineTo(padX, h - padY); ctx.closePath();
     ctx.fillStyle = gradient; ctx.fill();
 
-    // ── 4. Glowing equity line (double-pass for the bloom) ──────────
+    // ── 4. Clean line ──────────────────────────────────────────────
     ctx.beginPath();
     visible.forEach(({ x, y }, i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-    ctx.strokeStyle = "rgba(34, 211, 154, 0.35)";
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#3df0c2"; ctx.lineWidth = 2;
     ctx.stroke();
 
     // ── 5. Leading-edge halo during animation ──────────────────────

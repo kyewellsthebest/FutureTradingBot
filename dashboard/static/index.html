@@ -2,449 +2,369 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
-  <meta name="theme-color" content="#070A14" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Futures Trading Bot</title>
-  <link rel="preconnect" href="https://rsms.me/" />
-  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trading Bot</title>
   <link rel="stylesheet" href="/static/styles.css" />
-  <script src="/static/lightweightcharts.js" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" defer></script>
 </head>
-<body>
+<body data-page="live" data-data-source="broker">
 
-<!-- Ambient background orbs (drift slowly to give constant subtle motion) -->
-<div class="bg-orbs" aria-hidden="true">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-  <div class="bg-orb bg-orb-4"></div>
-</div>
-<div class="bg-grid" aria-hidden="true"></div>
-
-<div class="app">
-
-  <!-- ─── TOPBAR ───────────────────────────────────────────────────────── -->
+  <!-- ─── TOP BAR ─────────────────────────────────────────────────────── -->
   <header class="topbar">
+    <button class="nav-trigger" id="nav-trigger" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+
     <div class="brand">
-      <span class="brand-mark">⬢</span>
-      <span class="brand-text-wrap" id="account-switcher">
-        <span class="brand-text" id="brand-text-label">Futures Trading Bot</span>
-        <button class="account-toggle" id="account-toggle" aria-label="Switch account">▾</button>
-        <div class="account-menu" id="account-menu" hidden></div>
-      </span>
-      <span class="badge badge-version" id="badge-version">pullback</span>
-      <span class="badge badge-mode" id="badge-mode">shadow</span>
-      <span class="badge badge-src src-synth" id="badge-src">synth 1m</span>
-      <button class="btn-pause" id="btn-pause"
-              title="Pause new entries on this account. Active trade is NOT closed."
-              data-paused="0">⏸ Pause</button>
-      <span class="badge badge-paused" id="badge-paused" hidden>PAUSED</span>
-      <!-- Data source toggle: swap every tab between broker reality
-           (Tradovate FillPairs / Positions / CashBalance) and paper
-           (strategy's expected outcome). Default is BROKER. -->
-      <button class="btn-data-source" id="data-source-toggle"
-              title="Click to switch between broker and paper data."
-              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
-        📡 BROKER
-      </button>
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">Trading Bot</span>
     </div>
-    <div class="topbar-stats">
-      <div class="kpi">
-        <div class="kpi-label">NQ</div>
-        <div class="kpi-value" id="kpi-price">—</div>
+
+    <div class="topbar-kpis">
+      <div class="tb-kpi">
+        <div class="tb-kpi-label">Balance</div>
+        <div class="tb-kpi-value" id="kpi-balance">—</div>
       </div>
-      <div class="kpi">
-        <div class="kpi-label">Balance</div>
-        <div class="kpi-value" id="kpi-balance">—</div>
+      <div class="tb-kpi">
+        <div class="tb-kpi-label">Today</div>
+        <div class="tb-kpi-value" id="kpi-today">—</div>
       </div>
-      <div class="kpi">
-        <div class="kpi-label">Today</div>
-        <div class="kpi-value" id="kpi-today">—</div>
+      <div class="tb-kpi">
+        <div class="tb-kpi-label">Position</div>
+        <div class="tb-kpi-value" id="kpi-position">FLAT</div>
       </div>
-      <div class="kpi">
-        <div class="kpi-label">Trades Today</div>
-        <div class="kpi-value" id="kpi-trades-today">0</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Position</div>
-        <div class="kpi-value" id="kpi-position">FLAT</div>
-      </div>
-      <div class="kpi kpi-meta">
-        <div class="kpi-label">Updated</div>
-        <div class="kpi-value" id="kpi-updated">—</div>
-      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="btn-icon btn-source" id="data-source-toggle"
+              title="Toggle data source"
+              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
+        <span id="data-source-label">Broker</span>
+      </button>
+      <button class="btn-icon btn-pause" id="btn-pause"
+              title="Pause new entries" data-paused="0">
+        <span>Pause</span>
+      </button>
     </div>
   </header>
 
-  <!-- ─── TABS ────────────────────────────────────────────────────────── -->
-  <nav class="tabs">
-    <button class="tab active" data-tab="live">Live</button>
-    <button class="tab" data-tab="chart">Chart</button>
-    <button class="tab" data-tab="performance">Performance</button>
-    <button class="tab" data-tab="trades">Trades</button>
-    <button class="tab" data-tab="downloads">Downloads</button>
+  <!-- ─── SLIDE-OUT NAV ───────────────────────────────────────────────── -->
+  <nav class="nav-drawer" id="nav-drawer" aria-hidden="true">
+    <div class="nav-drawer-inner">
+      <button class="nav-item active" data-page="live">
+        <span class="nav-dot"></span>Live
+      </button>
+      <button class="nav-item" data-page="performance">
+        <span class="nav-dot"></span>Performance
+      </button>
+      <button class="nav-item" data-page="trades">
+        <span class="nav-dot"></span>Trades
+      </button>
+      <button class="nav-item" data-page="downloads">
+        <span class="nav-dot"></span>Downloads
+      </button>
+    </div>
   </nav>
+  <div class="nav-backdrop" id="nav-backdrop"></div>
 
+  <!-- ─── PAUSE/PROFIT BADGE ──────────────────────────────────────────── -->
+  <div class="banner-row">
+    <span class="badge-paused" id="badge-paused" hidden>PAUSED</span>
+  </div>
+
+  <!-- ─── MAIN ────────────────────────────────────────────────────────── -->
   <main class="content">
 
-    <!-- ─── LIVE ──────────────────────────────────────────────────────── -->
-    <section class="tabpane active" id="pane-live">
-      <div class="grid grid-3">
+    <!-- ─── LIVE ───────────────────────────────────────────────────── -->
+    <section class="page active" id="page-live">
+      <div class="page-head">
+        <h1>Live</h1>
+        <p class="muted">Real-time bot activity.</p>
+      </div>
 
-        <div class="card">
-          <div class="card-header">Active Trade</div>
+      <div class="grid g-3">
+        <div class="card stat-card">
+          <div class="stat-label">NQ Price</div>
+          <div class="stat-value" id="live-nq-price">—</div>
+          <div class="stat-meta" id="live-nq-meta">—</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Trades Today</div>
+          <div class="stat-value" id="live-trades-today">0</div>
+          <div class="stat-meta">since NY open</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Pending Setups</div>
+          <div class="stat-value" id="live-pending-n">0</div>
+          <div class="stat-meta">armed for entry</div>
+        </div>
+      </div>
+
+      <div class="grid g-2">
+        <div class="card big-card">
+          <div class="card-head">
+            <h3>Active Trade</h3>
+            <span class="muted small" id="live-active-source"></span>
+          </div>
           <div class="card-body" id="live-active">
-            <div class="muted">No open position.</div>
+            <div class="empty-state">No open position.</div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header">Pending Setups</div>
-          <div class="card-body" id="live-pending">
-            <div class="big-stat" id="live-pending-n">0</div>
-            <div class="big-stat-label">Pullback setups armed</div>
-            <div class="pending-list" id="live-pending-list"></div>
+        <div class="card big-card">
+          <div class="card-head">
+            <h3>Pending Setups</h3>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">Microscalp Ratio · 30d</div>
           <div class="card-body">
-            <div class="gauge">
-              <svg viewBox="0 0 100 60" class="gauge-svg">
-                <path d="M5,55 A45,45 0 0 1 95,55" fill="none" class="gauge-track" />
-                <path d="M5,55 A45,45 0 0 1 95,55" fill="none" class="gauge-fill"
-                      id="gauge-arc" stroke-dasharray="141" stroke-dashoffset="141" />
-                <text x="50" y="50" class="gauge-text" id="gauge-text">0%</text>
-              </svg>
+            <div class="pending-list" id="live-pending-list">
+              <div class="empty-state muted">No setups armed.</div>
             </div>
-            <div class="muted center" id="gauge-status">Lucid ban threshold: 50%</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">Lifetime Activity</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Signals fired (session)</span><b id="today-fired">0</b></div>
-            <div class="kv-row"><span>Trades closed (all-time)</span><b id="today-closed">0</b></div>
-            <div class="kv-row"><span>Total P&L</span><b id="today-pnl">$0</b></div>
-            <div class="kv-row"><span>Win rate</span><b id="today-wr">—</b></div>
-            <div class="kv-row"><span>Avg hold</span><b id="today-hold">—</b></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">System</div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Strategy</span><b id="sys-strategy">Pullback Impulse</b></div>
-            <div class="kv-row"><span>Size</span><b id="sys-size">2 MNQ</b></div>
-            <div class="kv-row"><span>Min target hold</span><b id="sys-minhold">10 s</b></div>
-            <div class="kv-row"><span>Cycle</span><b id="sys-cycle">0</b></div>
-            <div class="kv-row"><span>Circuit breaker</span><b id="sys-breaker">armed</b></div>
-            <div class="kv-row"><span>Last error</span><b id="sys-error" class="muted">none</b></div>
           </div>
         </div>
       </div>
 
       <div class="grid">
-        <div class="card">
-          <div class="card-header">
-            Diagnostic Bundle
-            <button class="btn-dl btn-dl-primary"
-                    id="btn-dl-bundle-quick"
-                    data-dl="bundle" data-ext="json"
-                    style="float:right;margin-top:-4px">
-              ⬇ Download
-            </button>
+        <div class="card big-card chart-card">
+          <div class="card-head">
+            <h3>NQ · Last 60 minutes</h3>
           </div>
-          <div class="card-body kv-list">
-            <div class="kv-row"><span>Everything in one JSON — paste into chat when something looks off.</span></div>
-          </div>
+          <div class="card-body chart-body" id="live-mini-chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PERFORMANCE ───────────────────────────────────────────── -->
+    <section class="page" id="page-performance">
+      <div class="page-head">
+        <h1>Performance</h1>
+        <p class="muted" id="perf-subtitle">All-time results.</p>
+      </div>
+
+      <div class="grid g-4">
+        <div class="card stat-card">
+          <div class="stat-label" id="lifetime-pnl-label">Total P&amp;L</div>
+          <div class="stat-value" id="lifetime-pnl">—</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Trades</div>
+          <div class="stat-value" id="lifetime-trades">—</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Win rate</div>
+          <div class="stat-value" id="lifetime-wr">—</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Max drawdown</div>
+          <div class="stat-value neg" id="lifetime-dd">—</div>
         </div>
       </div>
 
-      <!-- Inline consistency check + live broker stats. Rendered from
-           /api/diagnostics/check so the user doesn't have to download
-           the bundle to spot issues. Green = all good, amber = check
-           when convenient, red = act now. -->
+      <div class="period-row">
+        <button class="btn-pill btn-period" data-period="today">Today</button>
+        <button class="btn-pill btn-period active" data-period="week">Week</button>
+        <button class="btn-pill btn-period" data-period="month">Month</button>
+        <button class="btn-pill btn-period" data-period="all">All time</button>
+      </div>
+
       <div class="grid">
-        <div class="card">
-          <div class="card-header">
-            🧐 Auto Health Check
-            <button class="btn-dl"
-                    id="btn-refresh-health"
-                    style="float:right;margin-top:-4px;padding:4px 12px"
-                    onclick="pollHealthCheck()">
-              🔄 Refresh
-            </button>
+        <div class="card big-card chart-card">
+          <div class="card-head">
+            <h3>Equity curve</h3>
           </div>
-          <div class="card-body" id="health-check-body">
-            <div class="muted">Loading…</div>
+          <div class="card-body chart-body">
+            <canvas id="chart-equity"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Live broker stats: balance, today, win rate, profit factor.
-           Pulled from /api/broker/stats so the user has a quick view
-           of broker reality without scrolling to Performance. -->
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">📡 Broker Performance Summary</div>
-          <div class="card-body" id="broker-perf-summary">
-            <div class="muted">Loading broker stats…</div>
+      <div class="grid g-2">
+        <div class="card chart-card">
+          <div class="card-head">
+            <h3>Monthly P&amp;L</h3>
+          </div>
+          <div class="card-body chart-body">
+            <canvas id="chart-monthly"></canvas>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header">⚙️ Slip Auto-Calibration</div>
-          <div class="card-body" id="slip-calibration-body">
-            <div class="muted">Loading slip calibration…</div>
+        <div class="card chart-card">
+          <div class="card-head">
+            <h3>Win / loss size</h3>
+          </div>
+          <div class="card-body chart-body">
+            <canvas id="chart-wlhist"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Polygon-cancel readiness + bracket A/B comparator -->
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">🚦 Polygon Cancel Readiness</div>
-          <div class="card-body" id="polygon-readiness-body">
-            <div class="muted">Loading…</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">🆚 Bracket Slip Pre-Adjust A/B</div>
-          <div class="card-body" id="bracket-ab-body">
-            <div class="muted">Loading…</div>
-          </div>
-        </div>
-      </div>
+      <!-- Hidden placeholder for compatibility with renderPerfPanels -->
+      <canvas id="chart-holds" hidden></canvas>
     </section>
 
-    <!-- ─── CHART ──────────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-chart">
-      <div class="card card-tall">
-        <div class="card-header">
-          NQ · 1-min · Pullback Impulse (5pt impulse over 4 bars → 0.618 retrace)
-        </div>
-        <div id="chart-container" class="chart-container"></div>
-      </div>
-    </section>
-
-    <!-- ─── PERFORMANCE ────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-performance">
-      <!-- Data source banner: tells the user whether the metrics
-           below come from broker reality or paper expectation. -->
-      <div id="perf-source-banner"></div>
-      <div class="card lifetime-summary">
-        <div class="lifetime-row">
-          <div class="lifetime-stat">
-            <div class="lifetime-label" id="lifetime-pnl-label">P&L (today)</div>
-            <div class="lifetime-value" id="lifetime-pnl">—</div>
-          </div>
-          <div class="lifetime-stat">
-            <div class="lifetime-label">Trades</div>
-            <div class="lifetime-value" id="lifetime-trades">—</div>
-          </div>
-          <div class="lifetime-stat">
-            <div class="lifetime-label">Win rate</div>
-            <div class="lifetime-value" id="lifetime-wr">—</div>
-          </div>
-          <div class="lifetime-stat">
-            <div class="lifetime-label">Max DD (lifetime)</div>
-            <div class="lifetime-value" id="lifetime-dd">—</div>
-          </div>
-          <div class="lifetime-stat">
-            <div class="lifetime-label">Worst daily DD (Lucid NY day)</div>
-            <div class="lifetime-value" id="lifetime-daily-dd">—</div>
-          </div>
-          <div class="lifetime-stat">
-            <div class="lifetime-label" title="Intra-day peak-to-trough P&L on Lucid's current NY date.">Today's DD (NY day)</div>
-            <div class="lifetime-value" id="lifetime-today-dd">—</div>
-          </div>
-        </div>
+    <!-- ─── TRADES ─────────────────────────────────────────────────── -->
+    <section class="page" id="page-trades">
+      <div class="page-head">
+        <h1>Trades</h1>
+        <p class="muted">Click any row for full trade history.</p>
       </div>
 
-      <div class="export-bar">
-        <span class="export-label">Period</span>
-        <button class="btn-period active" data-period="today">Today</button>
-        <button class="btn-period" data-period="week">Week</button>
-        <button class="btn-period" data-period="month">Month</button>
-        <button class="btn-period" data-period="all">All</button>
-      </div>
-
-      <div class="export-bar admin-bar">
-        <span class="export-label">Admin</span>
-        <button class="btn-reset" id="btn-reset-account"
-                title="Wipe trade history, balance and pause state. Restarts at $50,000.">
-          ⚠ Reset account
-        </button>
-      </div>
-
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">Equity Curve</div>
-          <div class="card-body">
-            <div class="chart-wrap">
-              <canvas id="chart-equity" class="canvas-chart"></canvas>
-              <div class="chart-tooltip" id="tt-equity"></div>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Monthly P&L</div>
-          <div class="card-body">
-            <div class="chart-wrap">
-              <canvas id="chart-monthly" class="canvas-chart"></canvas>
-              <div class="chart-tooltip" id="tt-monthly"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">Hold-time Distribution</div>
-          <div class="card-body">
-            <div class="chart-wrap">
-              <canvas id="chart-holds" class="canvas-chart"></canvas>
-              <div class="chart-tooltip" id="tt-holds"></div>
-            </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header">Win / Loss Distribution</div>
-          <div class="card-body">
-            <div class="chart-wrap">
-              <canvas id="chart-wlhist" class="canvas-chart"></canvas>
-              <div class="chart-tooltip" id="tt-wlhist"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── TRADES ─────────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-trades">
       <div class="card">
-        <div class="card-header">
-          Trades · <span id="trades-source-label">📡 BROKER</span>
-          <span class="muted" style="float:right;font-size:11px;margin-top:4px">
-            Click any row for full timeline + matched orders/fills/exec reports
-          </span>
-        </div>
-        <div class="card-body" style="padding: 0;">
+        <div class="card-body table-card-body">
           <div class="table-wrap">
             <table class="data-table" id="trades-table">
-              <thead><tr>
-                <th>Exit Time</th><th>Side</th><th>Qty</th>
-                <th>Entry</th><th>Exit</th><th>P&L</th>
-                <th>Reason</th><th>Hold</th>
-              </tr></thead>
-              <tbody><tr><td colspan="8" class="muted center" style="padding: 24px;">Loading trades…</td></tr></tbody>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Side</th>
+                  <th>Qty</th>
+                  <th>Entry</th>
+                  <th>Exit</th>
+                  <th>P&amp;L</th>
+                  <th>Reason</th>
+                  <th>Hold</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="8" class="muted center" style="padding:40px;">Loading…</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ─── DOWNLOADS ──────────────────────────────────────────────────── -->
-    <section class="tabpane" id="pane-downloads">
-      <div class="dl-hero">
-        <div class="dl-hero-icon">⬇</div>
-        <h1>Download Everything</h1>
-        <p>
-          One file. Everything I need to debug the bot — health snapshot, current config,
-          code state, recent trades, Polygon verification, and shadow-engine comparison —
-          bundled as a single JSON. Paste it into chat when something looks off.
-        </p>
-        <button class="btn-dl btn-dl-primary" id="btn-dl-everything" data-dl="bundle" data-ext="json">
-          <span>⬇</span>
-          <span>Download diagnostic bundle</span>
+    <!-- ─── DOWNLOADS ──────────────────────────────────────────────── -->
+    <section class="page" id="page-downloads">
+      <div class="page-head">
+        <h1>Downloads</h1>
+        <p class="muted">Everything in one file. Paste into chat when something looks off.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card hero-card">
+          <div class="hero-icon">⬇</div>
+          <h2>Diagnostic Bundle</h2>
+          <p>One file with every diagnostic the assistant needs to debug the bot — health, config, code state, trades, broker fills, reconciliation, tick history, decision log, paper-vs-broker divergence, the bot's audit log, and recent log tail.</p>
+          <button class="btn-primary btn-dl" data-dl="bundle" data-ext="json">
+            Download diagnostic bundle
+          </button>
+          <div id="dl-status" class="muted small" style="margin-top:14px">Ready when you are.</div>
+          <input type="checkbox" id="dl-include-verify" checked hidden />
+        </div>
+      </div>
+
+      <div class="grid g-3">
+        <button class="card targeted-dl btn-dl" data-dl="reconcile" data-ext="json">
+          <div class="targeted-dl-title">Paper vs Broker</div>
+          <div class="targeted-dl-desc">Per-trade reconciliation</div>
         </button>
-        <div id="dl-status">Ready when you are.</div>
-      </div>
-
-      <div class="dl-info-strip">
-        <div class="dl-info-card">
-          <div class="dl-info-card-icon">🩺</div>
-          <div class="dl-info-card-title">Health & state</div>
-          <div class="dl-info-card-desc">
-            Snapshot age, cycle counter, bar source, last error, active trade,
-            pending setups, pause flag, Lucid balance.
-          </div>
-        </div>
-        <div class="dl-info-card">
-          <div class="dl-info-card-icon">⚙</div>
-          <div class="dl-info-card-title">Code & config</div>
-          <div class="dl-info-card-desc">
-            Git SHA + dirty flag, SHA-256 of every .py file (detects manual edits),
-            strategy params, risk gate config, sanitized env vars.
-          </div>
-        </div>
-        <div class="dl-info-card">
-          <div class="dl-info-card-icon">📈</div>
-          <div class="dl-info-card-title">Trades & verification</div>
-          <div class="dl-info-card-desc">
-            Last 100 trades with full feature snapshot. Polygon verification of
-            today's trades against real 1-min bars. Shadow engine state.
-          </div>
-        </div>
-      </div>
-
-      <!-- Hidden: bundle always includes verification. Kept to satisfy app.js. -->
-      <input type="checkbox" id="dl-include-verify" checked hidden />
-
-      <!-- Standalone targeted diagnostic downloads: paper-vs-broker
-           reconciliation, full Tradovate dump, bot's order audit log. -->
-      <div class="card" style="margin-top:24px">
-        <div class="card-header">Targeted diagnostic downloads</div>
-        <div class="card-body">
-          <p style="margin-top:0;color:var(--muted)">
-            Smaller, focused dumps for diagnosing specific problems.
-            Use these when you don't need the full bundle.
-          </p>
-          <div style="display:flex;flex-wrap:wrap;gap:10px">
-            <button class="btn-dl" data-dl="reconcile" data-ext="json"
-                    title="Per-trade side-by-side: paper expected vs broker actual, with slip + pnl delta">
-              ⬇ Paper-vs-broker reconciliation
-            </button>
-            <button class="btn-dl" data-dl="audit_log" data-ext="json"
-                    title="Every placeoso/placeorder attempt with exact body sent + raw response + bracket verification">
-              ⬇ Bot order audit log
-            </button>
-            <button class="btn-dl" data-dl="tradovate_full" data-ext="json"
-                    title="Full Tradovate dump: orders, fills, fillPairs, executionReports, orderVersions, positions, cash">
-              ⬇ Tradovate full diagnostic
-            </button>
-            <button class="btn-dl" data-dl="diagnostics" data-ext="json"
-                    title="Strategy decisions, tick history, Polygon-vs-Tradovate price diff samples, slip calibration, log tail, process info">
-              ⬇ Strategy diagnostics
-            </button>
-            <button class="btn-dl" data-dl="timeline" data-ext="json"
-                    title="Per-trade event timeline: setup detected -> placeoso sent -> broker polls -> filled -> exit -> paper closed">
-              ⬇ Trade event timelines
-            </button>
-          </div>
-        </div>
+        <button class="card targeted-dl btn-dl" data-dl="audit_log" data-ext="json">
+          <div class="targeted-dl-title">Order audit log</div>
+          <div class="targeted-dl-desc">Every placeoso attempt</div>
+        </button>
+        <button class="card targeted-dl btn-dl" data-dl="tradovate_full" data-ext="json">
+          <div class="targeted-dl-title">Tradovate dump</div>
+          <div class="targeted-dl-desc">All broker endpoints</div>
+        </button>
+        <button class="card targeted-dl btn-dl" data-dl="diagnostics" data-ext="json">
+          <div class="targeted-dl-title">Diagnostics</div>
+          <div class="targeted-dl-desc">Decisions, ticks, WS state</div>
+        </button>
+        <button class="card targeted-dl btn-dl" data-dl="timeline" data-ext="json">
+          <div class="targeted-dl-title">Trade timelines</div>
+          <div class="targeted-dl-desc">Event chain per trade</div>
+        </button>
+        <button class="card targeted-dl btn-dl" data-dl="trades.csv" data-ext="csv">
+          <div class="targeted-dl-title">Trades CSV</div>
+          <div class="targeted-dl-desc">For spreadsheets</div>
+        </button>
       </div>
     </section>
 
   </main>
 
-  <!-- Trade detail modal: opens when a trade row is clicked.
-       Renders the full event timeline + matched broker orders + fills
-       + execution reports for that one trade. -->
+  <!-- Trade detail modal -->
   <div id="trade-detail-modal" class="trade-modal" onclick="if(event.target===this)closeTradeDetail()">
     <div class="trade-modal-inner">
-      <button class="trade-modal-close" onclick="closeTradeDetail()">✕</button>
+      <button class="trade-modal-close" onclick="closeTradeDetail()" aria-label="Close">✕</button>
       <div id="trade-detail-body"><div class="muted">Loading…</div></div>
     </div>
   </div>
 
-</div>
+  <!-- Hidden compat shells so legacy renderers don't NPE -->
+  <div hidden>
+    <span id="badge-version">pullback</span>
+    <span id="badge-mode">shadow</span>
+    <span id="badge-src">synth 1m</span>
+    <span id="kpi-price"></span>
+    <span id="kpi-updated"></span>
+    <span id="kpi-trades-today"></span>
+    <span id="gauge-arc"></span>
+    <span id="gauge-text"></span>
+    <span id="gauge-status"></span>
+    <span id="brand-text-label"></span>
+    <span id="account-toggle"></span>
+    <span id="account-menu"></span>
+    <span id="today-fired"></span>
+    <span id="today-closed"></span>
+    <span id="today-pnl"></span>
+    <span id="today-wr"></span>
+    <span id="today-hold"></span>
+    <span id="sys-strategy"></span>
+    <span id="sys-size"></span>
+    <span id="sys-minhold"></span>
+    <span id="sys-cycle"></span>
+    <span id="sys-breaker"></span>
+    <span id="sys-error"></span>
+    <span id="lifetime-daily-dd"></span>
+    <span id="lifetime-today-dd"></span>
+    <span id="live-ret-mo"></span>
+    <span id="live-dd"></span>
+    <span id="live-wr-rr"></span>
+    <span id="live-trades-mo"></span>
+    <span id="health-check-body"></span>
+    <span id="broker-perf-summary"></span>
+    <span id="slip-calibration-body"></span>
+    <span id="polygon-readiness-body"></span>
+    <span id="bracket-ab-body"></span>
+    <span id="perf-source-banner"></span>
+    <span id="trades-source-label"></span>
+    <span id="dl-status"></span>
+  </div>
+
 <script src="/static/app.js" defer></script>
+<script>
+  // Page routing + nav drawer
+  document.addEventListener("DOMContentLoaded", () => {
+    const nav = document.getElementById("nav-drawer");
+    const backdrop = document.getElementById("nav-backdrop");
+    const trigger = document.getElementById("nav-trigger");
+
+    function openNav() { nav.classList.add("open"); backdrop.classList.add("show"); nav.setAttribute("aria-hidden", "false"); }
+    function closeNav() { nav.classList.remove("open"); backdrop.classList.remove("show"); nav.setAttribute("aria-hidden", "true"); }
+    trigger.addEventListener("click", () => {
+      nav.classList.contains("open") ? closeNav() : openNav();
+    });
+    backdrop.addEventListener("click", closeNav);
+
+    document.querySelectorAll("[data-page]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.page;
+        document.body.dataset.page = target;
+        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+        const pageEl = document.getElementById("page-" + target);
+        if (pageEl) pageEl.classList.add("active");
+        document.querySelectorAll(".nav-item").forEach(n =>
+          n.classList.toggle("active", n.dataset.page === target));
+        closeNav();
+        // Trigger renders for newly visible page
+        try { if (target === "performance" && typeof renderPerformanceGraphs === "function") renderPerformanceGraphs(); } catch (e) {}
+        try { if (target === "trades" && typeof renderTradesTable === "function") renderTradesTable(); } catch (e) {}
+      });
+    });
+  });
+</script>
 </body>
 </html>
