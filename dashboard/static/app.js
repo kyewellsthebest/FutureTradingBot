@@ -1824,24 +1824,24 @@ function updateChartMarkers() {
     if (t.side === "LONG") {
       markers.push({
         time: Math.floor(entryT / 1000),
-        position: "belowBar", color: "#22d39a", shape: "arrowUp",
+        position: "belowBar", color: "#4f7cf5", shape: "arrowUp",
         text: `LONG ${t.entry_px?.toFixed(2) ?? ""}`,
       });
       markers.push({
         time: Math.floor(exitT / 1000),
-        position: "aboveBar", color: win ? "#22d39a" : "#ff5470",
+        position: "aboveBar", color: win ? "#4f7cf5" : "#f59e0b",
         shape: "arrowDown",
         text: `${pnlStr} · ${t.exit_reason}`,
       });
     } else {
       markers.push({
         time: Math.floor(entryT / 1000),
-        position: "aboveBar", color: "#ff5470", shape: "arrowDown",
+        position: "aboveBar", color: "#f59e0b", shape: "arrowDown",
         text: `SHORT ${t.entry_px?.toFixed(2) ?? ""}`,
       });
       markers.push({
         time: Math.floor(exitT / 1000),
-        position: "belowBar", color: win ? "#22d39a" : "#ff5470",
+        position: "belowBar", color: win ? "#4f7cf5" : "#f59e0b",
         shape: "arrowUp",
         text: `${pnlStr} · ${t.exit_reason}`,
       });
@@ -2287,11 +2287,12 @@ function drawEquityCurve(trades) {
     const visible = xy.slice(0, visibleCount);
     const lastX = visible[visible.length - 1].x;
 
-    // Determine line color from the trend (blue if profit, red if loss)
+    // Determine line color from the trend (blue if profit, amber if loss).
+    // Theme palette: profit = primary blue (#4f7cf5), loss = amber (#f59e0b).
     const lineColor = (points[points.length - 1].v >= 50000)
-      ? "#4f7cf5" : "#ef4444";
+      ? "#4f7cf5" : "#f59e0b";
     const fillBase = (points[points.length - 1].v >= 50000)
-      ? "79, 124, 245" : "239, 68, 68";
+      ? "79, 124, 245" : "245, 158, 11";
 
     // ── 3. Filled area under the line ──────────────────────────────
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
@@ -2317,8 +2318,8 @@ function drawEquityCurve(trades) {
       ctx.fillStyle = "rgba(61, 240, 194, 0.18)"; ctx.fill();
       ctx.beginPath();
       ctx.arc(head.x, head.y, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#3df0c2";
-      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 16;
+      ctx.fillStyle = "#4f7cf5";
+      ctx.shadowColor = "#4f7cf5"; ctx.shadowBlur = 16;
       ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -2412,8 +2413,8 @@ function drawMonthlyPnl(trades) {
       if (winH > 0.4) {
         const grad = ctx.createLinearGradient(0, yZero - winH, 0, yZero);
         grad.addColorStop(0, "rgba(61, 240, 194, 0.95)");
-        grad.addColorStop(1, "rgba(34, 211, 154, 0.55)");
-        ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 14;
+        grad.addColorStop(1, "rgba(79, 124, 245, 0.45)");
+        ctx.shadowColor = "#4f7cf5"; ctx.shadowBlur = 14;
         ctx.fillStyle = grad;
         _roundedBar(ctx, x, yZero - winH, innerW, winH, 3, "top");
         ctx.shadowBlur = 0;
@@ -2427,7 +2428,7 @@ function drawMonthlyPnl(trades) {
         const grad = ctx.createLinearGradient(0, yZero, 0, yZero + lossH);
         grad.addColorStop(0, "rgba(255, 84, 112, 0.95)");
         grad.addColorStop(1, "rgba(248, 113, 113, 0.45)");
-        ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 14;
+        ctx.shadowColor = "#f59e0b"; ctx.shadowBlur = 14;
         ctx.fillStyle = grad;
         _roundedBar(ctx, x, yZero, innerW, lossH, 3, "bottom");
         ctx.shadowBlur = 0;
@@ -2439,7 +2440,7 @@ function drawMonthlyPnl(trades) {
       if (eased > 0.85) {
         ctx.globalAlpha = (eased - 0.85) / 0.15;
         const net = m.winsTotal + m.lossesTotal;
-        const netCol = net >= 0 ? "#3df0c2" : "#ff7691";
+        const netCol = net >= 0 ? "#4f7cf5" : "#f59e0b";
         ctx.fillStyle = netCol; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
         ctx.shadowColor = netCol; ctx.shadowBlur = 8;
         const labelY = Math.min(yZero - winH - 6, yZero - 4);
@@ -2592,7 +2593,7 @@ function drawHoldHistogram(trades) {
           const lg = ctx.createLinearGradient(0, h - padBot - lossH, 0, h - padBot);
           lg.addColorStop(0, "rgba(255, 84, 112, 0.90)");
           lg.addColorStop(1, "rgba(248, 113, 113, 0.55)");
-          ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 10;
+          ctx.shadowColor = "#f59e0b"; ctx.shadowBlur = 10;
           ctx.fillStyle = lg;
           _roundedBar(ctx, x, h - padBot - lossH, innerW, lossH, 3, "bottom");
           ctx.shadowBlur = 0;
@@ -2601,8 +2602,8 @@ function drawHoldHistogram(trades) {
         if (winH > 0.4) {
           const wg = ctx.createLinearGradient(0, yTop, 0, yTop + winH);
           wg.addColorStop(0, "rgba(61, 240, 194, 0.95)");
-          wg.addColorStop(1, "rgba(34, 211, 154, 0.55)");
-          ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 12;
+          wg.addColorStop(1, "rgba(79, 124, 245, 0.45)");
+          ctx.shadowColor = "#4f7cf5"; ctx.shadowBlur = 12;
           ctx.fillStyle = wg;
           _roundedBar(ctx, x, yTop, innerW, winH, 3, "top");
           ctx.shadowBlur = 0;
@@ -2687,17 +2688,17 @@ function drawWinLossHistogram(trades) {
       ctx.globalAlpha = Math.min(1, (progress - 0.4) / 0.4);
       ctx.font = "bold 13px sans-serif"; ctx.textBaseline = "middle";
       // Win total (left side)
-      ctx.fillStyle = "#3df0c2"; ctx.textAlign = "left";
-      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 10;
+      ctx.fillStyle = "#4f7cf5"; ctx.textAlign = "left";
+      ctx.shadowColor = "#4f7cf5"; ctx.shadowBlur = 10;
       ctx.fillText(`+${fmtUsdPlain(winTotal).replace('$','$')}`, padX, barY - 18);
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#9ab"; ctx.font = "10px sans-serif";
       ctx.fillText(`${wins.length} wins`, padX, barY - 4);
 
       // Loss total (right side)
-      ctx.fillStyle = "#ff7691"; ctx.textAlign = "right";
+      ctx.fillStyle = "#f59e0b"; ctx.textAlign = "right";
       ctx.font = "bold 13px sans-serif";
-      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 10;
+      ctx.shadowColor = "#f59e0b"; ctx.shadowBlur = 10;
       ctx.fillText(`-${fmtUsdPlain(lossTotal).replace('$','$')}`, w - padX, barY - 18);
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#9ab"; ctx.font = "10px sans-serif";
@@ -2719,9 +2720,9 @@ function drawWinLossHistogram(trades) {
     const winW = winFrac * innerW * easedFill;
     if (winW > 0.5) {
       const winGrad = ctx.createLinearGradient(padX, 0, padX + winW, 0);
-      winGrad.addColorStop(0, "rgba(34, 211, 154, 0.95)");
+      winGrad.addColorStop(0, "rgba(79, 124, 245, 0.85)");
       winGrad.addColorStop(1, "rgba(61, 240, 194, 0.85)");
-      ctx.shadowColor = "#22d39a"; ctx.shadowBlur = 18;
+      ctx.shadowColor = "#4f7cf5"; ctx.shadowBlur = 18;
       ctx.fillStyle = winGrad;
       _roundedBar(ctx, padX, barY, winW, barH, 10,
                    winW >= innerW - 0.5 ? "all" : "left");
@@ -2733,7 +2734,7 @@ function drawWinLossHistogram(trades) {
       const lossGrad = ctx.createLinearGradient(w - padX - lossW, 0, w - padX, 0);
       lossGrad.addColorStop(0, "rgba(255, 118, 145, 0.85)");
       lossGrad.addColorStop(1, "rgba(255, 84, 112, 0.95)");
-      ctx.shadowColor = "#ff5470"; ctx.shadowBlur = 18;
+      ctx.shadowColor = "#f59e0b"; ctx.shadowBlur = 18;
       ctx.fillStyle = lossGrad;
       _roundedBar(ctx, w - padX - lossW, barY, lossW, barH, 10,
                    lossW >= innerW - 0.5 ? "all" : "right");
@@ -2770,7 +2771,7 @@ function drawWinLossHistogram(trades) {
       const yBot = barY + barH + 26;
 
       // Net (centre)
-      const netColor = net >= 0 ? "#3df0c2" : "#ff7691";
+      const netColor = net >= 0 ? "#4f7cf5" : "#f59e0b";
       ctx.textAlign = "center";
       ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
       ctx.fillText("NET", w / 2, yBot - 14);
@@ -2784,7 +2785,7 @@ function drawWinLossHistogram(trades) {
       ctx.textAlign = "left";
       ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
       ctx.fillText("PROFIT FACTOR", padX, yBot - 14);
-      ctx.fillStyle = profitFactor >= 1 ? "#3df0c2" : "#ff7691";
+      ctx.fillStyle = profitFactor >= 1 ? "#4f7cf5" : "#f59e0b";
       ctx.font = "bold 14px sans-serif";
       const pfText = profitFactor === Infinity ? "∞" : profitFactor.toFixed(2);
       ctx.fillText(pfText, padX, yBot + 4);
@@ -2793,7 +2794,7 @@ function drawWinLossHistogram(trades) {
       ctx.textAlign = "right";
       ctx.fillStyle = "#7a85a3"; ctx.font = "9px sans-serif";
       ctx.fillText("WIN RATE", w - padX, yBot - 14);
-      ctx.fillStyle = winRate >= 0.5 ? "#3df0c2" : "#c7d0e0";
+      ctx.fillStyle = winRate >= 0.5 ? "#4f7cf5" : "#c7d0e0";
       ctx.font = "bold 14px sans-serif";
       ctx.fillText(`${(winRate * 100).toFixed(1)}%`, w - padX, yBot + 4);
       ctx.globalAlpha = 1;

@@ -16,10 +16,14 @@
   --primary:     #4f7cf5;
   --primary-d:   #3d63d6;
   --primary-50:  rgba(79, 124, 245, 0.08);
-  --green:       #10b981;
-  --green-50:    rgba(16, 185, 129, 0.10);
-  --red:         #ef4444;
-  --red-50:      rgba(239, 68, 68, 0.10);
+  /* P&L palette: blue for profit, amber for loss (user-requested
+     theme replaces traditional green/red). LONG/SHORT direction
+     colours follow the same palette so the dashboard reads as one
+     coherent two-tone palette. */
+  --green:       #4f7cf5;
+  --green-50:    rgba(79, 124, 245, 0.10);
+  --red:         #f59e0b;
+  --red-50:      rgba(245, 158, 11, 0.10);
   --amber:       #f59e0b;
   --amber-50:    rgba(245, 158, 11, 0.10);
 
@@ -297,9 +301,14 @@ body.nav-open { overflow: hidden; }
 .banner-row {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 8px 28px 0;
   display: flex;
   gap: 8px;
+  padding: 0 14px;
+}
+.banner-row:has(.badge-paused:not([hidden])) { padding-top: 10px; }
+@media (min-width: 600px) {
+  .banner-row { padding: 0 28px; }
+  .banner-row:has(.badge-paused:not([hidden])) { padding-top: 10px; }
 }
 .badge-paused {
   display: inline-block;
@@ -311,6 +320,11 @@ body.nav-open { overflow: hidden; }
   background: var(--amber-50);
   color: var(--amber);
 }
+/* CRITICAL: the bare `display: inline-block` above was overriding the
+   HTML5 [hidden] attribute, so the badge appeared even when the bot
+   was NOT paused. This selector restores the expected hidden
+   behaviour. */
+.badge-paused[hidden] { display: none !important; }
 
 /* ============== MAIN ============================================== */
 
