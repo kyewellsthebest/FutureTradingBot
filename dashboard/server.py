@@ -341,17 +341,248 @@ def _collect_broker_trades(sess, acct_id: int,
                             limit: int = 1000) -> list:
     """Build the paper-shape trade list from broker data.
 
-    PRIMARY: reconstruct from Order parent/oco linkage. Each "trade"
-    is (parent entry order) + (one filled bracket child = exit). This
-    gives ACCURATE per-trade attribution.
+    PRIMARY: walk fills chronologically and pair them up by position
+    accumulation. When net position returns to zero, emit a completed
+    trade. This catches EVERY trade including ones whose bracket
+    structure was disrupted by InvalidPrice rejections (the linkage-
+    based approach misses those).
 
-    FALLBACK: when the order linkage approach gives no rows (e.g.,
-    very old orders missing parent links), fall back to FillPair.
-    NOTE: Tradovate's FillPair list uses FIFO fill matching across the
-    whole position, so when positions overlap, per-trade P&L is wrong
-    (the NET P&L is right but the per-trade rows are scrambled).
+    Also persists each emitted trade to disk so future trades survive
+    Tradovate's session-bounded REST history.
     """
-    # Fills -- entry/exit fill price + timestamp
+    # Fills with timestamps + orderIds
+    f_status, fills = sess._rest("GET", "/fill/list")
+    if f_status != 200 or not isinstance(fills, list):
+        fills = []
+    # Orders (used for exit_reason inference)
+    o_status, orders = sess._rest("GET", "/order/list")
+    order_by_id = {}
+    if o_status == 200 and isinstance(orders, list):
+        for o in orders:
+            if isinstance(o, dict) and o.get("id") is not None:
+                order_by_id[int(o["id"])] = o
+
+    # Sort fills chronologically
+    def _parse_ts(ts):
+        try:
+            t = pd.Timestamp(ts)
+            if t.tz is None:
+                t = t.tz_localize("UTC")
+            else:
+                t = t.tz_convert("UTC")
+            return t
+        except Exception:
+            return None
+
+    fills_clean = []
+    for f in fills:
+        if not isinstance(f, dict):
+            continue
+        ts = _parse_ts(f.get("timestamp"))
+        if ts is None:
+            continue
+        fills_clean.append({
+            "ts": ts,
+            "action": f.get("action"),
+            "qty": abs(int(f.get("qty") or 0)),
+            "price": float(f.get("price") or 0),
+            "order_id": f.get("orderId"),
+            "raw": f,
+        })
+    fills_clean.sort(key=lambda x: x["ts"])
+
+    # Walk: track signed position. Open new cycle when position was 0.
+    # Emit a trade when position returns to 0 (or flips through 0).
+    rows = []
+    pos_qty = 0          # signed: + = LONG, - = SHORT
+    cycle_entry_total = 0.0
+    cycle_entry_qty = 0
+    cycle_entry_ts = None
+    cycle_side = None
+    cycle_entry_order_id = None
+    comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
+
+    def _exit_reason_for_order(oid):
+        o = order_by_id.get(int(oid)) if oid is not None else None
+        if not isinstance(o, dict):
+            return "broker"
+        otype = (o.get("orderType") or "").lower()
+        if "stop" in otype:
+            return "stop"
+        if "limit" in otype:
+            return "target"
+        if "market" in otype:
+            return "manual"
+        return "broker"
+
+    def _emit_trade(exit_fill, close_qty):
+        if cycle_entry_qty <= 0:
+            return None
+        entry_avg = cycle_entry_total / cycle_entry_qty
+        exit_px = exit_fill["price"]
+        if cycle_side == "LONG":
+            pts_diff = exit_px - entry_avg
+        else:
+            pts_diff = entry_avg - exit_px
+        pnl_usd = (pts_diff * close_qty * 2.0) - (comm_rt * close_qty)
+        # Setup_ref tag pulled from the entry order if available
+        ent_order = (order_by_id.get(int(cycle_entry_order_id))
+                       if cycle_entry_order_id else None)
+        setup_ref = ent_order.get("text") if isinstance(ent_order, dict) else None
+        return {
+            "ts": exit_fill["ts"].isoformat(),
+            "entry_ts": cycle_entry_ts.isoformat(),
+            "entry_time": cycle_entry_ts.isoformat(),
+            "exit_time": exit_fill["ts"].isoformat(),
+            "side": cycle_side,
+            "qty": close_qty,
+            "n_mnq": close_qty,
+            "entry_px": round(entry_avg, 4),
+            "exit_px": round(exit_px, 4),
+            "pnl_usd": round(pnl_usd, 2),
+            "pnl": round(pnl_usd, 2),
+            "pnl_pts": round(pts_diff, 4),
+            "exit_reason": _exit_reason_for_order(exit_fill["order_id"]),
+            "hold_s": (exit_fill["ts"] - cycle_entry_ts).total_seconds(),
+            "commission": round(comm_rt * close_qty, 2),
+            "source": "broker_fill_walk",
+            "entry_order_id": cycle_entry_order_id,
+            "exit_order_id": exit_fill["order_id"],
+            "setup_ref": setup_ref,
+        }
+
+    for f in fills_clean:
+        action = (f["action"] or "").lower()
+        signed = f["qty"] if action == "buy" else -f["qty"]
+        if pos_qty == 0:
+            # Starting a new position
+            pos_qty = signed
+            cycle_entry_total = f["price"] * f["qty"]
+            cycle_entry_qty = f["qty"]
+            cycle_entry_ts = f["ts"]
+            cycle_side = "LONG" if signed > 0 else "SHORT"
+            cycle_entry_order_id = f["order_id"]
+            continue
+        same_dir = (pos_qty > 0 and signed > 0) or (pos_qty < 0 and signed < 0)
+        if same_dir:
+            # Stacking onto the same direction position
+            cycle_entry_total += f["price"] * f["qty"]
+            cycle_entry_qty += f["qty"]
+            pos_qty += signed
+            continue
+        # Closing or reducing
+        close_qty = min(f["qty"], abs(pos_qty))
+        emitted = _emit_trade(f, close_qty)
+        if emitted:
+            rows.append(emitted)
+        pos_qty += signed
+        if pos_qty == 0:
+            cycle_entry_total = 0.0
+            cycle_entry_qty = 0
+            cycle_entry_ts = None
+            cycle_side = None
+            cycle_entry_order_id = None
+        else:
+            # Position flipped (close + new opposite-side position in one fill)
+            cycle_entry_total = f["price"] * abs(pos_qty)
+            cycle_entry_qty = abs(pos_qty)
+            cycle_entry_ts = f["ts"]
+            cycle_side = "LONG" if pos_qty > 0 else "SHORT"
+            cycle_entry_order_id = f["order_id"]
+
+    # Persist this cycle's trades to disk for cross-session history.
+    try:
+        _persist_broker_trades(acct_id, rows)
+    except Exception as e:
+        logger.debug(f"persist_broker_trades: {e!r}")
+
+    # Merge persisted history (older sessions) with the live rows.
+    try:
+        rows = _merge_persisted_broker_trades(acct_id, rows, limit=limit)
+    except Exception as e:
+        logger.debug(f"merge_persisted_broker_trades: {e!r}")
+
+    rows.sort(key=lambda r: r.get("ts") or "")
+    return rows[-limit:]
+
+
+def _broker_history_path(acct_id):
+    """SQLite-like JSONL file in the account data dir for broker trade history."""
+    from bot.account_ctx import data_dir as _dd
+    p = _dd() / f"broker_trades_{acct_id}.jsonl"
+    return p
+
+
+def _persist_broker_trades(acct_id, rows):
+    """Append any new broker trades to the persistent JSONL file.
+    Dedup by exit_order_id + exit_time so repeated polls don't double-write.
+    """
+    if not rows:
+        return
+    p = _broker_history_path(acct_id)
+    existing_keys = set()
+    if p.exists():
+        try:
+            with p.open("r") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                        k = (r.get("exit_order_id"), r.get("exit_time"))
+                        existing_keys.add(k)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+    appended = 0
+    with p.open("a") as f:
+        for r in rows:
+            k = (r.get("exit_order_id"), r.get("exit_time"))
+            if k in existing_keys:
+                continue
+            f.write(json.dumps(r) + "\n")
+            existing_keys.add(k)
+            appended += 1
+    if appended:
+        logger.info(f"persisted {appended} broker trade(s) to {p}")
+
+
+def _merge_persisted_broker_trades(acct_id, live_rows, limit=1000):
+    """Merge the live rows with any older trades from the JSONL file.
+    Dedup by exit_order_id + exit_time so we don't double-count overlap.
+    Returns the merged list sorted chronologically.
+    """
+    p = _broker_history_path(acct_id)
+    if not p.exists():
+        return live_rows
+    persisted = []
+    try:
+        with p.open("r") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                    persisted.append(r)
+                except Exception:
+                    pass
+    except Exception:
+        return live_rows
+    seen = set()
+    merged = []
+    for r in (persisted + live_rows):
+        k = (r.get("exit_order_id"), r.get("exit_time"))
+        if k in seen:
+            continue
+        seen.add(k)
+        merged.append(r)
+    return merged[-limit:]
+
+
+def _collect_broker_trades_OLD_linkage(sess, acct_id: int,
+                                         limit: int = 1000) -> list:
+    """OLD implementation kept for reference. Used parent/oco linkage --
+    missed trades whose bracket was disrupted (InvalidPrice rejections
+    orphan the surviving bracket child). Superseded by the chronological
+    fill-walk approach above."""
+    # Fills -- timestamps + orderIds
     f_status, fills = sess._rest("GET", "/fill/list")
     fill_by_orderid = {}
     if f_status == 200 and isinstance(fills, list):
