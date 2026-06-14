@@ -450,73 +450,24 @@ def _collect_broker_trades(sess, acct_id: int,
                 "active": fp.get("active"),
             })
 
-    # FALLBACK: /fillPair/list came back empty. Reconstruct trades
-    # from /cashBalanceLog/deps using the realizedPnL field. Each row
-    # records the CUMULATIVE realized P&L at that timestamp; the DELTA
-    # between consecutive rows is the P&L contribution from one trade
-    # close. Using the delta (not the raw amount field, which is the
-    # balance snapshot, not a delta) gives us accurate trade-level
-    # P&L without entry/exit prices.
-    if not rows:
-        try:
-            cb_status, cb_log = sess._rest(
-                "GET", "/cashBalanceLog/deps",
-                params={"masterid": int(acct_id)})
-            if cb_status == 200 and isinstance(cb_log, list) and cb_log:
-                # Sort chronologically
-                cb_sorted = []
-                for ev in cb_log:
-                    if not isinstance(ev, dict):
-                        continue
-                    ts = ev.get("timestamp")
-                    if ts is None:
-                        continue
-                    try:
-                        ts_dt = pd.Timestamp(ts)
-                        if ts_dt.tz is None:
-                            ts_dt = ts_dt.tz_localize("UTC")
-                        else:
-                            ts_dt = ts_dt.tz_convert("UTC")
-                    except Exception:
-                        continue
-                    cb_sorted.append((ts_dt, ev))
-                cb_sorted.sort(key=lambda x: x[0])
-                prev_realized = None
-                comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
-                for ts_dt, ev in cb_sorted:
-                    cur_realized = ev.get("realizedPnL")
-                    if cur_realized is None:
-                        continue
-                    cur_realized = float(cur_realized)
-                    if prev_realized is None:
-                        prev_realized = cur_realized
-                        continue
-                    delta = cur_realized - prev_realized
-                    prev_realized = cur_realized
-                    if abs(delta) < 0.01:
-                        continue   # no P&L change, skip
-                    rows.append({
-                        "ts": ts_dt.isoformat(),
-                        "entry_ts": ts_dt.isoformat(),
-                        "entry_time": ts_dt.isoformat(),
-                        "exit_time": ts_dt.isoformat(),
-                        "side": "LONG" if delta >= 0 else "SHORT",
-                        "qty": 1,
-                        "n_mnq": 1,
-                        "entry_px": None,
-                        "exit_px": None,
-                        "pnl_usd": round(delta, 2),
-                        "pnl": round(delta, 2),
-                        "pnl_pts": None,
-                        "exit_reason": "target" if delta > 0 else "stop",
-                        "hold_s": 0,
-                        "commission": comm_rt,
-                        "source": "broker_cashbalancelog",
-                        "transaction_type": ev.get("transactionType"),
-                        "cumulative_realized": cur_realized,
-                    })
-        except Exception as e:
-            logger.warning(f"cashBalanceLog fallback failed: {e!r}")
+    # NOTE: We previously tried to reconstruct historical trades from
+    # /cashBalanceLog/deps using realizedPnL deltas. That gave garbage:
+    # the log includes commission rows, mark-to-market updates, AND
+    # admin events (account resets that null the realizedPnL field) --
+    # treating each delta as a "trade" produced thousands of false
+    # rows ranging from $0.02 to $1,085+. Not workable.
+    #
+    # If FillPair is empty, we now return [] from this helper. The UI
+    # then shows the empty-state banner with the LIVE cashBalance
+    # numbers (totalCashValue, realizedPnL) -- which are correct as
+    # aggregates even if per-trade breakdown isn't available.
+    #
+    # Per-trade history WILL populate once the bot trades live during
+    # market hours, because:
+    #   - Tradovate user_ws ExecutionReports capture each fill in <100ms
+    #   - The bot's audit log records every placeoso attempt
+    #   - The trade_timeline tracks each setup_ref through its lifecycle
+    # All of those are reliable; cashBalanceLog reconstruction is not.
 
     rows.sort(key=lambda r: r.get("ts") or "")
     return rows[-limit:]

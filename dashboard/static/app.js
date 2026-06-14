@@ -1890,6 +1890,47 @@ function _renderLifetimeSummary(trades) {
   const stats = (state.data && state.data.lifetime_stats) || {};
   const dailyDd = stats.max_daily_dd ?? 0;
   const todayDd = stats.today_dd ?? 0;
+  // BROKER MODE: when per-trade history is unavailable, populate the
+  // summary cells with the AGGREGATE broker numbers from cashBalance
+  // so the user sees the real -$1085 drawdown instead of $0.
+  if ((!trades || !trades.length) && dataSource === "broker"
+      && state.brokerStats && state.brokerStats.configured) {
+    const bs = state.brokerStats;
+    const realized = bs.realized_pnl != null ? bs.realized_pnl
+                     : (bs.summary || {}).total_pnl;
+    const balance = bs.balance != null ? bs.balance : bs.net_liq;
+    // Calculate the loss from $50K start if balance is below
+    const startBal = 50000;
+    const drawdown = (balance != null && balance < startBal)
+                      ? (balance - startBal) : 0;
+    if (realized != null) {
+      pnlEl.textContent = fmtUsd(realized);
+      pnlEl.className = realized >= 0
+                        ? "lifetime-value pos" : "lifetime-value neg";
+    } else if (drawdown !== 0) {
+      pnlEl.textContent = fmtUsd(drawdown);
+      pnlEl.className = drawdown >= 0
+                        ? "lifetime-value pos" : "lifetime-value neg";
+    } else {
+      pnlEl.textContent = "$0";
+      pnlEl.className = "lifetime-value";
+    }
+    el("lifetime-trades") && (el("lifetime-trades").textContent = "—");
+    el("lifetime-wr") && (el("lifetime-wr").textContent = "—");
+    el("lifetime-dd") && (el("lifetime-dd").textContent =
+      drawdown !== 0 ? fmtUsd(drawdown) : "—");
+    el("lifetime-daily-dd") && (el("lifetime-daily-dd").textContent = "—");
+    el("lifetime-today-dd") && (el("lifetime-today-dd").textContent = "$0");
+    // Clear the chart canvases so we don't show a stale curve
+    try {
+      for (const id of ["chart-equity", "chart-monthly",
+                          "chart-holds", "chart-wlhist"]) {
+        const c = document.getElementById(id);
+        if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+      }
+    } catch (e) {}
+    return;
+  }
   if (!trades || !trades.length) {
     pnlEl.textContent = "$0"; pnlEl.className = "lifetime-value";
     el("lifetime-trades").textContent = "0";
