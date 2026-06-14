@@ -387,9 +387,26 @@ def _collect_broker_trades(sess, acct_id: int,
             "qty": abs(int(f.get("qty") or 0)),
             "price": float(f.get("price") or 0),
             "order_id": f.get("orderId"),
+            "fill_id": f.get("id"),
             "raw": f,
         })
-    fills_clean.sort(key=lambda x: x["ts"])
+    # DETERMINISTIC TIE-BREAK: when two fills have the same millisecond
+    # timestamp (Tradovate matching engine puts both legs of a position
+    # flip at the same ms), sort by (ts, order_id, fill_id). Lower
+    # order_id = created first, so it should be processed first.
+    #
+    # Bug observed: user saw "08:31:07 LONG 30072.75 -> 30072.50 = -$1.24"
+    # which is mathematically a LONG losing 0.25pt. But the actual events
+    # were Sell @ 30072.5 (orderId 696, opens SHORT) followed by Buy @
+    # 30072.75 (orderId 704, closes SHORT). Same ts (.653). Stable
+    # Python sort preserved JSON order, which had Buy before Sell ->
+    # walker opened LONG @ 30072.75 instead of SHORT @ 30072.5 = wrong
+    # side, swapped entry/exit. Fix: sort by orderId as tie-break.
+    fills_clean.sort(key=lambda x: (
+        x["ts"],
+        x["order_id"] if x["order_id"] is not None else 0,
+        x["fill_id"] if x["fill_id"] is not None else 0,
+    ))
 
     # Walk: track signed position. Open new cycle when position was 0.
     # Emit a trade when position returns to 0 (or flips through 0).
@@ -475,6 +492,14 @@ def _collect_broker_trades(sess, acct_id: int,
         emitted = _emit_trade(f, close_qty)
         if emitted:
             rows.append(emitted)
+        # Reduce remaining cycle entries proportionally so the next
+        # close uses the right quantity (avg price stays the same since
+        # we're closing pro-rata across all stacked entries).
+        if cycle_entry_qty > 0:
+            remaining_q = max(0, cycle_entry_qty - close_qty)
+            if cycle_entry_qty > 0:
+                cycle_entry_total *= remaining_q / cycle_entry_qty
+            cycle_entry_qty = remaining_q
         pos_qty += signed
         if pos_qty == 0:
             cycle_entry_total = 0.0
@@ -482,7 +507,7 @@ def _collect_broker_trades(sess, acct_id: int,
             cycle_entry_ts = None
             cycle_side = None
             cycle_entry_order_id = None
-        else:
+        elif (pos_qty > 0) != (cycle_side == "LONG"):
             # Position flipped (close + new opposite-side position in one fill)
             cycle_entry_total = f["price"] * abs(pos_qty)
             cycle_entry_qty = abs(pos_qty)
@@ -511,6 +536,35 @@ def _broker_history_path(acct_id):
     from bot.account_ctx import data_dir as _dd
     p = _dd() / f"broker_trades_{acct_id}.jsonl"
     return p
+
+
+@app.route("/api/broker/rebuild_history", methods=["POST", "GET"])
+def api_broker_rebuild_history():
+    """Wipe the persisted broker trade history and rebuild from the
+    current Tradovate session. Used after a walker logic fix invalidates
+    previously-persisted (wrong) data."""
+    try:
+        from bot.tradovate_client import get_session
+        sess = get_session()
+        if not sess.is_configured:
+            return jsonify({"error": "not_configured"}), 400
+        acct_id = sess.get_account_id()
+        if acct_id is None:
+            return jsonify({"error": "no_account_id"}), 400
+        p = _broker_history_path(acct_id)
+        existed = p.exists()
+        if existed:
+            p.unlink()
+        # Rebuild from current Tradovate data
+        rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+        return jsonify({
+            "ok": True,
+            "wiped_existing": existed,
+            "rebuilt_path": str(p),
+            "n_rebuilt": len(rows),
+        })
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
 
 
 def _persist_broker_trades(acct_id, rows):
