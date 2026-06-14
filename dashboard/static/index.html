@@ -23,7 +23,22 @@
       <span class="brand-name">Trading Bot</span>
     </div>
 
-    <div class="topbar-kpis">
+    <div class="topbar-actions">
+      <button class="btn-icon btn-source" id="data-source-toggle"
+              title="Toggle data source"
+              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
+        <span id="data-source-label">Broker</span>
+      </button>
+      <button class="btn-icon btn-pause" id="btn-pause"
+              title="Pause new entries" data-paused="0">
+        <span>Pause</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── KPI STRIP (always visible, sticky under header) ─────────────── -->
+  <div class="kpi-strip">
+    <div class="kpi-strip-inner">
       <div class="tb-kpi">
         <div class="tb-kpi-label">Balance</div>
         <div class="tb-kpi-value" id="kpi-balance">—</div>
@@ -37,19 +52,7 @@
         <div class="tb-kpi-value" id="kpi-position">FLAT</div>
       </div>
     </div>
-
-    <div class="topbar-actions">
-      <button class="btn-icon btn-source" id="data-source-toggle"
-              title="Toggle data source"
-              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
-        <span id="data-source-label">Broker</span>
-      </button>
-      <button class="btn-icon btn-pause" id="btn-pause"
-              title="Pause new entries" data-paused="0">
-        <span>Pause</span>
-      </button>
-    </div>
-  </header>
+  </div>
 
   <!-- ─── SLIDE-OUT NAV ───────────────────────────────────────────────── -->
   <nav class="nav-drawer" id="nav-drawer" aria-hidden="true">
@@ -85,21 +88,18 @@
         <p class="muted">Real-time bot activity.</p>
       </div>
 
-      <div class="grid g-3">
+      <div class="grid g-3 compact-3">
         <div class="card stat-card">
-          <div class="stat-label">NQ Price</div>
+          <div class="stat-label">NQ</div>
           <div class="stat-value" id="live-nq-price">—</div>
-          <div class="stat-meta" id="live-nq-meta">—</div>
         </div>
         <div class="card stat-card">
-          <div class="stat-label">Trades Today</div>
+          <div class="stat-label">Trades</div>
           <div class="stat-value" id="live-trades-today">0</div>
-          <div class="stat-meta">since NY open</div>
         </div>
         <div class="card stat-card">
-          <div class="stat-label">Pending Setups</div>
+          <div class="stat-label">Setups</div>
           <div class="stat-value" id="live-pending-n">0</div>
-          <div class="stat-meta">armed for entry</div>
         </div>
       </div>
 
