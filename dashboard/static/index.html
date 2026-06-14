@@ -14,8 +14,14 @@
 
   <!-- ─── TOP BAR ─────────────────────────────────────────────────────── -->
   <header class="topbar">
-    <button class="nav-trigger" id="nav-trigger" aria-label="Open navigation">
-      <span></span><span></span><span></span>
+    <button class="nav-trigger" id="nav-trigger" type="button"
+            aria-label="Open menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
     </button>
 
     <div class="brand">
@@ -24,13 +30,12 @@
     </div>
 
     <div class="topbar-actions">
-      <button class="btn-icon btn-source" id="data-source-toggle"
-              title="Toggle data source"
+      <button class="btn-icon btn-source" id="data-source-toggle" type="button"
               onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
         <span id="data-source-label">Broker</span>
       </button>
-      <button class="btn-icon btn-pause" id="btn-pause"
-              title="Pause new entries" data-paused="0">
+      <button class="btn-icon btn-pause" id="btn-pause" type="button"
+              data-paused="0">
         <span>Pause</span>
       </button>
     </div>
@@ -56,19 +61,16 @@
 
   <!-- ─── SLIDE-OUT NAV ───────────────────────────────────────────────── -->
   <nav class="nav-drawer" id="nav-drawer" aria-hidden="true">
+    <div class="nav-drawer-header">
+      <div class="nav-drawer-title">Menu</div>
+      <button class="nav-drawer-close" id="nav-close" type="button"
+              aria-label="Close menu">✕</button>
+    </div>
     <div class="nav-drawer-inner">
-      <button class="nav-item active" data-page="live">
-        <span class="nav-dot"></span>Live
-      </button>
-      <button class="nav-item" data-page="performance">
-        <span class="nav-dot"></span>Performance
-      </button>
-      <button class="nav-item" data-page="trades">
-        <span class="nav-dot"></span>Trades
-      </button>
-      <button class="nav-item" data-page="downloads">
-        <span class="nav-dot"></span>Downloads
-      </button>
+      <button class="nav-item active" data-page="live" type="button">Live</button>
+      <button class="nav-item" data-page="performance" type="button">Performance</button>
+      <button class="nav-item" data-page="trades" type="button">Trades</button>
+      <button class="nav-item" data-page="downloads" type="button">Downloads</button>
     </div>
   </nav>
   <div class="nav-backdrop" id="nav-backdrop"></div>
@@ -336,35 +338,76 @@
 
 <script src="/static/app.js" defer></script>
 <script>
-  // Page routing + nav drawer
-  document.addEventListener("DOMContentLoaded", () => {
-    const nav = document.getElementById("nav-drawer");
-    const backdrop = document.getElementById("nav-backdrop");
-    const trigger = document.getElementById("nav-trigger");
+  // Page routing + nav drawer. Bulletproofed for mobile: robust touch
+  // handling, guarded against missing elements, and the trigger button
+  // is always visible/tappable regardless of drawer state.
+  (function() {
+    function wireNav() {
+      var nav      = document.getElementById("nav-drawer");
+      var backdrop = document.getElementById("nav-backdrop");
+      var trigger  = document.getElementById("nav-trigger");
+      var closeBtn = document.getElementById("nav-close");
+      if (!nav || !backdrop || !trigger) return;
 
-    function openNav() { nav.classList.add("open"); backdrop.classList.add("show"); nav.setAttribute("aria-hidden", "false"); }
-    function closeNav() { nav.classList.remove("open"); backdrop.classList.remove("show"); nav.setAttribute("aria-hidden", "true"); }
-    trigger.addEventListener("click", () => {
-      nav.classList.contains("open") ? closeNav() : openNav();
-    });
-    backdrop.addEventListener("click", closeNav);
+      function openNav()  {
+        nav.classList.add("open");
+        backdrop.classList.add("show");
+        nav.setAttribute("aria-hidden", "false");
+        trigger.setAttribute("aria-expanded", "true");
+        document.body.classList.add("nav-open");
+      }
+      function closeNav() {
+        nav.classList.remove("open");
+        backdrop.classList.remove("show");
+        nav.setAttribute("aria-hidden", "true");
+        trigger.setAttribute("aria-expanded", "false");
+        document.body.classList.remove("nav-open");
+      }
 
-    document.querySelectorAll("[data-page]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const target = btn.dataset.page;
-        document.body.dataset.page = target;
-        document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-        const pageEl = document.getElementById("page-" + target);
-        if (pageEl) pageEl.classList.add("active");
-        document.querySelectorAll(".nav-item").forEach(n =>
-          n.classList.toggle("active", n.dataset.page === target));
-        closeNav();
-        // Trigger renders for newly visible page
-        try { if (target === "performance" && typeof renderPerformanceGraphs === "function") renderPerformanceGraphs(); } catch (e) {}
-        try { if (target === "trades" && typeof renderTradesTable === "function") renderTradesTable(); } catch (e) {}
+      trigger.addEventListener("click", function(e) {
+        e.preventDefault(); e.stopPropagation();
+        nav.classList.contains("open") ? closeNav() : openNav();
       });
-    });
-  });
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function(e) {
+          e.preventDefault(); e.stopPropagation(); closeNav();
+        });
+      }
+      backdrop.addEventListener("click", closeNav);
+
+      // ESC closes the drawer (desktop)
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && nav.classList.contains("open")) closeNav();
+      });
+
+      var navItems = document.querySelectorAll(".nav-item[data-page]");
+      navItems.forEach(function(btn) {
+        btn.addEventListener("click", function(e) {
+          e.preventDefault();
+          var target = btn.dataset.page;
+          document.body.dataset.page = target;
+          document.querySelectorAll(".page").forEach(function(p) {
+            p.classList.remove("active");
+          });
+          var pageEl = document.getElementById("page-" + target);
+          if (pageEl) pageEl.classList.add("active");
+          document.querySelectorAll(".nav-item").forEach(function(n) {
+            n.classList.toggle("active", n.dataset.page === target);
+          });
+          closeNav();
+          try { if (target === "performance" && typeof renderPerformanceGraphs === "function") renderPerformanceGraphs(); } catch (err) {}
+          try { if (target === "trades"      && typeof renderTradesTable      === "function") renderTradesTable(); } catch (err) {}
+          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (err) {}
+        });
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", wireNav);
+    } else {
+      wireNav();
+    }
+  })();
 </script>
 </body>
 </html>
