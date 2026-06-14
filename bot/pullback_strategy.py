@@ -136,9 +136,12 @@ DEFAULT_SIZE = 1                  # 1 MNQ default for live -- conservative; bump
 IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
 IMPULSE_WINDOW_BARS = 4           # impulse measured across last 4 closed 1-min bars
 PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range
-STOP_PTS = 6.0                    # stop distance from entry (NQ pts)
-TARGET_PTS = 18.0                 # target distance from entry (NQ pts) -- widened
-                                  # from 12 after bake-off; lets winners run further
+STOP_PTS = float(os.environ.get("STRAT_STOP_PTS", "6.0"))
+# TARGET_PTS: set explicitly via env so it can't silently drift between
+# deploys. After bake-off the optimal was 18pt, but the user runs 12pt
+# in production for tighter management. Always set STRAT_TARGET_PTS in
+# Railway to lock the value.
+TARGET_PTS = float(os.environ.get("STRAT_TARGET_PTS", "12.0"))
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
 COOLDOWN_SECS = 60                # min gap between trades

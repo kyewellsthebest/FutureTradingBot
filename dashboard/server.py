@@ -341,27 +341,24 @@ def _collect_broker_trades(sess, acct_id: int,
                             limit: int = 1000) -> list:
     """Build the paper-shape trade list from broker data.
 
-    PRIMARY SOURCE: Tradovate's FillPair entity (each row = one
-    round-trip with buyFillId, sellFillId, qty, buyPrice, sellPrice).
+    PRIMARY: reconstruct from Order parent/oco linkage. Each "trade"
+    is (parent entry order) + (one filled bracket child = exit). This
+    gives ACCURATE per-trade attribution.
 
-    FALLBACK: When /fillPair/list is empty (Tradovate demo accounts
-    often return 0 rows here even when trades exist -- the
-    matching-engine's FillPair table seems session-bounded), we
-    reconstruct from /cashBalanceLog/deps which logs EVERY balance
-    change including realized P&L per closed trade. This gives us
-    accurate P&L history even when FillPair is unavailable -- though
-    we lose per-trade entry/exit prices in that fallback.
+    FALLBACK: when the order linkage approach gives no rows (e.g.,
+    very old orders missing parent links), fall back to FillPair.
+    NOTE: Tradovate's FillPair list uses FIFO fill matching across the
+    whole position, so when positions overlap, per-trade P&L is wrong
+    (the NET P&L is right but the per-trade rows are scrambled).
     """
-    # FillPair -- all closed round trips on this account
-    fp_status, fill_pairs = sess._rest("GET", "/fillPair/list")
-    # Fills -- timestamps + orderIds
+    # Fills -- entry/exit fill price + timestamp
     f_status, fills = sess._rest("GET", "/fill/list")
-    fill_by_id = {}
+    fill_by_orderid = {}
     if f_status == 200 and isinstance(fills, list):
         for f in fills:
-            if isinstance(f, dict) and f.get("id") is not None:
-                fill_by_id[int(f["id"])] = f
-    # Orders -- exit_reason inference via orderType
+            if isinstance(f, dict) and f.get("orderId") is not None:
+                fill_by_orderid[int(f["orderId"])] = f
+    # Orders -- entry/exit attribution via parent/oco linkage
     o_status, orders = sess._rest("GET", "/order/list")
     order_by_id = {}
     if o_status == 200 and isinstance(orders, list):
@@ -370,6 +367,111 @@ def _collect_broker_trades(sess, acct_id: int,
                 order_by_id[int(o["id"])] = o
 
     rows = []
+    # PRIMARY: order-linkage reconstruction
+    # A "parent" is an order with parentId=None AND has at least one
+    # bracket child (another order with parentId=this.id) that's Filled.
+    parents = []
+    children_by_parent = {}
+    for o in (order_by_id.values()):
+        pid = o.get("parentId")
+        if pid is None:
+            parents.append(o)
+        else:
+            children_by_parent.setdefault(int(pid), []).append(o)
+
+    for parent in parents:
+        pid = parent.get("id")
+        if pid is None:
+            continue
+        # Need parent to have an entry fill
+        entry_fill = fill_by_orderid.get(int(pid))
+        if not entry_fill:
+            continue
+        # Need at least one Filled bracket child (the exit)
+        children = children_by_parent.get(int(pid), [])
+        filled_exit = None
+        for c in children:
+            if c.get("ordStatus") == "Filled":
+                cid = c.get("id")
+                ef = fill_by_orderid.get(int(cid)) if cid else None
+                if ef:
+                    filled_exit = (c, ef)
+                    break
+        if not filled_exit:
+            # Trade is still open (no bracket child filled yet)
+            continue
+        exit_order, exit_fill = filled_exit
+        try:
+            entry_ts = pd.Timestamp(entry_fill.get("timestamp"))
+            exit_ts = pd.Timestamp(exit_fill.get("timestamp"))
+            if entry_ts.tz is None:
+                entry_ts = entry_ts.tz_localize("UTC")
+            else:
+                entry_ts = entry_ts.tz_convert("UTC")
+            if exit_ts.tz is None:
+                exit_ts = exit_ts.tz_localize("UTC")
+            else:
+                exit_ts = exit_ts.tz_convert("UTC")
+        except Exception:
+            continue
+        try:
+            entry_px = float(entry_fill.get("price") or 0)
+            exit_px = float(exit_fill.get("price") or 0)
+            qty = int(entry_fill.get("qty") or exit_fill.get("qty") or 1)
+        except Exception:
+            continue
+        entry_action = (parent.get("action") or "").lower()
+        side = "LONG" if entry_action == "buy" else "SHORT"
+        if side == "LONG":
+            pts_diff = exit_px - entry_px
+        else:
+            pts_diff = entry_px - exit_px
+        comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
+        pnl_usd = (pts_diff * qty * 2.0) - (comm_rt * qty)
+        # Exit reason from the bracket child's order type
+        exit_type = (exit_order.get("orderType") or "").lower()
+        if "stop" in exit_type:
+            exit_reason = "stop"
+        elif "limit" in exit_type:
+            exit_reason = "target"
+        elif "market" in exit_type:
+            exit_reason = "manual"
+        else:
+            exit_reason = "broker"
+        rows.append({
+            "ts": exit_ts.isoformat(),
+            "entry_ts": entry_ts.isoformat(),
+            "entry_time": entry_ts.isoformat(),
+            "exit_time": exit_ts.isoformat(),
+            "side": side,
+            "qty": qty,
+            "n_mnq": qty,
+            "entry_px": round(entry_px, 4),
+            "exit_px": round(exit_px, 4),
+            "pnl_usd": round(pnl_usd, 2),
+            "pnl": round(pnl_usd, 2),
+            "pnl_pts": round(pts_diff, 4),
+            "exit_reason": exit_reason,
+            "hold_s": (exit_ts - entry_ts).total_seconds(),
+            "commission": round(comm_rt * qty, 2),
+            "source": "broker_order_linkage",
+            "parent_order_id": int(pid),
+            "exit_order_id": exit_order.get("id"),
+            "setup_ref": parent.get("text"),
+        })
+
+    if rows:
+        rows.sort(key=lambda r: r.get("ts") or "")
+        return rows[-limit:]
+
+    # FALLBACK: FillPair (FIFO matching). Used only when order linkage
+    # yields nothing.
+    fp_status, fill_pairs = sess._rest("GET", "/fillPair/list")
+    fill_by_id = {}
+    if f_status == 200 and isinstance(fills, list):
+        for f in fills:
+            if isinstance(f, dict) and f.get("id") is not None:
+                fill_by_id[int(f["id"])] = f
     if (fp_status == 200 and isinstance(fill_pairs, list)
             and len(fill_pairs) > 0):
         for fp in fill_pairs:

@@ -165,20 +165,99 @@ class TradovateOrders:
         slip_adjust = (os.environ.get("BRACKET_SLIP_PRE_ADJUST", "false")
                         .lower() in ("true", "1", "yes"))
         slip_pts = float(os.environ.get("PAPER_STOP_SLIP_PTS", "0.5"))
+
+        # CRITICAL: re-anchor bracket prices to actual market when the
+        # LIMIT entry is going to fill with PRICE IMPROVEMENT.
+        #
+        # Bug observed in the wild: SHORT entry @ 30072.50 when current
+        # bid was 30083. LIMIT fills immediately at 30083 (price
+        # improvement +10.5pt for the seller). But the bracket STOP was
+        # pre-computed at entry_estimate + 5.5pt = 30078 -- which is
+        # BELOW the actual fill price. Tradovate rejects the bracket
+        # as InvalidPrice ("stop already triggered before activation").
+        # Result: SHORT position open with NO STOP PROTECTION.
+        #
+        # Fix: pull the latest Tradovate bid/ask. If the LIMIT will be
+        # marketable (filling immediately at improved price), use the
+        # current market as the bracket reference. This preserves the
+        # strategy's intended RR ratio relative to the actual fill,
+        # not relative to the strategy's intended fill.
+        bracket_ref = float(entry_estimate)
+        cur_bid = cur_ask = None
+        bid_ask_age = None
+        try:
+            from bot.tick_history import latest_by_src
+            tv = latest_by_src("tradovate")
+            if tv:
+                cur_bid = tv.get("bid")
+                cur_ask = tv.get("ask")
+                bid_ask_age = time.time() - tv.get("ts", 0)
+        except Exception:
+            pass
+        marketable_with_improvement = False
+        # Only trust bid/ask if it's fresh (< 5s old)
+        if bid_ask_age is not None and bid_ask_age < 5.0:
+            if side == "LONG" and cur_ask is not None:
+                ask = float(cur_ask)
+                if ask < bracket_ref:
+                    # Marketable LIMIT will fill at the better (lower) ask
+                    bracket_ref = ask
+                    marketable_with_improvement = True
+            elif side == "SHORT" and cur_bid is not None:
+                bid = float(cur_bid)
+                if bid > bracket_ref:
+                    # Marketable LIMIT will fill at the better (higher) bid
+                    bracket_ref = bid
+                    marketable_with_improvement = True
+
+        # SAFETY CAP: if the price has drifted so far from
+        # entry_estimate that re-anchoring would create a stop > 2x
+        # the strategy's intended risk, abort the trade. The strategy's
+        # pullback level no longer applies to this market state.
+        max_drift = float(stop_pts) * 2.0
+        drift = abs(bracket_ref - float(entry_estimate))
+        if drift > max_drift:
+            logger.warning(
+                f"[placeoso ABORT] price drift {drift:.2f}pt > safety "
+                f"cap {max_drift:.2f}pt (entry_est={entry_estimate}, "
+                f"bracket_ref={bracket_ref}, side={side}). The market "
+                f"moved too far between strategy decision and submit. "
+                f"Skipping this trade to preserve risk envelope.")
+            _audit({
+                "kind": "placeoso_aborted_safety_cap",
+                "side": side, "qty": qty, "symbol": symbol,
+                "entry_estimate": float(entry_estimate),
+                "bracket_ref": bracket_ref,
+                "drift_pts": round(drift, 2),
+                "max_drift_pts": max_drift,
+                "current_bid": cur_bid, "current_ask": cur_ask,
+                "setup_ref": setup_ref,
+            })
+            return OrderResult(
+                ok=False, order_id=None, status_code=None,
+                response={}, error="price_drift_safety_cap")
+
         if side == "LONG":
-            stop_raw = entry_estimate - float(stop_pts)
+            stop_raw = bracket_ref - float(stop_pts)
             if slip_adjust:
                 # Stop triggers higher; broker fills slipped down to
                 # match the strategy's intended stop level.
                 stop_raw += slip_pts
             stop_price = _tick_round(stop_raw)
-            target_price = _tick_round(entry_estimate + float(target_pts))
+            target_price = _tick_round(bracket_ref + float(target_pts))
         else:
-            stop_raw = entry_estimate + float(stop_pts)
+            stop_raw = bracket_ref + float(stop_pts)
             if slip_adjust:
                 stop_raw -= slip_pts
             stop_price = _tick_round(stop_raw)
-            target_price = _tick_round(entry_estimate - float(target_pts))
+            target_price = _tick_round(bracket_ref - float(target_pts))
+
+        if marketable_with_improvement:
+            logger.info(
+                f"[bracket re-anchored] {side} entry_est={entry_estimate} "
+                f"-> ref={bracket_ref} (drift {drift:.2f}pt via "
+                f"bid={cur_bid} ask={cur_ask}). Bracket: stop={stop_price} "
+                f"target={target_price}.")
 
         entry_price = _tick_round(entry_estimate)
         # TIF=Day: the LIMIT auto-expires at session close. Previously
@@ -309,6 +388,11 @@ class TradovateOrders:
             "side": side, "qty": qty, "symbol": symbol,
             "entry_estimate": float(entry_estimate),
             "entry_price": entry_price,
+            "bracket_ref": bracket_ref,
+            "bracket_drift_pts": round(drift, 4),
+            "marketable_with_improvement": marketable_with_improvement,
+            "current_bid": cur_bid, "current_ask": cur_ask,
+            "bid_ask_age_s": round(bid_ask_age, 3) if bid_ask_age is not None else None,
             "stop_price": stop_price, "target_price": target_price,
             "stop_pts": float(stop_pts), "target_pts": float(target_pts),
             "setup_ref": setup_ref,
