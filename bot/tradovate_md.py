@@ -125,6 +125,7 @@ class TradovateMarketData:
             "subscribed": bool(self._subscribed),
             "tick_count": int(self.tick_count),
             "frames_seen": getattr(self, "_frames_seen", 0),
+            "event_type_counts": getattr(self, "_event_type_counts", {}),
             "last_tick_age_s": (round(now - self._last_tick_ts, 1)
                                  if self._last_tick_ts else None),
             "last_error": self.last_error,
@@ -350,14 +351,35 @@ class TradovateMarketData:
             self._handle_message(msg)
 
     def _handle_message(self, msg: dict) -> None:
+        # Telemetry: count every event type so we can see what's
+        # actually arriving when tick_count stays at 0 despite many
+        # frames. Bundle will show this distribution.
+        ev_type = msg.get("e") or "_no_event"
+        if not hasattr(self, "_event_type_counts"):
+            self._event_type_counts = {}
+        self._event_type_counts[ev_type] = self._event_type_counts.get(ev_type, 0) + 1
+
         # Event messages (server -> client streaming data)
-        if msg.get("e") == "md":
+        if ev_type == "md":
             self._handle_md_event(msg.get("d") or {})
+            return
+        # Tradovate sometimes uses "props" / "Quote" for property updates
+        # on subscribed entities. Treat those as market data too.
+        if ev_type in ("props", "Quote", "quote", "chart"):
+            d = msg.get("d") or {}
+            if "quotes" in d:
+                self._handle_md_event(d)
+            elif "bars" in d or "entries" in d:
+                self._handle_md_event({"quotes": [d]})
             return
         # Response messages (replies to client requests)
         if "s" in msg:
             return  # acks for our auth/sub already handled
-        # Status / heartbeat / unknown
+        # Status / heartbeat / unknown -- log first few of each type
+        # so we can see what's arriving
+        if self._event_type_counts.get(ev_type, 0) <= 3:
+            logger.info(f"tradovate_md unhandled event_type={ev_type!r} "
+                        f"keys={list(msg.keys())} sample={str(msg)[:300]!r}")
         logger.debug(f"tradovate_md: unhandled message: "
                      f"keys={list(msg.keys())}")
 

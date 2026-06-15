@@ -774,21 +774,31 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             state.completed_trades.append(record)
             state.active_trade = None
             state.last_trade_close_ts = now
-            # Post-streak circuit breaker: track consecutive losses; pause
-            # entries after N in a row. Reset on any winning trade.
+            # Post-streak circuit breaker: track consecutive losses;
+            # pause new entries after N in a row. Reset on any winning
+            # trade. Now ENABLED BY DEFAULT after observing a -$292
+            # day where 4-5 consecutive losses snowballed.
+            # Override via params or env:
+            #   POST_STREAK_LOSSES (env: STRAT_POST_STREAK_LOSSES) default 4
+            #   POST_STREAK_PAUSE_MINS (env: STRAT_POST_STREAK_PAUSE_MINS) default 30
             n_losses_trip = (params or {}).get("POST_STREAK_LOSSES")
             pause_mins    = (params or {}).get("POST_STREAK_PAUSE_MINS")
-            if n_losses_trip is not None and pause_mins is not None:
-                if record["pnl_usd"] < 0:
-                    state.consecutive_losses += 1
-                    if state.consecutive_losses >= int(n_losses_trip):
-                        from datetime import timedelta
-                        state.pause_until_ts = now + timedelta(minutes=int(pause_mins))
-                        logger.warning(f"[STREAK BREAK] {state.consecutive_losses} consecutive losses — "
-                                       f"pausing new entries until {state.pause_until_ts.isoformat()}")
-                        state.consecutive_losses = 0   # arm again after pause
-                else:
-                    state.consecutive_losses = 0
+            if n_losses_trip is None:
+                n_losses_trip = int(os.environ.get(
+                    "STRAT_POST_STREAK_LOSSES", "4"))
+            if pause_mins is None:
+                pause_mins = int(os.environ.get(
+                    "STRAT_POST_STREAK_PAUSE_MINS", "30"))
+            if record["pnl_usd"] < 0:
+                state.consecutive_losses += 1
+                if state.consecutive_losses >= int(n_losses_trip):
+                    from datetime import timedelta
+                    state.pause_until_ts = now + timedelta(minutes=int(pause_mins))
+                    logger.warning(f"[STREAK BREAK] {state.consecutive_losses} consecutive losses — "
+                                   f"pausing new entries until {state.pause_until_ts.isoformat()}")
+                    state.consecutive_losses = 0   # arm again after pause
+            else:
+                state.consecutive_losses = 0
             logger.info("[CLOSE] %s pnl=$%.2f hold=%.1fs reason=%s",
                         record["side"], record["pnl_usd"],
                         record["hold_s"], record["exit_reason"])
