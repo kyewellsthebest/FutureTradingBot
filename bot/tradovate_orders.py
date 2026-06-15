@@ -246,35 +246,44 @@ class TradovateOrders:
             pass
         marketable_with_improvement = False
         ref_source = "entry_estimate"
-        # PRIMARY: use Tradovate WS bid/ask when fresh
+        # PRIMARY: use Tradovate WS bid/ask when fresh.
+        #
+        # USER REQUIREMENT 2026-06-15: bot must trade exactly like paper.
+        # Re-anchor bracket_ref to actual market in BOTH directions, not
+        # just the improvement direction. Old code only re-anchored when
+        # market had moved FAVORABLY (price improvement). When market
+        # slipped AGAINST the bot between strategy decision and submit
+        # (e.g. SHORT entry @ 30282 but market dropped to 30260 in the
+        # 2-second submit latency), bracket_ref stayed at the stale
+        # entry_estimate. Safety cap saw drift=0 and let the order
+        # through with paper_target_px=30269.75 (above the actual fill
+        # of 30260) -> LIMIT BUY target triggered IMMEDIATELY at the
+        # ask -> 0-second "target hit" that's actually a small loss.
+        # Symptom user saw: -$2.74 / -$3.24 / +$0.76 with 0s holds.
+        #
+        # Now: bracket_ref always tracks the actual market. Safety cap
+        # then catches large adverse drifts. Paper-price validation
+        # below correctly rejects wrong-side prices and falls back to
+        # bracket_ref-based points.
         if bid_ask_age is not None and bid_ask_age < 5.0:
             if side == "LONG" and cur_ask is not None:
-                ask = float(cur_ask)
-                if ask < bracket_ref:
-                    bracket_ref = ask
-                    marketable_with_improvement = True
-                    ref_source = "tradovate_ask"
+                bracket_ref = float(cur_ask)
+                marketable_with_improvement = (bracket_ref < float(entry_estimate))
+                ref_source = "tradovate_ask"
             elif side == "SHORT" and cur_bid is not None:
-                bid = float(cur_bid)
-                if bid > bracket_ref:
-                    bracket_ref = bid
-                    marketable_with_improvement = True
-                    ref_source = "tradovate_bid"
-        # FALLBACK: when Tradovate WS isn't sending bid/ask (observed
-        # in production: tick_count=0 despite connected/subscribed),
-        # use the LIVE LAST-TRADE PRICE the caller passed in from
-        # PriceMonitor. last_price is a strong proxy for current
-        # bid/ask (within 1 tick during liquid hours).
+                bracket_ref = float(cur_bid)
+                marketable_with_improvement = (bracket_ref > float(entry_estimate))
+                ref_source = "tradovate_bid"
+        # FALLBACK: Tradovate WS bid/ask absent -> use the live last-
+        # trade price the caller passed in from PriceMonitor. Tracks
+        # actual market regardless of direction.
         elif live_price is not None:
-            lp = float(live_price)
-            if side == "LONG" and lp < bracket_ref:
-                bracket_ref = lp
-                marketable_with_improvement = True
-                ref_source = "live_price"
-            elif side == "SHORT" and lp > bracket_ref:
-                bracket_ref = lp
-                marketable_with_improvement = True
-                ref_source = "live_price"
+            bracket_ref = float(live_price)
+            if side == "LONG":
+                marketable_with_improvement = (bracket_ref < float(entry_estimate))
+            else:
+                marketable_with_improvement = (bracket_ref > float(entry_estimate))
+            ref_source = "live_price"
 
         # SAFETY CAP: if the price has drifted so far from
         # entry_estimate that re-anchoring would create a stop > 2x
