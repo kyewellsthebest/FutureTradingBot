@@ -1110,6 +1110,36 @@ class FibRuntime:
                          symbol=symbol, entry_px=trade.entry_px,
                          stop_pts=stop_pts, target_pts=target_pts,
                          live_px=live_snap.price)
+
+                    # SINGLE-POSITION INVARIANT for LIMIT entries.
+                    # Strategy is single-position; only one broker LIMIT
+                    # should rest at a time. If a prior LIMIT from an
+                    # earlier setup is still Working (paper closed, but
+                    # the cancel-stale-limits pass missed it, OR a race
+                    # condition), cancel it before sending the new one.
+                    # Otherwise the new order would queue alongside and
+                    # both could fill = stacked position.
+                    for prior in list(self._pending_parent_orders):
+                        prior_id = prior.get("parent_order_id")
+                        if not prior_id:
+                            continue
+                        try:
+                            status = self.tradovate_orders.get_order_status(
+                                int(prior_id))
+                            if status == "Working":
+                                logger.info(
+                                    f"[LIMIT sibling cancel] new setup "
+                                    f"firing; cancelling prior pending "
+                                    f"LIMIT order_id={prior_id} "
+                                    f"(setup_ref={prior.get('setup_ref')})")
+                                self.tradovate_orders.cancel_order(
+                                    int(prior_id))
+                        except Exception as ce:
+                            logger.warning(
+                                f"[LIMIT sibling cancel] failed for "
+                                f"{prior_id}: {ce!r}")
+                    self._pending_parent_orders.clear()
+
                     # CRITICAL: pass the STRATEGY'S intended entry price
                     # (the 0.618 pullback level) -- NOT the live tick.
                     # The LIMIT order needs to fill at the strategy's

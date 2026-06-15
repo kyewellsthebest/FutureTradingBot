@@ -232,6 +232,15 @@ class TradovateOrders:
         # current market as the bracket reference. This preserves the
         # strategy's intended RR ratio relative to the actual fill,
         # not relative to the strategy's intended fill.
+        # Decide entry type first -- because bracket_ref logic depends
+        # on it. With LIMIT entry, the fill price IS entry_estimate (or
+        # nothing fills). So bracket_ref should be entry_estimate, no
+        # re-anchor to live market.
+        # With MARKET entry, fill price is current market (slipped),
+        # so bracket_ref must track live market for the bracket to be
+        # placed correctly relative to the actual fill.
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "limit").lower()
+
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None
         bid_ask_age = None
@@ -246,26 +255,23 @@ class TradovateOrders:
             pass
         marketable_with_improvement = False
         ref_source = "entry_estimate"
-        # PRIMARY: use Tradovate WS bid/ask when fresh.
-        #
-        # USER REQUIREMENT 2026-06-15: bot must trade exactly like paper.
-        # Re-anchor bracket_ref to actual market in BOTH directions, not
-        # just the improvement direction. Old code only re-anchored when
-        # market had moved FAVORABLY (price improvement). When market
-        # slipped AGAINST the bot between strategy decision and submit
-        # (e.g. SHORT entry @ 30282 but market dropped to 30260 in the
-        # 2-second submit latency), bracket_ref stayed at the stale
-        # entry_estimate. Safety cap saw drift=0 and let the order
-        # through with paper_target_px=30269.75 (above the actual fill
-        # of 30260) -> LIMIT BUY target triggered IMMEDIATELY at the
-        # ask -> 0-second "target hit" that's actually a small loss.
-        # Symptom user saw: -$2.74 / -$3.24 / +$0.76 with 0s holds.
-        #
-        # Now: bracket_ref always tracks the actual market. Safety cap
-        # then catches large adverse drifts. Paper-price validation
-        # below correctly rejects wrong-side prices and falls back to
-        # bracket_ref-based points.
-        if bid_ask_age is not None and bid_ask_age < 5.0:
+
+        if entry_type == "limit":
+            # LIMIT entry path: the order rests at entry_estimate and
+            # only fills when the matching engine sees a touch at the
+            # exact price. Fill price = entry_estimate (or no fill).
+            # Bracket levels are then validated against entry_estimate
+            # directly -- no re-anchor needed. Paper's stop_px and
+            # target_px work as-is.
+            #
+            # Trade-off: ~10-15% of touches miss when price wicks
+            # through without resting. Acceptable because those
+            # are typically fast-momentum moves where slip on a
+            # MARKET fill would have been brutal anyway. User explicitly
+            # accepted this trade-off (2026-06-15).
+            ref_source = "entry_estimate_limit"
+        elif bid_ask_age is not None and bid_ask_age < 5.0:
+            # MARKET entry: re-anchor to Tradovate bid/ask bidirectionally
             if side == "LONG" and cur_ask is not None:
                 bracket_ref = float(cur_ask)
                 marketable_with_improvement = (bracket_ref < float(entry_estimate))
@@ -376,17 +382,11 @@ class TradovateOrders:
                     f"target={target_price}.")
 
         entry_price = _tick_round(entry_estimate)
-        # USER REQUIREMENT: trade frequency MUST match paper exactly.
-        # LIMIT entries can miss when price drifts before the order
-        # reaches the matching engine -- those missed entries are
-        # lost paper trades, lost EV. Default to MARKET so every
-        # paper signal results in a broker fill. Bracket re-anchor
-        # logic above ensures stop/target distances match strategy
-        # intent relative to the actual fill price.
-        #
-        # Set BROKER_ENTRY_TYPE=limit to revert to the previous
-        # behavior (LIMIT @ strategy_entry; occasionally misses).
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "market").lower()
+        # entry_type was decided at the top of this function (~line 242)
+        # so the bracket_ref logic could branch on LIMIT vs MARKET.
+        # Default is "limit" -- exact fill at strategy entry, no slip
+        # cost. Set BROKER_ENTRY_TYPE=market to revert to MARKET with
+        # bidirectional bracket_ref re-anchor.
         body = {
             "accountSpec": self._account_spec(),
             "accountId": int(account_id),
@@ -567,7 +567,18 @@ class TradovateOrders:
             # definitive evidence.
             bracket_verification = {"oso1Id": oso1, "oso2Id": oso2,
                                      "children": []}
-            if oso1 and oso2:
+            # LATENCY: skip per-child verification REST calls by default.
+            # Each placeoso confirmation requires 4 extra REST round-trips
+            # (/order/item + /orderVersion/deps for stop AND target) =
+            # ~1000-1500ms added to every entry. With LIMIT entries at
+            # the strategy's exact price, broker fill happens
+            # IMMEDIATELY when price touches -- waiting 1s post-submit
+            # to verify means missing the next tick. Trust placeoso's
+            # oso1Id/oso2Id presence as the bracket-attached signal.
+            # Set BRACKET_VERIFY_POSTSUBMIT=true to re-enable.
+            verify_postsubmit = os.environ.get(
+                "BRACKET_VERIFY_POSTSUBMIT", "false").lower() in ("true", "1", "yes")
+            if oso1 and oso2 and verify_postsubmit:
                 # Per Tradovate API entity model:
                 #   Order      = {id, accountId, contractId, action, ordStatus,
                 #                 ocoId, parentId, linkedId, timestamp}
