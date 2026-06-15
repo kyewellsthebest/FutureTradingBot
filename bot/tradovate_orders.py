@@ -277,24 +277,27 @@ class TradovateOrders:
                 f"target={target_price}.")
 
         entry_price = _tick_round(entry_estimate)
-        # TIF=Day: the LIMIT auto-expires at session close. Previously
-        # this was GTC, which left zombie LIMITs sitting overnight that
-        # could fill at the open next session at a stale price (way
-        # past the strategy's pullback level). Day TIF respects the
-        # strategy's "this setup is valid only in this session" intent.
+        # USER REQUIREMENT: trade frequency MUST match paper exactly.
+        # LIMIT entries can miss when price drifts before the order
+        # reaches the matching engine -- those missed entries are
+        # lost paper trades, lost EV. Default to MARKET so every
+        # paper signal results in a broker fill. Bracket re-anchor
+        # logic above ensures stop/target distances match strategy
+        # intent relative to the actual fill price.
+        #
+        # Set BROKER_ENTRY_TYPE=limit to revert to the previous
+        # behavior (LIMIT @ strategy_entry; occasionally misses).
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "market").lower()
         body = {
             "accountSpec": self._account_spec(),
             "accountId": int(account_id),
             "action": action,
             "symbol": symbol,
             "orderQty": int(qty),
-            "orderType": "Limit",
-            "price": entry_price,
-            "timeInForce": "Day",
             "isAutomated": True,
             # bracket1 + bracket2 form an OCO server-side. When the
-            # parent (limit entry) fills, both children are activated.
-            # When either child fills, the other is auto-cancelled.
+            # parent fills, both children activate. When either fills,
+            # the other is auto-cancelled.
             "bracket1": {
                 "action": opposite_action,
                 "orderType": "Stop",
@@ -310,6 +313,17 @@ class TradovateOrders:
         }
         if setup_ref:
             body["text"] = setup_ref[:64]  # Tradovate caps user text
+
+        # Apply chosen entry type. MARKET (default) = guaranteed fill,
+        # may slip 0-2pt from strategy_entry. LIMIT = exact strategy
+        # price but may miss when price drifts.
+        if entry_type == "limit":
+            body["orderType"] = "Limit"
+            body["price"] = entry_price
+            body["timeInForce"] = "Day"
+        else:
+            body["orderType"] = "Market"
+            # MARKET orders have no price field
 
         # Capture market state at submit time so the audit log + bundle
         # show the bid/ask spread when the order went in. This is pure
@@ -338,8 +352,8 @@ class TradovateOrders:
             pass
 
         logger.info(
-            f"[tradovate placeoso] {action} {qty} {symbol} LIMIT@"
-            f"{entry_price:.2f} stop@{stop_price:.2f} "
+            f"[tradovate placeoso] {action} {qty} {symbol} "
+            f"{entry_type.upper()}@{entry_price:.2f} stop@{stop_price:.2f} "
             f"target@{target_price:.2f} ref={setup_ref!r} "
             f"market={market_state}")
         logger.info(f"[tradovate placeoso BODY] {json.dumps(body)}")

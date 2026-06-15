@@ -1066,15 +1066,17 @@ class FibRuntime:
                     _tl(setup_ref, "broker_skip", reason="no_live_price")
                     return
                 divergence = abs(trade.entry_px - live_snap.price)
-                # Divergence gate: skip trades when strategy entry is
-                # too far from live market. The wider gate (was 30pt)
-                # let trades fire that immediately required bracket
-                # re-anchoring, which inflated the actual risk
-                # envelope. Tighter gate = cleaner execution at the
-                # cost of skipping ~3-5% of trades that drifted hard.
-                # Override via env if needed.
+                # Divergence gate: original wide 30pt setting.
+                # USER REQUIREMENT: trade frequency MUST match paper
+                # exactly. Volume is what makes the strategy money.
+                # Don't skip trades just because price drifted a bit
+                # between strategy decision and broker submit -- the
+                # bracket re-anchor logic handles bracket validity
+                # downstream. The bug fixes (dd160d9, e9ea951,
+                # 070df56) eliminate the actual leak mechanisms
+                # without touching trade count.
                 divergence_max = float(os.environ.get(
-                    "TRADERSPOST_MAX_DIVERGENCE_PT", "5"))
+                    "TRADERSPOST_MAX_DIVERGENCE_PT", "30"))
                 logger.info(f"[broker gate 4/4 divergence] "
                             f"strategy={trade.entry_px:.2f} "
                             f"live={live_snap.price:.2f} "

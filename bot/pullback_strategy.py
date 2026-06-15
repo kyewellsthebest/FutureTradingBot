@@ -774,18 +774,19 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
             state.completed_trades.append(record)
             state.active_trade = None
             state.last_trade_close_ts = now
-            # Post-streak circuit breaker: track consecutive losses;
-            # pause new entries after N in a row. Reset on any winning
-            # trade. Now ENABLED BY DEFAULT after observing a -$292
-            # day where 4-5 consecutive losses snowballed.
-            # Override via params or env:
-            #   POST_STREAK_LOSSES (env: STRAT_POST_STREAK_LOSSES) default 4
+            # Post-streak circuit breaker: track consecutive losses.
+            # USER REQUIREMENT: do NOT pause trading on streaks --
+            # trade volume is what makes the strategy money.
+            # Streak break DISABLED by default (off unless user
+            # explicitly sets STRAT_POST_STREAK_LOSSES to a low
+            # number).
+            #   POST_STREAK_LOSSES (env: STRAT_POST_STREAK_LOSSES) default 999 (off)
             #   POST_STREAK_PAUSE_MINS (env: STRAT_POST_STREAK_PAUSE_MINS) default 30
             n_losses_trip = (params or {}).get("POST_STREAK_LOSSES")
             pause_mins    = (params or {}).get("POST_STREAK_PAUSE_MINS")
             if n_losses_trip is None:
                 n_losses_trip = int(os.environ.get(
-                    "STRAT_POST_STREAK_LOSSES", "4"))
+                    "STRAT_POST_STREAK_LOSSES", "999"))
             if pause_mins is None:
                 pause_mins = int(os.environ.get(
                     "STRAT_POST_STREAK_PAUSE_MINS", "30"))
