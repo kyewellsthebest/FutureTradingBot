@@ -152,11 +152,21 @@ class TradovateOrders:
                                     side: str,           # "LONG" or "SHORT"
                                     qty: int,
                                     symbol: str,         # e.g. "MNQM6"
-                                    stop_pts: float,     # 6.0
-                                    target_pts: float,   # 12.0
+                                    stop_pts: float,     # 6.0  (legacy / fallback)
+                                    target_pts: float,   # 12.0 (legacy / fallback)
                                     entry_estimate: float,  # strategy's intended entry
                                     live_price: Optional[float] = None,  # current last from PriceMonitor
-                                    setup_ref: Optional[str] = None
+                                    setup_ref: Optional[str] = None,
+                                    # USER REQUIREMENT 2026-06-15: bot must
+                                    # trade EXACTLY like paper. Paper computes
+                                    # stop_px/target_px from setup structure
+                                    # (fib levels, swing points) -- not from
+                                    # fixed 6/12 point distances. When these
+                                    # are provided, the broker bracket uses
+                                    # paper's exact prices so every fill
+                                    # mirrors paper's bracket levels.
+                                    paper_stop_px: Optional[float] = None,
+                                    paper_target_px: Optional[float] = None,
                                     ) -> OrderResult:
         """Place a LIMIT entry at the strategy's intended price with an
         OCO bracket via /order/placeoso.
@@ -298,27 +308,68 @@ class TradovateOrders:
                 ok=False, order_id=None, status_code=None,
                 response={}, error="price_drift_safety_cap")
 
-        if side == "LONG":
-            stop_raw = bracket_ref - float(stop_pts)
-            if slip_adjust:
-                # Stop triggers higher; broker fills slipped down to
-                # match the strategy's intended stop level.
-                stop_raw += slip_pts
-            stop_price = _tick_round(stop_raw)
-            target_price = _tick_round(bracket_ref + float(target_pts))
-        else:
-            stop_raw = bracket_ref + float(stop_pts)
-            if slip_adjust:
-                stop_raw -= slip_pts
-            stop_price = _tick_round(stop_raw)
-            target_price = _tick_round(bracket_ref - float(target_pts))
+        # USER REQUIREMENT: bot trades EXACTLY like paper. When paper's
+        # exact stop_px/target_px are supplied, use them as the bracket
+        # prices -- but only if they're on the correct side of the
+        # expected fill price (otherwise Tradovate rejects InvalidPrice).
+        #
+        # SHORT bracket: stop must be ABOVE fill, target must be BELOW fill.
+        # LONG bracket:  stop must be BELOW fill, target must be ABOVE fill.
+        #
+        # Reference for "correct side" check: bracket_ref (live market or
+        # entry_estimate). If MARKET entry, this is what the fill will be
+        # near. If LIMIT entry, fill should be at or improved from entry.
+        use_paper_prices = False
+        if (paper_stop_px is not None and paper_target_px is not None):
+            ps = float(paper_stop_px)
+            pt = float(paper_target_px)
+            if side == "LONG":
+                ok = ps < bracket_ref < pt
+            else:  # SHORT
+                ok = pt < bracket_ref < ps
+            if ok:
+                stop_price = _tick_round(ps)
+                target_price = _tick_round(pt)
+                if slip_adjust:
+                    # Pre-shift the stop toward fill by observed slip so
+                    # paper expectation matches broker fill.
+                    if side == "LONG":
+                        stop_price = _tick_round(ps + slip_pts)
+                    else:
+                        stop_price = _tick_round(ps - slip_pts)
+                use_paper_prices = True
+                logger.info(
+                    f"[bracket EXACT paper] {side} entry_est={entry_estimate} "
+                    f"ref={bracket_ref:.2f} stop={stop_price:.2f} "
+                    f"target={target_price:.2f} (paper's exact levels)")
+            else:
+                logger.warning(
+                    f"[bracket paper-price WRONG SIDE] {side} ref={bracket_ref:.2f} "
+                    f"paper_stop={ps} paper_target={pt} -- "
+                    f"falling back to points-based bracket")
 
-        if marketable_with_improvement:
-            logger.info(
-                f"[bracket re-anchored] {side} entry_est={entry_estimate} "
-                f"-> ref={bracket_ref} (drift {drift:.2f}pt via "
-                f"bid={cur_bid} ask={cur_ask}). Bracket: stop={stop_price} "
-                f"target={target_price}.")
+        if not use_paper_prices:
+            if side == "LONG":
+                stop_raw = bracket_ref - float(stop_pts)
+                if slip_adjust:
+                    # Stop triggers higher; broker fills slipped down to
+                    # match the strategy's intended stop level.
+                    stop_raw += slip_pts
+                stop_price = _tick_round(stop_raw)
+                target_price = _tick_round(bracket_ref + float(target_pts))
+            else:
+                stop_raw = bracket_ref + float(stop_pts)
+                if slip_adjust:
+                    stop_raw -= slip_pts
+                stop_price = _tick_round(stop_raw)
+                target_price = _tick_round(bracket_ref - float(target_pts))
+
+            if marketable_with_improvement:
+                logger.info(
+                    f"[bracket re-anchored] {side} entry_est={entry_estimate} "
+                    f"-> ref={bracket_ref} (drift {drift:.2f}pt via "
+                    f"bid={cur_bid} ask={cur_ask}). Bracket: stop={stop_price} "
+                    f"target={target_price}.")
 
         entry_price = _tick_round(entry_estimate)
         # USER REQUIREMENT: trade frequency MUST match paper exactly.

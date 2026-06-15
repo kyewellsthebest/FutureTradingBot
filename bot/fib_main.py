@@ -1124,6 +1124,12 @@ class FibRuntime:
                         # providing bid/ask (tick_count=0 in practice),
                         # so live_price is our only fill-side hint.
                         live_price=float(live_snap.price) if live_snap else None,
+                        # USER REQUIREMENT 2026-06-15: paper's exact
+                        # stop_px / target_px (structure-derived from
+                        # swing points + fib levels) become the broker
+                        # bracket levels. Every fill mirrors paper.
+                        paper_stop_px=float(trade.stop_px),
+                        paper_target_px=float(trade.target_px),
                         setup_ref=setup_ref,
                     )
                     _tl(setup_ref, "placeoso_result",
