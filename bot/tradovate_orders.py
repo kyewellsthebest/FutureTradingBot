@@ -205,21 +205,16 @@ class TradovateOrders:
         # entry_estimate exactly (or not at all), the bracket distances
         # are now CORRECT relative to the fill price.
         #
-        # OPT-IN: Slip-adjusted bracket. When BRACKET_SLIP_PRE_ADJUST=true,
-        # we pre-shift the stop_price TOWARD the entry by the observed
-        # slippage value (PAPER_STOP_SLIP_PTS). The matching engine
-        # triggers stop-market at the pre-shifted price; broker fill
-        # then slips back to where the strategy actually wanted the
-        # stop = paper expectation matches broker fill.
-        #
-        # Default is OFF -- this slightly reduces the actual stop
-        # distance (tighter risk), which can cause trades that would
-        # have recovered to get stopped out a tiny bit earlier. Enable
-        # only after seeing the slip_calibration recommendation in the
-        # bundle and confirming the observed slip is consistent.
-        slip_adjust = (os.environ.get("BRACKET_SLIP_PRE_ADJUST", "false")
-                        .lower() in ("true", "1", "yes"))
-        slip_pts = float(os.environ.get("PAPER_STOP_SLIP_PTS", "0.5"))
+        # USER REQUIREMENT 2026-06-15: bot must trade EXACTLY like paper.
+        # Previously BRACKET_SLIP_PRE_ADJUST shifted the broker stop
+        # TOWARD entry by 0.5pt so the broker stop-market fill would
+        # slip back to paper's level. This made broker stops fire
+        # EARLIER than paper stops -- on 11 trades in this audit period
+        # the broker hit a 0.5pt-tighter stop while paper's wider stop
+        # survived a wick and ran to target. Net leak: ~$36 per false
+        # stop-out * 11 = ~$400. Permanently disabled.
+        slip_adjust = False
+        slip_pts = 0.0
 
         # CRITICAL: re-anchor bracket prices to actual market when the
         # LIMIT entry is going to fill with PRICE IMPROVEMENT.
