@@ -354,6 +354,17 @@ class FibRuntime:
         # paper, never cancel the order, never reduce trades). Just tag
         # the trade record with whether the broker actually filled.
         self._pending_parent_orders: list = []
+        # PRE-SUBMIT LIMIT: at most ONE pre-submitted broker LIMIT at a
+        # time. When the strategy creates a pending_setup (impulse formed,
+        # pullback level computed), we immediately submit a LIMIT @ that
+        # level + bracket. The LIMIT rests on the matching engine for up
+        # to 5 minutes (setup TTL). When price retraces to the level, it
+        # fills INSTANTLY (microseconds) -- no network RTT delay.
+        # When a different setup arrives, cancel the old LIMIT and submit
+        # a new one (single-position invariant).
+        # Format: {'setup_key', 'order_id', 'side', 'entry_px', 'stop_px',
+        #          'target_px', 'submitted_at'}
+        self._pre_submitted_limit: Optional[dict] = None
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
         # CRITICAL LATENCY OPTIMIZATION: register a tick callback so
@@ -645,6 +656,14 @@ class FibRuntime:
             self._check_position_discrepancy()
         except Exception as e:
             logger.debug(f"position discrepancy check: {e!r}")
+        # PRE-SUBMIT LIMIT: place a broker LIMIT for the most recent
+        # pending setup before its level is touched. Eliminates the
+        # network-RTT latency window where paper books on the tick
+        # touch but broker LIMIT arrives after the price has moved.
+        try:
+            self._sync_pre_submitted_limit()
+        except Exception as e:
+            logger.debug(f"pre-submit sync: {e!r}")
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the
@@ -1091,7 +1110,28 @@ class FibRuntime:
                          diff=divergence)
                     return
 
-                # All gates passed -- send the order
+                # All gates passed -- send the order.
+                # FIRST: check if we already pre-submitted a LIMIT for
+                # this setup. If so, adopt that order instead of sending
+                # a duplicate. The pre-submitted LIMIT has been resting
+                # on the matching engine since the setup arrived -> it
+                # likely already filled (or will fill on the next tick).
+                if use_tradovate:
+                    pre_oid = self._adopt_pre_submitted_for_active_trade(
+                        trade, setup_ref)
+                    if pre_oid is not None:
+                        # Pre-submitted LIMIT is now the active trade's
+                        # broker order. Tracking already added to
+                        # _pending_parent_orders by the adopt method.
+                        self._open_trade_ref = setup_ref
+                        self._broker_entry_ts = now
+                        self._broker_stop_px = trade.stop_px
+                        self._broker_target_px = trade.target_px
+                        self._broker_side = trade.side
+                        self._broker_target_sent = True
+                        _tl(setup_ref, "pre_submitted_adopted",
+                             order_id=pre_oid)
+                        return
                 stop_pts = abs(trade.entry_px - trade.stop_px)
                 target_pts = abs(trade.target_px - trade.entry_px)
                 if use_tradovate:
@@ -1119,6 +1159,12 @@ class FibRuntime:
                     # condition), cancel it before sending the new one.
                     # Otherwise the new order would queue alongside and
                     # both could fill = stacked position.
+                    # Also cancel any pre-submitted LIMIT for a setup
+                    # that didn't end up firing (different setup is now
+                    # being entered).
+                    if self._pre_submitted_limit:
+                        self._cancel_pre_submitted_limit(
+                            "different_setup_firing")
                     for prior in list(self._pending_parent_orders):
                         prior_id = prior.get("parent_order_id")
                         if not prior_id:
@@ -1206,6 +1252,165 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
+
+    def _setup_key(self, setup) -> str:
+        """Stable identifier for a pending FibSetup. Used to track which
+        setup the pre-submitted LIMIT is for."""
+        try:
+            return (f"{setup.side}_"
+                     f"{round(float(setup.pullback_entry), 2)}_"
+                     f"{int(setup.detected_at.timestamp())}")
+        except Exception:
+            return f"unknown_{id(setup)}"
+
+    def _sync_pre_submitted_limit(self) -> None:
+        """Ensure exactly ONE broker LIMIT is on the book for the most
+        recent pending setup. Pre-submits the LIMIT so it rests on
+        Tradovate's matching engine -- when price retraces to the entry
+        level, fills instantly with zero network latency.
+
+        Eliminates the missed-LIMIT class observed in the audit: paper
+        books at strategy_entry instantly on tick touch, but the OLD
+        flow submitted the broker LIMIT only AFTER the tick fired.
+        500ms of network RTT later, price had often moved past, and the
+        LIMIT was canceled without filling. Paper booked a +$23 win;
+        broker booked nothing.
+        """
+        if self.tradovate_orders is None:
+            return
+        sess = getattr(self.tradovate_orders, "session", None)
+        if sess is None or not sess.is_configured:
+            return
+        # In an open trade -- the pre-submitted LIMIT (if any) has been
+        # adopted as the active trade's broker order. Don't disturb.
+        if self.account.state.open_position is not None:
+            return
+        if self.state is None or not self.state.pending_setups:
+            if self._pre_submitted_limit:
+                self._cancel_pre_submitted_limit("no_pending_setups")
+            return
+        # Setups still waiting for a fill (not yet used or attempted).
+        valid = [s for s in self.state.pending_setups
+                  if not getattr(s, 'used', False)
+                  and not getattr(s, 'fire_attempted', False)]
+        if not valid:
+            if self._pre_submitted_limit:
+                self._cancel_pre_submitted_limit("no_valid_setups")
+            return
+        # Pick the most recent one (single LIMIT at a time).
+        target = valid[-1]
+        target_key = self._setup_key(target)
+        cur_key = (self._pre_submitted_limit.get('setup_key')
+                    if self._pre_submitted_limit else None)
+        if cur_key == target_key:
+            return  # Already pre-submitted for this setup.
+        if self._pre_submitted_limit:
+            self._cancel_pre_submitted_limit("new_setup")
+        self._submit_pre_limit_for_setup(target)
+
+    def _submit_pre_limit_for_setup(self, setup) -> None:
+        """Submit a broker LIMIT + OCO bracket for an upcoming setup
+        before its price level is touched. Resting on the matching
+        engine -> fills instantly when price arrives."""
+        try:
+            from research.data_loader import polygon_front_month
+            symbol = os.environ.get(
+                "TRADOVATE_SYMBOL",
+                polygon_front_month(
+                    os.environ.get("POLYGON_CONTRACT", "MNQ")))
+            stop_pts = abs(setup.pullback_entry - setup.stop_px_val)
+            target_pts = abs(setup.target_px_val - setup.pullback_entry)
+            live = self.monitor.latest() if self.monitor else None
+            live_px = float(live.price) if live else None
+            setup_key = self._setup_key(setup)
+            pre_ref = f"acct{self.account_id}_pre_{setup_key}"[:64]
+            logger.info(
+                f"[PRE-SUBMIT LIMIT] {setup.side} @ "
+                f"{setup.pullback_entry:.2f} stop@{setup.stop_px_val:.2f} "
+                f"tgt@{setup.target_px_val:.2f} (resting on book; will "
+                f"fill instantly when price touches)")
+            result = self.tradovate_orders.submit_market_with_bracket(
+                side=setup.side, qty=N_MNQ, symbol=symbol,
+                stop_pts=stop_pts, target_pts=target_pts,
+                entry_estimate=float(setup.pullback_entry),
+                live_price=live_px,
+                paper_stop_px=float(setup.stop_px_val),
+                paper_target_px=float(setup.target_px_val),
+                setup_ref=pre_ref,
+            )
+            if result.ok:
+                self._pre_submitted_limit = {
+                    'setup_key': setup_key,
+                    'order_id': result.order_id,
+                    'side': setup.side,
+                    'entry_px': float(setup.pullback_entry),
+                    'stop_px': float(setup.stop_px_val),
+                    'target_px': float(setup.target_px_val),
+                    'submitted_at': time.time(),
+                    'pre_ref': pre_ref,
+                }
+                logger.info(
+                    f"[PRE-SUBMIT OK] order_id={result.order_id} for "
+                    f"setup {setup_key}")
+            else:
+                logger.warning(
+                    f"[PRE-SUBMIT FAILED] {result.error} -- normal flow "
+                    f"will submit on tick fire")
+        except Exception as e:
+            logger.warning(f"[PRE-SUBMIT exception] {e!r}")
+
+    def _cancel_pre_submitted_limit(self, reason: str) -> None:
+        """Cancel the currently pre-submitted broker LIMIT (e.g. because
+        a new setup arrived, or the setup expired without firing)."""
+        if not self._pre_submitted_limit:
+            return
+        oid = self._pre_submitted_limit.get('order_id')
+        sk = self._pre_submitted_limit.get('setup_key')
+        try:
+            if oid:
+                status = self.tradovate_orders.get_order_status(int(oid))
+                if status == "Working":
+                    self.tradovate_orders.cancel_order(int(oid))
+                    logger.info(
+                        f"[PRE-SUBMIT CANCEL] order_id={oid} "
+                        f"setup={sk} reason={reason}")
+        except Exception as e:
+            logger.warning(f"[PRE-SUBMIT cancel] {e!r}")
+        self._pre_submitted_limit = None
+
+    def _adopt_pre_submitted_for_active_trade(self, trade, setup_ref: str) -> Optional[int]:
+        """If we pre-submitted a LIMIT for the setup that just fired in
+        paper, return its order_id so the normal flow can skip the
+        re-submit. Returns None if no matching pre-submission."""
+        if not self._pre_submitted_limit:
+            return None
+        try:
+            ts = getattr(trade, 'setup', None)
+            if ts is None:
+                return None
+            trade_key = self._setup_key(ts)
+            if trade_key != self._pre_submitted_limit.get('setup_key'):
+                return None
+            oid = self._pre_submitted_limit.get('order_id')
+            # Re-track this order under the active trade's setup_ref.
+            self._pending_parent_orders.append({
+                "setup_ref": setup_ref,
+                "parent_order_id": oid,
+                "submitted_at": self._pre_submitted_limit.get('submitted_at', time.time()),
+                "checks_done": 0,
+                "side": trade.side,
+                "entry_px": float(trade.entry_px),
+                "qty": trade.n_mnq,
+                "pre_submitted": True,
+            })
+            logger.info(
+                f"[PRE-SUBMIT ADOPTED] order_id={oid} for active trade "
+                f"setup_ref={setup_ref}; skipping re-submit")
+            self._pre_submitted_limit = None
+            return oid
+        except Exception as e:
+            logger.warning(f"[PRE-SUBMIT adopt] {e!r}")
+            return None
 
     def _check_position_discrepancy(self) -> None:
         """If broker has more contracts open than paper expects,
