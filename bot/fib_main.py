@@ -42,8 +42,12 @@ from bot.account_ctx import data_dir as _account_data_dir
 
 logger = logging.getLogger("bot_fib")
 
-CYCLE_FLAT_SECONDS = 60
-CYCLE_TRADE_SECONDS = 5
+CYCLE_FLAT_SECONDS = 2     # was 60 -- WAY too slow. Bot was missing
+                            # tick-level pullback touches by 0-60s while
+                            # waiting for the next cycle. Now polls every
+                            # 2s for general management; tick-level firing
+                            # runs INLINE on every Polygon tick (sub-100ms).
+CYCLE_TRADE_SECONDS = 2    # was 5. Same rationale.
 def _dashboard_path():
     """Resolve per-account so each FibRuntime writes to its own snapshot."""
     return _account_data_dir() / "dashboard_data.json"
@@ -352,6 +356,18 @@ class FibRuntime:
         self._pending_parent_orders: list = []
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
+        # CRITICAL LATENCY OPTIMIZATION: register a tick callback so
+        # try_fire_on_tick runs inline on every Polygon tick (sub-100ms
+        # reaction time) instead of waiting up to CYCLE_FLAT_SECONDS for
+        # the next main-loop cycle. Lock prevents the tick handler from
+        # firing while _tick() is also processing one.
+        import threading as _threading
+        self._tick_fire_lock = _threading.Lock()
+        try:
+            self.monitor.register_tick_callback(self._on_tick_instant)
+            logger.info("[FAST PATH] tick callback registered on monitor")
+        except Exception as e:
+            logger.warning(f"failed to register tick callback: {e!r}")
         # Spin up the Tradovate user WS for real-time fill events. The
         # bot can survive without it (falls back to the +0.5/2/5/15s
         # REST poll above), but with it we see fills in <100ms.
@@ -568,6 +584,52 @@ class FibRuntime:
                      final_status=status or "unknown")
         self._pending_parent_orders = keep
 
+    def _on_tick_instant(self, price: float, ts) -> None:
+        """Called inline by PriceMonitor on EVERY Polygon tick. Reacts
+        to pullback-level touches in <100ms total latency:
+          tick arrives over WS -> on_tick fires -> we check pending
+          setups -> try_fire_on_tick may open a trade -> _on_trade_open
+          sends OSO to Tradovate.
+
+        Must be fast and safe to run from the WS thread.
+        Returns immediately if:
+          - already in a trade (active_trade exists)
+          - no pending setups armed
+          - already inside a _tick() call (lock contention)
+        """
+        # Fast bail: no pending setups, nothing to fire.
+        if not self.state or not self.state.pending_setups:
+            return
+        if self.state.active_trade is not None:
+            return
+        # Non-blocking lock: if main loop is in _tick, skip this tick
+        # (the cycle will catch it). Prevents double-fire from the same
+        # setup if WS and cycle race.
+        if not self._tick_fire_lock.acquire(blocking=False):
+            return
+        try:
+            from bot.pullback_strategy import try_fire_on_tick
+            from bot.account_ctx import get_strategy_params
+            runtime_lucid = self.account._build_runtime_lucid_state()
+            now = real_utc_now()
+            fired = try_fire_on_tick(
+                state=self.state, lucid=runtime_lucid,
+                live_price=float(price), now=now,
+                n_mnq=N_MNQ,
+                params=get_strategy_params(self.account_id),
+                calendar=self.news_calendar,
+            )
+            if fired and self.state.active_trade is not None:
+                self.signals_fired += 1
+                logger.info(f"[FAST FIRE] tick={price:.2f} fired setup at "
+                            f"sub-100ms latency (was up to "
+                            f"CYCLE_FLAT_SECONDS={CYCLE_FLAT_SECONDS}s before fix)")
+                self._on_trade_open(self.state.active_trade, now)
+        except Exception as e:
+            logger.warning(f"_on_tick_instant raised: {e!r}")
+        finally:
+            self._tick_fire_lock.release()
+
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
@@ -669,20 +731,27 @@ class FibRuntime:
         # vs-broker timing gap goes away.
         if (not in_trade and snap is not None
                 and self.state.pending_setups):
-            from bot.account_ctx import get_strategy_params
-            from bot.pullback_strategy import try_fire_on_tick
-            runtime_lucid = self.account._build_runtime_lucid_state()
-            fired = try_fire_on_tick(
-                state=self.state, lucid=runtime_lucid,
-                live_price=float(snap.price), now=now,
-                n_mnq=N_MNQ,
-                params=get_strategy_params(self.account_id),
-                calendar=self.news_calendar,
-            )
-            if fired:
-                self.signals_fired += 1
-                self._on_trade_open(self.state.active_trade, now)
-                in_trade = True  # we're in a trade now
+            # Acquire the fire-lock so we don't race the instant-tick
+            # callback path. If it's already firing, just skip -- we'll
+            # catch it next cycle.
+            if self._tick_fire_lock.acquire(blocking=False):
+                try:
+                    from bot.account_ctx import get_strategy_params
+                    from bot.pullback_strategy import try_fire_on_tick
+                    runtime_lucid = self.account._build_runtime_lucid_state()
+                    fired = try_fire_on_tick(
+                        state=self.state, lucid=runtime_lucid,
+                        live_price=float(snap.price), now=now,
+                        n_mnq=N_MNQ,
+                        params=get_strategy_params(self.account_id),
+                        calendar=self.news_calendar,
+                    )
+                    if fired:
+                        self.signals_fired += 1
+                        self._on_trade_open(self.state.active_trade, now)
+                        in_trade = True  # we're in a trade now
+                finally:
+                    self._tick_fire_lock.release()
 
         # Tick-level panic-close REMOVED.
         # ----------------------------------------------------------------

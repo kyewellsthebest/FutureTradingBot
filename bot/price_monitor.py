@@ -243,6 +243,34 @@ class _TickBarAggregator:
             record_tick(price, src="polygon")
         except Exception:
             pass
+        # INSTANT FIRE: when an external callback is registered, invoke
+        # it inline with the current tick. This lets fib_main react to
+        # pullback-level touches WITHIN MILLISECONDS of the tick
+        # arriving, instead of waiting up to CYCLE_FLAT_SECONDS (was 60s)
+        # for the next main-loop cycle. The callback is responsible for
+        # being fast (return immediately if nothing pending) and
+        # thread-safe (this runs on the WS thread).
+        cbs = getattr(self, "_on_tick_callbacks", None)
+        if cbs:
+            for cb in list(cbs):
+                try:
+                    cb(float(price), ts)
+                except Exception as e:
+                    # Don't let one bad callback break the tick stream
+                    try:
+                        import logging as _logging
+                        _logging.getLogger("price_monitor").warning(
+                            f"on_tick callback raised: {e!r}")
+                    except Exception:
+                        pass
+
+    def register_tick_callback(self, cb) -> None:
+        """Register a function to call on EVERY tick (inline, on the WS
+        thread). Used by fib_main for sub-100ms pullback firing."""
+        if not hasattr(self, "_on_tick_callbacks"):
+            self._on_tick_callbacks = []
+        if cb not in self._on_tick_callbacks:
+            self._on_tick_callbacks.append(cb)
         bucket = self._floor_minute(ts)
         with self._lock:
             if self._cur_start is None:
