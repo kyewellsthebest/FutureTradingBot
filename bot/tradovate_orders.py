@@ -111,6 +111,7 @@ class TradovateOrders:
                                     stop_pts: float,     # 6.0
                                     target_pts: float,   # 12.0
                                     entry_estimate: float,  # strategy's intended entry
+                                    live_price: Optional[float] = None,  # current last from PriceMonitor
                                     setup_ref: Optional[str] = None
                                     ) -> OrderResult:
         """Place a LIMIT entry at the strategy's intended price with an
@@ -195,20 +196,36 @@ class TradovateOrders:
         except Exception:
             pass
         marketable_with_improvement = False
-        # Only trust bid/ask if it's fresh (< 5s old)
+        ref_source = "entry_estimate"
+        # PRIMARY: use Tradovate WS bid/ask when fresh
         if bid_ask_age is not None and bid_ask_age < 5.0:
             if side == "LONG" and cur_ask is not None:
                 ask = float(cur_ask)
                 if ask < bracket_ref:
-                    # Marketable LIMIT will fill at the better (lower) ask
                     bracket_ref = ask
                     marketable_with_improvement = True
+                    ref_source = "tradovate_ask"
             elif side == "SHORT" and cur_bid is not None:
                 bid = float(cur_bid)
                 if bid > bracket_ref:
-                    # Marketable LIMIT will fill at the better (higher) bid
                     bracket_ref = bid
                     marketable_with_improvement = True
+                    ref_source = "tradovate_bid"
+        # FALLBACK: when Tradovate WS isn't sending bid/ask (observed
+        # in production: tick_count=0 despite connected/subscribed),
+        # use the LIVE LAST-TRADE PRICE the caller passed in from
+        # PriceMonitor. last_price is a strong proxy for current
+        # bid/ask (within 1 tick during liquid hours).
+        elif live_price is not None:
+            lp = float(live_price)
+            if side == "LONG" and lp < bracket_ref:
+                bracket_ref = lp
+                marketable_with_improvement = True
+                ref_source = "live_price"
+            elif side == "SHORT" and lp > bracket_ref:
+                bracket_ref = lp
+                marketable_with_improvement = True
+                ref_source = "live_price"
 
         # SAFETY CAP: if the price has drifted so far from
         # entry_estimate that re-anchoring would create a stop > 2x
@@ -389,10 +406,12 @@ class TradovateOrders:
             "entry_estimate": float(entry_estimate),
             "entry_price": entry_price,
             "bracket_ref": bracket_ref,
+            "bracket_ref_source": ref_source,
             "bracket_drift_pts": round(drift, 4),
             "marketable_with_improvement": marketable_with_improvement,
             "current_bid": cur_bid, "current_ask": cur_ask,
             "bid_ask_age_s": round(bid_ask_age, 3) if bid_ask_age is not None else None,
+            "live_price_hint": live_price,
             "stop_price": stop_price, "target_price": target_price,
             "stop_pts": float(stop_pts), "target_pts": float(target_pts),
             "setup_ref": setup_ref,

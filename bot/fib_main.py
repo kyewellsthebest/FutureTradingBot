@@ -1033,6 +1033,12 @@ class FibRuntime:
                         side=trade.side, qty=trade.n_mnq, symbol=symbol,
                         stop_pts=stop_pts, target_pts=target_pts,
                         entry_estimate=float(trade.entry_px),
+                        # Pass live last-trade price so the bracket can
+                        # re-anchor relative to actual fill when LIMIT
+                        # is marketable. Critical: Tradovate WS isn't
+                        # providing bid/ask (tick_count=0 in practice),
+                        # so live_price is our only fill-side hint.
+                        live_price=float(live_snap.price) if live_snap else None,
                         setup_ref=setup_ref,
                     )
                     _tl(setup_ref, "placeoso_result",

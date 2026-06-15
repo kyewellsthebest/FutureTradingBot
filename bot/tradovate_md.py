@@ -370,9 +370,27 @@ class TradovateMarketData:
                 continue
             entries = q.get("entries") or {}
             trade = entries.get("Trade") if isinstance(entries, dict) else None
-            if not isinstance(trade, dict):
-                continue
-            price = trade.get("price")
+            bid_entry = entries.get("Bid") if isinstance(entries, dict) else None
+            ask_entry = entries.get("Offer") if isinstance(entries, dict) else None
+            # IMPORTANT: record bid/ask-only quotes too. Previously the
+            # code required entries.Trade and skipped frames that only
+            # had Bid/Offer -- which meant tick_count stayed at 0 even
+            # though 1900+ frames arrived. Without bid/ask the bracket
+            # re-anchor logic in tradovate_orders can't work. Use the
+            # mid-price as the synthetic "last" when no Trade is
+            # present so tick_history always has a price.
+            price = None
+            if isinstance(trade, dict):
+                price = trade.get("price")
+            if price is None and isinstance(bid_entry, dict) and isinstance(ask_entry, dict):
+                b = bid_entry.get("price")
+                a = ask_entry.get("price")
+                if b is not None and a is not None:
+                    price = (float(b) + float(a)) / 2.0
+            if price is None and isinstance(bid_entry, dict):
+                price = bid_entry.get("price")
+            if price is None and isinstance(ask_entry, dict):
+                price = ask_entry.get("price")
             if price is None:
                 continue
             ts_raw = q.get("timestamp")
@@ -384,9 +402,9 @@ class TradovateMarketData:
                             f"price={price} ts={ts_raw}")
             # Record into the diagnostic tick buffer (with bid/ask if
             # present) so the bundle has the broker's view of the tape.
+            # bid_entry/ask_entry already extracted above (used for the
+            # synthetic-mid fallback when no Trade entry exists).
             try:
-                bid_entry = entries.get("Bid") if isinstance(entries, dict) else None
-                ask_entry = entries.get("Offer") if isinstance(entries, dict) else None
                 bid = bid_entry.get("price") if isinstance(bid_entry, dict) else None
                 ask = ask_entry.get("price") if isinstance(ask_entry, dict) else None
                 from bot.tick_history import record_tick
