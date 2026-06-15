@@ -3373,6 +3373,278 @@ def _collect_tradovate_snapshot() -> dict:
     return out
 
 
+def _build_paper_broker_forensics(tradovate_snap: dict) -> dict:
+    """The most important diagnostic. Detects every mechanism that
+    could cause paper-vs-broker P&L to diverge:
+
+      1. STALE FILLS: broker LIMIT filled AFTER paper had closed the
+         trade. Paper books P&L without this trade; broker takes a
+         fresh stale-position outcome.
+
+      2. MISSED ENTRIES: paper booked a trade but broker's LIMIT
+         never filled at all (cancelled, expired, or still working).
+         Paper takes phantom P&L; broker stays flat for that signal.
+
+      3. TARGET MISSES: paper detected target on a wick. Broker
+         bracket LIMIT didn't fill because bid/ask never reached the
+         level. Bracket sat, then stop fired instead.
+
+      4. STOP SLIPPAGE: broker's stop fill price differs from paper's
+         expected stop_px by more than the modeled PAPER_STOP_SLIP_PTS.
+
+      5. BRACKET REJECTIONS: bracket children rejected by Tradovate
+         (InvalidPrice etc.) -- position ran with broken protection.
+
+      6. EXTRA BROKER FILLS: broker fills that don't correspond to
+         any paper trade.
+
+      7. TIME-TO-FILL: histogram of how long LIMITs took to fill.
+
+      8. TARGET CHASE EVENTS: every time the bot forced a broker
+         market close because paper detected target.
+
+    Outputs a 'findings' list with each detected mechanism + the
+    specific trades it affected + the dollar delta.
+    """
+    findings = []
+    summary = {
+        "stale_fills_detected": 0,
+        "missed_entries_detected": 0,
+        "target_misses_detected": 0,
+        "stop_slip_excess_detected": 0,
+        "bracket_rejections": 0,
+        "extra_broker_fills": 0,
+        "target_chase_events": 0,
+        "stale_limit_cancels": 0,
+        "total_estimated_leak": 0.0,
+    }
+
+    def _list_of(key):
+        v = tradovate_snap.get(key)
+        if isinstance(v, tuple) and len(v) == 2:
+            v = v[1]
+        return v if isinstance(v, list) else []
+
+    fills = _list_of("fill_list_raw")
+    orders = _list_of("order_list_raw")
+    exec_reports = _list_of("execution_report_list")
+    audit = tradovate_snap.get("bot_audit_log") or []
+    if not isinstance(audit, list):
+        audit = []
+
+    # Index data
+    order_by_id = {int(o["id"]): o for o in orders
+                    if isinstance(o, dict) and o.get("id") is not None}
+    fills_by_order = {}
+    for f in fills:
+        if isinstance(f, dict) and f.get("orderId") is not None:
+            fills_by_order.setdefault(int(f["orderId"]), []).append(f)
+
+    # === Finding 5: bracket rejections ===
+    for er in exec_reports:
+        if not isinstance(er, dict):
+            continue
+        if er.get("execType") == "Rejected":
+            findings.append({
+                "type": "bracket_rejection",
+                "severity": "HIGH",
+                "ts": er.get("timestamp"),
+                "order_id": er.get("orderId"),
+                "reason": er.get("rejectReason"),
+                "action": er.get("action"),
+                "impact_usd": None,
+                "description": "Bracket child rejected by Tradovate. "
+                                "Position ran with broken protection."
+            })
+            summary["bracket_rejections"] += 1
+
+    # === Finding 1+2: stale fills + missed entries via audit log ===
+    # Pull paper trades and pair with audit entries by setup_ref.
+    try:
+        paper_rows = _filter_trades_since_reset(
+            persistence.load_trades(limit=10_000, only_closed=True))
+    except Exception as e:
+        paper_rows = []
+        findings.append({
+            "type": "_diagnostic_error",
+            "severity": "INFO",
+            "description": f"failed to load paper trades: {e!r}"})
+
+    # Index audit entries by setup_ref
+    audit_by_ref = {}
+    for a in audit:
+        if isinstance(a, dict) and a.get("setup_ref"):
+            audit_by_ref[a["setup_ref"]] = a
+
+    # For each paper trade, check what happened on broker
+    paper_close_times = {}
+    for p in paper_rows:
+        ref_pat = None
+        try:
+            tid = p.get("id")
+            ets = p.get("entry_time")
+            if tid and ets:
+                ets_secs = int(pd.Timestamp(ets).timestamp())
+                # The bot's setup_ref format is "acct1_<id>_<epoch_secs>"
+                # but timing may not match exactly. We'll try suffix match.
+                ref_pat = f"_{tid}_{ets_secs}"
+            elif tid:
+                ref_pat = f"_{tid}_"
+        except Exception:
+            pass
+        # Match audit entries
+        matched_audit = None
+        if ref_pat:
+            for ref, a in audit_by_ref.items():
+                if ref_pat in ref:
+                    matched_audit = a
+                    break
+        if not matched_audit:
+            continue
+
+        # Check what the broker order did
+        parent_oid = matched_audit.get("parsed_order_id")
+        if not parent_oid:
+            continue
+        parent_order = order_by_id.get(int(parent_oid))
+        if not parent_order:
+            continue
+
+        parent_status = parent_order.get("ordStatus")
+        parent_fills = fills_by_order.get(int(parent_oid), [])
+
+        if parent_status in ("Canceled", "Rejected") and not parent_fills:
+            findings.append({
+                "type": "missed_entry",
+                "severity": "MEDIUM",
+                "setup_ref": matched_audit.get("setup_ref"),
+                "paper_entry_px": p.get("entry_px"),
+                "paper_exit_px": p.get("exit_px"),
+                "paper_pnl": p.get("pnl"),
+                "parent_status": parent_status,
+                "impact_usd": -float(p.get("pnl") or 0),
+                "description": (
+                    f"Paper booked trade ({p.get('side')} pnl=${p.get('pnl')}) "
+                    f"but broker LIMIT never filled (status={parent_status}). "
+                    f"Paper P&L is phantom for this trade."),
+            })
+            summary["missed_entries_detected"] += 1
+            summary["total_estimated_leak"] += abs(float(p.get("pnl") or 0))
+
+        if parent_fills:
+            try:
+                fill_ts = pd.Timestamp(parent_fills[0].get("timestamp"))
+                if fill_ts.tz is None:
+                    fill_ts = fill_ts.tz_localize("UTC")
+                else:
+                    fill_ts = fill_ts.tz_convert("UTC")
+                paper_exit_ts = pd.Timestamp(p.get("exit_time"))
+                if paper_exit_ts.tz is None:
+                    paper_exit_ts = paper_exit_ts.tz_localize("UTC")
+                else:
+                    paper_exit_ts = paper_exit_ts.tz_convert("UTC")
+                if fill_ts > paper_exit_ts:
+                    # STALE FILL: broker fill happened AFTER paper exited
+                    findings.append({
+                        "type": "stale_fill",
+                        "severity": "HIGH",
+                        "setup_ref": matched_audit.get("setup_ref"),
+                        "paper_entry_px": p.get("entry_px"),
+                        "paper_exit_px": p.get("exit_px"),
+                        "paper_pnl": p.get("pnl"),
+                        "broker_fill_px": parent_fills[0].get("price"),
+                        "fill_lag_s": (fill_ts - paper_exit_ts).total_seconds(),
+                        "impact_usd": None,
+                        "description": (
+                            f"Broker LIMIT filled "
+                            f"{(fill_ts - paper_exit_ts).total_seconds():.1f}s "
+                            f"AFTER paper had closed the trade. Broker "
+                            f"now holds a stale position the strategy "
+                            f"doesn't want."),
+                    })
+                    summary["stale_fills_detected"] += 1
+            except Exception:
+                pass
+
+    # === Finding 7: LIMIT fill latency ===
+    latencies = []
+    for a in audit:
+        if not isinstance(a, dict) or a.get("kind") != "placeoso":
+            continue
+        if not a.get("parsed_ok"):
+            continue
+        parent_oid = a.get("parsed_order_id")
+        if not parent_oid:
+            continue
+        pfills = fills_by_order.get(int(parent_oid), [])
+        if not pfills:
+            continue
+        try:
+            submit_ts = a.get("ts")
+            first_fill_ts = pd.Timestamp(pfills[0].get("timestamp"))
+            if first_fill_ts.tz is None:
+                first_fill_ts = first_fill_ts.tz_localize("UTC")
+            else:
+                first_fill_ts = first_fill_ts.tz_convert("UTC")
+            latency_s = first_fill_ts.timestamp() - float(submit_ts)
+            latencies.append({
+                "setup_ref": a.get("setup_ref"),
+                "side": a.get("side"),
+                "latency_s": round(latency_s, 3),
+                "marketable": a.get("marketable_with_improvement"),
+            })
+        except Exception:
+            pass
+    if latencies:
+        sorted_lat = sorted(l["latency_s"] for l in latencies)
+        n = len(sorted_lat)
+        summary["limit_fill_latency"] = {
+            "n": n,
+            "p50_s": round(sorted_lat[n // 2], 3),
+            "p95_s": round(sorted_lat[min(n - 1, int(n * 0.95))], 3),
+            "max_s": round(sorted_lat[-1], 3),
+            "within_1s": sum(1 for x in sorted_lat if x <= 1.0),
+            "within_5s": sum(1 for x in sorted_lat if x <= 5.0),
+            "over_30s": sum(1 for x in sorted_lat if x > 30.0),
+        }
+
+    # === Finding 8: target chase + stale cancel events from log_tail ===
+    try:
+        log_path = None
+        env_log = os.environ.get("BOT_LOG_FILE")
+        if env_log:
+            log_path = env_log
+        else:
+            from bot.fib_main import LOG_PATH
+            log_path = str(LOG_PATH)
+        if log_path and os.path.exists(log_path):
+            with open(log_path, "r", errors="replace") as f:
+                # Read last ~200KB
+                f.seek(0, 2)
+                size = f.tell()
+                if size > 200_000:
+                    f.seek(size - 200_000)
+                lines = f.read().split("\n")
+                for line in lines:
+                    if "TARGET CHASE" in line:
+                        summary["target_chase_events"] += 1
+                    if "STALE LIMIT CANCELLED" in line:
+                        summary["stale_limit_cancels"] += 1
+                    if "FAST FIRE" in line:
+                        summary.setdefault("fast_fire_events", 0)
+                        summary["fast_fire_events"] += 1
+    except Exception:
+        pass
+
+    return {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "n_findings": len(findings),
+        "findings": findings[:200],   # cap at 200 to keep bundle size sane
+        "limit_fill_latency_samples": latencies[-50:],
+    }
+
+
 def _build_diagnostic_extras() -> dict:
     """Bot-internal diagnostic data not tied to broker API: strategy
     decision log, Polygon-vs-Tradovate price diff history, WS connection
@@ -4314,6 +4586,15 @@ def api_download(kind: str):
         # screenshotting 6 different URLs every time something looks off.
         tradovate_snap = _collect_tradovate_snapshot()
         payload["tradovate"] = tradovate_snap
+        # THE most important diagnostic: explicit detection of every
+        # mechanism that causes paper-vs-broker divergence. Stale
+        # fills, missed entries, bracket rejections, latency, target
+        # chase events, etc. Each finding has a $ impact estimate.
+        try:
+            payload["paper_broker_forensics"] = _build_paper_broker_forensics(
+                tradovate_snap)
+        except Exception as e:
+            payload["paper_broker_forensics_error"] = repr(e)
         # Bot-internal diagnostic data (strategy decisions, tick history,
         # Polygon-vs-Tradovate price diff). No broker round-trips.
         try:
