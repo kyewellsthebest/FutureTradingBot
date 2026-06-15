@@ -600,6 +600,38 @@ def _persist_broker_trades(acct_id, rows):
         logger.info(f"persisted {appended} broker trade(s) to {p}")
 
 
+@app.route("/api/broker/reset_history", methods=["POST", "GET"])
+def api_broker_reset_history():
+    """Wipe the persistent broker trade history JSONL. Use after
+    fixing bugs to see clean post-fix performance without the
+    polluted historical data dragging averages."""
+    try:
+        from bot.tradovate_client import get_session
+        sess = get_session()
+        if not sess.is_configured:
+            return jsonify({"error": "not_configured"}), 400
+        acct_id = sess.get_account_id()
+        if acct_id is None:
+            return jsonify({"error": "no_account_id"}), 400
+        p = _broker_history_path(acct_id)
+        existed = p.exists()
+        if existed:
+            backup = p.with_suffix(".jsonl.bak")
+            try:
+                p.rename(backup)
+                logger.info(f"broker history wiped, backup at {backup}")
+            except Exception:
+                p.unlink()
+        return jsonify({
+            "ok": True,
+            "wiped_existing": existed,
+            "path": str(p),
+            "message": "Broker stats reset. Reload dashboard. Next trades will populate fresh stats.",
+        })
+    except Exception as e:
+        return jsonify({"error": repr(e)}), 500
+
+
 def _merge_persisted_broker_trades(acct_id, live_rows, limit=1000):
     """Merge the live rows with any older trades from the JSONL file.
     Dedup by exit_order_id + exit_time so we don't double-count overlap.
