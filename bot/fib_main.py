@@ -1342,54 +1342,30 @@ class FibRuntime:
             reason = record.get("exit_reason", "manual")
             if self._open_trade_ref is None:
                 pass  # broker never got the open; nothing to close
-            elif reason == "stop":
-                # Broker STOP-MARKET bracket reliably fires when price
-                # tags the stop -- same level paper detects. Don't send
-                # a competing market close that would race the bracket
-                # at a worse fill.
+            elif reason in ("stop", "target"):
+                # USER REQUIREMENT (2026-06-15): trade like manual.
+                # Bracket OCO is the SINGLE source of truth for exits.
+                # Don't send a competing market close that races the
+                # bracket at a worse fill.
+                #
+                # Previously TARGET CHASE liquidated on paper target
+                # wicks -- but by the time it executed, price had
+                # retreated, fills were at random prices, and the
+                # trade list filled with bizarre tiny P&L values
+                # ($0.76 wins, $2.74 losses on 0-second holds).
+                #
+                # Clean behavior now:
+                #   - Bracket STOP fires at stop_price (with normal
+                #     stop-market slip of 0-1pt)
+                #   - Bracket LIMIT TARGET fires when bid/ask reaches
+                #     target_price (matches strategy exactly)
+                #   - If LIMIT target wick doesn't fire bracket,
+                #     position runs to stop -- accept this as the
+                #     cost of clean execution
                 logger.info(
                     f"[broker CLOSE skip] {reason} owned by broker "
-                    f"OCO bracket -- exchange handles it at fill price")
-            elif reason == "target" and self.tradovate_orders is not None:
-                # CRITICAL LEAK FIX: paper detects target hit when bar
-                # HIGH (LONG) or LOW (SHORT) touches target_px. That's
-                # a tick-level wick touch. Broker's bracket TARGET is a
-                # LIMIT order that only fills when the BID/ASK on the
-                # OPPOSITE side reaches target -- which often DOESN'T
-                # happen on thin wicks. Result: paper books +$24 win,
-                # broker LIMIT sits unfilled, position runs to stop for
-                # -$12 loss. Net leak per missed target: -$36.
-                #
-                # Fix: when paper detects target hit, send a market
-                # liquidateposition. Tradovate atomically cancels the
-                # bracket OCO + flattens at current market. Worst case
-                # fill is ~0.5pt off target (current best bid/ask was
-                # near the wick). Best case: bracket already fired and
-                # liquidateposition is a no-op.
-                try:
-                    from research.data_loader import polygon_front_month
-                    symbol = os.environ.get(
-                        "TRADOVATE_SYMBOL",
-                        polygon_front_month(
-                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
-                    result = self.tradovate_orders.submit_market_close(
-                        side=record.get("side", "LONG"),
-                        qty=record.get("n_mnq", 1),
-                        symbol=symbol,
-                        setup_ref=(self._open_trade_ref or "") + "-tgt",
-                    )
-                    if result.ok:
-                        logger.info(
-                            f"[tradovate TARGET CHASE] order_id="
-                            f"{result.order_id} -- paper saw target wick, "
-                            f"liquidating broker position to match")
-                    else:
-                        logger.info(
-                            f"[tradovate TARGET CHASE noop] "
-                            f"{result.error} -- bracket likely already "
-                            f"fired (position flat)")
-                except Exception as te:
-                    logger.warning(f"target chase failed: {te!r}")
+                    f"OCO bracket -- letting it handle the exit at "
+                    f"bracket price")
             elif self.tradovate_orders is not None:
                 # Tradovate path: timeout/manual close -> market flatten
                 try:
