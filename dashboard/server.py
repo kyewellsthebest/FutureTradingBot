@@ -1612,13 +1612,14 @@ def api_tradovate_flatten_all():
                 results["errors"].append(
                     f"could not resolve symbol for contractId={cid}")
                 continue
-            # Flatten this contract
+            # Flatten this contract. Tradovate REQUIRES contractId
+            # (not symbol). See bot/tradovate_orders.py liquidate fix.
             l_status, l_resp = sess._rest(
                 "POST", "/order/liquidateposition",
                 body={
                     "accountSpec": sess.creds.username,
                     "accountId": int(acct_id),
-                    "symbol": symbol,
+                    "contractId": int(cid),
                     "admin": False,
                     "isAutomated": True,
                 })

@@ -101,6 +101,50 @@ class TradovateOrders:
         return self.session.creds.username if self.session.creds else ""
 
     # ------------------------------------------------------------------
+    # Liquidate body helper
+    # ------------------------------------------------------------------
+
+    def _liquidate_body(self, symbol: str,
+                          text_tag: str = "") -> Optional[dict]:
+        """Build a valid /order/liquidateposition body. Returns None
+        if contractId can't be resolved (caller should skip the call).
+
+        CRITICAL: Tradovate requires contractId in the body, NOT just
+        symbol. Symbol-only body returns HTTP 400 with violation:
+          {"constraint":"contractId","value":"0",
+           "description":"Contract Id should be greater than 0"}
+        Production bug observed: target chase + discrepancy detector
+        + emergency flatten ALL returning 400, position stuck LONG 4.
+        """
+        account_id = self.account_id
+        if account_id is None:
+            return None
+        contract_id = None
+        try:
+            sym_root = symbol.rstrip("0123456789MHUZQNF") if symbol else ""
+            for try_root in [sym_root, "MNQ", symbol]:
+                if not try_root:
+                    continue
+                contract = self.session.find_contract(try_root)
+                if contract and contract.get("id"):
+                    contract_id = int(contract["id"])
+                    break
+        except Exception:
+            pass
+        if not contract_id:
+            return None
+        body = {
+            "accountSpec": self._account_spec(),
+            "accountId": int(account_id),
+            "contractId": contract_id,
+            "admin": False,
+            "isAutomated": True,
+        }
+        if text_tag:
+            body["text"] = text_tag[:64]
+        return body
+
+    # ------------------------------------------------------------------
     # Entry with bracket (the bot's primary order type)
     # ------------------------------------------------------------------
 
@@ -588,15 +632,12 @@ class TradovateOrders:
                     f"child={c} -- flattening position immediately to "
                     f"avoid runaway")
                 try:
-                    self.session._rest(
-                        "POST", "/order/liquidateposition",
-                        body={
-                            "accountSpec": self._account_spec(),
-                            "accountId": int(self.account_id),
-                            "symbol": symbol,
-                            "admin": False,
-                            "isAutomated": True,
-                        })
+                    body = self._liquidate_body(symbol, text_tag="bad-bracket-flat")
+                    if body:
+                        self.session._rest(
+                            "POST", "/order/liquidateposition", body=body)
+                    else:
+                        logger.error("emergency liquidate: no contractId")
                 except Exception as e:
                     logger.error(f"emergency liquidate failed: {e!r}")
                 if _AUDIT_LOG:
@@ -620,15 +661,12 @@ class TradovateOrders:
                 # than leave it running. Better to take 0-1pt slippage
                 # than risk a runaway like the -$428 position.
                 try:
-                    self.session._rest(
-                        "POST", "/order/liquidateposition",
-                        body={
-                            "accountSpec": self._account_spec(),
-                            "accountId": int(self.account_id),
-                            "symbol": symbol,
-                            "admin": False,
-                            "isAutomated": True,
-                        })
+                    body = self._liquidate_body(symbol, text_tag="naked-flat")
+                    if body:
+                        self.session._rest(
+                            "POST", "/order/liquidateposition", body=body)
+                    else:
+                        logger.error("naked-flatten: no contractId")
                 except Exception as e:
                     logger.error(f"emergency liquidate failed: {e!r}")
                 return OrderResult(
@@ -779,15 +817,16 @@ class TradovateOrders:
             return OrderResult(ok=False, order_id=None, status_code=None,
                                 response={}, error="no_account_id")
 
-        body = {
-            "accountSpec": self._account_spec(),
-            "accountId": int(account_id),
-            "symbol": symbol,
-            "admin": False,
-            "isAutomated": True,
-        }
-        if setup_ref:
-            body["text"] = (setup_ref + "-flat")[:64]
+        # Use the contractId-aware helper. symbol-only liquidate
+        # returns HTTP 400 (production bug observed).
+        body = self._liquidate_body(
+            symbol, text_tag=(setup_ref + "-flat") if setup_ref else "")
+        if body is None:
+            logger.error(f"[liquidateposition] could not resolve "
+                         f"contractId for symbol={symbol}; cannot flatten")
+            return OrderResult(ok=False, order_id=None, status_code=None,
+                                response={"error": "no_contract_id"},
+                                error="no_contract_id")
 
         logger.info(f"[tradovate liquidateposition] {symbol}")
         logger.info(f"[tradovate liquidateposition BODY] {json.dumps(body)}")

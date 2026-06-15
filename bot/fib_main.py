@@ -1219,18 +1219,27 @@ class FibRuntime:
                     # actually want to keep 1 -- so this overshoots,
                     # but the next entry signal will re-open if needed.
                     # Cleaner than trying to partially close.
-                    sess._rest(
-                        "POST", "/order/liquidateposition",
-                        body={
+                    # Use contractId from the position record directly
+                    # (more reliable than re-resolving from symbol).
+                    cid = p.get("contractId")
+                    if cid:
+                        flat_body = {
                             "accountSpec": self.tradovate_orders._account_spec(),
                             "accountId": int(acct_id),
-                            "symbol": symbol,
+                            "contractId": int(cid),
                             "admin": False,
                             "isAutomated": True,
-                        })
-                    logger.warning(
-                        f"[POSITION STACK FLATTENED] called "
-                        f"liquidateposition to clear netPos={net}")
+                        }
+                        sess._rest(
+                            "POST", "/order/liquidateposition",
+                            body=flat_body)
+                        logger.warning(
+                            f"[POSITION STACK FLATTENED] contractId={cid} "
+                            f"netPos={net}")
+                    else:
+                        logger.error(
+                            f"[POSITION STACK] no contractId in position "
+                            f"record; cannot flatten")
                 except Exception as e:
                     logger.error(f"position stack flatten failed: {e!r}")
         except Exception as e:
