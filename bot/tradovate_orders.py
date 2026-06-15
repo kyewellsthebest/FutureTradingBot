@@ -794,16 +794,32 @@ class TradovateOrders:
             "parsed_error": result.error,
         })
         if not result.ok:
-            # FALLBACK: drop to plain placeorder (opposite side market).
-            # Leaves bracket children active but at least flattens the
-            # naked position immediately.
-            logger.warning(f"[tradovate liquidateposition FAILED] "
-                           f"{result.error} -- falling back to placeorder")
-            close_side = "SHORT" if side == "LONG" else "LONG"
-            return self.submit_market(
-                side=close_side, qty=qty, symbol=symbol,
-                setup_ref=(f"{setup_ref}-close" if setup_ref else None),
-            )
+            # CRITICAL BUG FIX: The previous fallback called
+            # submit_market(opposite_side) which OPENED A NEW POSITION
+            # in the opposite direction when liquidateposition failed.
+            #
+            # Real-world consequence: the TARGET CHASE fix (e9ea951)
+            # calls submit_market_close when paper detects a target
+            # wick. If the bracket already fired (most common case),
+            # the broker position is already flat. liquidateposition
+            # then returns an error (nothing to liquidate). The
+            # placeorder fallback then OPENED a new LONG/SHORT --
+            # exactly the wrong thing.
+            #
+            # Result observed in bundle: bot accumulated netPos=4
+            # LONG positions because each "target chase" on a closed
+            # SHORT opened a new LONG via this fallback.
+            #
+            # Fix: just log and return the failure. If position is
+            # already flat, that's the desired end state -- no action
+            # needed. If position is open and liquidate genuinely
+            # failed (rare API issue), we DON'T want to compound by
+            # opening MORE positions; we want to alert and stop.
+            logger.warning(
+                f"[tradovate liquidateposition FAILED] {result.error} "
+                f"-- NO fallback (refusing to open opposite position "
+                f"that previously caused position-stacking bug)")
+            return result
         return result
 
     # ------------------------------------------------------------------

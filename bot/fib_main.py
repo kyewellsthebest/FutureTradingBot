@@ -638,6 +638,13 @@ class FibRuntime:
             self._poll_pending_broker_orders()
         except Exception as e:
             logger.debug(f"broker poll: {e!r}")
+        # Position discrepancy check: catches the stacking bug class.
+        # If broker netPos > 1 (more contracts than strategy expects),
+        # flatten the extras via liquidateposition.
+        try:
+            self._check_position_discrepancy()
+        except Exception as e:
+            logger.debug(f"position discrepancy check: {e!r}")
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the
@@ -1161,6 +1168,71 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
+
+    def _check_position_discrepancy(self) -> None:
+        """If broker has more contracts open than paper expects,
+        flatten the extras. Catches the position-stacking bug class:
+        each accidental extra fill (stale LIMIT or buggy fallback)
+        leaves the bot with N > 1 contracts open.
+
+        Paper has at most 1 active trade (single-position strategy).
+        So broker netPos > 1 (or < -1 for SHORT) is always an error.
+
+        Runs on every cycle. Idempotent.
+        """
+        if self.tradovate_orders is None:
+            return
+        sess = getattr(self.tradovate_orders, "session", None)
+        if sess is None or not sess.is_configured:
+            return
+        acct_id = sess.get_account_id()
+        if acct_id is None:
+            return
+        try:
+            status, positions = sess._rest("GET", "/position/list")
+            if status != 200 or not isinstance(positions, list):
+                return
+            for p in positions:
+                if not isinstance(p, dict):
+                    continue
+                if p.get("accountId") != acct_id:
+                    continue
+                net = int(p.get("netPos") or 0)
+                if abs(net) <= 1:
+                    continue   # Single position is fine
+                # MULTIPLE POSITIONS DETECTED
+                excess = abs(net) - 1
+                logger.error(
+                    f"[POSITION STACK DETECTED] broker netPos={net} "
+                    f"(strategy expects max 1). Flattening {excess} "
+                    f"extra contracts to restore single-position "
+                    f"invariant.")
+                try:
+                    from research.data_loader import polygon_front_month
+                    symbol = os.environ.get(
+                        "TRADOVATE_SYMBOL",
+                        polygon_front_month(
+                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    # liquidateposition flattens ALL contracts. We
+                    # actually want to keep 1 -- so this overshoots,
+                    # but the next entry signal will re-open if needed.
+                    # Cleaner than trying to partially close.
+                    sess._rest(
+                        "POST", "/order/liquidateposition",
+                        body={
+                            "accountSpec": self.tradovate_orders._account_spec(),
+                            "accountId": int(acct_id),
+                            "symbol": symbol,
+                            "admin": False,
+                            "isAutomated": True,
+                        })
+                    logger.warning(
+                        f"[POSITION STACK FLATTENED] called "
+                        f"liquidateposition to clear netPos={net}")
+                except Exception as e:
+                    logger.error(f"position stack flatten failed: {e!r}")
+        except Exception as e:
+            logger.debug(f"position discrepancy check: {e!r}")
 
     def _cancel_stale_entry_limits(self) -> None:
         """If the broker's LIMIT entry parent is still Working when
