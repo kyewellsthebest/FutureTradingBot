@@ -256,48 +256,77 @@ class TradovateOrders:
         marketable_with_improvement = False
         ref_source = "entry_estimate"
 
-        if entry_type == "limit":
-            # LIMIT entry path: the order rests at entry_estimate and
-            # only fills when the matching engine sees a touch at the
-            # exact price. Fill price = entry_estimate (or no fill).
-            # Bracket levels are then validated against entry_estimate
-            # directly -- no re-anchor needed. Paper's stop_px and
-            # target_px work as-is.
-            #
-            # Trade-off: ~10-15% of touches miss when price wicks
-            # through without resting. Acceptable because those
-            # are typically fast-momentum moves where slip on a
-            # MARKET fill would have been brutal anyway. User explicitly
-            # accepted this trade-off (2026-06-15).
-            ref_source = "entry_estimate_limit"
-        elif bid_ask_age is not None and bid_ask_age < 5.0:
-            # MARKET entry: re-anchor to Tradovate bid/ask bidirectionally
+        # bracket_ref logic for LIMIT entries:
+        #
+        # When the LIMIT will fill IMMEDIATELY at a better-than-requested
+        # price (marketable LIMIT), the actual fill is at live market,
+        # NOT at entry_estimate. The bracket must anchor to live market
+        # for the stop/target prices to be on the correct side of fill.
+        #
+        # When the LIMIT is NON-marketable (price hasn't reached the
+        # level yet), it rests until price comes back. Fill will be at
+        # entry_estimate exactly. bracket_ref = entry_estimate.
+        #
+        # Bug observed (2026-06-15 20:00): LIMIT entries with improvement
+        # were getting brackets calculated against entry_estimate, but
+        # the actual fill was 10-30pt away (marketable improvement).
+        # Stop ended up wrong-side of fill -> REJECTED -> naked position.
+        #
+        # Restored: re-anchor bracket_ref to live market ONLY when the
+        # LIMIT will be marketable. Non-marketable LIMITs keep
+        # bracket_ref = entry_estimate.
+        if bid_ask_age is not None and bid_ask_age < 5.0:
             if side == "LONG" and cur_ask is not None:
-                bracket_ref = float(cur_ask)
-                marketable_with_improvement = (bracket_ref < float(entry_estimate))
-                ref_source = "tradovate_ask"
+                ask = float(cur_ask)
+                if ask < bracket_ref:
+                    bracket_ref = ask
+                    marketable_with_improvement = True
+                    ref_source = "tradovate_ask"
             elif side == "SHORT" and cur_bid is not None:
-                bracket_ref = float(cur_bid)
-                marketable_with_improvement = (bracket_ref > float(entry_estimate))
-                ref_source = "tradovate_bid"
-        # FALLBACK: Tradovate WS bid/ask absent -> use the live last-
-        # trade price the caller passed in from PriceMonitor. Tracks
-        # actual market regardless of direction.
+                bid = float(cur_bid)
+                if bid > bracket_ref:
+                    bracket_ref = bid
+                    marketable_with_improvement = True
+                    ref_source = "tradovate_bid"
         elif live_price is not None:
-            bracket_ref = float(live_price)
-            if side == "LONG":
-                marketable_with_improvement = (bracket_ref < float(entry_estimate))
-            else:
-                marketable_with_improvement = (bracket_ref > float(entry_estimate))
-            ref_source = "live_price"
+            lp = float(live_price)
+            if side == "LONG" and lp < bracket_ref:
+                bracket_ref = lp
+                marketable_with_improvement = True
+                ref_source = "live_price"
+            elif side == "SHORT" and lp > bracket_ref:
+                bracket_ref = lp
+                marketable_with_improvement = True
+                ref_source = "live_price"
 
-        # SAFETY CAP: if the price has drifted so far from
-        # entry_estimate that re-anchoring would create a stop > 2x
-        # the strategy's intended risk, abort the trade. The strategy's
-        # pullback level no longer applies to this market state.
+        # For MARKET entries, also re-anchor on ADVERSE direction. MARKET
+        # fills wherever the matching engine takes it -- bracket must be
+        # placed against actual fill no matter which direction.
+        if entry_type != "limit" and not marketable_with_improvement:
+            if bid_ask_age is not None and bid_ask_age < 5.0:
+                if side == "LONG" and cur_ask is not None:
+                    bracket_ref = float(cur_ask)
+                    ref_source = "tradovate_ask_adverse"
+                elif side == "SHORT" and cur_bid is not None:
+                    bracket_ref = float(cur_bid)
+                    ref_source = "tradovate_bid_adverse"
+            elif live_price is not None:
+                bracket_ref = float(live_price)
+                ref_source = "live_price_adverse"
+
+        # SAFETY CAP: if the order will fill immediately at a slipped
+        # price (MARKET order OR marketable LIMIT) AND the slip would
+        # create a bracket > 2x the strategy's intended risk, abort.
+        # The strategy's pullback level no longer applies.
+        #
+        # For non-marketable LIMITs we DON'T abort: the LIMIT rests at
+        # entry_estimate, and either fills there (correct) or doesn't
+        # fill (no harm). Aborting here would skip the trade unnecessarily.
+        will_fill_immediately = (
+            entry_type != "limit" or marketable_with_improvement)
         max_drift = float(stop_pts) * 2.0
         drift = abs(bracket_ref - float(entry_estimate))
-        if drift > max_drift:
+        if will_fill_immediately and drift > max_drift:
             logger.warning(
                 f"[placeoso ABORT] price drift {drift:.2f}pt > safety "
                 f"cap {max_drift:.2f}pt (entry_est={entry_estimate}, "
