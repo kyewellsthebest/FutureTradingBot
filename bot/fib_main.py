@@ -1162,11 +1162,63 @@ class FibRuntime:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
 
+    def _cancel_stale_entry_limits(self) -> None:
+        """If the broker's LIMIT entry parent is still Working when
+        paper closes its trade, cancel it. Otherwise it can fill
+        later when price retraces -- putting the broker in a stale
+        position the strategy doesn't want.
+
+        Iterates _pending_parent_orders, queries each parent's
+        ordStatus, and cancels any that are still Working.
+        """
+        if not self._pending_parent_orders or self.tradovate_orders is None:
+            return
+        keep = []
+        for entry in self._pending_parent_orders:
+            try:
+                status = self.tradovate_orders.get_order_status(
+                    entry["parent_order_id"])
+            except Exception:
+                # If we can't tell, leave it -- the bracket might fire
+                keep.append(entry)
+                continue
+            if status == "Working":
+                # Still pending. Cancel to prevent stale fill.
+                try:
+                    ok = self.tradovate_orders.cancel_order(
+                        entry["parent_order_id"])
+                    if ok:
+                        logger.warning(
+                            f"[STALE LIMIT CANCELLED] parent_order_id="
+                            f"{entry['parent_order_id']} setup_ref="
+                            f"{entry['setup_ref']} -- paper closed but "
+                            f"broker LIMIT was still working. Preventing "
+                            f"phantom stale fill.")
+                    else:
+                        logger.info(
+                            f"[stale limit cancel noop] parent_order_id="
+                            f"{entry['parent_order_id']} -- order may "
+                            f"have just filled or been cancelled")
+                except Exception as e:
+                    logger.warning(f"stale limit cancel: {e!r}")
+                # Stop tracking this entry regardless
+                continue
+            # Anything else (Filled, Canceled, Rejected, Expired): drop
+        self._pending_parent_orders = keep
+
     def _on_trade_close(self, record: dict, now: datetime) -> None:
         # Always close through the paper account so balance updates and
         # the trade is persisted to the SQLite DB — surviving restarts.
         adverse = (record["exit_reason"] == "stop")
         try:
+            # STALE LIMIT GUARD: before doing anything paper-side, check
+            # if the broker's LIMIT entry from this trade is STILL
+            # WORKING (never filled). If yes, cancel it. Otherwise we
+            # leave a zombie LIMIT that can fill minutes later when
+            # price comes back -- putting the broker in a stale
+            # position the strategy already exited from. This is a
+            # major source of paper-vs-broker divergence.
+            self._cancel_stale_entry_limits()
             self.account._close(exit_px_raw=record["exit_px"],
                                 reason=record["exit_reason"],
                                 adverse=adverse, now=now)
