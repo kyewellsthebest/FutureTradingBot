@@ -157,13 +157,21 @@ class TradovateOrders:
         contract_id = None
         try:
             sym_root = symbol.rstrip("0123456789MHUZQNF") if symbol else ""
-            for try_root in [sym_root, "MNQ", symbol]:
-                if not try_root:
-                    continue
-                contract = self.session.find_contract(try_root)
-                if contract and contract.get("id"):
-                    contract_id = int(contract["id"])
-                    break
+            # LATENCY: hit the session cache first (set at boot via
+            # prewarm) before calling /contract/find. Saves ~100-200ms.
+            cache = getattr(self.session, '_contract_id_cache', {}) or {}
+            if symbol in cache:
+                contract_id = int(cache[symbol])
+            else:
+                for try_root in [sym_root, "MNQ", symbol]:
+                    if not try_root:
+                        continue
+                    contract = self.session.find_contract(try_root)
+                    if contract and contract.get("id"):
+                        contract_id = int(contract["id"])
+                        # Memoize for next time.
+                        cache[symbol] = contract_id
+                        break
         except Exception:
             pass
         if not contract_id:
@@ -568,11 +576,34 @@ class TradovateOrders:
         status, resp = None, None
         attempt = 0
         last_failure_reason = None
+        # LATENCY: try WS-based order placement first (saves ~50-100ms
+        # vs REST because no new HTTP overhead, just a frame on the
+        # already-open authenticated socket). Fall back to REST on the
+        # rare case the WS is disconnected.
+        use_ws_first = os.environ.get(
+            "BROKER_WS_ORDER_SUBMIT", "true").lower() in ("true", "1", "yes")
         while attempt < len(backoff) + 1:
-            status, resp = self.session._rest(
-                "POST", "/order/placeoso", body=body)
-            logger.info(f"[tradovate placeoso RESULT attempt={attempt}] "
-                        f"status={status} resp={str(resp)[:400]!r}")
+            status, resp = None, None
+            if use_ws_first and attempt == 0:
+                try:
+                    from bot.tradovate_user_ws import get_user_ws
+                    _uws = get_user_ws()
+                    if _uws is not None and _uws.connected:
+                        ws_status, ws_data = _uws.send_request_sync(
+                            "order/placeoso", body_json=body, timeout_s=2.0)
+                        if ws_status is not None and isinstance(ws_data, dict):
+                            status = ws_status
+                            resp = ws_data
+                            logger.info(
+                                f"[tradovate placeoso WS] status={status} "
+                                f"resp={str(resp)[:300]!r}")
+                except Exception as ws_e:
+                    logger.debug(f"WS placeoso failed: {ws_e!r} -- falling to REST")
+            if status is None:
+                status, resp = self.session._rest(
+                    "POST", "/order/placeoso", body=body)
+                logger.info(f"[tradovate placeoso REST attempt={attempt}] "
+                            f"status={status} resp={str(resp)[:400]!r}")
             # Success?
             if status == 200 and isinstance(resp, dict):
                 fr = resp.get("failureReason")

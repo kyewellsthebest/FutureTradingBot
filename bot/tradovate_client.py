@@ -194,6 +194,14 @@ class TradovateSession:
         self.creds = creds or TradovateCredentials.from_env()
         self._tokens: Optional[TradovateTokens] = None
         self._account_id: Optional[int] = None  # populated on first /account/list
+        # LATENCY: cache the resolved contract_id for the active symbol
+        # so we don't hit /contract/find on every liquidate/order. Same
+        # value all day for a given front-month contract.
+        self._contract_id_cache: dict = {}  # symbol -> contractId
+        # Connection pre-warmed flag -- the first REST call after start
+        # pays TCP+TLS handshake (~300ms). We do a cheap /v1/me call on
+        # startup to amortize this cost before any actual trade fires.
+        self._connection_warmed = False
 
     @property
     def is_configured(self) -> bool:
@@ -270,6 +278,27 @@ class TradovateSession:
                     f"{(expires_at - time.time()) / 60:.0f}min")
         return tokens
 
+    def prewarm(self) -> None:
+        """Pre-establish the TCP+TLS connection to Tradovate before the
+        first trade fires. The first REST call after process start pays
+        ~300ms of TCP handshake + TLS negotiation; subsequent calls reuse
+        the keep-alive socket and are ~50-100ms. By doing a cheap
+        /v1/me call at bot startup, we move that latency off the
+        critical path.
+
+        Safe to call multiple times -- idempotent.
+        """
+        if self._connection_warmed:
+            return
+        try:
+            # /v1/me is the cheapest authenticated endpoint.
+            self._rest("GET", "/me")
+            self._connection_warmed = True
+            logger.info("[Tradovate prewarm] connection ready -- "
+                        "first trade no longer pays TCP+TLS handshake")
+        except Exception as e:
+            logger.debug(f"prewarm: {e!r}")
+
     def get_tokens(self) -> Optional[TradovateTokens]:
         """Return current tokens, refreshing if expiring soon."""
         if self._tokens is None or self._tokens.is_expiring_soon:
@@ -307,6 +336,16 @@ class TradovateSession:
                 "User-Agent": "hftbot/1.0",
                 "Accept": "application/json",
             })
+            # LATENCY: orjson is 5-10x faster than stdlib json for the
+            # placeoso payload. Saves ~1-3ms per call (modest but
+            # compounds when called from a tick callback).
+            try:
+                import orjson as _oj
+                self._json_dumps = lambda d: _oj.dumps(d).decode()
+                self._json_loads = _oj.loads
+            except ImportError:
+                self._json_dumps = json.dumps
+                self._json_loads = json.loads
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {tokens.access_token}",
@@ -318,12 +357,12 @@ class TradovateSession:
         try:
             resp = self._http_session.request(
                 method, url, headers=headers,
-                data=json.dumps(body) if body else None,
+                data=self._json_dumps(body) if body else None,
                 timeout=15)
             status_for_metric = resp.status_code
             body_text = resp.text
             try:
-                return resp.status_code, json.loads(body_text) if body_text else {}
+                return resp.status_code, self._json_loads(body_text) if body_text else {}
             except Exception:
                 return resp.status_code, {"raw": body_text[:500]}
         except Exception as e:

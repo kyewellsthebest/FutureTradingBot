@@ -281,6 +281,30 @@ class FibRuntime:
             if self.tradovate_session.is_configured:
                 self.tradovate_orders = TradovateOrders(self.tradovate_session)
                 logger.info("Tradovate broker active (env vars configured)")
+                # LATENCY: pre-establish HTTP keep-alive socket BEFORE
+                # the first real trade. Saves 200-300ms of TCP+TLS
+                # handshake off the first placeoso's critical path.
+                try:
+                    self.tradovate_session.prewarm()
+                except Exception:
+                    pass
+                # Pre-resolve front-month contractId once at boot so
+                # every liquidate / order doesn't hit /contract/find.
+                try:
+                    from research.data_loader import polygon_front_month
+                    _sym = os.environ.get(
+                        "TRADOVATE_SYMBOL",
+                        polygon_front_month(
+                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    _root = _sym.rstrip("0123456789MHUZQNF") or "MNQ"
+                    _c = self.tradovate_session.find_contract(_root)
+                    if _c and _c.get("id"):
+                        self.tradovate_session._contract_id_cache[_sym] = int(_c["id"])
+                        logger.info(
+                            f"[Tradovate prewarm] cached contractId="
+                            f"{_c['id']} for {_sym}")
+                except Exception:
+                    pass
             else:
                 self.tradovate_orders = None
                 logger.info("Tradovate broker not configured; using TradersPost")

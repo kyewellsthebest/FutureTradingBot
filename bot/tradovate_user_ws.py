@@ -77,6 +77,13 @@ class TradovateUserWS:
         self.events: "deque[dict]" = deque(maxlen=2000)
         self.fills: "deque[dict]" = deque(maxlen=500)
         self.exec_reports: "deque[dict]" = deque(maxlen=500)
+        # LATENCY: WS-based order submission. Pending requests are
+        # tracked by reqId; the response comes back on the same socket
+        # via _dispatch and resolves the matching threading.Event so
+        # the caller's blocking wait unblocks. ~50-100ms faster than
+        # REST because no new HTTP overhead.
+        self._pending_requests: dict = {}  # reqId -> {'event': Event, 'response': dict}
+        self._send_lock = threading.Lock()
         self.order_updates: "deque[dict]" = deque(maxlen=500)
         self.position_updates: "deque[dict]" = deque(maxlen=200)
         # LATENCY: cache the latest netPos per contractId so callers can
@@ -239,6 +246,36 @@ class TradovateUserWS:
             body = body_text
         return f"{url_path}\n{rid}\n\n{body}"
 
+    def send_request_sync(self, url_path: str, body_json: Optional[dict] = None,
+                           timeout_s: float = 2.0) -> tuple[Optional[int], dict]:
+        """Send a WS request and block until the matching response
+        comes back (correlated by reqId). Returns (status_code, data).
+
+        Used for low-latency order placement: ~30-80ms vs 100-150ms
+        for REST because no HTTP/TLS overhead per call.
+        """
+        if not self.connected or self._ws is None:
+            return None, {"error": "ws_not_connected"}
+        with self._send_lock:
+            rid = self._next_req_id
+            self._next_req_id += 1
+            body = json.dumps(body_json) if body_json is not None else ""
+            frame = f"{url_path}\n{rid}\n\n{body}"
+            evt = threading.Event()
+            self._pending_requests[rid] = {"event": evt, "response": None}
+            try:
+                self._ws.send(frame)
+            except Exception as e:
+                self._pending_requests.pop(rid, None)
+                return None, {"error": f"ws_send_failed: {e!r}"}
+        # Wait outside the lock so other senders aren't blocked.
+        got = evt.wait(timeout=timeout_s)
+        pending = self._pending_requests.pop(rid, None)
+        if not got or pending is None or pending.get("response") is None:
+            return None, {"error": "ws_response_timeout"}
+        resp = pending["response"]
+        return resp.get("s"), resp.get("d") or {}
+
     def _handle_frame(self, raw: str) -> None:
         if not raw:
             return
@@ -266,6 +303,17 @@ class TradovateUserWS:
             return
         # Tradovate event envelope: {e: event_type, d: data_dict}
         # or response envelope: {i: req_id, s: status, d: data}
+        # If this is a RESPONSE to one of our outbound requests,
+        # signal the waiting send_request_sync caller.
+        req_id = msg.get("i")
+        if req_id is not None and req_id in self._pending_requests:
+            try:
+                pend = self._pending_requests[req_id]
+                pend["response"] = msg
+                pend["event"].set()
+            except Exception:
+                pass
+            # Still continue -- some responses also carry entity updates.
         ev_type = msg.get("e")
         data = msg.get("d") or {}
         if not ev_type:

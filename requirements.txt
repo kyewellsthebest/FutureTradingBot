@@ -10,3 +10,4 @@ requests>=2.31
 plotly>=5.20
 gunicorn>=21.2
 websocket-client>=1.7
+orjson>=3.10
