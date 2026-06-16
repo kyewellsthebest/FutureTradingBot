@@ -470,8 +470,13 @@ class TradovateOrders:
             # Empirical: live broker WR was 30% vs paper 57% (27pp gap).
             # That gap is dominantly tick-wick false stops. +1pt buffer
             # should recover most of it. Tunable via env.
+            # USER REQUIREMENT 2026-06-16: broker entry+exit must
+            # match paper to within 1pt or exact. The +1pt wick
+            # tolerance was making broker stops fire $1-2.50 worse
+            # than paper, breaking the price match. Default now 0pt
+            # (exact paper). Tuneable via env if needed later.
             tolerance_pts = float(os.environ.get(
-                "BROKER_STOP_WICK_TOLERANCE_PTS", "1.0"))
+                "BROKER_STOP_WICK_TOLERANCE_PTS", "0.0"))
             if side == "LONG":
                 # Shift stop further BELOW entry (more negative)
                 ps_adj = ps - tolerance_pts

@@ -1567,7 +1567,7 @@ class FibRuntime:
             target_px = round(float(setup.target_px_val) * 4) / 4
             # Apply wick tolerance on stop (same as full path).
             tol = float(os.environ.get(
-                "BROKER_STOP_WICK_TOLERANCE_PTS", "1.0"))
+                "BROKER_STOP_WICK_TOLERANCE_PTS", "0.0"))
             if side == "LONG":
                 stop_px = round((stop_px - tol) * 4) / 4
             else:
