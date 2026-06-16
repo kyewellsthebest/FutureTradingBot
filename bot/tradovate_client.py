@@ -305,6 +305,42 @@ class TradovateSession:
             return self.authenticate()
         return self._tokens
 
+    def start_background_refresh(self) -> None:
+        """Start a daemon thread that refreshes the access token BEFORE
+        it expires, so trade-path calls never trigger an inline
+        authenticate() (which adds ~500ms-1s of network round-trip).
+
+        Idempotent -- safe to call multiple times.
+        """
+        if getattr(self, "_refresh_thread_started", False):
+            return
+        self._refresh_thread_started = True
+        import threading as _th
+        def _loop():
+            import time as _t
+            while True:
+                try:
+                    tokens = self._tokens
+                    if tokens is None:
+                        # No tokens yet -- get them, then wait.
+                        self.authenticate()
+                        _t.sleep(60)
+                        continue
+                    # Refresh 10 minutes before expiry.
+                    remaining = tokens.expires_at - _t.time()
+                    sleep_for = max(60, remaining - 600)
+                    _t.sleep(min(sleep_for, 600))
+                    if self._tokens and self._tokens.is_expiring_soon:
+                        logger.info(
+                            "[token refresh] proactive refresh -- "
+                            "trade path stays fast")
+                        self.authenticate()
+                except Exception as e:
+                    logger.debug(f"token refresh loop: {e!r}")
+                    _t.sleep(60)
+        t = _th.Thread(target=_loop, daemon=True, name="tradovate-token-refresh")
+        t.start()
+
     # ----- REST helpers ----------------------------------------------------
 
     def _rest(self, method: str, path: str,

@@ -572,7 +572,12 @@ class TradovateOrders:
             "Pending",
             "ServiceUnavailable",
         }
-        backoff = [0.2, 0.5, 1.0]
+        # LATENCY: retry IMMEDIATELY on first transient (no backoff).
+        # The previous 200ms+500ms+1000ms backoff means a single network
+        # blip could delay the order by 1.7s -- catastrophic for HFT.
+        # Now retry instantly on first failure (matching engine glitches
+        # are typically <10ms), short backoff on subsequent failures.
+        backoff = [0.0, 0.1, 0.3]
         status, resp = None, None
         attempt = 0
         last_failure_reason = None
