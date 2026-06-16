@@ -1865,19 +1865,39 @@ class FibRuntime:
                     self._anticipatory_limit = None
             except Exception:
                 pass
-        # 3. Broker positions -- flag mismatches
+        # 3. Broker positions -- reconcile against persisted active trade.
         try:
             status, positions = sess._rest("GET", "/position/list")
+            broker_net = 0
             if status == 200 and isinstance(positions, list):
                 for pos in positions:
                     if not isinstance(pos, dict): continue
                     if pos.get("accountId") != acct_id: continue
-                    net = int(pos.get("netPos") or 0)
-                    if net != 0:
-                        logger.warning(
-                            f"[reconcile] broker has open position "
-                            f"netPos={net} -- bot will treat as in-flight "
-                            f"trade until bracket OCO closes it")
+                    n = int(pos.get("netPos") or 0)
+                    if n != 0:
+                        broker_net = n
+                        break
+            if broker_net == 0:
+                # Broker is FLAT. Any persisted _open_trade_ref is stale
+                # (the bracket closed our position while the bot was off).
+                # Clear it so the duplicate-entry guard doesn't block
+                # every new trade attempt. This was the bug causing the
+                # overnight no-trade incident.
+                if self._open_trade_ref is not None:
+                    logger.warning(
+                        f"[reconcile] _open_trade_ref={self._open_trade_ref} "
+                        f"in persisted state but broker is FLAT -- "
+                        f"clearing stale ref so new entries can fire")
+                    self._open_trade_ref = None
+                    self._broker_stop_px = None
+                    self._broker_target_px = None
+                    self._broker_side = None
+                    self._broker_target_sent = False
+            else:
+                logger.warning(
+                    f"[reconcile] broker has open position netPos="
+                    f"{broker_net} -- bot will treat as in-flight "
+                    f"trade until bracket OCO closes it")
         except Exception:
             pass
         self._persist_state()  # Save the reconciled state.
