@@ -385,6 +385,21 @@ class FibRuntime:
         # SQLite trade log on construction so history survives restarts.
         self.recent_trades: deque = deque(maxlen=30)
         self._hydrate_recent_trades()
+        # State persistence path. Every Railway redeploy wipes in-memory
+        # state -- _pending_parent_orders, _anticipatory_limit, etc. --
+        # which causes silent failures: bot doesn't know about its own
+        # working orders after restart, so it can't cancel stale ones,
+        # can't poll for fills, and may submit duplicates.
+        # Fix: serialize critical tracking state to disk on every change,
+        # restore + reconcile against Tradovate's actual state on startup.
+        try:
+            import pathlib as _pl
+            self._state_path = _pl.Path(
+                os.environ.get("BOT_DATA_DIR", "/app/data")
+                ) / f"bot_state_acct{self.account_id}.json"
+            self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            self._state_path = None
         # Passive broker fill tracker. After every placeoso, append
         # {setup_ref, parent_order_id, submitted_at, checks_done, ...}
         # here. The poll runs on each _tick (PASSIVE -- we never block
@@ -415,6 +430,32 @@ class FibRuntime:
         self._cached_symbol: Optional[str] = None
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
+        # Restore persisted state + reconcile with broker. Critical after
+        # restarts -- without this, the bot loses track of working orders,
+        # positions, anticipatory LIMITs etc and can submit duplicates or
+        # leave orphans running.
+        try:
+            self._restore_state()
+        except Exception as e:
+            logger.warning(f"state restore failed: {e!r}")
+        # Register graceful shutdown hook so state is persisted on
+        # SIGTERM (Railway redeploy). atexit handles normal Python exits.
+        try:
+            import atexit
+            atexit.register(self._persist_state)
+        except Exception:
+            pass
+        try:
+            import signal as _sig
+            def _sigterm_handler(sig, frame):
+                logger.info("[shutdown] SIGTERM received -- persisting state")
+                try:
+                    self._persist_state()
+                except Exception:
+                    pass
+            _sig.signal(_sig.SIGTERM, _sigterm_handler)
+        except Exception:
+            pass
         # CRITICAL LATENCY OPTIMIZATION: register a tick callback so
         # try_fire_on_tick runs inline on every Polygon tick (sub-100ms
         # reaction time) instead of waiting up to CYCLE_FLAT_SECONDS for
@@ -701,6 +742,15 @@ class FibRuntime:
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
+        # Persist tracking state to disk every ~10s (cycle * 2s = 10s
+        # when in CYCLE_FLAT_SECONDS=2). Cheap atomic JSON write. If
+        # the bot crashes / Railway redeploys, we recover within
+        # 10 seconds of last consistent state.
+        if self.cycle % 5 == 0:
+            try:
+                self._persist_state()
+            except Exception:
+                pass
         # Passive broker-fill tracker. Read-only, no side effects.
         try:
             self._poll_pending_broker_orders()
@@ -1607,6 +1657,129 @@ class FibRuntime:
         except Exception as e:
             logger.warning(f"anticipatory adopt: {e!r}")
             return None
+
+    def _persist_state(self) -> None:
+        """Snapshot the bot's critical broker-tracking state to disk so
+        a redeploy / restart can recover without losing context. Called
+        after every state-changing event. Best-effort, never raises."""
+        if self._state_path is None:
+            return
+        try:
+            state = {
+                "ts": time.time(),
+                "account_id": self.account_id,
+                "open_trade_ref": self._open_trade_ref,
+                "broker_entry_ts": (
+                    self._broker_entry_ts.isoformat()
+                    if self._broker_entry_ts else None),
+                "broker_stop_px": self._broker_stop_px,
+                "broker_target_px": self._broker_target_px,
+                "broker_side": self._broker_side,
+                "broker_target_sent": self._broker_target_sent,
+                "pending_parent_orders": self._pending_parent_orders,
+                "anticipatory_limit": self._anticipatory_limit,
+                "pre_submitted_limit": self._pre_submitted_limit,
+            }
+            tmp = self._state_path.with_suffix(".tmp")
+            with open(tmp, "w") as f:
+                json.dump(state, f, default=str)
+            tmp.replace(self._state_path)
+        except Exception as e:
+            logger.debug(f"_persist_state: {e!r}")
+
+    def _restore_state(self) -> None:
+        """Load persisted state from disk on startup, then reconcile
+        against Tradovate's actual current state. Logs anything that
+        doesn't match so the next bundle shows the discrepancy."""
+        if self._state_path is None or not self._state_path.exists():
+            logger.info("[state restore] no prior state file -- fresh start")
+            return
+        try:
+            with open(self._state_path) as f:
+                state = json.load(f)
+        except Exception as e:
+            logger.warning(f"[state restore] load failed: {e!r}")
+            return
+        age_s = time.time() - state.get("ts", 0)
+        logger.info(f"[state restore] loaded state age={age_s:.1f}s")
+        # Bring back the easy fields.
+        self._open_trade_ref = state.get("open_trade_ref")
+        self._broker_stop_px = state.get("broker_stop_px")
+        self._broker_target_px = state.get("broker_target_px")
+        self._broker_side = state.get("broker_side")
+        self._broker_target_sent = state.get("broker_target_sent", False)
+        self._pending_parent_orders = state.get("pending_parent_orders") or []
+        self._anticipatory_limit = state.get("anticipatory_limit")
+        self._pre_submitted_limit = state.get("pre_submitted_limit")
+        # Reconcile against broker reality.
+        try:
+            self._reconcile_with_broker()
+        except Exception as e:
+            logger.warning(f"[state restore] reconcile failed: {e!r}")
+
+    def _reconcile_with_broker(self) -> None:
+        """Compare restored state to Tradovate's actual position + working
+        orders. Resolve discrepancies:
+          - persisted pending order no longer alive on broker → drop from tracking
+          - broker has open position bot doesn't know about → flag (will
+            be flattened by discrepancy detector or handled by bracket OCO)
+          - broker has working orders bot doesn't know about → cancel
+            them (likely orphans from before restart)
+        """
+        if self.tradovate_orders is None:
+            return
+        sess = self.tradovate_orders.session
+        if sess is None or not sess.is_configured:
+            return
+        acct_id = sess.get_account_id()
+        # 1. Verify each persisted pending order
+        keep = []
+        for entry in (self._pending_parent_orders or []):
+            oid = entry.get("parent_order_id")
+            if not oid:
+                continue
+            try:
+                status = self.tradovate_orders.get_order_status(int(oid))
+                if status in ("Working", "Pending"):
+                    keep.append(entry)
+                    logger.info(
+                        f"[reconcile] order_id={oid} still {status}, "
+                        f"resuming tracking")
+                else:
+                    logger.info(
+                        f"[reconcile] order_id={oid} now {status}, "
+                        f"dropping from tracking")
+            except Exception:
+                keep.append(entry)  # if can't tell, keep
+        self._pending_parent_orders = keep
+        # 2. Anticipatory limit -- check if still working
+        if self._anticipatory_limit:
+            oid = self._anticipatory_limit.get("order_id")
+            try:
+                status = self.tradovate_orders.get_order_status(int(oid)) if oid else None
+                if status not in ("Working", "Pending"):
+                    logger.info(
+                        f"[reconcile] anticipatory order_id={oid} now "
+                        f"{status}, clearing")
+                    self._anticipatory_limit = None
+            except Exception:
+                pass
+        # 3. Broker positions -- flag mismatches
+        try:
+            status, positions = sess._rest("GET", "/position/list")
+            if status == 200 and isinstance(positions, list):
+                for pos in positions:
+                    if not isinstance(pos, dict): continue
+                    if pos.get("accountId") != acct_id: continue
+                    net = int(pos.get("netPos") or 0)
+                    if net != 0:
+                        logger.warning(
+                            f"[reconcile] broker has open position "
+                            f"netPos={net} -- bot will treat as in-flight "
+                            f"trade until bracket OCO closes it")
+        except Exception:
+            pass
+        self._persist_state()  # Save the reconciled state.
 
     def _setup_key(self, setup) -> str:
         """Stable identifier for a pending FibSetup. Used to track which

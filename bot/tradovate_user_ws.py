@@ -48,8 +48,12 @@ def _user_ws_url() -> str:
 
 
 HEARTBEAT_S = 2.0
-BACKOFF_INITIAL_S = 1.0
-BACKOFF_MAX_S = 30.0
+# LATENCY: aggressive reconnect. If the WS drops, we lose the fast
+# order path (forced back to REST, ~150ms extra per call) AND the WS
+# cached netPos / cancel confirmation. Both hurt fill latency. Better
+# to reconnect in 200ms than 30s.
+BACKOFF_INITIAL_S = 0.2
+BACKOFF_MAX_S = 5.0
 
 
 class TradovateUserWS:

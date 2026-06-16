@@ -49,8 +49,8 @@ def _md_ws_url() -> str:
                             "wss://md.tradovateapi.com/v1/websocket")
 
 HEARTBEAT_INTERVAL_S = 2.0
-BACKOFF_INITIAL_S = 1.0
-BACKOFF_MAX_S = 30.0
+BACKOFF_INITIAL_S = 0.2
+BACKOFF_MAX_S = 5.0
 
 
 class TradovateMarketData:
