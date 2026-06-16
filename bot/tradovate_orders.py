@@ -33,7 +33,35 @@ logger = logging.getLogger("tradovate_orders")
 # response + parsed result. Bounded so we don't leak memory over a long
 # session. The dashboard's diagnostic bundle exports this verbatim so we
 # can reconstruct exactly what was sent vs what the broker returned.
-_AUDIT_LOG: "deque[dict]" = deque(maxlen=500)
+#
+# DIAGNOSTIC PERSISTENCE 2026-06-16: also append every audit entry to
+# /app/data/audit_log.jsonl so the bundle can replay events across bot
+# restarts. Critical for debugging because the bot redeploys every time
+# we push -- without persistence, the in-memory ring is always empty for
+# the period before the latest deploy.
+_AUDIT_LOG: "deque[dict]" = deque(maxlen=2000)
+
+_AUDIT_PERSIST_PATH = None
+try:
+    import pathlib as _pl
+    _ad = _pl.Path(os.environ.get("BOT_DATA_DIR", "/app/data"))
+    _ad.mkdir(parents=True, exist_ok=True)
+    _AUDIT_PERSIST_PATH = _ad / "audit_log.jsonl"
+    # Hydrate the ring buffer from yesterday's persisted file so the bot's
+    # in-memory view spans the last ~24h of events on startup.
+    if _AUDIT_PERSIST_PATH.exists():
+        try:
+            with open(_AUDIT_PERSIST_PATH) as _f:
+                _lines = _f.readlines()[-2000:]
+                for _line in _lines:
+                    try:
+                        _AUDIT_LOG.append(json.loads(_line))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+except Exception:
+    pass
 
 
 def get_audit_log() -> list:
@@ -45,6 +73,13 @@ def _audit(entry: dict) -> None:
     entry = dict(entry)
     entry.setdefault("ts", time.time())
     _AUDIT_LOG.append(entry)
+    # Persist to disk best-effort (don't block on IO errors).
+    if _AUDIT_PERSIST_PATH is not None:
+        try:
+            with open(_AUDIT_PERSIST_PATH, "a") as _f:
+                _f.write(json.dumps(entry, default=str) + "\n")
+        except Exception:
+            pass
 
 
 # Per Tradovate API docs: round prices to product tick size (0.25 for
