@@ -722,6 +722,37 @@ class FibRuntime:
 
         Must be fast and safe to run from the WS thread.
         """
+        # TICK-BASED EXIT for active paper trade (mirrors broker reality).
+        # Without this, paper's exit logic uses 1-min bar HIGH/LOW which
+        # counts every wick that brushed target as a win -- inflating
+        # paper P&L vs what the broker bracket can actually capture.
+        # Now paper exits use bid/ask just like the matching engine does.
+        if self.state and self.state.active_trade is not None:
+            try:
+                from bot.pullback_strategy import should_exit_on_tick, close_trade
+                from bot.tick_history import latest_by_src
+                tv = latest_by_src("tradovate") or {}
+                bid = tv.get("bid"); ask = tv.get("ask")
+                if bid is None or ask is None:
+                    # Fall back to polygon last_price ± 0.25 tick spread.
+                    bid = price - 0.125; ask = price + 0.125
+                result = should_exit_on_tick(
+                    self.state.active_trade,
+                    float(bid), float(ask), real_utc_now())
+                if result is not None:
+                    exit_px, reason = result
+                    record = close_trade(
+                        self.state.active_trade, exit_px, reason, real_utc_now())
+                    self.state.completed_trades.append(record)
+                    self.state.active_trade = None
+                    self.state.last_trade_close_ts = real_utc_now()
+                    try:
+                        self._on_trade_close(record, real_utc_now())
+                    except Exception as ce:
+                        logger.warning(f"_on_trade_close failed: {ce!r}")
+                    return
+            except Exception as e:
+                logger.debug(f"tick-based exit: {e!r}")
         # Fast bail: no pending setups, nothing to fire.
         if not self.state or not self.state.pending_setups:
             return

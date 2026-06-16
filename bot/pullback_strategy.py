@@ -692,6 +692,49 @@ def should_exit(trade: ActiveTrade, last_1m_bar: pd.Series,
     return None
 
 
+def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
+                          now: datetime):
+    """TICK-BASED exit -- mirrors what the broker's bracket OCO actually
+    sees. Replaces should_exit() (which uses 1-min bar HIGH/LOW) for
+    paper accounting so paper and broker outcomes match.
+
+    Without this function, paper was using bar HIGH for LONG target
+    detection -- meaning a 1-tick wick to target booked a paper win
+    even when the broker LIMIT couldn't fill on a 250ms touch. The
+    result was systematically overstated paper P&L vs broker reality.
+
+    Now paper checks exit conditions on every live tick using
+    bid/ask (the same data the matching engine reacts to):
+      LONG  stop hits when bid <= stop_px (broker stop-market trigger)
+      LONG  target hits when ask >= target_px (broker LIMIT fill)
+      SHORT stop hits when ask >= stop_px
+      SHORT target hits when bid <= target_px
+
+    Returns (exit_px, reason) or None.
+    """
+    # Same look-ahead bias guard: exit only fires AFTER trade entry.
+    if now <= trade.entry_ts:
+        return None
+    # Microscalp guard: hold target for MIN_TARGET_HOLD_SECONDS.
+    hold_s = trade.hold_seconds(now)
+    if trade.side == "LONG":
+        if bid <= trade.stop_px:
+            return trade.stop_px, "stop"
+        if ask >= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
+            return trade.target_px, "target"
+    else:
+        if ask >= trade.stop_px:
+            return trade.stop_px, "stop"
+        if bid <= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
+            return trade.target_px, "target"
+    # Max hold timeout
+    if hold_s >= MAX_HOLD_SECS:
+        # Use midpoint as exit
+        mid = (bid + ask) / 2.0
+        return mid, "timeout"
+    return None
+
+
 def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
                 now: datetime) -> dict:
     trade.exit_ts = now
