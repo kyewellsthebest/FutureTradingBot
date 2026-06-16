@@ -365,6 +365,13 @@ class FibRuntime:
         # Format: {'setup_key', 'order_id', 'side', 'entry_px', 'stop_px',
         #          'target_px', 'submitted_at'}
         self._pre_submitted_limit: Optional[dict] = None
+        # ANTICIPATORY LIMIT: when price approaches within 1pt of a
+        # pending setup's entry level, submit the broker LIMIT NOW so it
+        # rests on the matching engine ahead of the touch. Solves the
+        # 500ms-RTT miss without the multi-LIMIT stacking that broke
+        # the original pre-submit design. Only ONE alive at a time.
+        # Format: same as _pre_submitted_limit.
+        self._anticipatory_limit: Optional[dict] = None
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
         # CRITICAL LATENCY OPTIMIZATION: register a tick callback so
@@ -602,11 +609,13 @@ class FibRuntime:
           setups -> try_fire_on_tick may open a trade -> _on_trade_open
           sends OSO to Tradovate.
 
+        Also runs the ANTICIPATORY PRE-SUBMIT check: if price is within
+        1pt of a pending setup's entry level, submit the broker LIMIT
+        NOW so it's resting on the matching engine by the time the
+        actual touch happens. Eliminates the 500ms RTT miss that
+        causes 0-sec-hold paper wins to be missed by broker.
+
         Must be fast and safe to run from the WS thread.
-        Returns immediately if:
-          - already in a trade (active_trade exists)
-          - no pending setups armed
-          - already inside a _tick() call (lock contention)
         """
         # Fast bail: no pending setups, nothing to fire.
         if not self.state or not self.state.pending_setups:
@@ -619,6 +628,13 @@ class FibRuntime:
         if not self._tick_fire_lock.acquire(blocking=False):
             return
         try:
+            # ANTICIPATORY PRE-SUBMIT: place LIMIT before the touch.
+            # Cheap O(N) loop over a few pending setups, no REST calls
+            # unless we actually need to submit/cancel.
+            try:
+                self._check_anticipatory_limit(price)
+            except Exception as e:
+                logger.debug(f"anticipatory check: {e!r}")
             from bot.pullback_strategy import try_fire_on_tick
             from bot.account_ctx import get_strategy_params
             runtime_lucid = self.account._build_runtime_lucid_state()
@@ -1118,14 +1134,15 @@ class FibRuntime:
                     return
 
                 # All gates passed -- send the order.
-                # FIRST: check if we already pre-submitted a LIMIT for
-                # this setup. If so, adopt that order instead of sending
-                # a duplicate. The pre-submitted LIMIT has been resting
-                # on the matching engine since the setup arrived -> it
-                # likely already filled (or will fill on the next tick).
+                # FIRST: check if we already pre-submitted (anticipatory or
+                # legacy pre-submit) a LIMIT for this setup. If so, adopt
+                # that order instead of sending a duplicate.
                 if use_tradovate:
-                    pre_oid = self._adopt_pre_submitted_for_active_trade(
+                    pre_oid = self._adopt_anticipatory_for_active_trade(
                         trade, setup_ref)
+                    if pre_oid is None:
+                        pre_oid = self._adopt_pre_submitted_for_active_trade(
+                            trade, setup_ref)
                     if pre_oid is not None:
                         # Pre-submitted LIMIT is now the active trade's
                         # broker order. Tracking already added to
@@ -1286,6 +1303,187 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
+
+    def _check_anticipatory_limit(self, current_price: float) -> None:
+        """Place a broker LIMIT a moment BEFORE price actually crosses
+        the pullback entry level. This way the LIMIT is already
+        resting on Tradovate's matching engine when the touch happens
+        -- it fills in microseconds instead of waiting on a 500ms HTTP
+        round-trip after the touch.
+
+        STACKING SAFETY:
+          - Only ONE anticipatory LIMIT alive at a time.
+          - When a different setup becomes the closest, the old LIMIT
+            is cancelled SYNCHRONOUSLY (we poll status until Canceled
+            or other terminal) before submitting the new one. No race.
+          - Will skip submission if broker netPos != 0.
+        """
+        # Avoid spamming -- check at most every 200ms.
+        nowt = time.time()
+        last = getattr(self, "_anticip_last_check", 0)
+        if nowt - last < 0.2:
+            return
+        self._anticip_last_check = nowt
+        if self.tradovate_orders is None:
+            return
+        sess = getattr(self.tradovate_orders, "session", None)
+        if sess is None or not sess.is_configured:
+            return
+        if self.account.state.open_position is not None:
+            return
+        # Find the pending setup whose entry is closest to current price
+        # and on the correct side (price still APPROACHING, not past).
+        APPROACH_THRESHOLD_PT = 1.5
+        best = None
+        best_dist = APPROACH_THRESHOLD_PT + 0.01
+        for s in (self.state.pending_setups if self.state else []):
+            if getattr(s, 'used', False) or getattr(s, 'fire_attempted', False):
+                continue
+            entry = float(s.pullback_entry)
+            if s.side == "LONG":
+                # LONG entry triggers when price FALLS to entry.
+                # Approach means current price >= entry (above, falling).
+                if current_price < entry:
+                    continue
+                dist = current_price - entry
+            else:  # SHORT
+                # SHORT triggers when price RISES to entry.
+                # Approach means current price <= entry (below, rising).
+                if current_price > entry:
+                    continue
+                dist = entry - current_price
+            if dist < best_dist:
+                best_dist = dist
+                best = s
+        if best is None:
+            # No setup within threshold -- cancel any stale anticipatory.
+            if self._anticipatory_limit is not None:
+                self._cancel_anticipatory_sync("price_far_from_all_setups")
+            return
+        target_key = self._setup_key(best)
+        cur_key = (self._anticipatory_limit.get('setup_key')
+                    if self._anticipatory_limit else None)
+        if cur_key == target_key:
+            return  # already submitted for this setup
+        # Different (or no) anticipatory. Cancel old synchronously then submit new.
+        if self._anticipatory_limit is not None:
+            self._cancel_anticipatory_sync("different_setup_closer")
+        # Single-position guard: verify broker netPos == 0.
+        try:
+            acct_id = sess.get_account_id()
+            status, positions = sess._rest("GET", "/position/list")
+            if status == 200 and isinstance(positions, list):
+                for pos in positions:
+                    if not isinstance(pos, dict): continue
+                    if pos.get("accountId") != acct_id: continue
+                    if int(pos.get("netPos") or 0) != 0:
+                        return  # broker holds a position, don't pre-submit
+        except Exception:
+            return
+        self._submit_anticipatory(best, current_price)
+
+    def _submit_anticipatory(self, setup, live_price: float) -> None:
+        """Submit a LIMIT+bracket for a setup that's about to fire."""
+        try:
+            from research.data_loader import polygon_front_month
+            symbol = os.environ.get(
+                "TRADOVATE_SYMBOL",
+                polygon_front_month(
+                    os.environ.get("POLYGON_CONTRACT", "MNQ")))
+            stop_pts = abs(setup.pullback_entry - setup.stop_px_val)
+            target_pts = abs(setup.target_px_val - setup.pullback_entry)
+            setup_key = self._setup_key(setup)
+            pre_ref = f"acct{self.account_id}_antc_{setup_key}"[:64]
+            logger.info(
+                f"[ANTICIPATORY] {setup.side} @ {setup.pullback_entry:.2f} "
+                f"(live={live_price:.2f}, dist="
+                f"{abs(live_price - setup.pullback_entry):.2f}pt) -- "
+                f"placing LIMIT ahead of touch")
+            result = self.tradovate_orders.submit_market_with_bracket(
+                side=setup.side, qty=N_MNQ, symbol=symbol,
+                stop_pts=stop_pts, target_pts=target_pts,
+                entry_estimate=float(setup.pullback_entry),
+                live_price=float(live_price),
+                paper_stop_px=float(setup.stop_px_val),
+                paper_target_px=float(setup.target_px_val),
+                setup_ref=pre_ref,
+            )
+            if result.ok:
+                self._anticipatory_limit = {
+                    'setup_key': self._setup_key(setup),
+                    'order_id': result.order_id,
+                    'side': setup.side,
+                    'entry_px': float(setup.pullback_entry),
+                    'stop_px': float(setup.stop_px_val),
+                    'target_px': float(setup.target_px_val),
+                    'submitted_at': time.time(),
+                    'pre_ref': pre_ref,
+                }
+                logger.info(f"[ANTICIPATORY OK] order_id={result.order_id}")
+        except Exception as e:
+            logger.warning(f"anticipatory submit failed: {e!r}")
+
+    def _cancel_anticipatory_sync(self, reason: str) -> None:
+        """Cancel the live anticipatory LIMIT and POLL until Tradovate
+        confirms terminal state. Blocks for ~50-300ms but eliminates
+        the cancel-vs-submit race that caused stacking in the old
+        pre-submit design."""
+        if not self._anticipatory_limit:
+            return
+        oid = self._anticipatory_limit.get('order_id')
+        sk = self._anticipatory_limit.get('setup_key')
+        try:
+            if oid:
+                self.tradovate_orders.cancel_order(int(oid))
+                # Poll up to ~1s for terminal status.
+                import time as _t
+                for _ in range(20):
+                    _t.sleep(0.05)
+                    status = self.tradovate_orders.get_order_status(int(oid))
+                    if status in ("Canceled", "Filled", "Rejected", "Expired"):
+                        logger.info(
+                            f"[ANTICIPATORY cancel confirmed] order_id={oid} "
+                            f"status={status} reason={reason}")
+                        break
+                else:
+                    logger.warning(
+                        f"[ANTICIPATORY cancel timeout] order_id={oid} "
+                        f"still pending after 1s -- abandoning. May cause "
+                        f"one stack -- discrepancy detector will clean up.")
+        except Exception as e:
+            logger.warning(f"anticipatory cancel: {e!r}")
+        self._anticipatory_limit = None
+
+    def _adopt_anticipatory_for_active_trade(self, trade, setup_ref: str) -> Optional[int]:
+        """When paper fires for a setup that we anticipatorily submitted,
+        adopt that LIMIT's order_id as the active trade's broker order."""
+        if not self._anticipatory_limit:
+            return None
+        try:
+            ts = getattr(trade, 'setup', None)
+            if ts is None:
+                return None
+            trade_key = self._setup_key(ts)
+            if trade_key != self._anticipatory_limit.get('setup_key'):
+                return None
+            oid = self._anticipatory_limit.get('order_id')
+            self._pending_parent_orders.append({
+                "setup_ref": setup_ref,
+                "parent_order_id": oid,
+                "submitted_at": self._anticipatory_limit.get('submitted_at', time.time()),
+                "checks_done": 0,
+                "side": trade.side,
+                "entry_px": float(trade.entry_px),
+                "qty": trade.n_mnq,
+                "anticipatory": True,
+            })
+            logger.info(
+                f"[ANTICIPATORY ADOPTED] order_id={oid} setup_ref={setup_ref}")
+            self._anticipatory_limit = None
+            return oid
+        except Exception as e:
+            logger.warning(f"anticipatory adopt: {e!r}")
+            return None
 
     def _setup_key(self, setup) -> str:
         """Stable identifier for a pending FibSetup. Used to track which
@@ -1577,6 +1775,13 @@ class FibRuntime:
             # same rate, with no net P&L improvement. Clean cancel is
             # safer and simpler.
             self._cancel_stale_entry_limits()
+            # Also cancel any anticipatory LIMIT that's no longer needed
+            # because paper just closed (next setup will get its own).
+            if self._anticipatory_limit is not None:
+                try:
+                    self._cancel_anticipatory_sync("paper_close")
+                except Exception:
+                    pass
             self.account._close(exit_px_raw=record["exit_px"],
                                 reason=record["exit_reason"],
                                 adverse=adverse, now=now)
