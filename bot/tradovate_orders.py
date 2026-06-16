@@ -362,29 +362,51 @@ class TradovateOrders:
         if (paper_stop_px is not None and paper_target_px is not None):
             ps = float(paper_stop_px)
             pt = float(paper_target_px)
+            # WIDER STOP TOLERANCE: shift the broker stop AWAY from entry
+            # by N points. Live audit found broker stops firing on tick
+            # wicks that Polygon's 1-min bar HIGH/LOW didn't capture --
+            # converting paper-target trades into broker-stop losses (e.g.
+            # 00:17 SHORT entry 30534.75 stop 30540.5 -- paper hit target,
+            # broker stopped on a Tradovate tick that didn't print on
+            # Polygon). Adding a tolerance buffer keeps the broker bracket
+            # alive through those tick wicks, matching paper's bar-based
+            # exit detection.
+            #
+            # Trade-off: when stop legitimately fires, broker takes a
+            # slightly bigger loss (extra distance pts). But this saves
+            # many false stop-outs that paper survives.
+            #
+            # Empirical: live broker WR was 30% vs paper 57% (27pp gap).
+            # That gap is dominantly tick-wick false stops. +1pt buffer
+            # should recover most of it. Tunable via env.
+            tolerance_pts = float(os.environ.get(
+                "BROKER_STOP_WICK_TOLERANCE_PTS", "1.0"))
             if side == "LONG":
-                ok = ps < bracket_ref < pt
+                # Shift stop further BELOW entry (more negative)
+                ps_adj = ps - tolerance_pts
+                ok = ps_adj < bracket_ref < pt
             else:  # SHORT
-                ok = pt < bracket_ref < ps
+                # Shift stop further ABOVE entry (more positive)
+                ps_adj = ps + tolerance_pts
+                ok = pt < bracket_ref < ps_adj
             if ok:
-                stop_price = _tick_round(ps)
+                stop_price = _tick_round(ps_adj)
                 target_price = _tick_round(pt)
                 if slip_adjust:
-                    # Pre-shift the stop toward fill by observed slip so
-                    # paper expectation matches broker fill.
                     if side == "LONG":
-                        stop_price = _tick_round(ps + slip_pts)
+                        stop_price = _tick_round(ps_adj + slip_pts)
                     else:
-                        stop_price = _tick_round(ps - slip_pts)
+                        stop_price = _tick_round(ps_adj - slip_pts)
                 use_paper_prices = True
                 logger.info(
-                    f"[bracket EXACT paper] {side} entry_est={entry_estimate} "
-                    f"ref={bracket_ref:.2f} stop={stop_price:.2f} "
-                    f"target={target_price:.2f} (paper's exact levels)")
+                    f"[bracket EXACT paper +tolerance{tolerance_pts}] {side} "
+                    f"entry_est={entry_estimate} ref={bracket_ref:.2f} "
+                    f"stop={stop_price:.2f} (paper {ps:.2f} +tol={tolerance_pts}) "
+                    f"target={target_price:.2f}")
             else:
                 logger.warning(
                     f"[bracket paper-price WRONG SIDE] {side} ref={bracket_ref:.2f} "
-                    f"paper_stop={ps} paper_target={pt} -- "
+                    f"paper_stop={ps} (adj {ps_adj}) paper_target={pt} -- "
                     f"falling back to points-based bracket")
 
         if not use_paper_prices:
