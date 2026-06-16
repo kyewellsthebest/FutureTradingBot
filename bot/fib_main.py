@@ -656,14 +656,21 @@ class FibRuntime:
             self._check_position_discrepancy()
         except Exception as e:
             logger.debug(f"position discrepancy check: {e!r}")
-        # PRE-SUBMIT LIMIT: place a broker LIMIT for the most recent
-        # pending setup before its level is touched. Eliminates the
-        # network-RTT latency window where paper books on the tick
-        # touch but broker LIMIT arrives after the price has moved.
-        try:
-            self._sync_pre_submitted_limit()
-        except Exception as e:
-            logger.debug(f"pre-submit sync: {e!r}")
+        # PRE-SUBMIT DISABLED 2026-06-16: race condition between sibling
+        # cancel and new submit allowed multiple LIMITs to rest briefly
+        # and BOTH fill on the same tick -> netPos=+2 or +3 stacking ->
+        # discrepancy detector flushed everything at random prices ->
+        # tiny -$1, +$0.76, -$3.24 trades destroying P&L.
+        #
+        # Reverting to post-fire LIMIT (submit at tick fire, not setup
+        # arm). Loses ~50ms of latency advantage but eliminates the
+        # stacking entirely. The +1pt stop tolerance still helps the
+        # wick-mismatch class.
+        #
+        # try:
+        #     self._sync_pre_submitted_limit()
+        # except Exception as e:
+        #     logger.debug(f"pre-submit sync: {e!r}")
         # Runtime reset trigger -- dashboard's /api/admin/reset_all writes
         # a flag file; we honour it here so the in-memory state matches the
         # wiped disk state without requiring a redeploy. Idempotent: the
