@@ -1380,7 +1380,12 @@ class FibRuntime:
             return
         # Find the pending setup whose entry is closest to current price
         # and on the correct side (price still APPROACHING, not past).
-        APPROACH_THRESHOLD_PT = 1.5
+        # Default 3.0pt -- captures more setups including ones where
+        # price gaps through. Higher value = more LIMITs placed (and
+        # cancelled if not touched) but higher hit rate. Tuneable via
+        # env var ANTICIPATORY_THRESHOLD_PT.
+        APPROACH_THRESHOLD_PT = float(os.environ.get(
+            "ANTICIPATORY_THRESHOLD_PT", "3.0"))
         best = None
         best_dist = APPROACH_THRESHOLD_PT + 0.01
         for s in (self.state.pending_setups if self.state else []):

@@ -327,8 +327,31 @@ class TradovateSession:
             import requests as _rq
             from requests.adapters import HTTPAdapter
             self._http_session = _rq.Session()
-            # Pool more connections so concurrent requests share.
-            adapter = HTTPAdapter(pool_connections=4, pool_maxsize=8,
+            # LATENCY: custom HTTPAdapter that sets TCP_NODELAY on every
+            # new socket. Without this, urllib3 inherits OS defaults
+            # which usually have Nagle's algorithm ON -- small HTTP
+            # bodies (~few hundred bytes for placeoso) get buffered up
+            # to 40ms before being sent. With TCP_NODELAY, frames go
+            # out immediately. 10-40ms saved per call.
+            try:
+                from urllib3.poolmanager import PoolManager
+                import socket as _sk
+                class _NoDelayAdapter(HTTPAdapter):
+                    def init_poolmanager(self, *a, **kw):
+                        kw['socket_options'] = [
+                            (_sk.IPPROTO_TCP, _sk.TCP_NODELAY, 1),
+                            (_sk.SOL_SOCKET, _sk.SO_KEEPALIVE, 1),
+                        ]
+                        try:
+                            kw['socket_options'].append(
+                                (_sk.IPPROTO_TCP, _sk.TCP_QUICKACK, 1))
+                        except Exception:
+                            pass
+                        return super().init_poolmanager(*a, **kw)
+                adapter_cls = _NoDelayAdapter
+            except Exception:
+                adapter_cls = HTTPAdapter
+            adapter = adapter_cls(pool_connections=4, pool_maxsize=8,
                                    max_retries=0)
             self._http_session.mount("https://", adapter)
             self._http_session.mount("http://", adapter)

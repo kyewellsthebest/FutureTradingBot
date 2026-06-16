@@ -185,6 +185,29 @@ class TradovateUserWS:
         url = _user_ws_url()
         logger.info(f"user_ws: connecting {url}")
         self._ws = websocket.create_connection(url, timeout=15)
+        # LATENCY: disable Nagle's algorithm so small WS frames (order
+        # submissions, cancels, heartbeats) go out immediately instead
+        # of being buffered for up to 40ms. Combined with TCP_QUICKACK
+        # for fast ACKs on Linux. Saves ~10-40ms per frame.
+        try:
+            import socket as _sk
+            sock = self._ws.sock
+            if sock is not None:
+                sock.setsockopt(_sk.IPPROTO_TCP, _sk.TCP_NODELAY, 1)
+                try:
+                    sock.setsockopt(_sk.IPPROTO_TCP, _sk.TCP_QUICKACK, 1)
+                except (AttributeError, OSError):
+                    pass  # TCP_QUICKACK is Linux-only
+                try:
+                    # Larger send/recv buffers reduce syscall overhead
+                    sock.setsockopt(_sk.SOL_SOCKET, _sk.SO_SNDBUF, 65536)
+                    sock.setsockopt(_sk.SOL_SOCKET, _sk.SO_RCVBUF, 131072)
+                    # Keepalive so dead sockets are detected quickly.
+                    sock.setsockopt(_sk.SOL_SOCKET, _sk.SO_KEEPALIVE, 1)
+                except OSError:
+                    pass
+        except Exception as _e:
+            logger.debug(f"user_ws socket opt tuning: {_e!r}")
         # Tradovate sends an "o" frame on connect
         try:
             hello = self._ws.recv()
