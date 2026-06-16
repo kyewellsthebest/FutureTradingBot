@@ -1142,6 +1142,33 @@ class FibRuntime:
                 stop_pts = abs(trade.entry_px - trade.stop_px)
                 target_pts = abs(trade.target_px - trade.entry_px)
                 if use_tradovate:
+                    # SINGLE-POSITION GUARD: before submitting a new
+                    # broker entry, verify Tradovate's netPos is 0. If
+                    # broker still has an open position (paper exited
+                    # but bracket OCO hasn't fired yet), submitting now
+                    # would stack to netPos=2 -- the bug seen at
+                    # 05:45:42 today (SHORT pos=-1 -> SHORT pos=-2 ->
+                    # discrepancy detector flushed both via MARKET).
+                    try:
+                        sess = self.tradovate_orders.session
+                        acct_id = sess.get_account_id()
+                        status, positions = sess._rest("GET", "/position/list")
+                        if status == 200 and isinstance(positions, list):
+                            for pos in positions:
+                                if not isinstance(pos, dict): continue
+                                if pos.get("accountId") != acct_id: continue
+                                net = int(pos.get("netPos") or 0)
+                                if net != 0:
+                                    logger.warning(
+                                        f"[broker SKIP] netPos={net} != 0, "
+                                        f"refusing to stack. Paper booked "
+                                        f"this setup; broker holds previous "
+                                        f"position. Wait for bracket exit.")
+                                    _tl(setup_ref, "broker_skip",
+                                         reason="netpos_nonzero", netpos=net)
+                                    return
+                    except Exception as ne:
+                        logger.warning(f"netPos check failed: {ne!r}")
                     # Resolve symbol the same way the WS subscriber did.
                     from research.data_loader import polygon_front_month
                     symbol = os.environ.get(
