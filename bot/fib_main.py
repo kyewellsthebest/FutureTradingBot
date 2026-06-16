@@ -372,6 +372,10 @@ class FibRuntime:
         # the original pre-submit design. Only ONE alive at a time.
         # Format: same as _pre_submitted_limit.
         self._anticipatory_limit: Optional[dict] = None
+        # LATENCY: cache the resolved Tradovate symbol so we don't
+        # re-resolve from polygon_front_month on every trade. Same
+        # value all day. Refreshes on next bot restart.
+        self._cached_symbol: Optional[str] = None
         # Process start time for the diagnostic bundle's uptime stats.
         self._started_at = time.time()
         # CRITICAL LATENCY OPTIMIZATION: register a tick callback so
@@ -1166,32 +1170,51 @@ class FibRuntime:
                     # would stack to netPos=2 -- the bug seen at
                     # 05:45:42 today (SHORT pos=-1 -> SHORT pos=-2 ->
                     # discrepancy detector flushed both via MARKET).
+                    # LATENCY: prefer WS-cached netPos (instant) over
+                    # REST /position/list (100-200ms).
                     try:
                         sess = self.tradovate_orders.session
                         acct_id = sess.get_account_id()
-                        status, positions = sess._rest("GET", "/position/list")
-                        if status == 200 and isinstance(positions, list):
-                            for pos in positions:
-                                if not isinstance(pos, dict): continue
-                                if pos.get("accountId") != acct_id: continue
-                                net = int(pos.get("netPos") or 0)
-                                if net != 0:
-                                    logger.warning(
-                                        f"[broker SKIP] netPos={net} != 0, "
-                                        f"refusing to stack. Paper booked "
-                                        f"this setup; broker holds previous "
-                                        f"position. Wait for bracket exit.")
-                                    _tl(setup_ref, "broker_skip",
-                                         reason="netpos_nonzero", netpos=net)
-                                    return
+                        net = None
+                        try:
+                            from bot.tradovate_user_ws import get_user_ws
+                            _uws = get_user_ws()
+                            if _uws is not None:
+                                for cid, entry in (_uws._netpos_cache or {}).items():
+                                    if entry.get("netPos", 0) != 0:
+                                        net = entry["netPos"]
+                                        break
+                        except Exception:
+                            pass
+                        if net is None:
+                            status, positions = sess._rest("GET", "/position/list")
+                            if status == 200 and isinstance(positions, list):
+                                for pos in positions:
+                                    if not isinstance(pos, dict): continue
+                                    if pos.get("accountId") != acct_id: continue
+                                    if int(pos.get("netPos") or 0) != 0:
+                                        net = int(pos["netPos"])
+                                        break
+                        if net not in (0, None):
+                            logger.warning(
+                                f"[broker SKIP] netPos={net} != 0, "
+                                f"refusing to stack. Paper booked "
+                                f"this setup; broker holds previous "
+                                f"position. Wait for bracket exit.")
+                            _tl(setup_ref, "broker_skip",
+                                 reason="netpos_nonzero", netpos=net)
+                            return
                     except Exception as ne:
                         logger.warning(f"netPos check failed: {ne!r}")
-                    # Resolve symbol the same way the WS subscriber did.
-                    from research.data_loader import polygon_front_month
-                    symbol = os.environ.get(
-                        "TRADOVATE_SYMBOL",
-                        polygon_front_month(
-                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    # LATENCY: cached symbol -- skips polygon_front_month
+                    # date logic on every entry.
+                    if self._cached_symbol is None:
+                        from research.data_loader import polygon_front_month
+                        self._cached_symbol = os.environ.get(
+                            "TRADOVATE_SYMBOL",
+                            polygon_front_month(
+                                os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    symbol = self._cached_symbol
                     logger.info(
                         f"[tradovate SEND BRACKET] {trade.side} "
                         f"{trade.n_mnq} {symbol} entry@{trade.entry_px:.2f} "
@@ -1369,15 +1392,34 @@ class FibRuntime:
         if self._anticipatory_limit is not None:
             self._cancel_anticipatory_sync("different_setup_closer")
         # Single-position guard: verify broker netPos == 0.
+        # LATENCY: prefer WS-cached netPos to avoid a ~100-200ms REST
+        # call. WS pushes position updates instantly on every fill.
         try:
             acct_id = sess.get_account_id()
-            status, positions = sess._rest("GET", "/position/list")
-            if status == 200 and isinstance(positions, list):
-                for pos in positions:
-                    if not isinstance(pos, dict): continue
-                    if pos.get("accountId") != acct_id: continue
-                    if int(pos.get("netPos") or 0) != 0:
-                        return  # broker holds a position, don't pre-submit
+            cur_net = None
+            try:
+                from bot.tradovate_user_ws import get_user_ws
+                _uws = get_user_ws()
+                if _uws is not None:
+                    # Try to find a cached netPos for any contract we hold.
+                    for cid, entry in (_uws._netpos_cache or {}).items():
+                        if entry.get("netPos", 0) != 0:
+                            cur_net = entry["netPos"]
+                            break
+            except Exception:
+                pass
+            if cur_net is None:
+                # Fallback to REST.
+                status, positions = sess._rest("GET", "/position/list")
+                if status == 200 and isinstance(positions, list):
+                    for pos in positions:
+                        if not isinstance(pos, dict): continue
+                        if pos.get("accountId") != acct_id: continue
+                        if int(pos.get("netPos") or 0) != 0:
+                            cur_net = int(pos["netPos"])
+                            break
+            if cur_net not in (0, None):
+                return  # broker holds a position, don't pre-submit
         except Exception:
             return
         self._submit_anticipatory(best, current_price)
@@ -1385,11 +1427,13 @@ class FibRuntime:
     def _submit_anticipatory(self, setup, live_price: float) -> None:
         """Submit a LIMIT+bracket for a setup that's about to fire."""
         try:
-            from research.data_loader import polygon_front_month
-            symbol = os.environ.get(
-                "TRADOVATE_SYMBOL",
-                polygon_front_month(
-                    os.environ.get("POLYGON_CONTRACT", "MNQ")))
+            if self._cached_symbol is None:
+                from research.data_loader import polygon_front_month
+                self._cached_symbol = os.environ.get(
+                    "TRADOVATE_SYMBOL",
+                    polygon_front_month(
+                        os.environ.get("POLYGON_CONTRACT", "MNQ")))
+            symbol = self._cached_symbol
             stop_pts = abs(setup.pullback_entry - setup.stop_px_val)
             target_pts = abs(setup.target_px_val - setup.pullback_entry)
             setup_key = self._setup_key(setup)
@@ -1424,32 +1468,69 @@ class FibRuntime:
             logger.warning(f"anticipatory submit failed: {e!r}")
 
     def _cancel_anticipatory_sync(self, reason: str) -> None:
-        """Cancel the live anticipatory LIMIT and POLL until Tradovate
-        confirms terminal state. Blocks for ~50-300ms but eliminates
-        the cancel-vs-submit race that caused stacking in the old
-        pre-submit design."""
+        """Cancel the live anticipatory LIMIT and confirm terminal state
+        via Tradovate user WS exec_reports (instant push) instead of
+        REST polling. Typical wait now ~10-30ms instead of 50-300ms.
+        Fallback to REST poll if WS isn't connected."""
         if not self._anticipatory_limit:
             return
         oid = self._anticipatory_limit.get('order_id')
         sk = self._anticipatory_limit.get('setup_key')
         try:
             if oid:
-                self.tradovate_orders.cancel_order(int(oid))
-                # Poll up to ~1s for terminal status.
+                oid_int = int(oid)
+                # Mark the watermark BEFORE sending cancel so we only
+                # consider exec_reports that arrive AFTER our cancel.
+                ws_baseline = None
+                try:
+                    from bot.tradovate_user_ws import get_user_ws
+                    _uws = get_user_ws()
+                    if _uws is not None:
+                        ws_baseline = len(_uws.exec_reports)
+                except Exception:
+                    _uws = None
+                self.tradovate_orders.cancel_order(oid_int)
                 import time as _t
-                for _ in range(20):
-                    _t.sleep(0.05)
-                    status = self.tradovate_orders.get_order_status(int(oid))
-                    if status in ("Canceled", "Filled", "Rejected", "Expired"):
-                        logger.info(
-                            f"[ANTICIPATORY cancel confirmed] order_id={oid} "
-                            f"status={status} reason={reason}")
-                        break
-                else:
+                t_start = _t.time()
+                terminal_states = {"Canceled", "Filled", "Rejected", "Expired"}
+                confirmed = False
+                # Tight WS-event loop: check every 5ms for up to 500ms.
+                # When the WS pushes an exec_report for this order with
+                # a terminal ordStatus, we're done.
+                while _t.time() - t_start < 0.5:
+                    if _uws is not None:
+                        try:
+                            recent = list(_uws.exec_reports)[ws_baseline:]
+                            for r in recent:
+                                if r.get("orderId") == oid_int and r.get("ordStatus") in terminal_states:
+                                    logger.info(
+                                        f"[ANTICIPATORY cancel WS-confirmed] "
+                                        f"order_id={oid} status={r.get('ordStatus')} "
+                                        f"reason={reason} "
+                                        f"latency_ms={int((_t.time()-t_start)*1000)}")
+                                    confirmed = True
+                                    break
+                            if confirmed:
+                                break
+                        except Exception:
+                            pass
+                    _t.sleep(0.005)
+                if not confirmed:
+                    # Fallback: REST poll once.
+                    try:
+                        status = self.tradovate_orders.get_order_status(oid_int)
+                        if status in terminal_states:
+                            confirmed = True
+                            logger.info(
+                                f"[ANTICIPATORY cancel REST-confirmed] "
+                                f"order_id={oid} status={status} reason={reason}")
+                    except Exception:
+                        pass
+                if not confirmed:
                     logger.warning(
                         f"[ANTICIPATORY cancel timeout] order_id={oid} "
-                        f"still pending after 1s -- abandoning. May cause "
-                        f"one stack -- discrepancy detector will clean up.")
+                        f"still pending after 500ms -- abandoning. "
+                        f"netPos guard will block any stack.")
         except Exception as e:
             logger.warning(f"anticipatory cancel: {e!r}")
         self._anticipatory_limit = None

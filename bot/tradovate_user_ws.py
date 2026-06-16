@@ -79,6 +79,11 @@ class TradovateUserWS:
         self.exec_reports: "deque[dict]" = deque(maxlen=500)
         self.order_updates: "deque[dict]" = deque(maxlen=500)
         self.position_updates: "deque[dict]" = deque(maxlen=200)
+        # LATENCY: cache the latest netPos per contractId so callers can
+        # check positions without a REST round-trip (~100-200ms saved
+        # per check). The user WS pushes position updates instantly when
+        # fills happen, so this cache is more current than REST polling.
+        self._netpos_cache: dict = {}  # contractId -> {netPos, ts}
         self.cash_updates: "deque[dict]" = deque(maxlen=200)
 
     # ----- lifecycle -----
@@ -125,6 +130,16 @@ class TradovateUserWS:
                                 if self._last_msg_ts else None),
             "last_error": self.last_error,
         }
+
+    def get_netpos_cached(self, contract_id: int, max_age_s: float = 5.0) -> Optional[int]:
+        """Return the most recent netPos for contract_id pushed via WS.
+        None if no recent update (caller should fall back to REST)."""
+        entry = self._netpos_cache.get(int(contract_id))
+        if not entry:
+            return None
+        if time.time() - entry["ts"] > max_age_s:
+            return None
+        return entry["netPos"]
 
     def get_recent_events(self, limit: int = 200) -> list:
         return list(self.events)[-limit:]
@@ -281,6 +296,16 @@ class TradovateUserWS:
             self.order_updates.append(entity)
         elif entity_type == "position" and isinstance(entity, dict):
             self.position_updates.append(entity)
+            try:
+                cid = entity.get("contractId")
+                np = entity.get("netPos")
+                if cid is not None and np is not None:
+                    self._netpos_cache[int(cid)] = {
+                        "netPos": int(np),
+                        "ts": time.time(),
+                    }
+            except Exception:
+                pass
         elif entity_type in ("cashBalance", "currency") and isinstance(entity, dict):
             self.cash_updates.append(entity)
 

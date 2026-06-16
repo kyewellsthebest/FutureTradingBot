@@ -288,39 +288,44 @@ class TradovateSession:
         if params:
             qs = "&".join(f"{k}={v}" for k, v in params.items())
             url += f"?{qs}"
-        data = json.dumps(body).encode("utf-8") if body else None
-        req = urllib.request.Request(
-            url, data=data, method=method,
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Authorization": f"Bearer {tokens.access_token}",
+        # LATENCY: use a persistent requests.Session with HTTP keep-alive
+        # so the TCP+TLS connection is reused across calls. urllib
+        # creates a NEW TCP+TLS connection per call (~200-300ms of
+        # handshake overhead each time). With keep-alive, first call
+        # pays the handshake; subsequent calls are bare HTTP RTT
+        # (~50-100ms instead of 250-400ms).
+        if not hasattr(self, '_http_session'):
+            import requests as _rq
+            from requests.adapters import HTTPAdapter
+            self._http_session = _rq.Session()
+            # Pool more connections so concurrent requests share.
+            adapter = HTTPAdapter(pool_connections=4, pool_maxsize=8,
+                                   max_retries=0)
+            self._http_session.mount("https://", adapter)
+            self._http_session.mount("http://", adapter)
+            self._http_session.headers.update({
                 "User-Agent": "hftbot/1.0",
-            },
-        )
+                "Accept": "application/json",
+            })
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {tokens.access_token}",
+        }
         # Track wall-clock latency for every REST call. Used by the
         # diagnostic bundle to spot slow endpoints / network hiccups.
-        # /order/placeoso latency in particular tells us if the bot's
-        # entry is slow enough that the matching price moved.
         t_start = _time.monotonic()
         status_for_metric = None
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                resp_body = resp.read().decode("utf-8", errors="replace")
-                status_for_metric = resp.status
-                return resp.status, json.loads(resp_body) if resp_body else {}
-        except urllib.error.HTTPError as e:
+            resp = self._http_session.request(
+                method, url, headers=headers,
+                data=json.dumps(body) if body else None,
+                timeout=15)
+            status_for_metric = resp.status_code
+            body_text = resp.text
             try:
-                err_body = e.read().decode("utf-8", errors="replace")
+                return resp.status_code, json.loads(body_text) if body_text else {}
             except Exception:
-                err_body = ""
-            status_for_metric = e.code
-            logger.warning(f"Tradovate {method} {path} -> HTTP {e.code}: "
-                           f"{err_body[:300]!r}")
-            try:
-                return e.code, json.loads(err_body) if err_body else {}
-            except Exception:
-                return e.code, {"raw": err_body[:500]}
+                return resp.status_code, {"raw": body_text[:500]}
         except Exception as e:
             logger.warning(f"Tradovate {method} {path} failed: {e!r}")
             return None, {"error": repr(e)}
