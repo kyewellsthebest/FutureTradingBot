@@ -1569,27 +1569,14 @@ class FibRuntime:
         # the trade is persisted to the SQLite DB — surviving restarts.
         adverse = (record["exit_reason"] == "stop")
         try:
-            # STALE LIMIT GUARD: cancel the broker's unfilled LIMIT only
-            # when paper closed via STOP or TIMEOUT. For TARGET closes,
-            # leave the LIMIT alive for up to 5 minutes -- in fast
-            # markets paper books target on a same-bar wick that
-            # broker's LIMIT didn't physically have time to fill. If
-            # price retraces back to the entry within the setup window,
-            # broker can still capture the trade.
-            #
-            # Observed today @ 08:08: paper LONG target +$23.76 in 12s,
-            # broker LIMIT cancelled before fill -> broker missed the
-            # win entirely. With this change broker gets a second
-            # chance whenever price comes back.
-            exit_reason = record.get("exit_reason", "")
-            if exit_reason in ("stop", "timeout", "orphan_recovered"):
-                self._cancel_stale_entry_limits()
-            else:
-                logger.info(
-                    f"[stale LIMIT preserved] paper exit={exit_reason} "
-                    f"-- leaving broker entry LIMIT alive for retrace "
-                    f"capture (will be replaced by sibling-cancel when "
-                    f"next setup arms)")
+            # STALE LIMIT GUARD: cancel any unfilled broker LIMIT on
+            # paper close. The preserve-on-target variant (f91d326)
+            # was reverted -- it captured occasional wins but also
+            # produced late-fill losses (LIMIT filled 1-5 min after
+            # paper target, then went the wrong way) at roughly the
+            # same rate, with no net P&L improvement. Clean cancel is
+            # safer and simpler.
+            self._cancel_stale_entry_limits()
             self.account._close(exit_px_raw=record["exit_px"],
                                 reason=record["exit_reason"],
                                 adverse=adverse, now=now)
