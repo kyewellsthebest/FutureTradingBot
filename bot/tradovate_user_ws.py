@@ -303,6 +303,44 @@ class TradovateUserWS:
         resp = pending["response"]
         return resp.get("s"), resp.get("d") or {}
 
+    def send_request_fire_and_forget(self, url_path: str,
+                                       body_json: Optional[dict] = None,
+                                       on_response=None) -> Optional[int]:
+        """FASTEST possible WS request: send the frame and return
+        immediately without waiting for any response.
+
+        Returns the reqId so the caller can correlate later via the
+        WS event stream (the response will be dispatched normally
+        and stored in self._pending_requests if on_response is set).
+
+        Used for the absolute hot path -- anticipatory order placement
+        where every millisecond matters. The bot continues processing
+        the next tick instead of blocking 30-80ms for the placeoso
+        response. The order_id is delivered later via the WS exec_report
+        event (typically 10-30ms after the send).
+
+        ~5ms one-way bot side + ~30ms network = ~35ms tick → matching
+        engine when used from the tick callback. This is the closest
+        to the network physics floor we can get.
+        """
+        if not self.connected or self._ws is None:
+            return None
+        try:
+            with self._send_lock:
+                rid = self._next_req_id
+                self._next_req_id += 1
+                if on_response is not None:
+                    evt = threading.Event()
+                    self._pending_requests[rid] = {
+                        "event": evt, "response": None, "callback": on_response}
+                body = json.dumps(body_json) if body_json is not None else ""
+                frame = f"{url_path}\n{rid}\n\n{body}"
+                self._ws.send(frame)
+            return rid
+        except Exception as e:
+            logger.warning(f"send_request_fire_and_forget: {e!r}")
+            return None
+
     def _handle_frame(self, raw: str) -> None:
         if not raw:
             return
@@ -337,7 +375,15 @@ class TradovateUserWS:
             try:
                 pend = self._pending_requests[req_id]
                 pend["response"] = msg
-                pend["event"].set()
+                cb = pend.get("callback")
+                if cb is not None:
+                    try:
+                        cb(msg)
+                    except Exception as cb_e:
+                        logger.warning(f"ws callback: {cb_e!r}")
+                evt = pend.get("event")
+                if evt is not None:
+                    evt.set()
             except Exception:
                 pass
             # Still continue -- some responses also carry entity updates.

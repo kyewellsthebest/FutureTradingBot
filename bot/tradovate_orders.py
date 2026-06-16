@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -69,15 +70,62 @@ def get_audit_log() -> list:
     return list(_AUDIT_LOG)
 
 
+# LATENCY: audit log disk writes moved OFF the hot path.
+# Synchronous open()+write()+close() on every order event was adding
+# 1-5ms of unpredictable IO latency to placeoso. The audit queue is
+# drained by a background thread so the trade path returns instantly.
+import queue as _q
+_AUDIT_QUEUE: "_q.Queue" = _q.Queue()
+_AUDIT_FLUSHER_STARTED = False
+_AUDIT_FLUSHER_LOCK = threading.Lock()
+
+
+def _start_audit_flusher():
+    global _AUDIT_FLUSHER_STARTED
+    with _AUDIT_FLUSHER_LOCK:
+        if _AUDIT_FLUSHER_STARTED:
+            return
+        _AUDIT_FLUSHER_STARTED = True
+    def _flusher():
+        import time as _t
+        batch = []
+        while True:
+            try:
+                # Block until something arrives, then drain greedily.
+                first = _AUDIT_QUEUE.get(timeout=5.0)
+                batch.append(first)
+                while True:
+                    try:
+                        batch.append(_AUDIT_QUEUE.get_nowait())
+                    except _q.Empty:
+                        break
+                if _AUDIT_PERSIST_PATH is not None and batch:
+                    try:
+                        with open(_AUDIT_PERSIST_PATH, "a") as f:
+                            for e in batch:
+                                f.write(json.dumps(e, default=str) + "\n")
+                    except Exception:
+                        pass
+                batch.clear()
+            except _q.Empty:
+                continue
+            except Exception:
+                _t.sleep(0.5)
+    t = threading.Thread(target=_flusher, daemon=True,
+                          name="audit-log-flusher")
+    t.start()
+
+
 def _audit(entry: dict) -> None:
     entry = dict(entry)
     entry.setdefault("ts", time.time())
     _AUDIT_LOG.append(entry)
-    # Persist to disk best-effort (don't block on IO errors).
+    # Enqueue for background disk flush -- never blocks the caller.
     if _AUDIT_PERSIST_PATH is not None:
         try:
-            with open(_AUDIT_PERSIST_PATH, "a") as _f:
-                _f.write(json.dumps(entry, default=str) + "\n")
+            if not _AUDIT_FLUSHER_STARTED:
+                _start_audit_flusher()
+            _AUDIT_QUEUE.put_nowait(entry)
         except Exception:
             pass
 

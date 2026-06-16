@@ -1540,7 +1540,17 @@ class FibRuntime:
         self._submit_anticipatory(best, current_price)
 
     def _submit_anticipatory(self, setup, live_price: float) -> None:
-        """Submit a LIMIT+bracket for a setup that's about to fire."""
+        """ABSOLUTE FASTEST submit path for anticipatory orders.
+
+        Bypasses the full submit_market_with_bracket helper (which has
+        ~10ms of validation overhead + waits for the WS response).
+        Builds the placeoso body inline and uses
+        send_request_fire_and_forget so the bot returns in <5ms.
+
+        The order_id is captured via a WS response callback (delivered
+        ~30ms later) and stored in self._anticipatory_limit. By then
+        the LIMIT is already on Tradovate's matching engine.
+        """
         try:
             if self._cached_symbol is None:
                 from research.data_loader import polygon_front_month
@@ -1549,38 +1559,99 @@ class FibRuntime:
                     polygon_front_month(
                         os.environ.get("POLYGON_CONTRACT", "MNQ")))
             symbol = self._cached_symbol
-            stop_pts = abs(setup.pullback_entry - setup.stop_px_val)
-            target_pts = abs(setup.target_px_val - setup.pullback_entry)
             setup_key = self._setup_key(setup)
             pre_ref = f"acct{self.account_id}_antc_{setup_key}"[:64]
+            side = setup.side
+            entry_px = round(float(setup.pullback_entry) * 4) / 4
+            stop_px = round(float(setup.stop_px_val) * 4) / 4
+            target_px = round(float(setup.target_px_val) * 4) / 4
+            # Apply wick tolerance on stop (same as full path).
+            tol = float(os.environ.get(
+                "BROKER_STOP_WICK_TOLERANCE_PTS", "1.0"))
+            if side == "LONG":
+                stop_px = round((stop_px - tol) * 4) / 4
+            else:
+                stop_px = round((stop_px + tol) * 4) / 4
+            # Build the placeoso body. Minimal fields, no extras.
+            action = "Buy" if side == "LONG" else "Sell"
+            opposite = "Sell" if side == "LONG" else "Buy"
+            sess = self.tradovate_orders.session
+            body = {
+                "accountSpec": (sess.creds.username if sess.creds else ""),
+                "accountId": int(sess.get_account_id() or 0),
+                "action": action,
+                "symbol": symbol,
+                "orderQty": int(N_MNQ),
+                "orderType": "Limit",
+                "price": entry_px,
+                "timeInForce": "Day",
+                "isAutomated": True,
+                "bracket1": {
+                    "action": opposite, "orderType": "Stop",
+                    "stopPrice": stop_px, "isAutomated": True,
+                },
+                "bracket2": {
+                    "action": opposite, "orderType": "Limit",
+                    "price": target_px, "isAutomated": True,
+                },
+                "text": pre_ref,
+            }
+            # Pre-populate _anticipatory_limit so the next anticipatory
+            # check won't re-fire while WS response is in flight.
+            self._anticipatory_limit = {
+                'setup_key': setup_key,
+                'order_id': None,  # filled in by WS callback
+                'side': side,
+                'entry_px': entry_px,
+                'stop_px': stop_px,
+                'target_px': target_px,
+                'submitted_at': time.time(),
+                'pre_ref': pre_ref,
+            }
+            def _on_response(msg):
+                try:
+                    d = msg.get("d") or {}
+                    oid = d.get("orderId") or d.get("id")
+                    if oid and self._anticipatory_limit:
+                        self._anticipatory_limit['order_id'] = int(oid)
+                        logger.info(
+                            f"[ANTICIPATORY oid] {oid} confirmed via WS")
+                except Exception:
+                    pass
+            try:
+                from bot.tradovate_user_ws import get_user_ws
+                _uws = get_user_ws()
+                rid = None
+                if _uws is not None and _uws.connected:
+                    rid = _uws.send_request_fire_and_forget(
+                        "order/placeoso", body_json=body,
+                        on_response=_on_response)
+                if rid is not None:
+                    logger.info(
+                        f"[ANTICIPATORY fire-and-forget] {side} @ {entry_px} "
+                        f"reqId={rid} (LIMIT will rest on matching engine "
+                        f"in ~30ms)")
+                    return
+            except Exception as fe:
+                logger.debug(f"fire-and-forget failed: {fe!r}")
+            # FALLBACK: synchronous path (slower but always works).
             logger.info(
-                f"[ANTICIPATORY] {setup.side} @ {setup.pullback_entry:.2f} "
-                f"(live={live_price:.2f}, dist="
-                f"{abs(live_price - setup.pullback_entry):.2f}pt) -- "
-                f"placing LIMIT ahead of touch")
+                f"[ANTICIPATORY fallback-sync] {side} @ {entry_px}")
+            stop_pts = abs(setup.pullback_entry - setup.stop_px_val)
+            target_pts = abs(setup.target_px_val - setup.pullback_entry)
             result = self.tradovate_orders.submit_market_with_bracket(
-                side=setup.side, qty=N_MNQ, symbol=symbol,
+                side=side, qty=N_MNQ, symbol=symbol,
                 stop_pts=stop_pts, target_pts=target_pts,
-                entry_estimate=float(setup.pullback_entry),
-                live_price=float(live_price),
+                entry_estimate=entry_px, live_price=float(live_price),
                 paper_stop_px=float(setup.stop_px_val),
                 paper_target_px=float(setup.target_px_val),
                 setup_ref=pre_ref,
             )
-            if result.ok:
-                self._anticipatory_limit = {
-                    'setup_key': self._setup_key(setup),
-                    'order_id': result.order_id,
-                    'side': setup.side,
-                    'entry_px': float(setup.pullback_entry),
-                    'stop_px': float(setup.stop_px_val),
-                    'target_px': float(setup.target_px_val),
-                    'submitted_at': time.time(),
-                    'pre_ref': pre_ref,
-                }
-                logger.info(f"[ANTICIPATORY OK] order_id={result.order_id}")
+            if result.ok and self._anticipatory_limit:
+                self._anticipatory_limit['order_id'] = result.order_id
         except Exception as e:
             logger.warning(f"anticipatory submit failed: {e!r}")
+            self._anticipatory_limit = None
 
     def _cancel_anticipatory_sync(self, reason: str) -> None:
         """Cancel the live anticipatory LIMIT and confirm terminal state
