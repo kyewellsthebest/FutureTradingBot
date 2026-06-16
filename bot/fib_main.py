@@ -305,6 +305,19 @@ class FibRuntime:
                             f"{_c['id']} for {_sym}")
                 except Exception:
                     pass
+                # LATENCY: pre-establish the user WebSocket connection
+                # so the first trade isn't delayed by the WS handshake
+                # + authorize + syncrequest round-trips (~500ms-1s).
+                # When the first placeoso fires, the WS is already
+                # connected, authorized, and ready to send.
+                try:
+                    from bot.tradovate_user_ws import get_user_ws
+                    _uws = get_user_ws()
+                    if _uws is not None:
+                        logger.info("[Tradovate prewarm] user WS started "
+                                    "-- first order will use WS path")
+                except Exception:
+                    pass
             else:
                 self.tradovate_orders = None
                 logger.info("Tradovate broker not configured; using TradersPost")
