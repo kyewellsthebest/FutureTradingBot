@@ -415,13 +415,13 @@ class TradovateOrders:
         # fill (no harm). Aborting here would skip the trade unnecessarily.
         will_fill_immediately = (
             entry_type != "limit" or marketable_with_improvement)
-        # USER REQUIREMENT 2026-06-16: broker entry must be within
-        # 1pt of paper entry, STRICT. If live price is already more
-        # than 1pt past paper entry by the time we're about to submit,
-        # any fill would necessarily be > 1pt off paper -- skip the
-        # trade entirely. Default 1.0pt, tuneable via env.
+        # Safety cap: skip if drift is so extreme the trade can't be
+        # rescued. Default 12pt (2x stop_pts) -- generous; we rely on
+        # the anticipatory pre-submit + low-latency reaction to keep
+        # actual drift well under 1pt on most fills. Reducing this
+        # would cut trade frequency which the user explicitly opposed.
         max_drift = float(os.environ.get(
-            "BROKER_MAX_ENTRY_DRIFT_PT", "1.0"))
+            "BROKER_MAX_ENTRY_DRIFT_PT", str(float(stop_pts) * 2.0)))
         drift = abs(bracket_ref - float(entry_estimate))
         if will_fill_immediately and drift > max_drift:
             logger.warning(

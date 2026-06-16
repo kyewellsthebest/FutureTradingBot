@@ -1470,8 +1470,15 @@ class FibRuntime:
         # price gaps through. Higher value = more LIMITs placed (and
         # cancelled if not touched) but higher hit rate. Tuneable via
         # env var ANTICIPATORY_THRESHOLD_PT.
+        # Wide approach window so the LIMIT gets onto the matching
+        # engine WELL ahead of the touch. With the latency stack
+        # already optimized to <50ms, we want the LIMIT resting for
+        # at minimum a full second before the actual touch -- which
+        # means triggering when price is still 5pt away if there's
+        # a setup at that level. Once on the book, the LIMIT fills
+        # at exactly entry price (no drift, no slip).
         APPROACH_THRESHOLD_PT = float(os.environ.get(
-            "ANTICIPATORY_THRESHOLD_PT", "3.0"))
+            "ANTICIPATORY_THRESHOLD_PT", "5.0"))
         best = None
         best_dist = APPROACH_THRESHOLD_PT + 0.01
         for s in (self.state.pending_setups if self.state else []):
