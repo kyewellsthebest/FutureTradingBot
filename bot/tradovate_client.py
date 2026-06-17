@@ -202,6 +202,21 @@ class TradovateSession:
         # pays TCP+TLS handshake (~300ms). We do a cheap /v1/me call on
         # startup to amortize this cost before any actual trade fires.
         self._connection_warmed = False
+        # Auth serialization + rate-limit cooldown. Multiple modules
+        # (main client, user WS, market data WS) all hold a reference
+        # to this session and call get_tokens()/authenticate() whenever
+        # their connection drops. Without a lock they fire authenticate()
+        # in parallel and Tradovate returns HTTP 429 for ~hours. With
+        # the lock + cooldown, exactly ONE authenticate() runs and the
+        # other threads wait then reuse the resulting token. If we
+        # hit 429, we record the moment and short-circuit subsequent
+        # calls until the cooldown elapses -- no more hammering.
+        import threading as _th
+        self._auth_lock = _th.Lock()
+        self._rate_limited_until: float = 0.0
+        # Captcha ticket retained across attempts so the retry resubmits
+        # the SAME ticket Tradovate handed us.
+        self._pending_p_ticket: Optional[str] = None
 
     @property
     def is_configured(self) -> bool:
@@ -209,6 +224,12 @@ class TradovateSession:
 
     def authenticate(self) -> Optional[TradovateTokens]:
         """Request a new access token. Returns None on failure (logged).
+
+        Thread-safe: serialized via self._auth_lock so concurrent calls
+        from multiple modules (main client + user_ws + tradovate_md) do
+        not hammer Tradovate's auth endpoint. If we're inside a known
+        rate-limit cooldown, returns None immediately without contacting
+        the server.
 
         Handles Tradovate's p-ticket captcha pattern: when rate-limited,
         the response contains {"p-ticket": "...", "p-time": N, "p-captcha":
@@ -219,6 +240,43 @@ class TradovateSession:
         if self.creds is None:
             logger.error("Tradovate not configured (env vars missing)")
             return None
+        import time as _t
+        # 1) Cheap short-circuit: if we're inside the 429 cooldown, don't
+        # even attempt -- just tell the caller we have no tokens. The
+        # cooldown is cleared by a successful authenticate() further down
+        # OR by waiting until self._rate_limited_until elapses.
+        now = _t.time()
+        if now < self._rate_limited_until:
+            remaining = self._rate_limited_until - now
+            logger.debug(
+                f"Tradovate auth in rate-limit cooldown for "
+                f"{remaining:.0f}s more -- skipping retry")
+            return None
+        # 2) Serialize concurrent auth attempts. The first thread does the
+        # work; the rest block briefly then reuse the resulting token via
+        # the post-lock recheck. Timeout keeps us from deadlocking if
+        # something else holds the lock indefinitely.
+        if not self._auth_lock.acquire(timeout=30.0):
+            logger.warning("Tradovate auth lock held >30s; bailing")
+            return None
+        try:
+            # Post-lock recheck: someone else may have just succeeded.
+            if (self._tokens is not None
+                    and not self._tokens.is_expiring_soon):
+                return self._tokens
+            # And recheck the cooldown in case it was just set.
+            now = _t.time()
+            if now < self._rate_limited_until:
+                return None
+            return self._authenticate_locked()
+        finally:
+            self._auth_lock.release()
+
+    def _authenticate_locked(self) -> Optional[TradovateTokens]:
+        """Real authenticate() body. Must be called with self._auth_lock
+        held. Splits the lock-acquire/cooldown plumbing from the network
+        flow for readability."""
+        import time as _t
         # Allow up to 2 captcha-retry cycles (each waits p-time seconds)
         # before giving up. Beyond that, something else is wrong (bad
         # creds, server outage) and we should let the caller back off.
@@ -249,6 +307,25 @@ class TradovateSession:
                 except Exception:
                     err_body = ""
                 logger.error(f"Tradovate auth HTTP {e.code}: {err_body[:500]!r}")
+                # HTTP 429 = "Too Many Requests". Tradovate IP-bans for a
+                # while once we trip it. Set an exponential cooldown so we
+                # stop hammering -- the WS reconnect loops + main client +
+                # broker-health poll were collectively firing 5-10
+                # authenticate() calls/sec, each getting 429, each
+                # extending the ban. With a 60s cooldown (doubling on
+                # repeat) we go silent long enough for Tradovate to
+                # forgive us.
+                if e.code == 429:
+                    # Double the cooldown on each consecutive trip,
+                    # capped at 10 minutes. Reset to base on success.
+                    base = float(getattr(self, "_rate_limit_backoff_s", 60.0))
+                    nxt = min(600.0, base * 2.0)
+                    self._rate_limit_backoff_s = nxt
+                    self._rate_limited_until = _t.time() + base
+                    logger.error(
+                        f"Tradovate HTTP 429 -- cooling down for {base:.0f}s "
+                        f"(next trip will wait {nxt:.0f}s). All modules "
+                        f"will share this cooldown.")
                 return None
             except Exception as e:
                 logger.error(f"Tradovate auth failed: {e!r}")
@@ -300,6 +377,11 @@ class TradovateSession:
             has_live=bool(data.get("hasLive", False)),
         )
         self._tokens = tokens
+        # Successful auth -- clear any rate-limit cooldown so the next
+        # token refresh can run on schedule instead of being suppressed,
+        # and reset the exponential backoff floor.
+        self._rate_limited_until = 0.0
+        self._rate_limit_backoff_s = 60.0
         cluster = "demo" if _is_demo() else "live"
         logger.info(f"Tradovate authenticated ({cluster}): user_id="
                     f"{tokens.user_id} has_market_data={tokens.has_market_data} "
