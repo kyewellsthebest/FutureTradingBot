@@ -5349,6 +5349,31 @@ def api_admin_reset_all():
                 deleted.append(str(d) + "/ (entire dir)")
             except Exception as e:
                 errors.append(f"{d}: {e!r}")
+    # Also wipe the persisted broker trade history JSONL. The dashboard
+    # builds its "broker mode" Activity / Performance / Trades tabs from
+    # the merge of (live Tradovate FillPairs API) + this JSONL, so if we
+    # leave the JSONL alone the user sees stale pre-reset broker trades
+    # under the new strategy's stats. Tradovate's server-side account
+    # state is unaffected -- we only remove the bot's local cache.
+    try:
+        from bot.tradovate_client import get_session
+        sess = get_session()
+        if sess.is_configured:
+            acct_id = sess.get_account_id()
+            if acct_id is not None:
+                bp = _broker_history_path(acct_id)
+                if bp.exists():
+                    try:
+                        bp.rename(bp.with_suffix(".jsonl.bak"))
+                        deleted.append(str(bp) + " (renamed to .bak)")
+                    except Exception:
+                        try:
+                            bp.unlink()
+                            deleted.append(str(bp))
+                        except Exception as e:
+                            errors.append(f"{bp}: {e!r}")
+    except Exception as e:
+        logger.warning(f"reset_all: broker history wipe skipped: {e!r}")
     # Optional ?starting_balance=NNNNN to start the bot at a non-default
     # balance (e.g. align with a broker account that lost some equity
     # before reset). Must be > 0. Default behaviour (omit param) = $50k.

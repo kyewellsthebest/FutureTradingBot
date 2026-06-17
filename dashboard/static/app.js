@@ -33,6 +33,14 @@ function setDataSource(src) {
   // Invalidate the all-trades cache so the Performance tab re-fetches
   // with the new source on its next paint.
   try { _allTradesCache = { trades: null, ts: 0 }; } catch (e) {}
+  // Immediately re-render the topbar + activity card with whatever data
+  // we already have (cached state.data + state.brokerStats). Without
+  // this, the old source's numbers stay on screen for ~500ms-1s while
+  // pollers re-fetch, which looks broken when toggling.
+  if (state.data) {
+    try { renderTopbar(state.data); } catch (e) {}
+    try { renderLive(state.data); } catch (e) {}
+  }
   // Force every poller to refresh with the new source
   try { poll(); } catch (e) {}
   try { pollTrades(); } catch (e) {}
@@ -187,12 +195,16 @@ async function pollBrokerStats() {
     const r = await fetch(af("/api/broker/stats"));
     if (!r.ok) return;
     state.brokerStats = await r.json();
-    // Update topbar balance immediately if we're in broker mode
-    if (dataSource === "broker" && state.brokerStats) {
-      const bal = state.brokerStats.balance || state.brokerStats.net_liq;
-      if (bal != null) animateNumber("kpi-balance", bal, fmtUsdPlain);
-      const today = (state.brokerStats.summary || {}).total_pnl;
-      if (today != null) animateNumber("kpi-today", today, fmtUsd);
+    // Re-run the topbar render in broker mode so the same single
+    // branching path used in poll() applies here too. Avoids the
+    // inconsistency where pollBrokerStats wrote one number and the
+    // next poll() rewrote a different one a second later.
+    if (dataSource === "broker" && state.data) {
+      try { renderTopbar(state.data); } catch (e) {}
+      // The Activity card on the Live page also depends on
+      // brokerStats; re-render the whole snapshot to keep it
+      // consistent with the new broker numbers.
+      try { renderLive(state.data); } catch (e) {}
     }
     // Render the broker perf summary card on the Live tab
     try { renderBrokerPerfSummary(); } catch (e) {}
@@ -206,6 +218,13 @@ async function pollBrokerPosition() {
     const r = await fetch(af("/api/broker/position"));
     if (!r.ok) return;
     state.brokerPos = await r.json();
+    // In broker mode the topbar position card reads from brokerPos;
+    // re-render so the "POSITION" tile reflects fresh broker truth
+    // instead of staying on whatever was there from the last /api/data
+    // poll (which is the paper bot's active_trade).
+    if (dataSource === "broker" && state.data) {
+      try { renderTopbar(state.data); } catch (e) {}
+    }
   } catch (e) {}
 }
 
@@ -1124,47 +1143,85 @@ function renderTopbar(d) {
       setText("live-nq-meta", "updated " + new Date(d.ts).toLocaleTimeString());
     } catch (e) {}
   }
-  // Balance: prefer the live Tradovate broker balance over paper.
-  // _tradovateAcct is populated by pollTradovateAccount() (every 5s).
-  // Falls back to paper account if Tradovate isn't configured/responding.
-  let bal;
-  if (state.tradovate && state.tradovate.cash_snapshot &&
-      typeof state.tradovate.cash_snapshot.totalCashValue === "number") {
-    bal = state.tradovate.cash_snapshot.totalCashValue;
-  } else if (state.tradovate && state.tradovate.cash_snapshot &&
-             typeof state.tradovate.cash_snapshot.cashBalance === "number") {
-    bal = state.tradovate.cash_snapshot.cashBalance;
+
+  // ---------------------------------------------------------------------
+  // STAT SOURCE -- single switch, honours the toggle exactly.
+  //   broker: only Tradovate broker reality (balance, today's P&L from
+  //           open+realized, today's fill count, broker position)
+  //   paper:  only the bot's paper account (balance from lucid_account,
+  //           today's P&L from paper trade log, paper active_trade)
+  // No mixing -- if the active source has no data yet (e.g. broker
+  // auth dead) we show "—" rather than silently falling back to the
+  // other side, which is what was causing the displayed numbers to
+  // jump between sources every poll.
+  // ---------------------------------------------------------------------
+  let bal = null;
+  let today = null;
+  let todayTradesCount = null;
+  let activePos = null;
+
+  if (dataSource === "broker") {
+    const bs = state.brokerStats;
+    const bp = state.brokerPos;
+    if (bs && bs.configured !== false) {
+      // Balance: prefer net_liq (mark-to-market), fall back to cash balance
+      if (typeof bs.net_liq === "number") bal = bs.net_liq;
+      else if (typeof bs.balance === "number") bal = bs.balance;
+      // Today's P&L: realized + open
+      if (typeof bs.realized_pnl === "number" || typeof bs.open_pnl === "number") {
+        today = (bs.realized_pnl || 0) + (bs.open_pnl || 0);
+      }
+    }
+    // Today trade count: from broker fills list
+    if (state.tradovateTrades && Array.isArray(state.tradovateTrades.fills)) {
+      const todayStr = new Date().toDateString();
+      todayTradesCount = state.tradovateTrades.fills
+        .filter(f => new Date(f.timestamp).toDateString() === todayStr).length;
+    }
+    if (bp && bp.position && bp.position.side) {
+      activePos = { side: bp.position.side, n_mnq: bp.position.qty };
+    }
   } else {
+    // Paper mode -- read entirely from the bot's published snapshot
     const acc = d.lucid_account || {};
-    bal = acc.balance ?? 50000;
+    if (typeof acc.balance === "number") bal = acc.balance;
+    else bal = 50000;  // first-render fallback before snapshot loads
+    if (typeof acc.today_pnl === "number") today = acc.today_pnl;
+    // Today trade count: from paper lifetime_stats (today_trades field)
+    if (d.lifetime_stats && typeof d.lifetime_stats.today_trades === "number") {
+      todayTradesCount = d.lifetime_stats.today_trades;
+    }
+    const fib = d.fib || {};
+    if (fib.active_trade) {
+      activePos = { side: fib.active_trade.side, n_mnq: fib.active_trade.n_mnq };
+    }
   }
-  animateNumber("kpi-balance", bal, fmtUsdPlain);
-  // Today's P&L: from Tradovate when available (open + realized).
-  let today = 0;
-  let todayTradesCount = 0;
-  if (state.tradovate && state.tradovate.cash_snapshot) {
-    const cs = state.tradovate.cash_snapshot;
-    today = (cs.openPnL || 0) + (cs.realizedPnL || 0);
+
+  // Render — show "—" instead of stale numbers when the active source
+  // hasn't supplied a value yet. Otherwise the user sees yesterday's
+  // paper balance while in broker mode and assumes the toggle is broken.
+  if (bal != null) {
+    animateNumber("kpi-balance", bal, fmtUsdPlain);
   } else {
-    const allT = _allTradesCache.trades || [];
-    const todayStr = new Date().toDateString();
-    const todayTrades = allT.filter(t => new Date(t.ts).toDateString() === todayStr);
-    today = todayTrades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
-    todayTradesCount = todayTrades.length;
-  }
-  // For trades count when Tradovate, use the live fills list.
-  if (state.tradovateTrades && Array.isArray(state.tradovateTrades.fills)) {
-    const todayStr = new Date().toDateString();
-    todayTradesCount = state.tradovateTrades.fills
-      .filter(f => new Date(f.timestamp).toDateString() === todayStr).length;
+    setText("kpi-balance", "—");
   }
   const todayEl = document.getElementById("kpi-today");
   if (todayEl) {
-    todayEl.className = "kpi-value " + (today > 0 ? "pos" : today < 0 ? "neg" : "");
+    todayEl.className = "kpi-value " +
+      (today == null ? "" : (today > 0 ? "pos" : today < 0 ? "neg" : ""));
   }
-  animateNumber("kpi-today", today, fmtUsd);
-  animateNumber("kpi-trades-today", todayTradesCount, (n) => String(Math.round(n)));
-  animateNumber("live-trades-today", todayTradesCount, (n) => String(Math.round(n)));
+  if (today != null) {
+    animateNumber("kpi-today", today, fmtUsd);
+  } else {
+    setText("kpi-today", "—");
+  }
+  if (todayTradesCount != null) {
+    animateNumber("kpi-trades-today", todayTradesCount, (n) => String(Math.round(n)));
+    animateNumber("live-trades-today", todayTradesCount, (n) => String(Math.round(n)));
+  } else {
+    setText("kpi-trades-today", "—");
+    setText("live-trades-today", "—");
+  }
   // Background-refresh the cache so kpi numbers stay live even if the
   // user never opens the Performance tab.
   if (Date.now() - _allTradesCache.ts > 30_000) {
@@ -1174,21 +1231,11 @@ function renderTopbar(d) {
     }).catch(() => {});
   }
   const fib = d.fib || {};
-  // Position display: in broker mode, prefer the live broker position
-  // from /position/list (state.brokerPos). In paper mode, use the
-  // bot's active_trade. This keeps the topbar consistent with the
-  // selected data source.
-  let at = fib.active_trade;
-  if (dataSource === "broker" && state.brokerPos && state.brokerPos.position) {
-    at = {
-      side: state.brokerPos.position.side,
-      n_mnq: state.brokerPos.position.qty,
-    };
-  }
-  const posText = at ? `${at.side} ${at.n_mnq}` : "FLAT";
+  const posText = activePos ? `${activePos.side} ${activePos.n_mnq}` : "FLAT";
   setText("kpi-position", posText);
   const posEl = document.getElementById("kpi-position");
-  posEl.className = "kpi-value " + (at ? (at.side === "LONG" ? "pos" : "neg") : "");
+  posEl.className = "kpi-value " +
+    (activePos ? (activePos.side === "LONG" ? "pos" : "neg") : "");
   setText("kpi-updated", d.ts ? new Date(d.ts).toLocaleTimeString() : "—");
   setText("badge-mode", d.mode || "shadow");
   const modeBadge = document.getElementById("badge-mode");
@@ -1317,12 +1364,29 @@ function renderLive(d) {
   // back-end aggregates every closed trade ever in one SQL pass and ships
   // the result as d.lifetime_stats.
   setText("today-fired", d.signals_fired ?? 0);
-  const life = d.lifetime_stats || {};
-  setText("today-closed", life.n_trades ?? 0);
-  setText("today-pnl", fmtUsd(life.total_pnl ?? 0));
-  if ((life.n_trades ?? 0) > 0) {
-    setText("today-wr", (life.win_rate ?? 0).toFixed(1) + "%");
-    setText("today-hold", fmtHold(life.avg_hold_s ?? 0));
+  let lifeN = null, lifePnl = null, lifeWr = null, lifeHold = null;
+  if (dataSource === "broker") {
+    // Broker reality lives in /api/broker/stats -- summary block has
+    // n_trades, total_pnl, win_rate. avg_hold_s isn't in broker stats
+    // (FillPair fills don't carry strategy hold time), so show "—".
+    const bs = state.brokerStats;
+    if (bs && bs.summary) {
+      lifeN   = bs.summary.n_trades;
+      lifePnl = bs.summary.total_pnl;
+      lifeWr  = bs.summary.win_rate;
+    }
+  } else {
+    const life = d.lifetime_stats || {};
+    lifeN   = life.n_trades;
+    lifePnl = life.total_pnl;
+    lifeWr  = life.win_rate;
+    lifeHold = life.avg_hold_s;
+  }
+  setText("today-closed", lifeN != null ? lifeN : "—");
+  setText("today-pnl",    lifePnl != null ? fmtUsd(lifePnl) : "—");
+  if (lifeN != null && lifeN > 0) {
+    setText("today-wr",   lifeWr != null ? (lifeWr).toFixed(1) + "%" : "—");
+    setText("today-hold", lifeHold != null ? fmtHold(lifeHold) : "—");
   } else {
     setText("today-wr", "—");
     setText("today-hold", "—");
