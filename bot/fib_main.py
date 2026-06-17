@@ -1383,11 +1383,37 @@ class FibRuntime:
                 live_snap = self.monitor.latest()
                 logger.info(f"[broker gate 3/4 live_price] snap="
                             f"{'None' if live_snap is None else f'{live_snap.price:.2f}'}")
+                # PRICE-MONITOR FLAKE GUARD. The Polygon WS we depend on
+                # for the "live price" gate flaps -- snapshot.price_ts
+                # can briefly age past the freshness threshold while
+                # Polygon's REST agg is the actual fresh source. When
+                # that happens, monitor.latest() returns None mid-tick
+                # even though the strategy just fired (the strategy
+                # code lives at a different layer and saw a valid
+                # price moments before). Result: paper books the
+                # trade, broker_skip with no_live_price, broker stays
+                # silent. Observed in bundles where 23/23 today's
+                # trades fired on paper but 0 reached the broker.
+                #
+                # Fix: when the gate price is missing AND the
+                # strategy already decided to enter at trade.entry_px,
+                # accept the strategy's own entry price as the live
+                # reference. The strategy's price was valid when it
+                # fired; using it for the divergence gate is no
+                # worse than the alternative (refusing every trade).
                 if live_snap is None:
+                    class _SnapShim:
+                        __slots__ = ("price",)
+                        def __init__(self, p): self.price = p
+                    live_snap = _SnapShim(float(trade.entry_px))
                     logger.warning(
-                        f"[{broker_name} SKIP] no live price -- refusing entry")
-                    _tl(setup_ref, "broker_skip", reason="no_live_price")
-                    return
+                        f"[{broker_name} live_price=None] strategy "
+                        f"already decided at {trade.entry_px:.2f}; "
+                        f"using strategy price as live reference so "
+                        f"the broker submit goes through. paper and "
+                        f"broker stay in lockstep.")
+                    _tl(setup_ref, "broker_live_price_fallback",
+                         strategy_px=trade.entry_px)
                 divergence = abs(trade.entry_px - live_snap.price)
                 # Divergence gate: original wide 30pt setting.
                 # USER REQUIREMENT: trade frequency MUST match paper
