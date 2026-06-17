@@ -943,12 +943,30 @@ class FibRuntime:
                 self.bars_processed = 0
                 self.signals_fired = 0
                 self.signals_blocked = 0
+                # Clear broker-side tracking state too. If the broker has
+                # an actual open position on Tradovate, _reconcile_with_broker
+                # below will re-discover it and re-set _open_trade_ref. If
+                # the broker is flat, leaving these set would wedge the
+                # duplicate-entry guard and block every new entry.
+                self._open_trade_ref = None
+                self._pending_parent_orders = []
+                self._anticipatory_limit = None
+                self._broker_stop_px = None
+                self._broker_target_px = None
+                self._broker_side = None
+                self._broker_target_sent = False
                 try:
                     _reset_flag.unlink()
                 except Exception:
                     pass
+                # Re-sync with broker so any actual open position is
+                # rediscovered. Cheap; just a few REST calls.
+                try:
+                    self._reconcile_with_broker()
+                except Exception as e:
+                    logger.warning(f"reset post-reconcile failed: {e!r}")
                 _bal_msg = f"${starting_balance:,.0f}" if starting_balance else "$50k"
-                logger.warning(f"=== runtime reset complete -- account at {_bal_msg}, history wiped ===")
+                logger.warning(f"=== runtime reset complete -- account at {_bal_msg}, history wiped, broker reconciled ===")
         except Exception as e:
             logger.debug(f"reset-flag check skipped: {e!r}")
         snap = self.monitor.snapshot_and_reset()

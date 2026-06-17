@@ -82,15 +82,24 @@ def list_known_accounts() -> list[str]:
 # Per-account strategy params. Currently only the legacy account 1 is
 # active -- accounts 2 and 3 (the target=18 upgrade and filtered variant)
 # were removed by user request.
+#
+# IMPORTANT: these values are passed through detect_pullback_setup() as the
+# `params` dict and OVERRIDE the module-level defaults in
+# bot.pullback_strategy. To allow Railway env vars (STRAT_PULL_PCT,
+# STRAT_STOP_PTS, STRAT_TARGET_PTS, STRAT_IMPULSE_PTS, STRAT_IMPULSE_BARS,
+# STRAT_INVERT) to actually take effect, we read those env vars HERE rather
+# than hardcoding numbers. Each env var defaults to the original baseline
+# so an unconfigured deploy still gets the legacy behaviour.
 # ---------------------------------------------------------------------------
 _DEFAULT_PARAMS = {
-    # ACCOUNT 1 -- pre-upgrade baseline (deployed since the bot first went live)
+    # ACCOUNT 1 -- env-driven so Railway config is the source of truth.
     "1": {
-        "IMPULSE_PTS":        5.0,
-        "IMPULSE_WINDOW_BARS": 4,
-        "PULLBACK_PCT":       0.618,
-        "STOP_PTS":           6.0,
-        "TARGET_PTS":         12.0,   # original target
+        "IMPULSE_PTS":         float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
+        "IMPULSE_WINDOW_BARS": int(os.environ.get("STRAT_IMPULSE_BARS", "4")),
+        "PULLBACK_PCT":        float(os.environ.get("STRAT_PULL_PCT", "0.618")),
+        "STOP_PTS":            float(os.environ.get("STRAT_STOP_PTS", "6.0")),
+        "TARGET_PTS":          float(os.environ.get("STRAT_TARGET_PTS", "12.0")),
+        "INVERT":              os.environ.get("STRAT_INVERT", "0") == "1",
     },
 }
 
