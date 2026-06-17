@@ -207,7 +207,7 @@ TARGET_PTS = float(os.environ.get("STRAT_TARGET_PTS", "12.0"))
 INVERT_DIRECTION = os.environ.get("STRAT_INVERT", "0") == "1"
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
-COOLDOWN_SECS = 60                # min gap between trades
+COOLDOWN_SECS = int(os.environ.get("STRAT_COOLDOWN_SECS", "60"))
 MIN_TARGET_HOLD_SECONDS = 10      # Lucid microscalp safety: target exits < 10s become "instant scalp"
 MICROSCALP_HARD_THRESHOLD = 0.40  # circuit breaker if >40% of recent trades < MIN_TARGET_HOLD_SECONDS
 MICROSCALP_WINDOW_DAYS = 30
