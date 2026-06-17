@@ -1970,6 +1970,44 @@ function _renderLifetimeSummary(trades) {
   const stats = (state.data && state.data.lifetime_stats) || {};
   const dailyDd = stats.max_daily_dd ?? 0;
   const todayDd = stats.today_dd ?? 0;
+  // CONSISTENCY: when the Today period is selected and we're in paper
+  // mode, override the headline P&L and trade count with the bot's
+  // authoritative lucid_account.today_pnl and lifetime_stats.today_trades
+  // -- the same values the Topbar uses. Without this, the Performance
+  // tab sums every paper_trades.db row whose browser-local ts matches
+  // today's calendar date, which includes morning trades from before
+  // the strategy / reset took effect and shows e.g. $1,500 while the
+  // Topbar shows the bot's real post-reset $17. The two sources MUST
+  // agree or the dashboard is misleading.
+  if (_perfPeriod === "today" && dataSource === "paper" && state.data) {
+    const acc = state.data.lucid_account || {};
+    const lf  = state.data.lifetime_stats || {};
+    const pnl   = acc.today_pnl;
+    const nTr   = lf.today_trades;
+    const winN  = lf.today_wins;  // may be undefined; older bots don't emit it
+    if (typeof pnl === "number") {
+      pnlEl.textContent = fmtUsd(pnl);
+      pnlEl.className = pnl >= 0 ? "lifetime-value pos" : "lifetime-value neg";
+    }
+    if (typeof nTr === "number") {
+      el("lifetime-trades") && (el("lifetime-trades").textContent =
+        Math.round(nTr).toLocaleString());
+    }
+    if (typeof winN === "number" && nTr > 0) {
+      el("lifetime-wr") && (el("lifetime-wr").textContent =
+        (winN / nTr * 100).toFixed(1) + "%");
+    } else if (typeof lf.win_rate === "number") {
+      // lifetime win_rate as a fallback so the cell isn't blank
+      el("lifetime-wr") && (el("lifetime-wr").textContent =
+        lf.win_rate.toFixed(1) + "%");
+    }
+    el("lifetime-dd") && (el("lifetime-dd").textContent =
+      typeof todayDd === "number" && todayDd > 0
+        ? "-$" + Math.round(todayDd).toLocaleString() : "—");
+    // Charts still use the filtered slice -- they want to draw the
+    // equity curve etc., which the headline numbers don't represent.
+    return;
+  }
   // BROKER MODE: when per-trade history is unavailable, populate the
   // summary cells with the AGGREGATE broker numbers from cashBalance
   // so the user sees the real -$1085 drawdown instead of $0.
