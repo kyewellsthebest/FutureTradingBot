@@ -106,6 +106,21 @@ def _setup_logging() -> None:
         h_stream.setFormatter(fmt)
         logger.addHandler(h_stream)
     logger.setLevel(logging.INFO)
+    # ALSO attach handlers to peer loggers used by other modules so their
+    # warnings/errors appear in the same log file. Without this,
+    # tradovate_client's "Tradovate auth HTTP 401" / "Tradovate auth
+    # rate-limited" / "Tradovate authenticated" messages all go to the
+    # default Python handler (nowhere visible) and the diagnostic bundle
+    # has no record of WHY broker auth is failing. The recurring
+    # "[BROKER HEALTH] account_list returned empty" appeared in the bundle
+    # with zero accompanying detail because of this gap.
+    for peer in ("tradovate", "tradovate_user_ws", "tradovate_md",
+                  "pullback_strategy"):
+        pl = logging.getLogger(peer)
+        if not pl.handlers:
+            for h in logger.handlers:
+                pl.addHandler(h)
+        pl.setLevel(logging.INFO)
 
 
 def _iso(v):
@@ -253,31 +268,6 @@ class FibRuntime:
         from bot.account_ctx import set_account
         set_account(account_id)
         self.account_id = account_id
-        # Log resolved strategy parameters on every startup so it's
-        # impossible to deploy with the wrong config and not notice. Reads
-        # the same env vars pullback_strategy.py reads, so any drift
-        # between the two appears here.
-        try:
-            import bot.pullback_strategy as _ps
-            mode = "INVERSE FADE" if _ps.INVERT_DIRECTION else "WITH-IMPULSE"
-            logger.info(
-                "[STRATEGY CONFIG] mode=%s impulse=%.1fpt over %d bars "
-                "pull_pct=%.3f stop=%.1fpt target=%.1fpt RR=1:%.2f",
-                mode, _ps.IMPULSE_PTS, _ps.IMPULSE_WINDOW_BARS,
-                _ps.PULLBACK_PCT, _ps.STOP_PTS, _ps.TARGET_PTS,
-                (_ps.TARGET_PTS / _ps.STOP_PTS) if _ps.STOP_PTS > 0 else 0,
-            )
-            if _ps.INVERT_DIRECTION:
-                logger.warning(
-                    "[STRATEGY CONFIG] INVERSE MODE ACTIVE -- the bot will "
-                    "FADE 1-min impulses at the %.1f%% retracement. "
-                    "Validated +$1,952/day on 1 MNQ over 69 days of Dec'25-"
-                    "Feb'26 NQ tick data. CAVEAT: regime-sensitive; monitor "
-                    "daily and disable (STRAT_INVERT=0) on 5 losing days in "
-                    "a row.", _ps.PULLBACK_PCT * 100.0,
-                )
-        except Exception as _e:
-            logger.exception("[STRATEGY CONFIG] failed to log resolved params: %s", _e)
         self.state = FibStrategyState()
         self.account = LucidAccount()
         self.monitor = PriceMonitor()
@@ -577,6 +567,33 @@ class FibRuntime:
         from bot.account_ctx import set_account
         set_account(self.account_id)
         _setup_logging()
+        # FIRST line in the log: resolved strategy config. Without this,
+        # an operator can't tell from logs alone whether INVERSE FADE is
+        # on or whether the env vars actually took effect. Reads the same
+        # module-level resolved constants as detect_pullback_setup, so
+        # any drift between intent and reality shows up immediately.
+        try:
+            import bot.pullback_strategy as _ps
+            mode = "INVERSE FADE" if _ps.INVERT_DIRECTION else "WITH-IMPULSE"
+            logger.warning(
+                "[STRATEGY CONFIG] mode=%s impulse=%.1fpt over %d bars "
+                "pull_pct=%.3f stop=%.1fpt target=%.1fpt RR=1:%.2f",
+                mode, _ps.IMPULSE_PTS, _ps.IMPULSE_WINDOW_BARS,
+                _ps.PULLBACK_PCT, _ps.STOP_PTS, _ps.TARGET_PTS,
+                (_ps.TARGET_PTS / _ps.STOP_PTS) if _ps.STOP_PTS > 0 else 0,
+            )
+            if _ps.INVERT_DIRECTION:
+                logger.warning(
+                    "[STRATEGY CONFIG] INVERSE MODE ACTIVE -- the bot will "
+                    "FADE 1-min impulses at the %.1f%% retracement.",
+                    _ps.PULLBACK_PCT * 100.0)
+            else:
+                logger.warning(
+                    "[STRATEGY CONFIG] INVERSE MODE OFF -- still trading "
+                    "the original with-impulse pullback. To activate the "
+                    "inverse strategy, set STRAT_INVERT=1 in Railway env.")
+        except Exception as _e:
+            logger.exception("[STRATEGY CONFIG] failed to log resolved params: %s", _e)
         sync_clock()
         # One-shot historical commission migration. Trades closed before the
         # commission-into-pnl fix have inflated pnl values by ~$1.48 each
@@ -853,12 +870,37 @@ class FibRuntime:
                     # account_list which re-authenticates if needed.
                     prior = sess._account_id
                     sess._account_id = None
-                    fresh = sess.get_account_id()
+                    # Try a direct authenticate() first so the failure
+                    # reason (HTTP code, captcha, errorText) is logged
+                    # by tradovate_client itself. Then call get_account_id
+                    # which fetches /account/list.
+                    tokens = None
+                    try:
+                        tokens = sess.authenticate()
+                    except Exception as ae:
+                        logger.error(f"[BROKER HEALTH] authenticate() raised: {ae!r}")
+                    fresh = sess.get_account_id() if tokens else None
                     if fresh is None:
+                        # Surface a detailed diagnostic so the operator
+                        # can see WHY auth keeps failing instead of just
+                        # the recurring symptom. Each branch corresponds
+                        # to a specific root cause requiring a different
+                        # remediation.
+                        reason = "unknown"
+                        if tokens is None:
+                            reason = "authenticate() returned None -- check tradovate_client logs above for HTTP code / errorText / captcha p-ticket"
+                        elif tokens.user_id == 0:
+                            reason = "auth ok but userId=0 -- creds may belong to a disabled or wrong-cluster account"
+                        else:
+                            reason = "auth ok but /account/list empty -- the user has no accounts on this cluster (check TRADOVATE_DEMO env var matches the cluster the account lives on)"
                         logger.error(
-                            "[BROKER HEALTH] account_list returned empty "
-                            "-- auth is stale or rate-limited. Will retry "
-                            "in 5 min. Paper continues; broker is OFFLINE.")
+                            "[BROKER HEALTH] account_list empty after "
+                            "re-auth. user_id=%r tokens=%s reason=%s. "
+                            "Will retry in 5 min. Paper continues; "
+                            "broker is OFFLINE.",
+                            tokens.user_id if tokens else None,
+                            "present" if tokens else "missing",
+                            reason)
                         # Restore prior cached id so existing logic doesn't
                         # see a transient None and crash.
                         sess._account_id = prior
