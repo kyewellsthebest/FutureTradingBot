@@ -830,6 +830,57 @@ class FibRuntime:
                 self._persist_state()
             except Exception:
                 pass
+        # PERIODIC BROKER HEALTH CHECK. Every ~5 minutes (150 cycles at
+        # CYCLE_FLAT_SECONDS=2) we:
+        #   1) Force-refresh the account_id (clears the cached id and
+        #      re-fetches /account/list). This triggers token refresh
+        #      under the hood if the token has expired since the bot
+        #      started. Catches the recurring "broker dies overnight"
+        #      auth failure where the bot keeps making paper trades but
+        #      can no longer authenticate with Tradovate.
+        #   2) Re-run _reconcile_with_broker to clear stale
+        #      _open_trade_ref / orphaned anticipatory limits. Without
+        #      this, the duplicate-entry guard wedges and no new trades
+        #      fire on the broker until the next process restart.
+        # Cheap: 1-2 API calls every 5 minutes. The cost of NOT doing
+        # this is the silent broker-offline state observed multiple
+        # times.
+        if self.cycle % 150 == 0 and self.tradovate_orders is not None:
+            try:
+                sess = self.tradovate_orders.session
+                if sess is not None and sess.is_configured:
+                    # Force re-fetch of account_id: clear cache, re-call
+                    # account_list which re-authenticates if needed.
+                    prior = sess._account_id
+                    sess._account_id = None
+                    fresh = sess.get_account_id()
+                    if fresh is None:
+                        logger.error(
+                            "[BROKER HEALTH] account_list returned empty "
+                            "-- auth is stale or rate-limited. Will retry "
+                            "in 5 min. Paper continues; broker is OFFLINE.")
+                        # Restore prior cached id so existing logic doesn't
+                        # see a transient None and crash.
+                        sess._account_id = prior
+                    else:
+                        if prior != fresh:
+                            logger.warning(
+                                f"[BROKER HEALTH] account_id changed "
+                                f"{prior!r} -> {fresh!r}")
+                        else:
+                            logger.info(
+                                f"[BROKER HEALTH] OK account_id={fresh} "
+                                f"open_ref={self._open_trade_ref!r} "
+                                f"pending={len(self._pending_parent_orders)} "
+                                f"anticipatory={'yes' if self._anticipatory_limit else 'no'}")
+                        # Now reconcile state -- clears stale open_trade_ref,
+                        # cancels stuck anticipatory orders.
+                        try:
+                            self._reconcile_with_broker()
+                        except Exception as re:
+                            logger.warning(f"[BROKER HEALTH] reconcile: {re!r}")
+            except Exception as e:
+                logger.warning(f"[BROKER HEALTH] check failed: {e!r}")
         # Passive broker-fill tracker. Read-only, no side effects.
         try:
             self._poll_pending_broker_orders()

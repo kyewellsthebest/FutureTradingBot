@@ -208,45 +208,74 @@ class TradovateSession:
         return self.creds is not None
 
     def authenticate(self) -> Optional[TradovateTokens]:
-        """Request a new access token. Returns None on failure (logged)."""
+        """Request a new access token. Returns None on failure (logged).
+
+        Handles Tradovate's p-ticket captcha pattern: when rate-limited,
+        the response contains {"p-ticket": "...", "p-time": N, "p-captcha":
+        bool}. We block for p-time seconds then resubmit the SAME payload
+        with the p-ticket included so we get past the gate instead of
+        looping forever returning None.
+        """
         if self.creds is None:
             logger.error("Tradovate not configured (env vars missing)")
             return None
-        url = f"{_rest_base()}/auth/accesstokenrequest"
-        payload = self.creds.auth_payload()
-        body = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=body, method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "hftbot/1.0",
-            },
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                resp_body = resp.read().decode("utf-8", errors="replace")
-                data = json.loads(resp_body)
-        except urllib.error.HTTPError as e:
+        # Allow up to 2 captcha-retry cycles (each waits p-time seconds)
+        # before giving up. Beyond that, something else is wrong (bad
+        # creds, server outage) and we should let the caller back off.
+        for attempt in range(3):
+            url = f"{_rest_base()}/auth/accesstokenrequest"
+            payload = self.creds.auth_payload()
+            # On retry, attach the p-ticket from prior response. Tradovate
+            # requires the SAME payload + the ticket to clear the captcha.
+            pt = getattr(self, "_pending_p_ticket", None)
+            if pt:
+                payload["p-ticket"] = pt
+            body = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=body, method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "User-Agent": "hftbot/1.0",
+                },
+            )
             try:
-                err_body = e.read().decode("utf-8", errors="replace")
-            except Exception:
-                err_body = ""
-            logger.error(f"Tradovate auth HTTP {e.code}: {err_body[:500]!r}")
-            return None
-        except Exception as e:
-            logger.error(f"Tradovate auth failed: {e!r}")
-            return None
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    resp_body = resp.read().decode("utf-8", errors="replace")
+                    data = json.loads(resp_body)
+            except urllib.error.HTTPError as e:
+                try:
+                    err_body = e.read().decode("utf-8", errors="replace")
+                except Exception:
+                    err_body = ""
+                logger.error(f"Tradovate auth HTTP {e.code}: {err_body[:500]!r}")
+                return None
+            except Exception as e:
+                logger.error(f"Tradovate auth failed: {e!r}")
+                return None
 
-        # Check for rate-limit / captcha responses
-        if "p-ticket" in data:
-            wait_s = data.get("p-time", 60)
-            logger.warning(f"Tradovate auth rate-limited; retry in {wait_s}s "
-                           f"(p-ticket: {data.get('p-ticket')!r})")
-            return None
-        if "errorText" in data:
-            logger.error(f"Tradovate auth rejected: {data['errorText']!r}")
-            return None
+            # Captcha / rate-limit handling.
+            if "p-ticket" in data:
+                wait_s = int(data.get("p-time", 60))
+                self._pending_p_ticket = data.get("p-ticket")
+                if attempt < 2:
+                    logger.warning(
+                        f"Tradovate auth rate-limited (attempt {attempt+1}); "
+                        f"waiting {wait_s}s then retrying with p-ticket")
+                    import time as _t
+                    _t.sleep(wait_s + 1)
+                    continue
+                logger.error(
+                    f"Tradovate auth rate-limited after {attempt+1} attempts "
+                    f"-- giving up; bot will fall back to scheduled "
+                    f"refresh loop")
+                return None
+            # Clear the ticket once we got past it.
+            self._pending_p_ticket = None
+            if "errorText" in data:
+                logger.error(f"Tradovate auth rejected: {data['errorText']!r}")
+                return None
+            break  # fall through to token parse below
 
         access = data.get("accessToken")
         md_access = data.get("mdAccessToken")
