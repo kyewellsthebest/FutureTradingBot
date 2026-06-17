@@ -1099,18 +1099,31 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         _check_auto_daily_loss(lucid, now)
     except Exception as e:
         logger.debug(f"auto-DLL check skipped: {e!r}")
-    # Manual pause gate -- user pressed the Pause button on the dashboard.
-    # Blocks new entries only; the active trade (if any) was already managed
-    # in step 1 above and runs to its stop/target normally.
+    # Manual pause gate -- user pressed the Pause button on the dashboard,
+    # OR the auto-DLL tripped. Blocks new entries only; the active trade
+    # (if any) was already managed in step 1 above and runs to its
+    # stop/target normally. The block_reason now reflects the ACTUAL pause
+    # source so the dashboard can show "auto_dll_700" instead of the
+    # generic "manual_pause" the user keeps misreading as their own action.
     try:
         from bot.account_ctx import is_paused as _is_manually_paused
+        from bot.account_ctx import get_pause_state as _get_pause_state
         if _is_manually_paused():
+            ps = _get_pause_state()
+            real_reason = ps.get("reason") or "manual_pause"
+            if real_reason == "auto_daily_loss_limit":
+                limit_v = ps.get("limit")
+                pnl_v = ps.get("today_pnl_at_trip")
+                if limit_v is not None and pnl_v is not None:
+                    real_reason = f"auto_dll_{int(limit_v)} (tripped at ${pnl_v:+.0f})"
+                else:
+                    real_reason = "auto_dll"
             for s in state.pending_setups:
                 if not s.used:
-                    s.last_block_reason = "manual_pause"
+                    s.last_block_reason = real_reason
                     s.last_block_at = now
             if state.pending_setups:
-                _log_decision("entry_blocked", reason="manual_pause",
+                _log_decision("entry_blocked", reason=real_reason,
                                pending_count=len(state.pending_setups))
             return None
     except Exception:
@@ -1347,13 +1360,23 @@ def _get_manual_pause_state() -> dict:
 
 def _auto_dll_limit() -> float:
     """Self-imposed daily loss limit (positive number = max $ allowed loss).
-    Tunable via env var FIB_AUTO_DLL. Default 700.0 = ~58% of Lucid's $1,200
-    DLL, leaves a $500 buffer for one more bad fill. Set to 0 to disable."""
+
+    DEFAULT: 0 (DISABLED). User reported recurring overnight auto-pauses
+    when today_pnl crept past the old $700 default, and the dashboard
+    surfaced it as "manual_pause" so the cause was invisible. With this
+    feature off, the bot will keep trading through a bad day. The inverse
+    strategy's worst day in the 2.5-year backtest was -$219, so the old
+    $700 threshold was rarely useful but it tripped on noise.
+
+    To re-enable: set FIB_AUTO_DLL=<dollar amount> in Railway env. Use a
+    threshold WIDER than the backtested worst day with some margin --
+    e.g. 1000-1500 -- so it only fires on genuine runaway-loss days,
+    not normal variance."""
     import os as _os
     try:
-        return float(_os.environ.get("FIB_AUTO_DLL", "700.0"))
+        return float(_os.environ.get("FIB_AUTO_DLL", "0"))
     except Exception:
-        return 700.0
+        return 0.0
 
 
 def _check_auto_daily_loss(lucid, now: datetime) -> None:

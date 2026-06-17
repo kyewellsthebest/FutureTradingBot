@@ -612,6 +612,25 @@ class FibRuntime:
                     f"size={N_MNQ} MNQ default, "
                     f"min_target_hold={MIN_TARGET_HOLD_SECONDS}s, "
                     f"circuit_breaker_threshold={MICROSCALP_HARD_THRESHOLD*100:.0f}%")
+        # STARTUP-TIME AUTO-PAUSE CLEAR. The bot's auto daily-loss-limit
+        # writes pause_file() with reason=auto_daily_loss_limit when
+        # today_pnl crosses -$FIB_AUTO_DLL. Without clearing on startup,
+        # every redeploy after a losing day inherits the pause and the
+        # bot sits idle overnight waiting for the NY day to roll. User
+        # reported this happening repeatedly. Clear it on startup so a
+        # redeploy = a fresh state. Manual pauses (reason=user_manual)
+        # are preserved -- only auto-DLL clears.
+        try:
+            from bot.account_ctx import get_pause_state, pause_file
+            pstate = get_pause_state()
+            if pstate.get("paused") and pstate.get("reason") == "auto_daily_loss_limit":
+                pause_file().unlink()
+                logger.warning("[STARTUP] cleared stale auto_daily_loss_limit "
+                               "pause from previous session -- bot will resume "
+                               "trading. Set FIB_AUTO_DLL=<amount> on Railway "
+                               "if you want the auto-DLL safety re-enabled.")
+        except Exception as _e:
+            logger.debug(f"[STARTUP] pause cleanup skipped: {_e!r}")
         self.monitor.start()
         # Signal handlers can ONLY be installed from the main thread of the
         # main interpreter. Account 2+ (and any other multi-account
