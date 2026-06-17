@@ -954,7 +954,14 @@ def api_broker_stats():
         starting = cb.get("netLiqSOD") or cb.get("totalCashValueSOD")
 
     # ---- trade stats from FillPairs ----
-    trades = _collect_broker_trades(sess, acct_id, limit=100_000)
+    # Apply the SAME reset cutoff used for paper trades. /api/admin/reset_all
+    # updates lucid_account.started_at, which serves as the source-of-truth
+    # cutoff for "trades since reset" across the whole dashboard. Without
+    # this filter the broker view kept showing every demo-account fill
+    # going back to the day the bot was wired in, polluting headline
+    # stats with pre-strategy noise.
+    trades_all = _collect_broker_trades(sess, acct_id, limit=100_000)
+    trades = _filter_trades_since_reset(trades_all)
     n = len(trades)
     wins = sum(1 for t in trades if (t.get("pnl_usd") or 0) > 0)
     losses = sum(1 for t in trades if (t.get("pnl_usd") or 0) < 0)
@@ -2798,6 +2805,10 @@ def api_trades():
                 acct_id = sess.get_account_id()
                 if acct_id is not None:
                     rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+                    # Filter to trades after the most recent reset cutoff
+                    # so the broker tab matches the paper tab's "since
+                    # reset" semantics.
+                    rows = _filter_trades_since_reset(rows)
                     return jsonify(list(reversed(rows))[:200])
         except Exception as e:
             logger.warning(f"broker trades fallback: {e!r}")
@@ -2835,9 +2846,12 @@ def api_all_trades():
             if sess.is_configured:
                 acct_id = sess.get_account_id()
                 if acct_id is not None:
-                    return jsonify(
-                        _collect_broker_trades(sess, acct_id,
-                                                 limit=100_000))
+                    rows = _collect_broker_trades(sess, acct_id,
+                                                    limit=100_000)
+                    # Apply the same reset cutoff so equity curve / monthly
+                    # P&L / hold-time histogram on the Performance tab
+                    # reflect only the post-reset broker activity.
+                    return jsonify(_filter_trades_since_reset(rows))
         except Exception as e:
             logger.warning(f"broker trades fallback: {e!r}")
         return jsonify([])
@@ -2921,6 +2935,11 @@ def api_last_trades():
                 acct_id = sess.get_account_id()
                 if acct_id is not None:
                     rows = _collect_broker_trades(sess, acct_id, limit=10_000)
+                    # Honour the reset cutoff so the live Trades tab
+                    # only shows post-reset broker activity. The actual
+                    # Tradovate cash balance is unaffected (it's read
+                    # straight from /cashBalance, not from this list).
+                    rows = _filter_trades_since_reset(rows)
                     return jsonify(list(reversed(rows))[:100])
         except Exception as e:
             logger.warning(f"broker last_trades fallback: {e!r}")
@@ -5398,6 +5417,41 @@ def api_admin_reset_all():
                 custom_balance = v
         except Exception:
             pass
+    # Write a fresh lucid_account.json immediately so the dashboard's
+    # reset-cutoff filter (_reset_cutoff_ts) starts working RIGHT NOW,
+    # not after the bot processes the flag. If the bot is paused or
+    # slow to consume the flag, the dashboard would otherwise keep
+    # showing pre-reset trades indefinitely. The bot's own
+    # _hard_reset_all will overwrite this with its full state on the
+    # next tick; until then it's a placeholder that pins started_at
+    # to "now" so trade filtering is correct.
+    try:
+        from bot.lucid_account import START_BAL, INITIAL_TRAIL, RESET_SERIAL
+        reset_now_iso = datetime.now(timezone.utc).isoformat()
+        bal = float(custom_balance) if custom_balance is not None else float(START_BAL)
+        trail = bal - (START_BAL - INITIAL_TRAIL)
+        lp = base / "lucid_account.json"
+        lp.write_text(json.dumps({
+            "account_id": 1,
+            "started_at": reset_now_iso,
+            "peak_eod_high": bal,
+            "trail_floor": trail,
+            "trail_locked": True,
+            "cum_pnl_closed_days": 0.0,
+            "today_pnl": 0.0,
+            "today_date": reset_now_iso[:10],
+            "n_trading_days": 0,
+            "micro_total_profit": 0.0,
+            "micro_short_profit": 0.0,
+            "blown": False,
+            "blow_reason": None,
+            "applied_reset_serial": RESET_SERIAL,
+            "auto_pause_armed": True,
+            "balance": bal,
+        }, indent=2))
+        deleted.append(str(lp) + f" (rewritten as fresh @ ${bal:,.0f})")
+    except Exception as e:
+        errors.append(f"lucid_account.json rewrite: {e!r}")
     # Drop a flag file so the running bot's _tick loop picks up the reset
     # on its next cycle (within ~1 sec when flat, ~10 sec when in a trade)
     # and wipes its in-memory state too. Without this, the bot would keep
