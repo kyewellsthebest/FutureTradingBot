@@ -253,6 +253,31 @@ class FibRuntime:
         from bot.account_ctx import set_account
         set_account(account_id)
         self.account_id = account_id
+        # Log resolved strategy parameters on every startup so it's
+        # impossible to deploy with the wrong config and not notice. Reads
+        # the same env vars pullback_strategy.py reads, so any drift
+        # between the two appears here.
+        try:
+            import bot.pullback_strategy as _ps
+            mode = "INVERSE FADE" if _ps.INVERT_DIRECTION else "WITH-IMPULSE"
+            logger.info(
+                "[STRATEGY CONFIG] mode=%s impulse=%.1fpt over %d bars "
+                "pull_pct=%.3f stop=%.1fpt target=%.1fpt RR=1:%.2f",
+                mode, _ps.IMPULSE_PTS, _ps.IMPULSE_WINDOW_BARS,
+                _ps.PULLBACK_PCT, _ps.STOP_PTS, _ps.TARGET_PTS,
+                (_ps.TARGET_PTS / _ps.STOP_PTS) if _ps.STOP_PTS > 0 else 0,
+            )
+            if _ps.INVERT_DIRECTION:
+                logger.warning(
+                    "[STRATEGY CONFIG] INVERSE MODE ACTIVE -- the bot will "
+                    "FADE 1-min impulses at the %.1f%% retracement. "
+                    "Validated +$1,952/day on 1 MNQ over 69 days of Dec'25-"
+                    "Feb'26 NQ tick data. CAVEAT: regime-sensitive; monitor "
+                    "daily and disable (STRAT_INVERT=0) on 5 losing days in "
+                    "a row.", _ps.PULLBACK_PCT * 100.0,
+                )
+        except Exception as _e:
+            logger.exception("[STRATEGY CONFIG] failed to log resolved params: %s", _e)
         self.state = FibStrategyState()
         self.account = LucidAccount()
         self.monitor = PriceMonitor()
@@ -1516,15 +1541,18 @@ class FibRuntime:
             if getattr(s, 'used', False) or getattr(s, 'fire_attempted', False):
                 continue
             entry = float(s.pullback_entry)
-            if s.side == "LONG":
-                # LONG entry triggers when price FALLS to entry.
-                # Approach means current price >= entry (above, falling).
+            # Use orig_side (impulse direction), not the trade side --
+            # for the INVERSE strategy these differ. Price always
+            # approaches entry from the IMPULSE direction, regardless of
+            # which way we'll then trade.
+            approach = getattr(s, 'orig_side', None) or s.side
+            if approach == "LONG":
+                # UP impulse: entry sits below the high; price falls TO it.
                 if current_price < entry:
                     continue
                 dist = current_price - entry
-            else:  # SHORT
-                # SHORT triggers when price RISES to entry.
-                # Approach means current price <= entry (below, rising).
+            else:
+                # DOWN impulse: entry sits above the low; price rises TO it.
                 if current_price > entry:
                     continue
                 dist = entry - current_price

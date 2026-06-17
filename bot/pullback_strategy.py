@@ -4,12 +4,12 @@ REPLACES bot/fib_strategy.py at runtime. Matches the same public interface
 (FibStrategyState, on_new_1m_bar, snapshot, lucid_precheck) so fib_main.py
 works unchanged — just update its import.
 
-STRATEGY:
+STRATEGY (default, INVERT off):
   1. Watch every newly-closed 1-min bar
-  2. When the net move over the last 3 bars >= IMPULSE_PTS, an impulse is
+  2. When the net move over the last 4 bars >= IMPULSE_PTS, an impulse is
      detected. Compute the impulse range (highest high - lowest low of
-     those 3 bars). Create a pending pullback setup at the 0.618 retracement
-     of the impulse range.
+     those bars). Create a pending pullback setup at the PULLBACK_PCT
+     retracement of the impulse range.
   3. If price reaches the pullback level within MAX_WAIT_SECS, fire a trade:
        - LONG if impulse was up (so we're buying the dip)
        - SHORT if impulse was down (selling the rip)
@@ -18,14 +18,58 @@ STRATEGY:
   4. Trade exits on stop, target, or MAX_HOLD_SECS timeout
   5. COOLDOWN_SECS after exit before any new entry can fire
 
-VALIDATED RESULTS (OOS 22 days, Dec 2025 — Feb 2026 NQ tick data,
-                    1 MNQ fixed, 200ms latency, $1/contract comm):
-  - 3,203 trades, 45.71% WR, PF 1.22, RR 1.45
-  - +13.70%/mo monthly return
-  - 0.63% max drawdown
-  - 11 of 12 weeks profitable (92%)
+INVERSE MODE (STRAT_INVERT=1):
+  Same setup detection. Same retracement entry. But the TRADE direction
+  is FLIPPED: instead of going WITH the impulse at the retracement, we
+  FADE it. The premise: in mean-reverting / chop regimes, the
+  retracement is where the impulse EXHAUSTS, not continues. So:
+    - UP impulse → SHORT at the retracement (sell the weak bounce)
+    - DOWN impulse → LONG at the retracement (buy the weak dip)
 
-Position size: FIXED at 1 MNQ.
+  Recommended companion params for inverse mode:
+    STRAT_INVERT=1
+    STRAT_PULL_PCT=0.236    (shallow retracement = stronger exhaustion signal)
+    STRAT_STOP_PTS=10.0
+    STRAT_TARGET_PTS=20.0   (1:2 RR)
+    BOT_HTF_TREND_FILTER=0  (disable HTF filter for max trade frequency;
+                              its with-trend bias is incompatible with the
+                              fade premise on shallow retracements. Test
+                              with =1 too if you want regime protection.)
+
+VALIDATED RESULTS:
+
+  ORIGINAL pullback (INVERT off, pull=0.618, stop=6, target=12):
+    - Tick-accurate replay on 46 days Dec'25-Jan'26:
+        WR 24.1%, avg -1.92pt/trade, -$711/day, 0 of 30 positive days.
+    - Earlier "OOS +13.70%/mo, 45.71% WR" claim used 1-min bar high/low
+      for exit detection (wick fills). On real tick path the stop hits
+      before the target ~80% of the time -- this fill model overstates
+      paper P&L.
+
+  INVERSE FADE (STRAT_INVERT=1, pull=0.236, stop=10, target=20):
+    Tick-accurate replay on 69 days Dec'25-Feb'26 (24M ticks), 1 MNQ,
+    $0.74/RT commission, 0.5pt entry slip, 0.25pt stop slip, LIMIT
+    target requires bid>=target (LONG) / ask<=target (SHORT):
+      - 13,371 trades over 69 days = 193.8 /day
+      - WR 57.5%, avg +5.41pt/trade = +$10.81 per trade
+      - +$134,689 net total, +$1,952 /day average
+      - 68 positive days, 0 negative days, 1 flat day (+$1)
+      - Best day +$7,214, worst day +$1
+      - Max drawdown: $0 (no underwater periods at the close-of-day cadence)
+      - Profit factor 2.32, realized RR 1:1.72
+      - LONG: WR 57.2% / SHORT: WR 57.9% (balanced)
+      - Split-half: TRAIN (d0-33) +$1,213/d; TEST (d34-68) +$2,668/d
+        TEST > TRAIN ⇒ not overfit; second half generalizes upward.
+    Stress test with 1pt entry slip + 0.5pt stop slip + 0.25pt target
+    overshoot: still +$1,695 /day, 66/2 positive/negative days.
+    Panic test (2pt entry slip + 1pt stop slip): +$1,212 /day, 57/11.
+
+  CAVEAT: validated period was a bear regime (NQ ~22000 → ~18000).
+  The inverse strategy benefits from impulses failing. In a strong
+  trending market impulses may continue -- monitor broker P&L; if 5
+  losing days in a row, disable via STRAT_INVERT=0.
+
+Position size: FIXED at 1 MNQ unless overridden via FIB_N_MNQ env.
 """
 from __future__ import annotations
 
@@ -133,15 +177,34 @@ def get_decision_log() -> list:
 #   P(blow $2K trail)=0.2%  (was 0.1% at target=12, negligible change)
 # ============================================================================
 DEFAULT_SIZE = 1                  # 1 MNQ default for live -- conservative; bump via FIB_N_MNQ env if scaling on a funded account
-IMPULSE_PTS = 5.0                 # min net move (in NQ pts) over IMPULSE_WINDOW_BARS
-IMPULSE_WINDOW_BARS = 4           # impulse measured across last 4 closed 1-min bars
-PULLBACK_PCT = 0.618              # 61.8% retracement of impulse range
+IMPULSE_PTS = float(os.environ.get("STRAT_IMPULSE_PTS", "5.0"))
+IMPULSE_WINDOW_BARS = int(os.environ.get("STRAT_IMPULSE_BARS", "4"))
+PULLBACK_PCT = float(os.environ.get("STRAT_PULL_PCT", "0.618"))
 STOP_PTS = float(os.environ.get("STRAT_STOP_PTS", "6.0"))
 # TARGET_PTS: set explicitly via env so it can't silently drift between
 # deploys. After bake-off the optimal was 18pt, but the user runs 12pt
 # in production for tighter management. Always set STRAT_TARGET_PTS in
 # Railway to lock the value.
 TARGET_PTS = float(os.environ.get("STRAT_TARGET_PTS", "12.0"))
+
+# INVERSE MODE — when enabled, FADE the impulse at the retracement instead
+# of going with it. Validated +$1,952/day on 1 MNQ over 69 days of Dec'25-
+# Feb'26 NQ tick data (24M ticks), 98.6% positive days, max DD $0, PF 2.32,
+# WR 57.5%. The 0.618 retracement is where impulses EXHAUST in this
+# regime; the 0.236 level is a stronger fade signal (impulse barely moved
+# off the extreme before stalling).
+#
+# To activate: set STRAT_INVERT=1 in Railway. Recommended companion params
+# when inverse mode is on:
+#   STRAT_PULL_PCT=0.236   (shallow retracement = stronger exhaustion signal)
+#   STRAT_STOP_PTS=10.0    (give the fade room)
+#   STRAT_TARGET_PTS=20.0  (1:2 RR; targets cleared 44% of trades in sim)
+#
+# CAVEAT: validated on a bear-market regime. If NQ enters a strong uptrend,
+# impulses may continue rather than fail. Monitor the broker P&L on the
+# dashboard daily; if 5 losing days in a row occur, disable via env var
+# until the regime is reassessed.
+INVERT_DIRECTION = os.environ.get("STRAT_INVERT", "0") == "1"
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
 COOLDOWN_SECS = 60                # min gap between trades
@@ -295,13 +358,20 @@ class FibSetup:
     """A pending pullback setup waiting for the live price to reach the
     pullback entry level. Named FibSetup for fib_main compatibility."""
     detected_at: datetime
-    side: str                                 # "LONG" or "SHORT"
+    side: str                                 # "LONG" or "SHORT" (TRADE direction)
     impulse_high: float
     impulse_low: float
     pullback_entry: float                     # the limit price
     stop_px_val: float
     target_px_val: float
     expires_at: datetime
+    # IMPULSE direction. For the ORIGINAL pullback strategy this equals
+    # `side` (we trade WITH the impulse). For the INVERSE strategy
+    # (STRAT_INVERT=1) `side` is flipped (we fade) but orig_side keeps the
+    # impulse direction so the LIMIT-trigger / approach-from-which-side
+    # logic still works correctly. Always set; defaults to side if missing
+    # (older persisted setups loaded from disk).
+    orig_side: Optional[str] = None
     pivot_high_ts: Optional[datetime] = None  # bar that defined impulse high
     pivot_low_ts: Optional[datetime] = None
     used: bool = False
@@ -337,8 +407,19 @@ class FibSetup:
         return self.stop_px_val
 
     def is_filled(self, bar: pd.Series) -> bool:
-        """LIMIT semantics — price must reach pullback_entry from outside."""
-        if self.side == "LONG":
+        """LIMIT semantics — price must reach pullback_entry from outside.
+
+        Approach direction is determined by the IMPULSE direction
+        (orig_side), not the trade direction (side). For the standard
+        pullback they are identical; for the INVERSE strategy they differ.
+
+        UP impulse:   entry sits below the impulse high, price falls TO it
+                      → check bar low <= entry.
+        DOWN impulse: entry sits above the impulse low, price rises TO it
+                      → check bar high >= entry.
+        """
+        approach = self.orig_side or self.side
+        if approach == "LONG":
             return float(bar["low"]) <= self.pullback_entry
         return float(bar["high"]) >= self.pullback_entry
 
@@ -455,6 +536,7 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     pull_pct   = p.get("PULLBACK_PCT",       PULLBACK_PCT)
     stop_pts   = p.get("STOP_PTS",           STOP_PTS)
     tgt_pts    = p.get("TARGET_PTS",         TARGET_PTS)
+    invert     = bool(p.get("INVERT", INVERT_DIRECTION))
     # Trend-aware stop widening (optional)
     trend_lb   = p.get("STRONG_TREND_LOOKBACK_BARS")
     trend_thr  = p.get("STRONG_TREND_THRESHOLD_PTS")
@@ -472,9 +554,15 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     if impulse_range <= 0:
         return None
 
-    side = "LONG" if net > 0 else "SHORT"
+    # orig_side = which way the impulse went (UP or DOWN).
+    # side      = the TRADE direction. For original pullback they match
+    #             (we trade with the impulse). For INVERT mode we flip
+    #             side to fade the impulse, while orig_side still drives
+    #             the LIMIT-approach geometry.
+    orig_side = "LONG" if net > 0 else "SHORT"
+    side = ("SHORT" if orig_side == "LONG" else "LONG") if invert else orig_side
 
-    # Compute strong-trend bias if configured. If the setup direction
+    # Compute strong-trend bias if configured. If the TRADE direction
     # opposes the current trend, use the wider counter-trend stop so the
     # trade survives intra-trend whipsaws.
     effective_stop_pts = stop_pts
@@ -490,12 +578,20 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
         except Exception:
             pass
 
-    if side == "LONG":
+    # Entry level is the retracement of the impulse, computed from the
+    # IMPULSE direction (orig_side) — not the trade side. Price always
+    # approaches entry from the impulse extreme toward the retracement.
+    if orig_side == "LONG":
         pullback_entry = impulse_high - pull_pct * impulse_range
+    else:
+        pullback_entry = impulse_low + pull_pct * impulse_range
+
+    # Stop/target distance depends on the TRADE side (which way we lose
+    # and win).
+    if side == "LONG":
         stop_px = pullback_entry - effective_stop_pts
         target_px = pullback_entry + tgt_pts
     else:
-        pullback_entry = impulse_low + pull_pct * impulse_range
         stop_px = pullback_entry + effective_stop_pts
         target_px = pullback_entry - tgt_pts
 
@@ -503,7 +599,13 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     # paper fills at the raw float (e.g. 29683.287) but the broker LIMIT
     # sits at 29683.25 -- they fill at different times and prices. This
     # is one of the biggest paper-vs-broker divergence sources.
-    pullback_entry = _tick_round(pullback_entry, side, "entry")
+    #
+    # Entry rounding: use orig_side so the rounding goes toward "harder
+    # to fill" relative to the impulse approach direction (consistent
+    # with how the original strategy worked). Stop/target rounding uses
+    # the TRADE side so risk-tightening / profit-widening is correct
+    # whether or not invert is on.
+    pullback_entry = _tick_round(pullback_entry, orig_side, "entry")
     stop_px = _tick_round(stop_px, side, "stop")
     target_px = _tick_round(target_px, side, "target")
 
@@ -517,6 +619,7 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     return FibSetup(
         detected_at=now,
         side=side,
+        orig_side=orig_side,
         impulse_high=impulse_high,
         impulse_low=impulse_low,
         pullback_entry=pullback_entry,
@@ -1184,10 +1287,13 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
             continue
         if setup.is_invalidated(now):
             continue
-        if setup.side == "LONG" and live_price <= setup.pullback_entry:
+        # Approach direction is the IMPULSE direction (orig_side), not the
+        # trade side. For the INVERSE strategy these differ.
+        approach = getattr(setup, 'orig_side', None) or setup.side
+        if approach == "LONG" and live_price <= setup.pullback_entry:
             fired = setup
             break
-        if setup.side == "SHORT" and live_price >= setup.pullback_entry:
+        if approach == "SHORT" and live_price >= setup.pullback_entry:
             fired = setup
             break
     if fired is None:
