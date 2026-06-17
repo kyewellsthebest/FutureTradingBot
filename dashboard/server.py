@@ -2788,6 +2788,9 @@ def api_trades():
     """
     source = (request.args.get("source") or "paper").lower()
     if source == "broker":
+        # Strict isolation: in broker mode, never return paper rows even
+        # if broker is unreachable. See /api/all_trades for the full
+        # explanation; same dashboard-glitch fix.
         try:
             from bot.tradovate_client import get_session
             sess = get_session()
@@ -2798,6 +2801,7 @@ def api_trades():
                     return jsonify(list(reversed(rows))[:200])
         except Exception as e:
             logger.warning(f"broker trades fallback: {e!r}")
+        return jsonify([])
     # Load extra so the post-cutoff filter still has at least 200 rows.
     rows = persistence.load_trades(limit=2000)
     return jsonify(_filter_trades_since_reset(rows)[:200])
@@ -2818,6 +2822,13 @@ def api_all_trades():
     """
     source = (request.args.get("source") or "paper").lower()
     if source == "broker":
+        # When the user explicitly asks for broker reality we MUST NOT
+        # silently substitute paper data. That was the dashboard-glitch
+        # bug: paper and broker tabs showed identical Performance numbers
+        # because broker auth was dead (account_list=[], account_id=None)
+        # and the route returned paper rows labeled as broker. Now we
+        # return an empty array so the frontend knows there's nothing to
+        # show and can display a clear "broker unavailable" banner.
         try:
             from bot.tradovate_client import get_session
             sess = get_session()
@@ -2829,8 +2840,7 @@ def api_all_trades():
                                                  limit=100_000))
         except Exception as e:
             logger.warning(f"broker trades fallback: {e!r}")
-        # Fall through to paper if broker unavailable -- never show
-        # an empty dashboard when paper history exists.
+        return jsonify([])
     rows = persistence.load_trades(limit=100_000, only_closed=True)
     # Cutoff: only count trades since the most recent RESET_SERIAL bump.
     # Without this, pre-upgrade trades (older window=3 / target=10 params)
@@ -2903,6 +2913,7 @@ def api_last_trades():
     """
     source = (request.args.get("source") or "paper").lower()
     if source == "broker":
+        # Strict isolation: in broker mode never substitute paper rows.
         try:
             from bot.tradovate_client import get_session
             sess = get_session()
@@ -2913,6 +2924,7 @@ def api_last_trades():
                     return jsonify(list(reversed(rows))[:100])
         except Exception as e:
             logger.warning(f"broker last_trades fallback: {e!r}")
+        return jsonify([])
     rows = persistence.load_trades(limit=2000)
     return jsonify(_filter_trades_since_reset(rows)[:100])
 
