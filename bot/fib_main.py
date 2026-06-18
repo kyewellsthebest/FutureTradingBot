@@ -1613,38 +1613,101 @@ class FibRuntime:
                     # discrepancy detector flushed both via MARKET).
                     # LATENCY: prefer WS-cached netPos (instant) over
                     # REST /position/list (100-200ms).
+                    #
+                    # FLATTEN-THEN-SUBMIT: bundle 20:15 UTC showed 247
+                    # broker_skip events all with netpos=-1. Paper had
+                    # taken 316 trades, broker had placed 7 brackets --
+                    # nearly every entry was being refused because a
+                    # stale position from the prior bracket was still
+                    # showing non-zero. Behavior is now: if netPos !=
+                    # 0 we fire liquidateposition on every non-zero
+                    # contract (~70ms each via REST), wait one tick,
+                    # then proceed with the placeoso. The strategy
+                    # voted to be in a NEW trade right now, so any
+                    # broker position remaining is by definition stale.
                     try:
                         sess = self.tradovate_orders.session
                         acct_id = sess.get_account_id()
-                        net = None
+                        # Pull authoritative position state via REST FIRST.
+                        # The user-WS netpos cache goes stale silently:
+                        # bundle 20:15 UTC showed cache stuck at netPos=-1
+                        # since 14:58 even though /position/list said 0.
+                        # Tradovate sometimes drops the "closed" position
+                        # frame during a WS reconnect; without a REST
+                        # cross-check the bot believes a phantom position
+                        # exists forever and skips every entry.
+                        nonzero_positions = []
+                        status, positions = sess._rest("GET", "/position/list")
+                        if status == 200 and isinstance(positions, list):
+                            for pos in positions:
+                                if not isinstance(pos, dict): continue
+                                if pos.get("accountId") != acct_id: continue
+                                np_val = int(pos.get("netPos") or 0)
+                                if np_val != 0:
+                                    nonzero_positions.append({
+                                        "contractId": pos.get("contractId"),
+                                        "netPos": np_val,
+                                    })
+                        # Refresh the WS cache from REST truth -- any
+                        # contract REST shows as 0 gets zeroed in the
+                        # cache too, so the *next* entry won't even need
+                        # the REST call.
                         try:
                             from bot.tradovate_user_ws import get_user_ws
                             _uws = get_user_ws()
-                            if _uws is not None:
-                                for cid, entry in (_uws._netpos_cache or {}).items():
-                                    if entry.get("netPos", 0) != 0:
-                                        net = entry["netPos"]
-                                        break
+                            if _uws is not None and status == 200 and isinstance(positions, list):
+                                rest_pos = {
+                                    pos.get("contractId"): int(pos.get("netPos") or 0)
+                                    for pos in positions
+                                    if isinstance(pos, dict)
+                                    and pos.get("accountId") == acct_id
+                                }
+                                for cid, entry in list((_uws._netpos_cache or {}).items()):
+                                    if cid in rest_pos:
+                                        entry["netPos"] = rest_pos[cid]
+                                        entry["ts"] = time.time()
                         except Exception:
                             pass
-                        if net is None:
-                            status, positions = sess._rest("GET", "/position/list")
-                            if status == 200 and isinstance(positions, list):
-                                for pos in positions:
-                                    if not isinstance(pos, dict): continue
-                                    if pos.get("accountId") != acct_id: continue
-                                    if int(pos.get("netPos") or 0) != 0:
-                                        net = int(pos["netPos"])
-                                        break
-                        if net not in (0, None):
+                        if nonzero_positions:
                             logger.warning(
-                                f"[broker SKIP] netPos={net} != 0, "
-                                f"refusing to stack. Paper booked "
-                                f"this setup; broker holds previous "
-                                f"position. Wait for bracket exit.")
-                            _tl(setup_ref, "broker_skip",
-                                 reason="netpos_nonzero", netpos=net)
-                            return
+                                f"[broker FLATTEN-FIRST] netPos non-zero on "
+                                f"{len(nonzero_positions)} contract(s) -- "
+                                f"flushing stale position(s) before new "
+                                f"entry: {nonzero_positions}")
+                            for npos in nonzero_positions:
+                                cid = npos.get("contractId")
+                                if not cid:
+                                    continue
+                                try:
+                                    flat_body = {
+                                        "accountSpec": self.tradovate_orders._account_spec(),
+                                        "accountId": int(acct_id),
+                                        "contractId": int(cid),
+                                        "admin": False,
+                                        "isAutomated": True,
+                                    }
+                                    sess._rest(
+                                        "POST", "/order/liquidateposition",
+                                        body=flat_body)
+                                    _tl(setup_ref, "broker_flatten_stale",
+                                         contractId=cid, netPos=npos.get("netPos"))
+                                except Exception as fe:
+                                    logger.warning(
+                                        f"[broker FLATTEN-FIRST] "
+                                        f"liquidate contractId={cid} failed: "
+                                        f"{fe!r}")
+                            # Invalidate the WS netpos cache for stale
+                            # contracts so the next read reflects the
+                            # liquidate result instead of pre-flatten
+                            # state.
+                            try:
+                                if _uws is not None and _uws._netpos_cache:
+                                    for npos in nonzero_positions:
+                                        cid = npos.get("contractId")
+                                        if cid in _uws._netpos_cache:
+                                            _uws._netpos_cache[cid]["netPos"] = 0
+                            except Exception:
+                                pass
                     except Exception as ne:
                         logger.warning(f"netPos check failed: {ne!r}")
                     # LATENCY: cached symbol -- skips polygon_front_month
@@ -2468,6 +2531,35 @@ class FibRuntime:
             status, positions = sess._rest("GET", "/position/list")
             if status != 200 or not isinstance(positions, list):
                 return
+            # CACHE REHYDRATION. Tradovate's user WS occasionally drops
+            # the "position closed" frame during a reconnect, leaving
+            # _netpos_cache pinned to a phantom netPos (bundle 20:15 UTC
+            # showed cache pinned at -1 for 5+ hours while REST reported
+            # 0). Re-sync the WS cache from REST truth on every cycle so
+            # downstream consumers (entry submission, dashboards) read
+            # the right state.
+            try:
+                from bot.tradovate_user_ws import get_user_ws
+                _uws = get_user_ws()
+                if _uws is not None:
+                    rest_pos = {
+                        p.get("contractId"): int(p.get("netPos") or 0)
+                        for p in positions
+                        if isinstance(p, dict) and p.get("accountId") == acct_id
+                    }
+                    for cid, np_val in rest_pos.items():
+                        if cid is None:
+                            continue
+                        entry = _uws._netpos_cache.get(int(cid))
+                        if entry is None:
+                            _uws._netpos_cache[int(cid)] = {
+                                "netPos": np_val, "ts": time.time(),
+                            }
+                        elif entry.get("netPos") != np_val:
+                            entry["netPos"] = np_val
+                            entry["ts"] = time.time()
+            except Exception as _ce:
+                logger.debug(f"WS cache rehydrate: {_ce!r}")
             # Bot's belief: is paper in a trade?
             paper_in_trade = (self.state is not None
                               and self.state.active_trade is not None
