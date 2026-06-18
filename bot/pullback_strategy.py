@@ -807,11 +807,25 @@ def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
     result was systematically overstated paper P&L vs broker reality.
 
     Now paper checks exit conditions on every live tick using
-    bid/ask (the same data the matching engine reacts to):
-      LONG  stop hits when bid <= stop_px (broker stop-market trigger)
-      LONG  target hits when ask >= target_px (broker LIMIT fill)
-      SHORT stop hits when ask >= stop_px
-      SHORT target hits when bid <= target_px
+    bid/ask (the same data the matching engine reacts to). CORRECT
+    matching-engine semantics:
+
+      LONG stop  = stop-MARKET SELL on touch -> bid must hit stop_px
+      LONG tgt   = LIMIT SELL at target_px   -> bid must hit target_px
+                    (LIMIT SELL fills when a BUYER pays our offer)
+      SHORT stop = stop-MARKET BUY on touch  -> ask must hit stop_px
+      SHORT tgt  = LIMIT BUY at target_px    -> ask must hit target_px
+                    (LIMIT BUY fills when a SELLER takes our bid)
+
+    Fix 2026-06-18: target detection was using the WRONG side of the
+    spread (LONG used ask, SHORT used bid). That meant paper booked
+    target wins whenever the OPPOSITE side of the spread touched the
+    level -- which is exactly when a broker LIMIT would NOT fill (the
+    correct side of the spread is what determines fillability for our
+    LIMIT). Across 92 placeoso today, paper was +$440 while broker
+    was -$290, a $730 gap entirely attributable to this. With the
+    corrected check, paper books a target only when the broker LIMIT
+    would actually fill, eliminating the wick-fill paper inflation.
 
     Returns (exit_px, reason) or None.
     """
@@ -821,14 +835,20 @@ def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
     # Microscalp guard: hold target for MIN_TARGET_HOLD_SECONDS.
     hold_s = trade.hold_seconds(now)
     if trade.side == "LONG":
+        # stop-MARKET sells at bid when bid touches stop_px
         if bid <= trade.stop_px:
             return trade.stop_px, "stop"
-        if ask >= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
+        # LIMIT SELL at target_px fills when bid touches target_px
+        # (a buyer must come up to pay our offer for the order to fill)
+        if bid >= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
             return trade.target_px, "target"
     else:
+        # stop-MARKET buys at ask when ask touches stop_px
         if ask >= trade.stop_px:
             return trade.stop_px, "stop"
-        if bid <= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
+        # LIMIT BUY at target_px fills when ask touches target_px
+        # (a seller must come down to our bid for the order to fill)
+        if ask <= trade.target_px and hold_s >= MIN_TARGET_HOLD_SECONDS:
             return trade.target_px, "target"
     # Max hold timeout
     if hold_s >= MAX_HOLD_SECS:
