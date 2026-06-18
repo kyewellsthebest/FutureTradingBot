@@ -881,7 +881,15 @@ class FibRuntime:
         # Cheap: 1-2 API calls every 5 minutes. The cost of NOT doing
         # this is the silent broker-offline state observed multiple
         # times.
-        if self.cycle % 150 == 0 and self.tradovate_orders is not None:
+        # BROKER HEALTH CHECK FREQUENCY. Tightened from 150 cycles (~5 min)
+        # to 60 cycles (~1-2 min depending on cycle pace) so that auth
+        # gaps, stale _open_trade_ref, and orphan broker positions get
+        # caught much faster. The forced re-fetch of account_id is one
+        # cheap REST call; the upside is the bot recovers from auth/state
+        # divergences in <2 min instead of <6 min, directly cutting the
+        # "paper fired, broker didn't" window.
+        _broker_health_every = int(os.environ.get("BROKER_HEALTH_CYCLES", "60"))
+        if self.cycle % _broker_health_every == 0 and self.tradovate_orders is not None:
             try:
                 sess = self.tradovate_orders.session
                 if sess is not None and sess.is_configured:
