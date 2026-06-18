@@ -615,10 +615,57 @@ class TradovateSession:
                            f"matching contracts found. Sample: "
                            f"{[c.get('name') for c in results[:5]]!r}")
             return None
+        # CONTRACT ROLL: skip the front month if it's within
+        # CONTRACT_ROLL_AHEAD_DAYS of expiry. CME equity index futures
+        # see most volume roll to the next quarter ~3-5 days before the
+        # 3rd-Friday expiration. Subscribing to the dying month means
+        # zero quotes streaming (Tradovate stops MD on near-dead
+        # contracts) -- which silently kills the live bot's bid/ask
+        # feed and forces a synthetic ±0.125pt spread fallback that
+        # asymmetrically biases stops over targets. Roll forward
+        # before that happens.
+        from datetime import date as _date, timedelta as _td
+        try:
+            roll_days = int(os.environ.get("CONTRACT_ROLL_AHEAD_DAYS", "3"))
+        except Exception:
+            roll_days = 3
+        today = _date.today()
+        def _expiry_date(c: dict):
+            # Tradovate returns YYYY-MM-DD on lastTradingDay; some
+            # entries only have YYYYMM in maturityMonthYear (use 15th
+            # as a conservative proxy for 3rd-Friday).
+            ltd = c.get("lastTradingDay")
+            if ltd:
+                try:
+                    return _date.fromisoformat(str(ltd)[:10])
+                except Exception:
+                    pass
+            mmy = c.get("maturityMonthYear")
+            if mmy:
+                try:
+                    s = str(mmy)
+                    return _date(int(s[:4]), int(s[4:6]), 15)
+                except Exception:
+                    pass
+            return None
+        liquid = []
+        for c in candidates:
+            exp = _expiry_date(c)
+            if exp is None or (exp - today).days >= roll_days:
+                liquid.append(c)
+        if not liquid:
+            # All candidates near expiry -- keep the original list
+            # rather than returning nothing.
+            liquid = candidates
+        elif liquid[0] is not candidates[0]:
+            skipped = candidates[0].get("name")
+            logger.info(f"Tradovate contract roll: skipping near-expiry "
+                        f"front month {skipped!r} -> {liquid[0].get('name')!r} "
+                        f"(within {roll_days} days of expiry)")
         # Pick the contract whose name is shortest (front-month convention)
         # and which is the earliest expiring. /contract/suggest typically
         # returns in expiration order with closest first.
-        chosen = candidates[0]
+        chosen = liquid[0]
         self._contract_cache[root] = chosen
         logger.info(f"Tradovate front-month for {root}: name={chosen.get('name')!r} "
                     f"id={chosen.get('id')!r} "

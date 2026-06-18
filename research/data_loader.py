@@ -286,16 +286,23 @@ def polygon_front_month(product: str, asof=None) -> str:
     """Construct the live front-month futures ticker, e.g. 'NQM6' (June 2026).
 
     CME equity-index futures are quarterly: H=Mar, M=Jun, U=Sep, Z=Dec.
-    Picks the soonest quarterly contract whose 3rd-Friday expiry is still
-    in the future. Year is encoded as the last digit (2026 -> 6)."""
-    from datetime import date as _d
+    Picks the soonest quarterly contract whose 3rd-Friday expiry is at
+    least CONTRACT_ROLL_AHEAD_DAYS away. Quotes go thin in the last
+    few days before expiration as volume rolls to the next quarter, so
+    we step forward early. Year is encoded as the last digit (2026 -> 6)."""
+    from datetime import date as _d, timedelta as _td
     asof = asof or _d.today()
+    try:
+        roll_days = int(os.environ.get("CONTRACT_ROLL_AHEAD_DAYS", "3"))
+    except Exception:
+        roll_days = 3
+    cutoff = asof + _td(days=roll_days)
     code = {3: "H", 6: "M", 9: "U", 12: "Z"}
     year = asof.year
     for _ in range(9):
         for m in (3, 6, 9, 12):
             exp = _third_friday(year, m)
-            if exp >= asof:
+            if exp >= cutoff:
                 return f"{product}{code[m]}{year % 10}"
         year += 1
     return f"{product}M{asof.year % 10}"

@@ -5183,12 +5183,17 @@ def api_admin_verify_today():
     except Exception as e:
         return jsonify({"ok": False, "error": f"Polygon fetch failed: {e!r}"}), 502
 
-    # Strategy constants (must match bot/pullback_strategy.py).
-    IMPULSE_PTS    = 5.0
-    IMPULSE_WINDOW = 4
-    PULLBACK_PCT   = 0.618
-    STOP_PTS       = 6.0
-    TARGET_PTS     = 12.0
+    # Strategy constants -- read from env so the verifier tracks the
+    # live config (STRAT_* env vars). Previously hardcoded to the old
+    # baseline (pull=0.618, stop=6, tgt=12), so when the live bot was
+    # running inverse mode (pull=0.236, stop=10, tgt=20) every trade
+    # got flagged as entry_price_off / side_mismatch.
+    IMPULSE_PTS    = float(os.environ.get("STRAT_IMPULSE_PTS", "5.0"))
+    IMPULSE_WINDOW = int(os.environ.get("STRAT_IMPULSE_BARS", "4"))
+    PULLBACK_PCT   = float(os.environ.get("STRAT_PULL_PCT", "0.618"))
+    STOP_PTS       = float(os.environ.get("STRAT_STOP_PTS", "6.0"))
+    TARGET_PTS     = float(os.environ.get("STRAT_TARGET_PTS", "12.0"))
+    INVERT_MODE    = os.environ.get("STRAT_INVERT", "0") == "1"
     MAX_WAIT_MIN   = 5
     MAX_HOLD_MIN   = 10
     ENTRY_TOL      = 0.5    # pt tolerance for matching entry prices
@@ -5253,20 +5258,29 @@ def api_admin_verify_today():
             rng = imp_high - imp_low
             if rng <= 0:
                 continue
+            # Entry geometry is anchored to the IMPULSE direction
+            # regardless of INVERT (the bot uses orig_side for the
+            # retracement calc and only flips the trade side).
             if impulse_side == "LONG":
                 expected_entry = imp_high - PULLBACK_PCT * rng
             else:
                 expected_entry = imp_low + PULLBACK_PCT * rng
+            # The TRADE side the bot should be on. INVERT flips it.
+            expected_side = (
+                ("SHORT" if impulse_side == "LONG" else "LONG")
+                if INVERT_MODE else impulse_side
+            )
             diag = {
                 "sig_close_ts": sig_close_ts.isoformat(),
                 "latest_bar_idx": latest_bar_idx.isoformat(),
                 "k_back": k,
                 "impulse_pts": round(net, 2),
                 "impulse_side": impulse_side,
+                "expected_side": expected_side,
                 "expected_entry": round(expected_entry, 2),
                 "entry_diff": round(expected_entry - bot_entry_px, 2),
             }
-            if impulse_side != bot_side:
+            if expected_side != bot_side:
                 diag["fail"] = "side_mismatch"
                 if closest_diag is None or abs(diag["entry_diff"]) < abs(closest_diag.get("entry_diff", 999)):
                     closest_diag = diag
