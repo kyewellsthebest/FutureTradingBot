@@ -631,6 +631,38 @@ class FibRuntime:
                                "if you want the auto-DLL safety re-enabled.")
         except Exception as _e:
             logger.debug(f"[STARTUP] pause cleanup skipped: {_e!r}")
+        # PAPER ORPHAN RECONCILIATION. If the paper account loaded an
+        # open_position from disk but the strategy state is fresh (no
+        # active trade), the lucid_guard sees the stale position and
+        # blocks every new entry on the opposite side with
+        # "hedge: <SIDE> already open". Symptom: bundle 12:18 UTC --
+        # 4 SHORT setups all blocked, 0 trades since restart, ~25 broker
+        # trades for the day stuck.
+        #
+        # Close the orphan in the paper book at the position's entry
+        # price (pnl = 0 minus commission, same as the existing
+        # orphan_recovered path in paper_trading.enter()). The next
+        # signal can then fire normally.
+        try:
+            if (self.account.state.open_position is not None
+                    and self.state.active_trade is None):
+                op = self.account.state.open_position
+                logger.warning(
+                    f"[STARTUP] paper account holds orphan {op.side} "
+                    f"qty={op.qty} @ {op.entry_px:.2f} (db_id={op.db_id}) "
+                    f"but strategy state is flat -- closing as "
+                    f"orphan_recovered to unblock new entries.")
+                from bot import persistence as _p
+                now_iso = real_utc_now().isoformat()
+                try:
+                    _p.close_trade(op.db_id, now_iso, op.entry_px,
+                                    "orphan_recovered", 0.0)
+                except Exception as _de:
+                    logger.warning(f"[STARTUP] orphan DB close failed: {_de!r}")
+                self.account.state.open_position = None
+                self.account.save()
+        except Exception as _e:
+            logger.warning(f"[STARTUP] paper orphan reconciliation failed: {_e!r}")
         self.monitor.start()
         # Signal handlers can ONLY be installed from the main thread of the
         # main interpreter. Account 2+ (and any other multi-account
@@ -2383,6 +2415,47 @@ class FibRuntime:
         were the single biggest source of broker-skipped trades in the
         bundles I've reviewed.
         """
+        # PAPER-ORPHAN check (independent of broker connectivity, runs
+        # even when tradovate is offline). If the paper account holds
+        # an open_position but the strategy is flat, the lucid hedge
+        # guard blocks every new entry on the opposite side. Debounce
+        # against the normal close path: require either no recent paper
+        # close (>5s) or sustained mismatch across 3+ cycles before
+        # acting, so we don't race a mid-flight legitimate close.
+        try:
+            paper_op = self.account.state.open_position
+            if (paper_op is not None
+                    and (self.state is None or self.state.active_trade is None)):
+                last_close = getattr(self.state, "last_trade_close_ts", None) if self.state else None
+                quiet_long_enough = True
+                if last_close is not None:
+                    try:
+                        quiet_long_enough = (
+                            (real_utc_now() - last_close).total_seconds() > 5.0)
+                    except Exception:
+                        quiet_long_enough = True
+                self._paper_orphan_streak = getattr(self, "_paper_orphan_streak", 0) + 1
+                if quiet_long_enough or self._paper_orphan_streak >= 3:
+                    logger.warning(
+                        f"[PAPER ORPHAN] paper holds {paper_op.side} qty="
+                        f"{paper_op.qty} @ {paper_op.entry_px:.2f} "
+                        f"(db_id={paper_op.db_id}) but strategy is flat "
+                        f"-- closing as orphan_recovered to unblock entries.")
+                    from bot import persistence as _p
+                    try:
+                        _p.close_trade(paper_op.db_id,
+                                        real_utc_now().isoformat(),
+                                        paper_op.entry_px,
+                                        "orphan_recovered", 0.0)
+                    except Exception as _de:
+                        logger.warning(f"[PAPER ORPHAN] DB close failed: {_de!r}")
+                    self.account.state.open_position = None
+                    self.account.save()
+                    self._paper_orphan_streak = 0
+            else:
+                self._paper_orphan_streak = 0
+        except Exception as _e:
+            logger.debug(f"paper orphan check: {_e!r}")
         if self.tradovate_orders is None:
             return
         sess = getattr(self.tradovate_orders, "session", None)
