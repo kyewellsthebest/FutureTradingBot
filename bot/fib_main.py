@@ -2454,32 +2454,39 @@ class FibRuntime:
             reason = record.get("exit_reason", "manual")
             if self._open_trade_ref is None:
                 pass  # broker never got the open; nothing to close
-            elif reason in ("stop", "target"):
-                # USER REQUIREMENT (2026-06-15): trade like manual.
-                # Bracket OCO is the SINGLE source of truth for exits.
-                # Don't send a competing market close that races the
-                # bracket at a worse fill.
-                #
-                # Previously TARGET CHASE liquidated on paper target
-                # wicks -- but by the time it executed, price had
-                # retreated, fills were at random prices, and the
-                # trade list filled with bizarre tiny P&L values
-                # ($0.76 wins, $2.74 losses on 0-second holds).
-                #
-                # Clean behavior now:
-                #   - Bracket STOP fires at stop_price (with normal
-                #     stop-market slip of 0-1pt)
-                #   - Bracket LIMIT TARGET fires when bid/ask reaches
-                #     target_price (matches strategy exactly)
-                #   - If LIMIT target wick doesn't fire bracket,
-                #     position runs to stop -- accept this as the
-                #     cost of clean execution
+            elif reason in ("stop", "target") and os.environ.get(
+                    "BROKER_INSTANT_CLOSE", "1") != "1":
+                # LEGACY behaviour (set BROKER_INSTANT_CLOSE=0 to restore):
+                # let the bracket OCO own stop/target exits. Previously
+                # this was the default after the 2026-06-15 "trade like
+                # manual" requirement, but the user reverted on
+                # 2026-06-18 -- the bracket LIMIT for the target was
+                # sitting in queue while price ticked past, and the
+                # trade refused to close. Now defaults to firing an
+                # immediate liquidate on every paper-side exit so
+                # there's ZERO delay between strategy decision and
+                # broker close.
                 logger.info(
                     f"[broker CLOSE skip] {reason} owned by broker "
-                    f"OCO bracket -- letting it handle the exit at "
-                    f"bracket price")
+                    f"OCO bracket (legacy mode -- BROKER_INSTANT_CLOSE=0)")
             elif self.tradovate_orders is not None:
-                # Tradovate path: timeout/manual close -> market flatten
+                # ZERO-DELAY broker close (default mode). On every paper
+                # exit -- stop, target, timeout, manual -- fire a
+                # liquidateposition. This:
+                #   - atomically cancels the bracket children
+                #     (which would otherwise race us at queue priority
+                #     and might miss the target by ticking through)
+                #   - sends a flatten MARKET that fills in <50ms at
+                #     Tradovate's matching engine
+                #   - guarantees broker position matches paper on every
+                #     close, eliminating "live trade ticking over TP
+                #     without closing" symptom user reported
+                #
+                # The MARKET fill price may differ from the bracket
+                # LIMIT target by 0-1pt (whatever the current bid/ask
+                # is at the moment of liquidation). Accepted trade-off:
+                # the user explicitly chose this on 2026-06-18,
+                # prioritising instant exit over exact-tick fill.
                 try:
                     from research.data_loader import polygon_front_month
                     symbol = os.environ.get(
@@ -2495,7 +2502,7 @@ class FibRuntime:
                     if result.ok:
                         logger.info(
                             f"[tradovate CLOSE OK] order_id={result.order_id} "
-                            f"reason={reason}")
+                            f"reason={reason} (zero-delay liquidate)")
                     else:
                         logger.warning(
                             f"[tradovate CLOSE FAIL] {result.error}")
