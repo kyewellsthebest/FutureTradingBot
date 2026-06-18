@@ -283,6 +283,28 @@
           <div class="targeted-dl-desc">For spreadsheets</div>
         </button>
       </div>
+
+      <!-- Reset account -- destructive. Lives at the bottom of Downloads
+           so it's away from daily controls but findable when needed. -->
+      <div class="grid" style="margin-top:32px">
+        <div class="card hero-card" style="border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.04)">
+          <div class="hero-icon" style="color:#ef4444">⚠</div>
+          <h2 style="color:#ef4444">Reset account</h2>
+          <p>Wipes the active account's trade history, balance state,
+            dashboard snapshot, equity curve, Performance graphs, daily /
+            weekly / monthly P&amp;L, and the broker history cache.
+            Tradovate's real cash balance is preserved (it lives on
+            their servers; we can't touch it). After reset every tab on
+            the dashboard starts from zero and only counts trades from
+            the reset moment forward.</p>
+          <p class="muted small" style="margin-top:6px">Requires
+            confirmation + password. No undo.</p>
+          <button class="btn-primary" id="btn-reset-account"
+                  style="background:#ef4444;border-color:#ef4444">
+            Reset account
+          </button>
+        </div>
+      </div>
     </section>
 
   </main>
