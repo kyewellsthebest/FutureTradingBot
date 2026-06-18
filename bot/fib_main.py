@@ -1179,6 +1179,47 @@ class FibRuntime:
         if self._bars_1m is None or self._bars_1m.empty:
             return
 
+        # PRIMARY BAR SOURCE: WS-built tick bars over REST aggs.
+        # -------------------------------------------------------------
+        # Root cause of "polygon expected X, bot fired at Y" divergence
+        # (21pt gaps in some trades): the REST aggs cache only refreshes
+        # every 60s, and during that 60-second window the strategy fires
+        # on bars that are missing the most recent close. Verification
+        # function (which reads fresh polygon aggs at trade time) then
+        # disagrees on the impulse magnitude and entry level.
+        #
+        # WS-built bars are aggregated from the live tick stream on
+        # every tick, so they are NEVER stale by more than a tick
+        # (<100ms). Using them as the primary source eliminates the
+        # bar-age divergence entirely. The REST aggs remain available
+        # as a fallback during WS warmup (first ~35 minutes after bot
+        # start) when the tick aggregator hasn't accumulated enough
+        # closed bars yet.
+        #
+        # Env var BOT_PREFER_WS_BARS=0 to revert to the legacy
+        # REST-first behaviour.
+        prefer_ws = os.environ.get("BOT_PREFER_WS_BARS", "1") == "1"
+        if prefer_ws:
+            try:
+                ws_bars = self.monitor.tick_bars.get_bars()
+                ws_closed = len(ws_bars) if ws_bars is not None else 0
+            except Exception as e:
+                logger.debug(f"WS-bars fetch: {e!r}")
+                ws_bars = None
+                ws_closed = 0
+            # Need at least IMPULSE_WINDOW_BARS (4) + 1 spare for the
+            # current bar that is about to close.
+            min_ws_bars = 5
+            if ws_bars is not None and ws_closed >= min_ws_bars:
+                if self._bars_1m_source != "polygon_ws_ticks":
+                    logger.warning(
+                        f"[BAR-SOURCE switch] using live WS tick-built "
+                        f"bars as primary (was {self._bars_1m_source}, "
+                        f"{ws_closed} closed bars available, eliminates "
+                        f"REST refresh staleness)")
+                self._bars_1m = ws_bars
+                self._bars_1m_source = "polygon_ws_ticks"
+
         # Bar-staleness guard with WS-tick fallback.
         # ------------------------------------------------------------
         # If the latest REST aggs bar is >5min old (observed on the
