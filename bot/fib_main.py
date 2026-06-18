@@ -1443,6 +1443,17 @@ class FibRuntime:
                 # downstream. The bug fixes (dd160d9, e9ea951,
                 # 070df56) eliminate the actual leak mechanisms
                 # without touching trade count.
+                # DIVERGENCE GATE. The old 30pt cap was a safety against
+                # broker submitting at wildly different prices than the
+                # strategy decided. With the bracket re-anchor at the
+                # actual fill price downstream, the cap is essentially
+                # never useful in normal trading -- a 30pt divergence
+                # means a black-swan event already happened. User
+                # explicitly asked to NEVER skip a paper trade on the
+                # broker side, so we now treat the divergence as a
+                # WARNING (logged but doesn't block submission) instead
+                # of a hard skip. Operators who want the hard skip back
+                # can set BROKER_HARD_DIVERGENCE_SKIP=1 in env.
                 divergence_max = float(os.environ.get(
                     "TRADERSPOST_MAX_DIVERGENCE_PT", "30"))
                 logger.info(f"[broker gate 4/4 divergence] "
@@ -1450,14 +1461,26 @@ class FibRuntime:
                             f"live={live_snap.price:.2f} "
                             f"diff={divergence:.1f}pt "
                             f"limit={divergence_max:.1f}pt")
+                hard_skip = os.environ.get("BROKER_HARD_DIVERGENCE_SKIP", "0") == "1"
                 if divergence > divergence_max:
-                    logger.error(
-                        f"[{broker_name} SKIP] divergence "
-                        f"{divergence:.1f}pt > {divergence_max:.1f}pt")
-                    _tl(setup_ref, "broker_skip", reason="divergence",
-                         strategy=trade.entry_px, live=live_snap.price,
-                         diff=divergence)
-                    return
+                    if hard_skip:
+                        logger.error(
+                            f"[{broker_name} HARD-SKIP] divergence "
+                            f"{divergence:.1f}pt > {divergence_max:.1f}pt "
+                            f"(BROKER_HARD_DIVERGENCE_SKIP=1)")
+                        _tl(setup_ref, "broker_skip", reason="divergence",
+                             strategy=trade.entry_px, live=live_snap.price,
+                             diff=divergence)
+                        return
+                    else:
+                        logger.warning(
+                            f"[{broker_name} divergence WARNING] "
+                            f"{divergence:.1f}pt > {divergence_max:.1f}pt "
+                            f"-- submitting anyway (no hard skip; user "
+                            f"requested every paper trade to fire on broker)")
+                        _tl(setup_ref, "broker_divergence_warning",
+                             strategy=trade.entry_px, live=live_snap.price,
+                             diff=divergence)
 
                 # All gates passed -- send the order.
                 # FIRST: check if we already pre-submitted (anticipatory or
@@ -2286,6 +2309,15 @@ class FibRuntime:
         So broker netPos > 1 (or < -1 for SHORT) is always an error.
 
         Runs on every cycle. Idempotent.
+
+        ALSO handles ORPHAN broker positions: if paper has no active
+        trade AND _open_trade_ref is None (bot's belief is "flat") but
+        the broker still has a position, that's an orphan. Flatten it
+        immediately so the bot's next signal can fire on broker without
+        the duplicate-entry guard tripping. User explicitly requested
+        every paper trade to also fire on broker -- orphan positions
+        were the single biggest source of broker-skipped trades in the
+        bundles I've reviewed.
         """
         if self.tradovate_orders is None:
             return
@@ -2299,31 +2331,38 @@ class FibRuntime:
             status, positions = sess._rest("GET", "/position/list")
             if status != 200 or not isinstance(positions, list):
                 return
+            # Bot's belief: is paper in a trade?
+            paper_in_trade = (self.state is not None
+                              and self.state.active_trade is not None
+                              and self._open_trade_ref is not None)
             for p in positions:
                 if not isinstance(p, dict):
                     continue
                 if p.get("accountId") != acct_id:
                     continue
                 net = int(p.get("netPos") or 0)
-                if abs(net) <= 1:
-                    continue   # Single position is fine
-                # MULTIPLE POSITIONS DETECTED
-                excess = abs(net) - 1
+                if net == 0:
+                    continue   # Broker flat -- nothing to reconcile
+                # Two anomalies handled below:
+                #   A. Stacking: net > 1 contract (always wrong)
+                #   B. Orphan:   broker has 1 contract but paper expects flat
+                stack_excess = abs(net) > 1
+                orphan = (abs(net) == 1) and (not paper_in_trade)
+                if not stack_excess and not orphan:
+                    continue
+                anomaly_kind = "STACK" if stack_excess else "ORPHAN"
+                excess = abs(net) - (1 if not orphan else 0)
                 logger.error(
-                    f"[POSITION STACK DETECTED] broker netPos={net} "
-                    f"(strategy expects max 1). Flattening {excess} "
-                    f"extra contracts to restore single-position "
-                    f"invariant.")
+                    f"[POSITION {anomaly_kind} DETECTED] broker netPos={net} "
+                    f"paper_in_trade={paper_in_trade} -- flattening "
+                    f"{excess if stack_excess else abs(net)} contracts "
+                    f"to restore single-position invariant.")
                 try:
                     from research.data_loader import polygon_front_month
                     symbol = os.environ.get(
                         "TRADOVATE_SYMBOL",
                         polygon_front_month(
                             os.environ.get("POLYGON_CONTRACT", "MNQ")))
-                    # liquidateposition flattens ALL contracts. We
-                    # actually want to keep 1 -- so this overshoots,
-                    # but the next entry signal will re-open if needed.
-                    # Cleaner than trying to partially close.
                     # Use contractId from the position record directly
                     # (more reliable than re-resolving from symbol).
                     cid = p.get("contractId")
@@ -2339,14 +2378,21 @@ class FibRuntime:
                             "POST", "/order/liquidateposition",
                             body=flat_body)
                         logger.warning(
-                            f"[POSITION STACK FLATTENED] contractId={cid} "
-                            f"netPos={net}")
+                            f"[POSITION {anomaly_kind} FLATTENED] "
+                            f"contractId={cid} netPos={net}")
+                        # On orphan, also wipe stale tracking state so the
+                        # next signal doesn't see ghosts.
+                        if orphan:
+                            self._open_trade_ref = None
+                            self._broker_stop_px = None
+                            self._broker_target_px = None
+                            self._broker_side = None
                     else:
                         logger.error(
-                            f"[POSITION STACK] no contractId in position "
-                            f"record; cannot flatten")
+                            f"[POSITION {anomaly_kind}] no contractId in "
+                            f"position record; cannot flatten")
                 except Exception as e:
-                    logger.error(f"position stack flatten failed: {e!r}")
+                    logger.error(f"position {anomaly_kind} flatten failed: {e!r}")
         except Exception as e:
             logger.debug(f"position discrepancy check: {e!r}")
 
