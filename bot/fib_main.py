@@ -1221,6 +1221,44 @@ class FibRuntime:
                 if self._bars_5m is None:
                     return
 
+        # WS-TICK BARS FALLBACK. Polygon REST has had hours-long blackouts
+        # where /aggs returned empty on every poll while the WS feed kept
+        # streaming ticks just fine. Bundle 23:30 UTC showed the bot
+        # bailing every cycle for 3 hours straight because _bars_5m never
+        # populated, while ws_tick_bars sat at 117 closed bars ready to
+        # use. Build 1-min from the live tick aggregator and 5-min by
+        # resampling those, so REST being down can't pause the strategy.
+        if (self._bars_5m is None or self._bars_5m.empty
+                or self._bars_1m is None or self._bars_1m.empty):
+            try:
+                ws_bars = self.monitor.tick_bars.get_bars()
+                ws_closed = len(ws_bars) if ws_bars is not None else 0
+            except Exception as e:
+                logger.debug(f"WS-bars fallback fetch: {e!r}")
+                ws_bars = None
+                ws_closed = 0
+            if ws_bars is not None and ws_closed >= 5:
+                self._bars_1m = ws_bars
+                self._bars_1m_source = "polygon_ws_ticks"
+                try:
+                    # Resample 1-min -> 5-min: OHLC + volume. The HTF
+                    # trend filter only needs ~60 bars (k=30 pivot), so
+                    # even a partial WS history works once it warms up.
+                    resampled = ws_bars.resample("5min").agg({
+                        "open": "first", "high": "max",
+                        "low": "min", "close": "last",
+                    }).dropna()
+                    if not resampled.empty:
+                        self._bars_5m = resampled
+                except Exception as e:
+                    logger.debug(f"WS->5m resample: {e!r}")
+                if not hasattr(self, "_ws_fallback_warned") or not self._ws_fallback_warned:
+                    self._ws_fallback_warned = True
+                    logger.warning(
+                        f"[BAR-SOURCE WS-FALLBACK] Polygon REST unavailable "
+                        f"-- driving the strategy from {ws_closed} WS "
+                        f"tick-built closed bars and resampled 5-min.")
+
         if self._bars_5m is None or self._bars_5m.empty:
             return
         if self._bars_1m is None or self._bars_1m.empty:
@@ -1330,6 +1368,14 @@ class FibRuntime:
                                             bars_1m_source=self._bars_1m_source)
 
         self.bars_processed += 1
+        # The strategy ran a full tick cycle -- clear any stale
+        # last_error left over from a transient failure earlier in the
+        # session (e.g. price_invalid_paused from a brief stale price
+        # window, or bars_stale_X when REST recovered after a blackout).
+        # Without this the dashboard reports a permanent failure state
+        # even though the bot has been trading normally for hours.
+        if self.last_error is not None:
+            self.last_error = None
         had_trade_before = self.state.active_trade is not None
         # The fib strategy reads a research/lucid_guard.LucidState — the
         # bot's LucidAccount has a helper to build that on demand.
