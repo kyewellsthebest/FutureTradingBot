@@ -330,6 +330,29 @@ class TradovateSession:
                         f"Tradovate HTTP 429 -- cooling down for {base:.0f}s "
                         f"(next trip will wait {nxt:.0f}s). All modules "
                         f"will share this cooldown.")
+                # HTTP 401 = "Access is denied". Either credentials are
+                # wrong (TRADOVATE_USERNAME/PASSWORD/CID/SECRET mismatch
+                # with the cluster) or the account is locked out at
+                # Tradovate's end. Spamming reauth at 1Hz across three
+                # threads (main + user_ws + md_ws) just keeps the
+                # lockout warm and produced 150 401 errors per 2 minutes
+                # in the bundle. Cool down for the same shared window
+                # so user_ws/md_ws/health-check all back off together.
+                # User has to fix the underlying credential issue --
+                # this just stops us making it worse.
+                if e.code == 401:
+                    base = float(getattr(self, "_auth_denied_backoff_s", 60.0))
+                    nxt = min(600.0, base * 2.0)
+                    self._auth_denied_backoff_s = nxt
+                    self._rate_limited_until = _t.time() + base
+                    logger.error(
+                        f"Tradovate HTTP 401 'Access is denied' -- cooling "
+                        f"down for {base:.0f}s. Verify Railway env vars "
+                        f"TRADOVATE_USERNAME / TRADOVATE_PASSWORD / "
+                        f"TRADOVATE_CID / TRADOVATE_SECRET / "
+                        f"TRADOVATE_DEMO and that the account isn't "
+                        f"locked at Tradovate. All modules will share "
+                        f"this cooldown.")
                 return None
             except Exception as e:
                 logger.error(f"Tradovate auth failed: {e!r}")
