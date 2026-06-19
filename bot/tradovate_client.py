@@ -194,6 +194,10 @@ class TradovateSession:
         self.creds = creds or TradovateCredentials.from_env()
         self._tokens: Optional[TradovateTokens] = None
         self._account_id: Optional[int] = None  # populated on first /account/list
+        # Sticky fallback used by get_account_id() when a refresh fails.
+        # Once set, never cleared until the process restarts. Keeps the
+        # broker entry path alive through transient /account/list flakes.
+        self._last_known_account_id: Optional[int] = None
         # LATENCY: cache the resolved contract_id for the active symbol
         # so we don't hit /contract/find on every liquidate/order. Same
         # value all day for a given front-month contract.
@@ -551,19 +555,36 @@ class TradovateSession:
 
     def get_account_id(self, name_match: Optional[str] = None) -> Optional[int]:
         """Find the numeric account ID. If name_match given, prefers an
-        account whose name contains that substring. Caches the result."""
+        account whose name contains that substring. Caches the result.
+
+        STICKY FALLBACK: once the bot has ever successfully resolved an
+        account id, it's remembered in `_last_known_account_id` and
+        returned whenever a fresh lookup fails. The entry path checks
+        this property on every paper trade, so a 15s /account/list
+        timeout would otherwise drop the broker order silently
+        (bundle 02:50 UTC: 8 of 17 paper trades lost this way after
+        the periodic health check wiped `_account_id`). The sticky
+        fallback never disappears across the process lifetime; it
+        only updates when a real refresh succeeds and returns a
+        different id.
+        """
         if self._account_id is not None and name_match is None:
             return self._account_id
         accts = self.account_list()
         if not accts:
-            return None
+            # REST call failed (timeout, 429, etc). Return the last
+            # known good id rather than None so the entry path keeps
+            # submitting against the right account.
+            return getattr(self, "_last_known_account_id", None)
         if name_match:
             for a in accts:
                 if name_match.lower() in str(a.get("name", "")).lower():
                     self._account_id = int(a["id"])
+                    self._last_known_account_id = self._account_id
                     return self._account_id
         # First account by default
         self._account_id = int(accts[0]["id"])
+        self._last_known_account_id = self._account_id
         logger.info(f"Tradovate active account: id={self._account_id} "
                     f"name={accts[0].get('name')!r}")
         return self._account_id

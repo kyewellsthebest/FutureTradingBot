@@ -940,20 +940,37 @@ class FibRuntime:
             try:
                 sess = self.tradovate_orders.session
                 if sess is not None and sess.is_configured:
-                    # Force re-fetch of account_id: clear cache, re-call
-                    # account_list which re-authenticates if needed.
+                    # NON-DESTRUCTIVE REFRESH. Previously we set
+                    # sess._account_id = None upfront and only restored
+                    # the prior value if the re-fetch failed. That left
+                    # a window (often 15-30s on a slow /account/list)
+                    # where any paper trade firing in the meantime hit
+                    # no_account_id and the broker order was silently
+                    # dropped. Bundle 02:50 UTC: 8 of 17 trades lost
+                    # this way, 2 of them with signal_to_placeoso=60001ms
+                    # (one 15s timeout + one 15s retry).
+                    #
+                    # Now we keep the cached id live the whole time.
+                    # Re-authenticate, ask for a fresh id, only swap
+                    # the cache if the refresh actually returned
+                    # something. The next placeoso always reads a
+                    # valid id without paying the network latency.
                     prior = sess._account_id
-                    sess._account_id = None
-                    # Try a direct authenticate() first so the failure
-                    # reason (HTTP code, captcha, errorText) is logged
-                    # by tradovate_client itself. Then call get_account_id
-                    # which fetches /account/list.
                     tokens = None
                     try:
                         tokens = sess.authenticate()
                     except Exception as ae:
                         logger.error(f"[BROKER HEALTH] authenticate() raised: {ae!r}")
-                    fresh = sess.get_account_id() if tokens else None
+                    fresh = None
+                    if tokens is not None:
+                        try:
+                            accts = sess.account_list()
+                            if accts:
+                                fresh = int(accts[0]["id"])
+                        except Exception as le:
+                            logger.warning(
+                                f"[BROKER HEALTH] account_list raised: "
+                                f"{le!r} -- keeping cached id={prior}")
                     if fresh is None:
                         # Surface a detailed diagnostic so the operator
                         # can see WHY auth keeps failing instead of just
@@ -966,23 +983,20 @@ class FibRuntime:
                         elif tokens.user_id == 0:
                             reason = "auth ok but userId=0 -- creds may belong to a disabled or wrong-cluster account"
                         else:
-                            reason = "auth ok but /account/list empty -- the user has no accounts on this cluster (check TRADOVATE_DEMO env var matches the cluster the account lives on)"
+                            reason = "auth ok but /account/list empty or slow -- keeping cached id as fallback so in-flight trades don't lose the broker"
                         logger.error(
-                            "[BROKER HEALTH] account_list empty after "
-                            "re-auth. user_id=%r tokens=%s reason=%s. "
-                            "Will retry in 5 min. Paper continues; "
-                            "broker is OFFLINE.",
+                            "[BROKER HEALTH] refresh failed. user_id=%r "
+                            "tokens=%s reason=%s. Will retry in 5 min. "
+                            "Cached id=%r still in use; paper continues.",
                             tokens.user_id if tokens else None,
                             "present" if tokens else "missing",
-                            reason)
-                        # Restore prior cached id so existing logic doesn't
-                        # see a transient None and crash.
-                        sess._account_id = prior
+                            reason, prior)
                     else:
                         if prior != fresh:
                             logger.warning(
                                 f"[BROKER HEALTH] account_id changed "
                                 f"{prior!r} -> {fresh!r}")
+                            sess._account_id = fresh
                         else:
                             logger.info(
                                 f"[BROKER HEALTH] OK account_id={fresh} "
