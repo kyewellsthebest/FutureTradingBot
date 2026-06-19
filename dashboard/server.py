@@ -3836,9 +3836,18 @@ def _build_diagnostic_extras() -> dict:
     # -> placeoso sent -> broker poll #1/2/3/4 -> filled -> paper closed)
     # timestamped to the setup_ref tag. Pairs with reconciliation rows.
     try:
-        from bot.trade_timeline import get_timeline_all, get_summary
+        from bot.trade_timeline import (
+            get_timeline_all, get_summary, get_latency_report)
         extras["trade_timelines"] = get_timeline_all()
         extras["trade_timelines_summary"] = get_summary()
+        # Per-trade latency + price-divergence report. Each row carries
+        # measured ms-precision delays at each stage (paper signal ->
+        # placeoso send -> REST ack -> broker fill, plus the same for
+        # the close side) and the entry-price gap between paper and
+        # broker. Aggregates at the top show p50/p95/p99 across the
+        # session so a single bundle answers "is the broker slow or
+        # is it just diverging on a few outliers".
+        extras["trade_latency_report"] = get_latency_report()
     except Exception as e:
         extras["trade_timelines"] = {"unavailable": repr(e)}
     # Bot process uptime + cycle counters from the live snapshot.

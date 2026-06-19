@@ -2814,12 +2814,20 @@ class FibRuntime:
                         "TRADOVATE_SYMBOL",
                         polygon_front_month(
                             os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                    _tl(self._open_trade_ref, "broker_close_sent",
+                         reason=reason,
+                         paper_exit_px=record.get("exit_px"),
+                         paper_pnl=record.get("pnl_usd"))
                     result = self.tradovate_orders.submit_market_close(
                         side=record.get("side", "LONG"),
                         qty=record.get("n_mnq", 1),
                         symbol=symbol,
                         setup_ref=self._open_trade_ref,
                     )
+                    _tl(self._open_trade_ref, "broker_close_result",
+                         ok=result.ok, order_id=result.order_id,
+                         http_status=result.status_code,
+                         error=result.error)
                     if result.ok:
                         logger.info(
                             f"[tradovate CLOSE OK] order_id={result.order_id} "
