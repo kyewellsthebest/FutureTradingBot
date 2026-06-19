@@ -341,8 +341,16 @@ class TradovateSession:
                 # User has to fix the underlying credential issue --
                 # this just stops us making it worse.
                 if e.code == 401:
-                    base = float(getattr(self, "_auth_denied_backoff_s", 60.0))
-                    nxt = min(600.0, base * 2.0)
+                    # Short fixed-ish cooldown to prevent reconnect-loop
+                    # spam from extending a soft lockout. Base 15s,
+                    # doubling cap at 60s (NOT 600s). Caps low because
+                    # Tradovate tokens are ~90 min; a multi-minute
+                    # cooldown can swallow the *next* refresh window
+                    # and produce the "broker dies for an hour at a
+                    # time" pattern (bundle 07:21 UTC: 1h working +
+                    # 1h dead + 1h working + 1h dead).
+                    base = float(getattr(self, "_auth_denied_backoff_s", 15.0))
+                    nxt = min(60.0, base * 2.0)
                     self._auth_denied_backoff_s = nxt
                     self._rate_limited_until = _t.time() + base
                     logger.error(
@@ -406,9 +414,14 @@ class TradovateSession:
         self._tokens = tokens
         # Successful auth -- clear any rate-limit cooldown so the next
         # token refresh can run on schedule instead of being suppressed,
-        # and reset the exponential backoff floor.
+        # and reset the exponential backoff floors for both rate-limit
+        # (429) and auth-denied (401) paths. Without resetting both,
+        # a single bad 401 / 429 hour ago kept the cooldown growing on
+        # every subsequent flake even though intervening auth attempts
+        # succeeded.
         self._rate_limited_until = 0.0
         self._rate_limit_backoff_s = 60.0
+        self._auth_denied_backoff_s = 15.0
         cluster = "demo" if _is_demo() else "live"
         logger.info(f"Tradovate authenticated ({cluster}): user_id="
                     f"{tokens.user_id} has_market_data={tokens.has_market_data} "
@@ -442,6 +455,22 @@ class TradovateSession:
         if self._tokens is None or self._tokens.is_expiring_soon:
             return self.authenticate()
         return self._tokens
+
+    def peek_tokens(self) -> Optional[TradovateTokens]:
+        """Return the cached tokens WITHOUT triggering a refresh. Used
+        by the WS reconnect loops (user_ws, md_ws) which previously
+        called get_tokens() on every 5s reconnect attempt; when the
+        main session hit a 401 cooldown each of those reconnects
+        tried its own authenticate() and the resulting storm kept the
+        cooldown growing across hours. The background refresh thread
+        is the single source of truth for token freshness now -- the
+        WS loops just wait for it."""
+        toks = self._tokens
+        if toks is None:
+            return None
+        if toks.is_expiring_soon:
+            return None
+        return toks
 
     def start_background_refresh(self) -> None:
         """Start a daemon thread that refreshes the access token BEFORE

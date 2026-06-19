@@ -174,16 +174,27 @@ class TradovateUserWS:
                 self.last_error = repr(e)
                 self.connected = False
                 self.subscribed = False
+                # Token-absence is a different failure mode than a
+                # dropped TCP. Wait longer so the background-refresh
+                # thread has a chance to land fresh tokens before we
+                # spin again. Prior 5s cap produced 60+ spam lines per
+                # minute in the log tail while accomplishing nothing.
+                is_token_gap = "no auth tokens" in str(e)
+                eff_backoff = max(backoff, 20.0) if is_token_gap else backoff
                 logger.warning(f"user_ws: loop exception: {e!r} -- "
-                               f"reconnect in {backoff}s")
-                if self._stop.wait(backoff):
+                               f"reconnect in {eff_backoff}s")
+                if self._stop.wait(eff_backoff):
                     break
                 backoff = min(BACKOFF_MAX_S, backoff * 2)
         logger.info("user_ws: loop ended")
 
     def _connect_and_pump(self) -> None:
         import websocket
-        tokens = self.session.get_tokens()
+        # peek (not get) so we don't independently trigger authenticate()
+        # on every 5s reconnect attempt. The background-refresh thread
+        # is the single source of truth for token freshness; if tokens
+        # are absent or stale we just back off and let it run.
+        tokens = self.session.peek_tokens()
         if tokens is None:
             raise RuntimeError("user_ws: no auth tokens")
         url = _user_ws_url()

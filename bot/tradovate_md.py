@@ -137,24 +137,34 @@ class TradovateMarketData:
 
     def _run_loop(self) -> None:
         backoff = BACKOFF_INITIAL_S
+        is_token_gap = False
         while not self._stop.is_set():
             try:
                 self._connect_and_pump()
                 backoff = BACKOFF_INITIAL_S
+                is_token_gap = False
             except Exception as e:
                 self.last_error = repr(e)
+                is_token_gap = "auth failed" in str(e)
                 logger.warning(f"tradovate_md: connection failed: {e!r} -- "
                                f"retrying in {backoff:.1f}s")
             finally:
                 self.connected = False
                 self._subscribed = False
-            if self._stop.wait(backoff):
+            # If the failure was token absence, wait longer so the
+            # background-refresh thread has time to land fresh tokens.
+            eff_backoff = max(backoff, 20.0) if is_token_gap else backoff
+            if self._stop.wait(eff_backoff):
                 break
             backoff = min(backoff * 2, BACKOFF_MAX_S)
 
     def _connect_and_pump(self) -> None:
         import websocket
-        tokens = self.session.get_tokens()
+        # peek (not get) so the 5s reconnect loop doesn't trigger an
+        # independent authenticate() while the main session is in a
+        # 401 cooldown. The background-refresh thread is the single
+        # source of truth for token freshness.
+        tokens = self.session.peek_tokens()
         if tokens is None:
             raise RuntimeError("auth failed")
         md_token = tokens.md_access_token
