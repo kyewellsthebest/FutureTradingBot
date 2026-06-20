@@ -429,6 +429,83 @@ class TradovateSession:
                     f"{(expires_at - time.time()) / 60:.0f}min")
         return tokens
 
+    def renew_access_token(self) -> Optional[TradovateTokens]:
+        """Exchange the current access token for a fresh one via
+        /auth/renewaccesstoken. This is what Tradovate's REST API is
+        designed for between sessions: no username/password recheck,
+        no captcha, no rate limit on the full-login endpoint.
+
+        The bot previously called full /auth/accesstokenrequest on
+        every renewal, which triggers Tradovate's per-credential
+        rate limiter and locks the account out after ~1-2 renewals
+        per session. Switching to renewaccesstoken eliminates the
+        renewal lockout entirely.
+
+        Returns the new tokens on success, None on failure (caller
+        should fall back to a full authenticate()).
+        """
+        current = self._tokens
+        if current is None or not current.access_token:
+            return None
+        url = f"{_rest_base()}/auth/renewaccesstoken"
+        req = urllib.request.Request(
+            url, method="GET",
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "hftbot/1.0",
+                "Authorization": f"Bearer {current.access_token}",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                resp_body = resp.read().decode("utf-8", errors="replace")
+                data = json.loads(resp_body)
+        except urllib.error.HTTPError as e:
+            try:
+                err_body = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                err_body = ""
+            logger.warning(
+                f"Tradovate renewaccesstoken HTTP {e.code}: "
+                f"{err_body[:200]!r} -- falling back to full re-auth")
+            return None
+        except Exception as e:
+            logger.warning(
+                f"Tradovate renewaccesstoken failed: {e!r} -- "
+                f"falling back to full re-auth")
+            return None
+        access = data.get("accessToken")
+        md_access = data.get("mdAccessToken")
+        exp_iso = data.get("expirationTime")
+        if not access or not exp_iso:
+            logger.warning(
+                f"Tradovate renew response missing fields: "
+                f"keys={list(data.keys())} -- falling back to full re-auth")
+            return None
+        try:
+            exp_dt = datetime.fromisoformat(exp_iso.replace("Z", "+00:00"))
+            expires_at = exp_dt.timestamp()
+        except Exception:
+            expires_at = time.time() + 3600
+        tokens = TradovateTokens(
+            access_token=access,
+            md_access_token=md_access or access,
+            expires_at=expires_at,
+            user_id=int(data.get("userId", current.user_id)),
+            has_market_data=bool(data.get("hasMarketData", current.has_market_data)),
+            has_live=bool(data.get("hasLive", current.has_live)),
+        )
+        self._tokens = tokens
+        # Successful renewal -- mirror the post-auth bookkeeping so
+        # cooldown floors reset and other modules see a fresh window.
+        self._rate_limited_until = 0.0
+        self._rate_limit_backoff_s = 60.0
+        self._auth_denied_backoff_s = 15.0
+        logger.info(
+            f"Tradovate token renewed: expires_in="
+            f"{(expires_at - time.time()) / 60:.0f}min")
+        return tokens
+
     def prewarm(self) -> None:
         """Pre-establish the TCP+TLS connection to Tradovate before the
         first trade fires. The first REST call after process start pays
@@ -451,8 +528,19 @@ class TradovateSession:
             logger.debug(f"prewarm: {e!r}")
 
     def get_tokens(self) -> Optional[TradovateTokens]:
-        """Return current tokens, refreshing if expiring soon."""
-        if self._tokens is None or self._tokens.is_expiring_soon:
+        """Return current tokens, refreshing if expiring soon.
+
+        Prefers renewaccesstoken (cheap, no captcha, no rate limit)
+        over a full /auth/accesstokenrequest re-login. Falls back to
+        full auth only if renewal fails or there are no current tokens
+        at all.
+        """
+        if self._tokens is None:
+            return self.authenticate()
+        if self._tokens.is_expiring_soon:
+            renewed = self.renew_access_token()
+            if renewed is not None:
+                return renewed
             return self.authenticate()
         return self._tokens
 
@@ -501,7 +589,17 @@ class TradovateSession:
                         logger.info(
                             "[token refresh] proactive refresh -- "
                             "trade path stays fast")
-                        self.authenticate()
+                        # Try renewal FIRST (no captcha, no password
+                        # recheck, no full-login rate limit). Only fall
+                        # back to a full authenticate() if renewal
+                        # fails. Bundle 02:19 UTC showed the full-
+                        # login path hitting Tradovate's per-credential
+                        # rate limiter every refresh and locking the
+                        # account out -- the renewal endpoint exists
+                        # exactly to avoid that.
+                        renewed = self.renew_access_token()
+                        if renewed is None:
+                            self.authenticate()
                 except Exception as e:
                     logger.debug(f"token refresh loop: {e!r}")
                     _t.sleep(60)
