@@ -3850,6 +3850,19 @@ def _build_diagnostic_extras() -> dict:
         extras["trade_latency_report"] = get_latency_report()
     except Exception as e:
         extras["trade_timelines"] = {"unavailable": repr(e)}
+    # Per-trade tick + decision snapshots. For every paper trade
+    # that closed >= 3 min ago, the snapshot worker has stitched
+    # together the 3-min-before / 3-min-after tick path, the paper
+    # entry / stop / target / exit, the broker placeoso intent, the
+    # actual broker fill, and the broker close. Each snapshot is
+    # ~5-10 KB and the ring is bounded at the most recent 50 trades.
+    try:
+        from bot.trade_tick_snapshots import (
+            get_snapshots, get_pending_count)
+        extras["per_trade_snapshots"] = get_snapshots()
+        extras["per_trade_snapshots_pending"] = get_pending_count()
+    except Exception as e:
+        extras["per_trade_snapshots"] = {"unavailable": repr(e)}
     # Bot process uptime + cycle counters from the live snapshot.
     try:
         snap = persistence.load_dashboard()

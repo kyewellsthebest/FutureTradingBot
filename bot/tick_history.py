@@ -68,3 +68,22 @@ def get_tick_history() -> dict:
     # Only the most recent 500 ticks go in the bundle -- enough to
     # replay an entry/exit moment without bloating the file.
     return {**summary, "ticks_tail": ticks[-500:]}
+
+
+def get_ticks_in_window(start_ts: float, end_ts: float) -> list:
+    """Return all buffered ticks whose ts falls within [start_ts, end_ts].
+
+    Used by the per-trade tick snapshot recorder so each completed
+    trade carries its surrounding 3-min-before / 3-min-after price
+    path into the diagnostic bundle. Operates on the full 5000-tick
+    deque, not the bundle-trimmed ticks_tail.
+    """
+    out = []
+    for t in _TICKS:
+        ts = t.get("ts", 0)
+        if ts < start_ts:
+            continue
+        if ts > end_ts:
+            continue
+        out.append(t)
+    return out

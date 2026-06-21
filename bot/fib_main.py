@@ -2733,6 +2733,42 @@ class FibRuntime:
         # Always close through the paper account so balance updates and
         # the trade is persisted to the SQLite DB — surviving restarts.
         adverse = (record["exit_reason"] == "stop")
+        # Queue a per-trade tick + decision snapshot so the next
+        # bundle can carry the 3-min-before / 3-min-after price path
+        # alongside paper vs broker entry/exit prices. Fires
+        # immediately; the snapshot worker waits 3 min before
+        # capturing so the after-window is fully resident in the
+        # tick buffer.
+        try:
+            from bot.trade_tick_snapshots import queue_snapshot
+            entry_ts_raw = record.get("entry_ts")
+            exit_ts_raw = record.get("exit_ts") or now
+            # Normalize to epoch seconds.
+            def _to_epoch(v):
+                if v is None:
+                    return None
+                if isinstance(v, (int, float)):
+                    return float(v)
+                try:
+                    return v.timestamp()
+                except Exception:
+                    pass
+                try:
+                    import pandas as _pd
+                    return _pd.Timestamp(v).timestamp()
+                except Exception:
+                    return None
+            entry_ts_epoch = _to_epoch(entry_ts_raw)
+            exit_ts_epoch = _to_epoch(exit_ts_raw)
+            if entry_ts_epoch is not None and exit_ts_epoch is not None:
+                queue_snapshot(
+                    self._open_trade_ref,
+                    entry_ts_epoch,
+                    exit_ts_epoch,
+                    record,
+                )
+        except Exception as _se:
+            logger.debug(f"queue_snapshot failed (non-fatal): {_se!r}")
         try:
             # STALE LIMIT GUARD: cancel any unfilled broker LIMIT on
             # paper close. The preserve-on-target variant (f91d326)
