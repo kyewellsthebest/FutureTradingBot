@@ -697,6 +697,46 @@ class FibRuntime:
             time.sleep(1)
 
     # ---- single tick ---------------------------------------------------
+    def _revise_paper_entry_to_broker_fill(self, broker_fill_px: float,
+                                              source: str = "ws") -> None:
+        """Update paper's entry price to match the broker's actual
+        fill. Eliminates the price-improvement divergence between
+        the two books -- the LIMIT often fills at a better price
+        than the requested level (matching engine semantics) and
+        without this revision paper P&L drifts from broker P&L by
+        the improvement amount.
+
+        Safe to call multiple times for the same trade; idempotent
+        if the entry price already equals the fill price. Skips if
+        no active trade or if the trade is already closed.
+        """
+        from bot.trade_timeline import add_event as _tl
+        if self.state is None or self.state.active_trade is None:
+            return
+        trade = self.state.active_trade
+        old_px = float(trade.entry_px)
+        if abs(old_px - broker_fill_px) < 0.001:
+            return  # already matches
+        diff_pts = broker_fill_px - old_px
+        trade.entry_px = float(broker_fill_px)
+        # Mirror into the paper account so close() computes P&L
+        # against the revised entry.
+        try:
+            if (self.account is not None
+                    and self.account.state is not None
+                    and self.account.state.open_position is not None):
+                self.account.state.open_position.entry_px = float(broker_fill_px)
+                self.account.save()
+        except Exception as e:
+            logger.debug(f"revise_paper_entry account save: {e!r}")
+        logger.info(
+            f"[paper REVISE entry] {old_px:.2f} -> {broker_fill_px:.2f} "
+            f"(diff {diff_pts:+.2f}pt, src={source}); paper and broker "
+            f"books now exactly aligned on this trade.")
+        _tl(self._open_trade_ref, "paper_entry_revised",
+             old_px=old_px, new_px=broker_fill_px,
+             diff_pts=round(diff_pts, 4), source=source)
+
     def _poll_pending_broker_orders(self) -> None:
         """Passive broker fill tracker. Polls the parent order ID for
         each recent placeoso to record actual fill status into the
@@ -752,6 +792,28 @@ class FibRuntime:
                      last_px=er.get("lastPx"),
                      reject_reason=er.get("rejectReason"),
                      ws_age_s=round(age, 3))
+                # PAPER-MATCHES-BROKER. The moment the broker fill is
+                # confirmed via WS, revise paper's entry_px to the
+                # actual fill price. This eliminates the price-
+                # improvement divergence: paper booked at the
+                # theoretical pullback level, but the LIMIT got an
+                # improved fill (e.g. LIMIT BUY at 30597.50 filled
+                # at 30595 because price gapped through). Without
+                # this revision, paper P&L and broker P&L drift by
+                # the improvement amount. With it, both books match
+                # the actual fill exactly. Only revise while the
+                # trade is still open (active_trade non-None) so a
+                # very fast paper exit that closed before fill
+                # confirmation isn't retroactively rewritten.
+                if ord_status == "Filled":
+                    fill_px = er.get("avgPx") or er.get("lastPx")
+                    if (fill_px is not None
+                            and entry.get("setup_ref") == self._open_trade_ref):
+                        try:
+                            self._revise_paper_entry_to_broker_fill(
+                                float(fill_px), source="ws_exec_report")
+                        except Exception as _re:
+                            logger.debug(f"revise_paper_entry: {_re!r}")
                 if ord_status in {"Filled", "Rejected", "Canceled", "Expired"}:
                     # No more polling needed -- WS gave us the answer.
                     continue
@@ -785,6 +847,21 @@ class FibRuntime:
             if status == "Filled":
                 _tl(entry["setup_ref"], "broker_parent_filled",
                      fill_age_s=round(age, 2))
+                # REST-fallback fill confirmation: same paper-revise
+                # behaviour as the WS path above. The REST poll
+                # response doesn't always include avg_px directly;
+                # fetch the parent order fills via get_order_status's
+                # broader API if needed. For now we hit /order/item
+                # to get the avgPx.
+                try:
+                    avg_px = self.tradovate_orders.get_order_fill_price(
+                        entry["parent_order_id"])
+                    if (avg_px is not None
+                            and entry.get("setup_ref") == self._open_trade_ref):
+                        self._revise_paper_entry_to_broker_fill(
+                            float(avg_px), source="rest_poll")
+                except Exception as _re:
+                    logger.debug(f"revise_paper_entry (rest): {_re!r}")
                 # Filled -> stop polling this one.
                 continue
             if status in {"Rejected", "Canceled", "Expired"}:
@@ -1931,8 +2008,15 @@ class FibRuntime:
         # means triggering when price is still 5pt away if there's
         # a setup at that level. Once on the book, the LIMIT fills
         # at exactly entry price (no drift, no slip).
+        # Raised 2026-06-22 from 5pt to 10pt per user requirement to
+        # minimize LIMIT miss-rate on fast moves. Wider approach
+        # window means the LIMIT lands on Tradovate's matching engine
+        # earlier, giving fast price-action more chance to fill at
+        # the resting LIMIT rather than gap through it. Trade-off:
+        # more anticipatory LIMITs placed (and cancelled if not
+        # touched) but higher hit rate. Tune via env if needed.
         APPROACH_THRESHOLD_PT = float(os.environ.get(
-            "ANTICIPATORY_THRESHOLD_PT", "5.0"))
+            "ANTICIPATORY_THRESHOLD_PT", "10.0"))
         best = None
         best_dist = APPROACH_THRESHOLD_PT + 0.01
         for s in (self.state.pending_setups if self.state else []):

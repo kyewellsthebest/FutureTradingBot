@@ -960,6 +960,42 @@ class TradovateOrders:
             pass
         return None
 
+    def get_order_fill_price(self, order_id: int) -> Optional[float]:
+        """Return the average fill price for a Filled order, or None
+        on failure / not-yet-filled. Used by the paper-revise-entry
+        flow when the WS path missed the exec_report and the REST
+        poll fallback is what caught the fill.
+
+        Looks at the executionStatistics endpoint which carries
+        avgPx / cumQty. For 1-MNQ orders avgPx == fill price.
+        """
+        try:
+            s, d = self.session._rest(
+                "GET", "/order/item", params={"id": int(order_id)})
+            if s == 200 and isinstance(d, dict):
+                if d.get("ordStatus") != "Filled":
+                    return None
+            # Fills live under /fill/list filtered by orderId, OR
+            # the executionStatistics endpoint.
+            s2, d2 = self.session._rest(
+                "GET", "/executionReport/deps", params={"masterid": int(order_id)})
+            if s2 == 200 and isinstance(d2, list):
+                # Walk for the last execType=Fill exec report.
+                for er in reversed(d2):
+                    if not isinstance(er, dict): continue
+                    if er.get("execType") in ("Fill", "Filled", "F"):
+                        return float(er.get("avgPx") or er.get("lastPx") or 0) or None
+            # Fallback: /fill/list filter
+            s3, d3 = self.session._rest("GET", "/fill/list")
+            if s3 == 200 and isinstance(d3, list):
+                for f in d3:
+                    if not isinstance(f, dict): continue
+                    if int(f.get("orderId") or 0) == int(order_id):
+                        return float(f.get("price") or 0) or None
+        except Exception:
+            pass
+        return None
+
     def cancel_order(self, order_id: int) -> bool:
         """Cancel a working order. Used by fib_main to kill stale
         LIMIT entries that didn't fill within the strategy's window.
