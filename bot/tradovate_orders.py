@@ -330,17 +330,23 @@ class TradovateOrders:
         # With MARKET entry, fill price is current market (slipped),
         # so bracket_ref must track live market for the bracket to be
         # placed correctly relative to the actual fill.
-        # Reverted 2026-06-22 (user preference): keep LIMIT entry to
-        # match paper's exact price. Combined with the new arming
-        # logic in pullback_strategy.try_fire_on_tick, the strategy
-        # now only fires on real price touches -- so the LIMIT at
-        # paper's pullback level always has a chance to fill (price
-        # genuinely reached it). MARKET-default was shipped earlier
-        # in d8c8746 to force broker fills on spillover trades, but
-        # user explicitly preferred keeping LIMIT and fixing the
-        # phantom-fire problem at the source. Set
-        # BROKER_ENTRY_TYPE=market to revert to MARKET orders.
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "limit").lower()
+        # Default flipped to "marketable_limit" 2026-06-22 per user
+        # 95%-broker-fill-rate requirement. After the arming fix
+        # (commit 9652204) eliminated phantom fires, the remaining
+        # ~30% LIMIT miss rate is structural: when the strategy fires
+        # SHORT in inverse mode, price has just dropped TO pullback,
+        # bid is below pullback, LIMIT SELL waits for bid to come up,
+        # and if the down-move continues the LIMIT never fills.
+        # Same story for LONG fires after a continuing bounce.
+        # Marketable LIMIT bumps the price so it's marketable on
+        # submission (LIMIT >= ask for LONG, LIMIT <= bid for SHORT)
+        # which guarantees immediate fill within a small buffer
+        # (default 1pt via BROKER_MARKETABLE_BUFFER_PTS). It's still
+        # a LIMIT (bounded slip protection, NOT a MARKET order) and
+        # the paper-revise-on-fill in fib_main records the actual
+        # fill price into paper so paper-broker match stays exact.
+        # Set BROKER_ENTRY_TYPE=limit to revert to strict LIMIT.
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "marketable_limit").lower()
 
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None
@@ -400,20 +406,33 @@ class TradovateOrders:
                 marketable_with_improvement = True
                 ref_source = "live_price"
 
-        # For MARKET entries, also re-anchor on ADVERSE direction. MARKET
-        # fills wherever the matching engine takes it -- bracket must be
-        # placed against actual fill no matter which direction.
-        if entry_type != "limit" and not marketable_with_improvement:
+        # For MARKET and MARKETABLE_LIMIT entries, anchor bracket_ref
+        # to the expected fill side (LONG buys at ask, SHORT sells at
+        # bid). This ensures stop/target are at the right distance
+        # from where the order will actually fill, not from the
+        # theoretical pullback level. Without this, spillover trades
+        # (price already 5-15pt past pullback) get brackets that
+        # produce 1:1 RR instead of the strategy's intended 1:2.
+        if entry_type in ("market", "marketable_limit") and not marketable_with_improvement:
             if bid_ask_age is not None and bid_ask_age < 5.0:
                 if side == "LONG" and cur_ask is not None:
                     bracket_ref = float(cur_ask)
-                    ref_source = "tradovate_ask_adverse"
+                    ref_source = ("tradovate_ask_marketable"
+                                   if entry_type == "marketable_limit"
+                                   else "tradovate_ask_adverse")
+                    marketable_with_improvement = True
                 elif side == "SHORT" and cur_bid is not None:
                     bracket_ref = float(cur_bid)
-                    ref_source = "tradovate_bid_adverse"
+                    ref_source = ("tradovate_bid_marketable"
+                                   if entry_type == "marketable_limit"
+                                   else "tradovate_bid_adverse")
+                    marketable_with_improvement = True
             elif live_price is not None:
                 bracket_ref = float(live_price)
-                ref_source = "live_price_adverse"
+                ref_source = ("live_price_marketable"
+                               if entry_type == "marketable_limit"
+                               else "live_price_adverse")
+                marketable_with_improvement = True
 
         # SAFETY CAP: if the order will fill immediately at a slipped
         # price (MARKET order OR marketable LIMIT) AND the slip would
@@ -424,7 +443,8 @@ class TradovateOrders:
         # entry_estimate, and either fills there (correct) or doesn't
         # fill (no harm). Aborting here would skip the trade unnecessarily.
         will_fill_immediately = (
-            entry_type != "limit" or marketable_with_improvement)
+            entry_type in ("market", "marketable_limit")
+            or marketable_with_improvement)
         # Safety cap: skip if drift is so extreme the trade can't be
         # rescued. Default 12pt (2x stop_pts) -- generous; we rely on
         # the anticipatory pre-submit + low-latency reaction to keep
@@ -576,12 +596,57 @@ class TradovateOrders:
         if setup_ref:
             body["text"] = setup_ref[:64]  # Tradovate caps user text
 
-        # Apply chosen entry type. MARKET (default) = guaranteed fill,
-        # may slip 0-2pt from strategy_entry. LIMIT = exact strategy
-        # price but may miss when price drifts.
-        if entry_type == "limit":
+        # Apply chosen entry type. Three modes:
+        #
+        # - "limit" (legacy): LIMIT at exactly entry_estimate. Only
+        #   fills if price actually trades through that level. Misses
+        #   ~15-30% of trades when price moves past the level too
+        #   fast for the LIMIT to catch (sustained bounce / continued
+        #   move). Per-trade match is perfect when it fills.
+        #
+        # - "marketable_limit" (new default 2026-06-22 per user
+        #   95%-fill-rate requirement): LIMIT priced to GUARANTEE
+        #   immediate fill at live ± BROKER_MARKETABLE_BUFFER_PTS.
+        #   Still a LIMIT (bounded slip), but the limit is bumped
+        #   above current ask (LONG) / below current bid (SHORT) so
+        #   it's marketable on submission. Fills at live price or
+        #   better. The paper-revise-on-fill in fib_main records the
+        #   actual fill price into paper, so paper-broker match stays
+        #   perfect even when the fill price differs from
+        #   entry_estimate.
+        #
+        # - "market": MARKET order, no price field. Unbounded slip.
+        #   Available for emergency situations; not recommended.
+        if entry_type in ("limit", "marketable_limit"):
             body["orderType"] = "Limit"
-            body["price"] = entry_price
+            limit_price = entry_price
+            if entry_type == "marketable_limit":
+                # Bump the LIMIT price so it's marketable right now.
+                # Use the Tradovate-provided bid/ask if fresh, else
+                # fall back to the polygon live_price.
+                buffer_pts = float(os.environ.get(
+                    "BROKER_MARKETABLE_BUFFER_PTS", "1.0"))
+                ref_px = None
+                if (bid_ask_age is not None and bid_ask_age < 5.0
+                        and cur_ask is not None and cur_bid is not None):
+                    ref_px = float(cur_ask) if side == "LONG" else float(cur_bid)
+                elif live_price is not None:
+                    ref_px = float(live_price)
+                if ref_px is not None:
+                    if side == "LONG":
+                        # LONG LIMIT BUY: marketable when LIMIT >= ask.
+                        # Bump to ask + buffer (rounded to tick) so it
+                        # crosses the spread immediately and fills.
+                        marketable_floor = ref_px + buffer_pts
+                        if limit_price < marketable_floor:
+                            limit_price = _tick_round(marketable_floor)
+                    else:
+                        # SHORT LIMIT SELL: marketable when LIMIT <= bid.
+                        # Bump down to bid - buffer.
+                        marketable_ceiling = ref_px - buffer_pts
+                        if limit_price > marketable_ceiling:
+                            limit_price = _tick_round(marketable_ceiling)
+            body["price"] = limit_price
             body["timeInForce"] = "Day"
         else:
             body["orderType"] = "Market"
