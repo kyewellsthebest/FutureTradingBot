@@ -178,13 +178,27 @@ def get_latency_report(limit: int = 200) -> dict:
         paper_to_broker_close_ms = _ms(e_paper_closed, e_close_sent)
         close_rtt_ms = _ms(e_close_sent, e_close_result)
 
-        paper_entry_px = e_signal.get("entry_px") if e_signal else None
+        paper_entry_px_original = (
+            e_signal.get("entry_px") if e_signal else None)
+        # If paper revised entry to the broker fill (paper_entry_revised
+        # event fires whenever the WS or REST fill confirms with a
+        # different price than the theoretical pullback), use the
+        # revised price as the "paper entry" -- that's what paper P&L
+        # actually books against and what we want to compare to broker.
+        e_revised = _first_event(evs, "paper_entry_revised")
+        paper_entry_px = (
+            e_revised.get("new_px") if e_revised
+            and e_revised.get("new_px") is not None
+            else paper_entry_px_original)
         broker_fill_px = None
         if e_fill:
             broker_fill_px = (e_fill.get("avg_px")
                               or e_fill.get("last_px"))
         paper_exit_px = e_paper_closed.get("exit_px") if e_paper_closed else None
 
+        # ACTUAL paper-vs-broker entry mismatch -- this is what matters
+        # for "paper P&L matches broker P&L". With the revise-entry
+        # fix this should be exactly 0 on every filled trade.
         entry_px_diff = None
         if paper_entry_px is not None and broker_fill_px is not None:
             try:
@@ -192,6 +206,29 @@ def get_latency_report(limit: int = 200) -> dict:
                     float(broker_fill_px) - float(paper_entry_px), 4)
             except Exception:
                 entry_px_diff = None
+
+        # BROKER IMPROVEMENT -- how much better the broker's actual
+        # fill was vs the strategy's intended pullback level. Always
+        # >= 0 for LIMITs (LIMIT can only fill at limit-or-better).
+        # Positive on SHORT (sold higher), negative on LONG (bought
+        # lower) when measured as broker_fill - original_paper_entry,
+        # so we use a side-aware absolute "improvement" for the
+        # aggregate which is always >= 0 when broker did better.
+        broker_improvement_pts = None
+        side = e_signal.get("side") if e_signal else None
+        if (paper_entry_px_original is not None
+                and broker_fill_px is not None
+                and side in ("LONG", "SHORT")):
+            try:
+                raw = float(broker_fill_px) - float(paper_entry_px_original)
+                if side == "LONG":
+                    # LONG: LOWER fill = better. Improvement = -raw.
+                    broker_improvement_pts = round(-raw, 4)
+                else:
+                    # SHORT: HIGHER fill = better. Improvement = raw.
+                    broker_improvement_pts = round(raw, 4)
+            except Exception:
+                broker_improvement_pts = None
 
         row = {
             "setup_ref": setup_ref,
@@ -201,6 +238,7 @@ def get_latency_report(limit: int = 200) -> dict:
             "broker_skipped": e_skip is not None,
             "skip_reason": e_skip.get("reason") if e_skip else None,
             "broker_filled": e_fill is not None,
+            "paper_entry_revised": e_revised is not None,
             "paper_closed": e_paper_closed is not None,
             "broker_close_sent": e_close_sent is not None,
             "latency_ms": {
@@ -212,9 +250,11 @@ def get_latency_report(limit: int = 200) -> dict:
                 "close_rtt": close_rtt_ms,
             },
             "prices": {
+                "paper_entry_px_original": paper_entry_px_original,
                 "paper_entry_px": paper_entry_px,
                 "broker_fill_px": broker_fill_px,
                 "entry_px_diff": entry_px_diff,
+                "broker_improvement_pts": broker_improvement_pts,
                 "paper_exit_px": paper_exit_px,
             },
         }
@@ -249,6 +289,26 @@ def get_latency_report(limit: int = 200) -> dict:
             "mean_signed": round(sum(px_diffs) / len(px_diffs), 4),
         }
 
+    # Aggregate broker improvement -- how much better Tradovate's
+    # matching engine gave us vs the strategy's intended pullback
+    # level. Always >= 0 when broker delivered improvement, < 0
+    # if (rare) broker filled worse than asked.
+    improvements = [r["prices"]["broker_improvement_pts"] for r in rows
+                     if r["prices"].get("broker_improvement_pts") is not None]
+    imp_agg = {"n": 0}
+    if improvements:
+        imp_agg = {
+            "n": len(improvements),
+            "p50": _percentile(improvements, 50),
+            "p95": _percentile(improvements, 95),
+            "max": round(max(improvements), 4),
+            "mean": round(sum(improvements) / len(improvements), 4),
+            "total_pts_captured": round(sum(improvements), 4),
+        }
+
+    # Count of trades where paper revised its entry to match broker.
+    revised_count = sum(1 for r in rows if r.get("paper_entry_revised"))
+
     return {
         "n_trades": len(rows),
         "aggregate_ms": {
@@ -259,7 +319,17 @@ def get_latency_report(limit: int = 200) -> dict:
             "paper_to_broker_close": _agg("paper_to_broker_close"),
             "close_rtt": _agg("close_rtt"),
         },
+        # Actual paper-vs-broker MISMATCH (uses revised paper entry).
+        # With the revise-entry fix this should be exactly 0 on every
+        # filled trade. If non-zero appears, that's a real divergence
+        # to investigate.
         "entry_price_divergence": px_agg,
+        # Distinct from divergence: how much BETTER the broker actually
+        # filled vs the strategy's intended level. Positive numbers
+        # are favourable. Captured on every filled trade and now
+        # reflected in paper P&L thanks to the revision.
+        "broker_improvement": imp_agg,
+        "paper_entry_revised_count": revised_count,
         "skip_counts": skip_counts,
         "flatten_first_count": flatten_count,
         "divergence_warning_count": divergence_warn_count,
