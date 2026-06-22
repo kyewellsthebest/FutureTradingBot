@@ -1340,6 +1340,33 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
     #
     # Set STRAT_ARMING=1 in env to re-enable for diagnostic A/B.
     use_arming = os.environ.get("STRAT_ARMING", "0") == "1"
+
+    # Resolve bid/ask for the trigger check. Backtest's sim_honest_battery
+    # uses ASK <= entry (orig=LONG) / BID >= entry (orig=SHORT) -- these
+    # are the conditions for the broker's LIMIT to actually fill at the
+    # pullback level. The bot's anticipatory pre-submit places the LIMIT
+    # before the touch, so firing on the EXACT condition that fills the
+    # broker LIMIT keeps paper aligned with broker (avoids stale fills
+    # where paper fires on a wick the broker LIMIT doesn't fill).
+    try:
+        from bot.tick_history import latest_by_src
+        tv = latest_by_src("tradovate") or {}
+        ent_bid = tv.get("bid"); ent_ask = tv.get("ask")
+        if ent_bid is None or ent_ask is None:
+            pg = latest_by_src("polygon") or {}
+            pg_bid = pg.get("bid"); pg_ask = pg.get("ask")
+            if pg_bid is not None and pg_ask is not None:
+                ent_bid, ent_ask = float(pg_bid), float(pg_ask)
+            else:
+                # Synthesize a 1-tick spread from last (MNQ tick = 0.25).
+                ent_bid = float(live_price) - 0.125
+                ent_ask = float(live_price) + 0.125
+        else:
+            ent_bid, ent_ask = float(ent_bid), float(ent_ask)
+    except Exception:
+        ent_bid = float(live_price) - 0.125
+        ent_ask = float(live_price) + 0.125
+
     fired = None
     for setup in state.pending_setups:
         if setup.used:
@@ -1357,10 +1384,17 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
                 if setup.armed_at_ts is None:
                     setup.armed_at_ts = now
             continue
-        if approach == "LONG" and live_price <= setup.pullback_entry:
+        # ASK/BID semantics mirror sim_honest_battery: orig=LONG fires
+        # when ASK drops to pullback (a LIMIT BUY at pullback would
+        # fill); orig=SHORT fires when BID rises to pullback (a LIMIT
+        # SELL at pullback would fill). With no real NBBO this becomes
+        # last+/-0.125, which forces last to overshoot the pullback by
+        # half a tick before paper fires -- matching the broker LIMIT
+        # fill condition.
+        if approach == "LONG" and ent_ask <= setup.pullback_entry:
             fired = setup
             break
-        if approach == "SHORT" and live_price >= setup.pullback_entry:
+        if approach == "SHORT" and ent_bid >= setup.pullback_entry:
             fired = setup
             break
     if fired is None:

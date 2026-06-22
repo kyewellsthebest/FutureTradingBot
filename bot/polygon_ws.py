@@ -181,11 +181,18 @@ class PolygonWSClient:
             #
             # Polygon accepts comma-separated subscriptions in a single
             # action.
+            # Q.* = NBBO quote events (best bid / best ask). Without
+            # these, the bot's paper sim has no real bid/ask and the
+            # exit detector falls back to last±0.125pt synthetic spread.
+            # Real Q events let paper require the actual broker LIMIT
+            # fill condition (ASK reaches LIMIT BUY level / BID reaches
+            # LIMIT SELL level) instead of the synthetic estimate.
             self._ws.send(json.dumps({
                 "action": "subscribe",
                 "params": (f"T.{self.ticker},"
                            f"AM.{self.ticker},"
-                           f"A.{self.ticker}"),
+                           f"A.{self.ticker},"
+                           f"Q.{self.ticker}"),
             }))
             sub_resp = self._ws.recv()
             # Log subscription response at INFO so plan-entitlement
@@ -328,6 +335,28 @@ class PolygonWSClient:
                                      float(c), int(v), ts_utc)
                     except Exception as cb_err:
                         logger.warning(f"polygon_ws on_bar failed: {cb_err!r}")
+
+            elif ev == "Q":
+                # NBBO quote update -- best bid / best ask. Recorded
+                # directly into tick_history so the strategy's exit
+                # detector and entry trigger see real bid/ask instead
+                # of a synthetic spread off last. Polygon Q events:
+                #   {"ev":"Q","sym":...,"bp":<bid>,"ap":<ask>,
+                #    "bs":<bid_sz>,"as":<ask_sz>,"t":<ns>}
+                bid = e.get("bp") or e.get("bid_price")
+                ask = e.get("ap") or e.get("ask_price")
+                if bid is None or ask is None:
+                    continue
+                try:
+                    bid_f = float(bid); ask_f = float(ask)
+                    # Guard against crossed/zero quotes.
+                    if bid_f <= 0 or ask_f <= 0 or ask_f < bid_f:
+                        continue
+                    mid = (bid_f + ask_f) / 2.0
+                    from bot.tick_history import record_tick
+                    record_tick(mid, bid=bid_f, ask=ask_f, src="polygon")
+                except Exception as cb_err:
+                    logger.warning(f"polygon_ws on_quote (Q) failed: {cb_err!r}")
 
             elif ev == "status":
                 logger.info(f"polygon_ws status: {e}")

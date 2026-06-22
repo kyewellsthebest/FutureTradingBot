@@ -910,17 +910,20 @@ class FibRuntime:
                     if pg_bid is not None and pg_ask is not None:
                         bid, ask = pg_bid, pg_ask
                     else:
-                        # No quote feed -- use the trade price for both
-                        # sides. Earlier code split price by ±0.125 which
-                        # is ASYMMETRIC against the trader: stops fire
-                        # 0.125 before stop_px, targets need price to
-                        # OVERSHOOT target_px by 0.125. That alone took
-                        # the live target hit-rate from a backtest-
-                        # expected 57% down to 32%. Treating price as
-                        # both bid and ask gives a symmetric touch
-                        # model that matches what the backtest sim does
-                        # when bid/ask is missing.
-                        bid = ask = price
+                        # No NBBO feed -- synthesize a 1-tick spread
+                        # around last. This matches what a broker LIMIT
+                        # actually requires: a LONG target LIMIT SELL
+                        # fills when a BUYER comes UP to pay our offer
+                        # (bid touches target), not when last prints at
+                        # target. Treating bid=ask=last was symmetric
+                        # but paper-favorable: 308 broker round-trips
+                        # today gave only 66 LIMIT target hits while
+                        # paper booked 113. The half-tick offset makes
+                        # paper require last to overshoot LIMIT exits
+                        # by one tick, mirroring real fill conditions.
+                        HALF_SPREAD_PTS = 0.125  # MNQ tick = 0.25
+                        bid = float(price) - HALF_SPREAD_PTS
+                        ask = float(price) + HALF_SPREAD_PTS
                 result = should_exit_on_tick(
                     self.state.active_trade,
                     float(bid), float(ask), real_utc_now())

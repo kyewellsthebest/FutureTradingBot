@@ -34,11 +34,23 @@ def record_tick(px: float, *,
                  bid: Optional[float] = None,
                  ask: Optional[float] = None,
                  src: str = "polygon") -> None:
+    # Carry forward the last known bid/ask for this source when the
+    # incoming record only has a trade price. Polygon delivers T (trade)
+    # and Q (quote) on separate events; without this, a trade tick
+    # overwrites the most recent quote and the strategy loses its bid/
+    # ask reference. Quote events still update bid/ask explicitly.
+    prev = _LATEST_BY_SRC.get(src)
+    eff_bid = bid
+    eff_ask = ask
+    if eff_bid is None and prev is not None:
+        eff_bid = prev.get("bid")
+    if eff_ask is None and prev is not None:
+        eff_ask = prev.get("ask")
     rec = {
         "ts": time.time(),
         "px": round(float(px), 4),
-        "bid": round(float(bid), 4) if bid is not None else None,
-        "ask": round(float(ask), 4) if ask is not None else None,
+        "bid": round(float(eff_bid), 4) if eff_bid is not None else None,
+        "ask": round(float(eff_ask), 4) if eff_ask is not None else None,
         "src": src,
     }
     _TICKS.append(rec)
