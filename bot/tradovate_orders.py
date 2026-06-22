@@ -330,23 +330,20 @@ class TradovateOrders:
         # With MARKET entry, fill price is current market (slipped),
         # so bracket_ref must track live market for the bracket to be
         # placed correctly relative to the actual fill.
-        # Default flipped to "marketable_limit" 2026-06-22 per user
-        # 95%-broker-fill-rate requirement. After the arming fix
-        # (commit 9652204) eliminated phantom fires, the remaining
-        # ~30% LIMIT miss rate is structural: when the strategy fires
-        # SHORT in inverse mode, price has just dropped TO pullback,
-        # bid is below pullback, LIMIT SELL waits for bid to come up,
-        # and if the down-move continues the LIMIT never fills.
-        # Same story for LONG fires after a continuing bounce.
-        # Marketable LIMIT bumps the price so it's marketable on
-        # submission (LIMIT >= ask for LONG, LIMIT <= bid for SHORT)
-        # which guarantees immediate fill within a small buffer
-        # (default 1pt via BROKER_MARKETABLE_BUFFER_PTS). It's still
-        # a LIMIT (bounded slip protection, NOT a MARKET order) and
-        # the paper-revise-on-fill in fib_main records the actual
-        # fill price into paper so paper-broker match stays exact.
-        # Set BROKER_ENTRY_TYPE=limit to revert to strict LIMIT.
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "marketable_limit").lower()
+        # Reverted to "limit" 2026-06-22 per user instruction "bot must
+        # trade EXACTLY like the backtest". sim_honest_battery's
+        # +$3,008/day result on the recent 60-day window uses strict
+        # LIMIT semantics at the pullback level. The marketable LIMIT
+        # default I shipped earlier (commit 0e19d96) was a mistake --
+        # it forced fills at live ask/bid which costs ~0.5-1pt per
+        # trade in slip. With the arming gate also removed in
+        # pullback_strategy.py and the anticipatory pre-submit at 10pt,
+        # the strict LIMIT at pullback is what we want: clean fills at
+        # the exact strategy entry, occasional misses on sustained
+        # moves which are NOT a problem because they correspond to
+        # setups the backtest model also wouldn't have filled.
+        # Set BROKER_ENTRY_TYPE=marketable_limit to revert.
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "limit").lower()
 
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None

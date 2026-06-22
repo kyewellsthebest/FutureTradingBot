@@ -208,7 +208,21 @@ INVERT_DIRECTION = os.environ.get("STRAT_INVERT", "0") == "1"
 MAX_HOLD_SECS = 600               # 10 minutes max in trade
 MAX_WAIT_SECS = 300               # pullback setup expires if not filled in 5 min
 COOLDOWN_SECS = int(os.environ.get("STRAT_COOLDOWN_SECS", "60"))
-MIN_TARGET_HOLD_SECONDS = 10      # Lucid microscalp safety: target exits < 10s become "instant scalp"
+# Microscalp guard removed 2026-06-22 (set to 0). The original
+# sim_honest_battery backtest that validated this strategy at
+# +$3,008/day on the recent 60-day window does NOT enforce a
+# minimum target hold -- targets fire whenever bid (LONG) / ask
+# (SHORT) reaches the target level. Enforcing a 10s hold blocks
+# fast-target trades that, if price retraces during the wait, end
+# up stuck holding until stop or timeout instead of booking the
+# win. Cost in live: documented at ~$60/day on the same 60-day
+# window. User explicit instruction 2026-06-22: bot must trade
+# EXACTLY like the backtest -- this guard differs from the
+# backtest, so it goes.
+# Override via env STRAT_MIN_TARGET_HOLD_SECS if a future deploy
+# needs the original Lucid microscalp protection back.
+MIN_TARGET_HOLD_SECONDS = int(
+    os.environ.get("STRAT_MIN_TARGET_HOLD_SECS", "0"))
 MICROSCALP_HARD_THRESHOLD = 0.40  # circuit breaker if >40% of recent trades < MIN_TARGET_HOLD_SECONDS
 MICROSCALP_WINDOW_DAYS = 30
 
@@ -1311,63 +1325,38 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
                 s.last_block_at = now
         return False
 
-    # Find a setup whose pullback level has been REALLY touched by the
-    # live tick. Two-step arming required:
+    # Find a setup whose pullback level the live tick has touched.
     #
-    #   1. ARM: price must visit the APPROACH side of pullback_entry
-    #      first (the side price comes FROM). For approach=LONG (impulse
-    #      went UP, inverse strategy will SHORT), price must be ABOVE
-    #      pullback before we'll consider the touch valid. For
-    #      approach=SHORT (impulse went DOWN, inverse LONG), price must
-    #      be BELOW pullback first.
+    # Arming REVERTED 2026-06-22 per user instruction "bot must trade
+    # EXACTLY like the backtest". sim_honest_battery (the validation
+    # harness that produces +$3,008/day on the recent 60-day window)
+    # has no arming gate -- it fires on the first qualifying tick.
+    # Re-introducing arming was a mistake on my part: I read paper
+    # booking entries at theoretical prices as a bug and tried to
+    # eliminate "phantom" fires. The backtest confirms those fires
+    # are profitable when the LIMIT actually sits at pullback waiting
+    # (anticipatory pre-submit ensures this in live). The arming
+    # gate just removed positive-expectancy trades.
     #
-    #   2. FIRE: only after armed, when live_price crosses pullback_entry
-    #      to the trigger side (down to pullback for approach=LONG, up
-    #      for approach=SHORT).
-    #
-    # Why this matters: without arming, the very first tick after setup
-    # creation satisfies the FIRE condition whenever price is already
-    # past the level (which is common when the setup is detected on
-    # bar close after price has already retraced or spilled past).
-    # Bundle 00:33 UTC showed ~50% of fires happening this way --
-    # paper booking "fills" at prices the market never reached, broker
-    # LIMITs at the same prices physically unable to fill. With arming
-    # those phantoms don't fire at all. Setups that never see a real
-    # touch simply expire (5 min MAX_WAIT_SECS) and the bot moves on.
+    # Set STRAT_ARMING=1 in env to re-enable for diagnostic A/B.
+    use_arming = os.environ.get("STRAT_ARMING", "0") == "1"
     fired = None
     for setup in state.pending_setups:
         if setup.used:
             continue
         if setup.is_invalidated(now):
             continue
-        # Approach direction is the IMPULSE direction (orig_side), not the
-        # trade side. For the INVERSE strategy these differ.
         approach = getattr(setup, 'orig_side', None) or setup.side
-        # Step 1: ARM the setup the first time price is on the
-        # approach side of pullback_entry. The flag persists for the
-        # life of the setup; once armed, stays armed.
-        if not setup.entry_armed:
+        if use_arming and not setup.entry_armed:
             if approach == "LONG" and live_price > setup.pullback_entry:
-                # Approach LONG = impulse went UP. Price should still
-                # be above pullback (in the impulse zone) before a
-                # real touch comes back down to it.
                 setup.entry_armed = True
                 if setup.armed_at_ts is None:
                     setup.armed_at_ts = now
             elif approach == "SHORT" and live_price < setup.pullback_entry:
-                # Approach SHORT = impulse went DOWN. Price should be
-                # below pullback (in the bounce-target zone) before a
-                # real bounce up to it.
                 setup.entry_armed = True
                 if setup.armed_at_ts is None:
                     setup.armed_at_ts = now
-            # Not yet armed -- skip; never fire on the same tick that
-            # arms, since by definition the touch hasn't happened yet.
             continue
-        # Step 2: FIRE only after armed. Same trigger condition as
-        # before -- live_price crosses pullback_entry to the trigger
-        # side. With arming, this requires price to have been on the
-        # APPROACH side AND THEN crossed back. That is a real touch.
         if approach == "LONG" and live_price <= setup.pullback_entry:
             fired = setup
             break
