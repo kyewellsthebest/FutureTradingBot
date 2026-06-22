@@ -330,7 +330,22 @@ class TradovateOrders:
         # With MARKET entry, fill price is current market (slipped),
         # so bracket_ref must track live market for the bracket to be
         # placed correctly relative to the actual fill.
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "limit").lower()
+        # Default flipped to "market" 2026-06-22 per user requirement:
+        # broker MUST fire on every paper trade, even spillover trades
+        # where the live price has moved past paper's pullback level
+        # before the bot's submission reaches Tradovate. With LIMIT
+        # entry at paper's pullback price, those spillover trades sit
+        # un-filled forever (price never returns to the level), and
+        # the snapshot data showed ~50% of paper trades never executed
+        # on broker for this reason. MARKET fills at live price
+        # guarantees execution; the bracket re-anchor logic above then
+        # uses paper's exact stop/target when live price is inside
+        # paper's range (Option B, ~63% paper P&L capture in
+        # simulation on the bundle's 20 snapshot trades) and falls
+        # back to fill-relative brackets when live price has spilled
+        # outside paper's range (Option A safety fallback).
+        # Set BROKER_ENTRY_TYPE=limit to revert.
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "market").lower()
 
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None
@@ -415,13 +430,17 @@ class TradovateOrders:
         # fill (no harm). Aborting here would skip the trade unnecessarily.
         will_fill_immediately = (
             entry_type != "limit" or marketable_with_improvement)
-        # Safety cap: skip if drift is so extreme the trade can't be
-        # rescued. Default 12pt (2x stop_pts) -- generous; we rely on
-        # the anticipatory pre-submit + low-latency reaction to keep
-        # actual drift well under 1pt on most fills. Reducing this
-        # would cut trade frequency which the user explicitly opposed.
+        # Safety cap: only abort if drift is large enough to suggest a
+        # data error or a truly broken signal -- not normal spillover.
+        # Raised 2026-06-22 from 2x stop_pts (20pt) to 5x stop_pts
+        # (50pt) per user requirement "broker trades the exact same
+        # amount as paper". The largest legitimate spillover seen in
+        # bundle 00:33 was 20.75pt, so 20pt was clipping real trades.
+        # 50pt still catches catastrophic outliers (bad tick, news
+        # spike, contract-roll glitch) without throttling normal
+        # missed-touch fills.
         max_drift = float(os.environ.get(
-            "BROKER_MAX_ENTRY_DRIFT_PT", str(float(stop_pts) * 2.0)))
+            "BROKER_MAX_ENTRY_DRIFT_PT", str(float(stop_pts) * 5.0)))
         drift = abs(bracket_ref - float(entry_estimate))
         if will_fill_immediately and drift > max_drift:
             logger.warning(
