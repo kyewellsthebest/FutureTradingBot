@@ -190,6 +190,11 @@ only $-2,311, 1 trade/week). At $283/Sunday it's $26/calendar-day at 1
 MNQ. The longer holds (10d, 14d, 21d) make TONS but converge to "buy and
 hold" and are exposed to bear markets.
 
+**WEEKOPEN_HOLD3d** ($410/Sunday, DD $-2,476, Sharpe 0.45) is the actual
+**sweet spot**: same DD as HOLD2d but 45% more PNL. It still avoids the
+"deep buy-hold" exposure that hurts HOLD5d (DD $-8.4K). This is the
+preferred Strategy 1 for deployment.
+
 ## 9) HOLD_24H_22UTC_LONG with DOW filters
 
 | Filter | trades | WR | PNL | $/day (per trade-day) | DD | Sharpe |
