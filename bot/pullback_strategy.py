@@ -1311,9 +1311,29 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
                 s.last_block_at = now
         return False
 
-    # Find a setup whose pullback level has been touched by the live tick.
-    # LIMIT semantics: LONG fires when price comes DOWN to pullback;
-    # SHORT fires when price goes UP to pullback.
+    # Find a setup whose pullback level has been REALLY touched by the
+    # live tick. Two-step arming required:
+    #
+    #   1. ARM: price must visit the APPROACH side of pullback_entry
+    #      first (the side price comes FROM). For approach=LONG (impulse
+    #      went UP, inverse strategy will SHORT), price must be ABOVE
+    #      pullback before we'll consider the touch valid. For
+    #      approach=SHORT (impulse went DOWN, inverse LONG), price must
+    #      be BELOW pullback first.
+    #
+    #   2. FIRE: only after armed, when live_price crosses pullback_entry
+    #      to the trigger side (down to pullback for approach=LONG, up
+    #      for approach=SHORT).
+    #
+    # Why this matters: without arming, the very first tick after setup
+    # creation satisfies the FIRE condition whenever price is already
+    # past the level (which is common when the setup is detected on
+    # bar close after price has already retraced or spilled past).
+    # Bundle 00:33 UTC showed ~50% of fires happening this way --
+    # paper booking "fills" at prices the market never reached, broker
+    # LIMITs at the same prices physically unable to fill. With arming
+    # those phantoms don't fire at all. Setups that never see a real
+    # touch simply expire (5 min MAX_WAIT_SECS) and the bot moves on.
     fired = None
     for setup in state.pending_setups:
         if setup.used:
@@ -1323,6 +1343,31 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
         # Approach direction is the IMPULSE direction (orig_side), not the
         # trade side. For the INVERSE strategy these differ.
         approach = getattr(setup, 'orig_side', None) or setup.side
+        # Step 1: ARM the setup the first time price is on the
+        # approach side of pullback_entry. The flag persists for the
+        # life of the setup; once armed, stays armed.
+        if not setup.entry_armed:
+            if approach == "LONG" and live_price > setup.pullback_entry:
+                # Approach LONG = impulse went UP. Price should still
+                # be above pullback (in the impulse zone) before a
+                # real touch comes back down to it.
+                setup.entry_armed = True
+                if setup.armed_at_ts is None:
+                    setup.armed_at_ts = now
+            elif approach == "SHORT" and live_price < setup.pullback_entry:
+                # Approach SHORT = impulse went DOWN. Price should be
+                # below pullback (in the bounce-target zone) before a
+                # real bounce up to it.
+                setup.entry_armed = True
+                if setup.armed_at_ts is None:
+                    setup.armed_at_ts = now
+            # Not yet armed -- skip; never fire on the same tick that
+            # arms, since by definition the touch hasn't happened yet.
+            continue
+        # Step 2: FIRE only after armed. Same trigger condition as
+        # before -- live_price crosses pullback_entry to the trigger
+        # side. With arming, this requires price to have been on the
+        # APPROACH side AND THEN crossed back. That is a real touch.
         if approach == "LONG" and live_price <= setup.pullback_entry:
             fired = setup
             break
