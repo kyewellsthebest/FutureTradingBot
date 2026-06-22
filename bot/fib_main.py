@@ -2159,6 +2159,22 @@ class FibRuntime:
                 'submitted_at': time.time(),
                 'pre_ref': pre_ref,
             }
+            # Re-enable paper firing on this setup. A previous cancel of
+            # anticipatory LIMIT may have set fire_attempted=True on this
+            # same setup; now that we have a fresh LIMIT in the book the
+            # paper can fire again. Without this, paper would skip the
+            # setup even though the broker is now ready to fill.
+            try:
+                if self.state is not None:
+                    for s in (self.state.pending_setups or []):
+                        if getattr(s, 'used', False):
+                            continue
+                        if self._setup_key(s) == setup_key:
+                            s.fire_attempted = False
+                            s.last_block_reason = None
+                            break
+            except Exception:
+                pass
             def _on_response(msg):
                 try:
                     d = msg.get("d") or {}
@@ -2270,6 +2286,29 @@ class FibRuntime:
                         f"netPos guard will block any stack.")
         except Exception as e:
             logger.warning(f"anticipatory cancel: {e!r}")
+        # CRITICAL: lock paper out of this setup. Without this, paper can
+        # still fire on the pullback level even though the broker LIMIT
+        # is gone — that produces phantom paper trades (paper books P&L
+        # the broker never executes). Found 27 such trades / $758 in
+        # one day's bundle. Mark the matching setup as fire_attempted=True
+        # so try_fire_on_tick / on_new_1m_bar skip it. If a NEW
+        # anticipatory LIMIT is placed for the same setup later
+        # (_check_anticipatory_limit), that path re-enables firing by
+        # clearing the flag.
+        try:
+            if sk is not None and self.state is not None:
+                for s in (self.state.pending_setups or []):
+                    if getattr(s, 'used', False):
+                        continue
+                    if self._setup_key(s) == sk:
+                        s.fire_attempted = True
+                        s.last_block_reason = f"limit_canceled:{reason}"
+                        logger.info(
+                            f"[ANTICIPATORY cancel] locked setup_key={sk} "
+                            f"out of paper fire (reason={reason})")
+                        break
+        except Exception as e:
+            logger.warning(f"anticipatory cancel lock-setup: {e!r}")
         self._anticipatory_limit = None
 
     def _adopt_anticipatory_for_active_trade(self, trade, setup_ref: str) -> Optional[int]:
@@ -2542,6 +2581,18 @@ class FibRuntime:
                     'submitted_at': time.time(),
                     'pre_ref': pre_ref,
                 }
+                # Re-enable paper firing on this setup (a previous
+                # cancel may have locked it).
+                try:
+                    for s in (self.state.pending_setups or []):
+                        if getattr(s, 'used', False):
+                            continue
+                        if self._setup_key(s) == setup_key:
+                            s.fire_attempted = False
+                            s.last_block_reason = None
+                            break
+                except Exception:
+                    pass
                 logger.info(
                     f"[PRE-SUBMIT OK] order_id={result.order_id} for "
                     f"setup {setup_key}")
@@ -2569,6 +2620,20 @@ class FibRuntime:
                         f"setup={sk} reason={reason}")
         except Exception as e:
             logger.warning(f"[PRE-SUBMIT cancel] {e!r}")
+        # Lock paper out of the now-LIMIT-less setup. Same rationale as
+        # _cancel_anticipatory_sync — without this paper would fire on a
+        # setup whose broker LIMIT no longer exists.
+        try:
+            if sk is not None and self.state is not None:
+                for s in (self.state.pending_setups or []):
+                    if getattr(s, 'used', False):
+                        continue
+                    if self._setup_key(s) == sk:
+                        s.fire_attempted = True
+                        s.last_block_reason = f"pre_submit_canceled:{reason}"
+                        break
+        except Exception:
+            pass
         self._pre_submitted_limit = None
 
     def _adopt_pre_submitted_for_active_trade(self, trade, setup_ref: str) -> Optional[int]:

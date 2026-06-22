@@ -1211,6 +1211,11 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     for setup in state.pending_setups:
         if setup.used: continue
+        # Skip setups whose broker LIMIT was canceled (fib_main's
+        # anticipatory cancel path marks fire_attempted=True). Without
+        # this, the bar-based fire path could still book a phantom paper
+        # trade on a setup the broker no longer has in the book.
+        if getattr(setup, 'fire_attempted', False): continue
         # check if live bar reached pullback_entry (limit fill semantics)
         if not setup.is_filled(last_1m_bar): continue
         setup.fire_attempted = True
@@ -1370,6 +1375,14 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
     fired = None
     for setup in state.pending_setups:
         if setup.used:
+            continue
+        # Skip setups whose broker LIMIT was canceled. The fib_main
+        # anticipatory cancel path sets fire_attempted=True so paper
+        # can't fire on a setup whose broker LIMIT no longer exists in
+        # the book. Without this, paper books phantom trades the broker
+        # cannot execute. If the bot re-places an anticipatory LIMIT
+        # for the same setup, that path clears fire_attempted.
+        if getattr(setup, 'fire_attempted', False):
             continue
         if setup.is_invalidated(now):
             continue
