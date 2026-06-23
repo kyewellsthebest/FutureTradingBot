@@ -109,19 +109,66 @@ Fees tracked: **$1.91/RT** vs **$0.74/RT** (prop-firm). Instruments: MNQ ($2/pt)
 
 ## Section 6 — Round 11 recommendations
 
-**NO PASSERS** after 10 rounds and 1,900+ variants.
+**NO PASSERS** under any fee+instrument combo at the 4-constraint set
+(300+ tr/d, 45%+ WR, $1000+ $/d, DD<=$5000). After 10 rounds and 1,900+
+variants the hard requirement appears mathematically intractable at 1 MNQ
++ $1.91/RT, because the per-trade edge needed is ~$5.24/trade gross and
+even the best inverted-impulse strategies generate < $1/trade net.
 
-Round 11 should attack at scale with these new angles:
-1. **Multi-instrument** — acquire ES, RTY, CL tick data; cross-asset signals.
-2. **Order book imbalance** — acquire L2 book data (not just trades); top-of-book size ratio.
-3. **News/event injection** — economic-calendar-aligned strategy (avoid 8:30am EST data dump).
-4. **Large-population GA** — run a 200-individual × 200-generation GA on a 14d window.
-5. **Deep learning** — LSTM / Transformer on tick microstructure features.
-6. **Maker rebate venues** — CME has no maker rebates, but PFOF / Mosaic might.
-7. **Liquidation cascades** — detect rapid limit-book reload via top-of-book changes.
-8. **Position sizing as variable** — Kelly fractional, vol-targeting; relax 1-contract constraint.
-9. **Pyramiding** — same strategy with multiple stop/target tiers per signal.
-10. **Time-budget redistribution** — strategy that only fires during specific 30-min windows where edge is statistically significant (Bonferroni-corrected).
+### Round 10's actual findings (relative to round 9)
+
+- Round 9 ceiling: $61/day NQ-prop (1 contract equivalent)
+- **Round 10 ceiling: $706/day NQ-prop** (R10_BASE_R8_C04_MTF_early on
+  CME-overlap; 62.7 tr/d, 34.2% WR, DD=$10,071, Sharpe 0.30)
+- **Adaptive queue (D9) significantly helped**: $406/day NQ-prop on
+  D9_ADAP_R4_INV_pp382_s5t20_imp5 — a +$345/day uplift vs baseline
+- **CME-session bias (D10)**: 6 of top 12 prop-firm NQ winners use the
+  CME overlap window (22:00–05:00 UTC), suggesting overnight thin-book
+  inversion edge is real but not high-volume
+- **GA (D2)**: converged on pp118_imp6_b5_s10t16_INV_15s_RTH at +$182/d
+  on 7d eval — overfit; 60d re-test: -$70/d (prop)
+- **RL (D1)**: every state Q-value < 0 → Q-table policy is NO-OP. Means
+  there is NO learnable edge with the chosen state features (recent
+  net, vol regime, tape speed)
+- **VPIN gating (D4)**, **absorption (D5)**, **tape speed (D6)**,
+  **motifs (D3)**, **ensemble voting (D8)**: all near-zero signal-generation
+  (most produced < 50 trades over 60d)
+
+### Round 11 attack angles — ranked by expected lift
+
+1. **Scale the contract size (relax constraint)** — top survivor
+   R10_BASE_R8_C04_MTF on NQ-prop = $706/day per contract. Trading
+   5 MNQ contracts (=0.5 NQ) at $0.74 fees would deliver ~$350/day
+   gross, still short of $1000. Need 10+ NQ-equivalent (5+ NQ
+   contracts = ~$5K margin per leg) to plausibly clear $1000/day.
+2. **Multi-instrument** — acquire ES, RTY, CL tick data and run the
+   round-10 winners simultaneously on each. If returns are
+   uncorrelated, 4-instrument portfolio: 4x trades/day potential AND
+   sqrt(4)=2x Sharpe via diversification.
+3. **Order book imbalance (L2 data)** — top-of-book size ratio,
+   cancel rate, queue-front size. Round 10's adaptive-queue D9
+   strategies improved $/day by 25%+ on average — confirming queue
+   position is alpha source.
+4. **Aggressive D10_MTF + D9_ADAP combined** — round 10's CME-session
+   D10 has high $/d but low volume. Wrap with D9 adaptive queue and
+   stack 3-5 of the top variants for a portfolio at ~80-100 tr/day.
+5. **Large-scale GA** — 200-individual × 100-generation on 14d window
+   (~10x larger than round 10's GA). Add session × time-of-day to
+   genome. ~40 hours compute on this hardware.
+6. **News/event awareness** — economic-calendar-aligned filters
+   (avoid 8:30am EST data dumps; FOMC days; OPEX). Could lift WR by
+   3-5pp.
+7. **Position sizing as variable** — Kelly-fractional or
+   vol-targeting; permits dynamic 1-3 contract scaling on high-
+   conviction signals.
+8. **Pyramiding** — same strategy with stop/target tiers; scales out
+   30% at 1R, 30% at 2R, 40% trail. Should improve realized $/trade
+   30-50%.
+9. **Liquidation cascade detection** — micro-impulse failures
+   followed by stop-cascade reversals.
+10. **Deep learning** — LSTM / Transformer on tick microstructure
+    features. Pre-train on 60d, fine-tune on rolling 14d window.
+    Last-resort: highest cost, uncertain edge.
 
 ## Section 7 — Full strategy table (sorted by $/day at $1.91)
 
