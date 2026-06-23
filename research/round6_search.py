@@ -109,7 +109,7 @@ _round_short_tgt = _r4._round_short_tgt
 
 PATH = "/home/user/HFTBot/data/tick/ustech/USTECH_full.csv"
 DEFAULT_OFFSET = 7_820_974_790
-CHECKPOINT_EVERY_TICKS = 500_000
+CHECKPOINT_EVERY_TICKS = 100_000
 
 COMM_RT = 0.74
 EXCH_FEES_RT = 1.17
