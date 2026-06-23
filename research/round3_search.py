@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import math
 import os
+import pickle
 import sys
 import time
 from collections import deque
@@ -38,6 +39,13 @@ from typing import Optional
 
 PATH = "/home/user/HFTBot/data/tick/ustech/USTECH_full.csv"
 START_OFFSET = 7_820_974_790  # ~60 trading days from end of file
+
+# Checkpoint file: written every 5M ticks; on restart the script seeks
+# to the saved offset and restores per-variant completed/by_day/n_trades.
+# Pending setups and in_trade state are NOT preserved — at most a few
+# seconds of work is lost on resume, which is acceptable.
+CHECKPOINT_PATH = "/home/user/HFTBot/research/round3_checkpoint.pkl"
+CHECKPOINT_EVERY_TICKS = 5_000_000
 
 # --- Cost model (matches the live bot) ---
 COMM_RT = 0.74
@@ -964,6 +972,57 @@ def build_variants():
 
 
 # ===========================================================================
+# Checkpoint (resume on restart)
+# ===========================================================================
+def save_checkpoint(offset, day_counter, last_day_key, all_strats):
+    """Atomic checkpoint write. Writes per-variant completed lists +
+    day-bucket totals + counters so a restarted run picks up exactly
+    where it died on tick-level granularity."""
+    state = {
+        "offset": int(offset),
+        "day_counter": int(day_counter),
+        "last_day_key": last_day_key,
+        "variants": {
+            s.name: {
+                "completed": list(s.completed),
+                "by_day": dict(s.by_day),
+                "n_trades": int(s.n_trades),
+            }
+            for s in all_strats
+        },
+    }
+    tmp = CHECKPOINT_PATH + ".tmp"
+    with open(tmp, "wb") as f:
+        pickle.dump(state, f, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, CHECKPOINT_PATH)
+
+
+def load_checkpoint(all_strats):
+    """Returns (offset, day_counter, last_day_key) if a checkpoint
+    exists, else None. Restores per-variant trade history in place."""
+    if not os.path.exists(CHECKPOINT_PATH):
+        return None
+    try:
+        with open(CHECKPOINT_PATH, "rb") as f:
+            state = pickle.load(f)
+    except Exception as e:
+        print(f"[round3] checkpoint load failed: {e!r} -- starting fresh",
+              file=sys.stderr)
+        return None
+    by_name = {s.name: s for s in all_strats}
+    for name, v in state.get("variants", {}).items():
+        s = by_name.get(name)
+        if s is None:
+            continue
+        s.completed = list(v.get("completed", []))
+        s.by_day = dict(v.get("by_day", {}))
+        s.n_trades = int(v.get("n_trades", 0))
+    return (int(state["offset"]),
+            int(state["day_counter"]),
+            state["last_day_key"])
+
+
+# ===========================================================================
 # Main streaming loop
 # ===========================================================================
 def main():
@@ -973,29 +1032,41 @@ def main():
           f"{len(v1m)} 1m + {len(v15s)} 15s + {len(v30s)} 30s + {len(vtick)} tick",
           file=sys.stderr)
 
+    # Resume from checkpoint if available.
+    resumed = load_checkpoint(all_strats)
+    if resumed is not None:
+        start_offset, day_counter, last_day_key = resumed
+        resumed_trades = sum(s.n_trades for s in all_strats)
+        print(f"[round3] RESUMING from offset {start_offset:,} "
+              f"day_counter={day_counter} "
+              f"({resumed_trades:,} trades already booked)",
+              file=sys.stderr)
+    else:
+        start_offset = START_OFFSET
+        day_counter = -1
+        last_day_key = None
+
     bb_1m = BarBuilder(granularity_secs=60, max_history=300)
     bb_15s = BarBuilder(granularity_secs=15, max_history=200)
     bb_30s = BarBuilder(granularity_secs=30, max_history=200)
 
     n_lines = 0
     n_ticks_processed = 0
-    day_counter = -1
-    last_day_key = None
     t_start = time.time()
     last_progress_t = t_start
     last_progress_ticks = 0
 
     file_size = os.path.getsize(PATH)
-    print(f"[round3] file size: {file_size:,} bytes, start offset {START_OFFSET:,}",
+    print(f"[round3] file size: {file_size:,} bytes, start offset {start_offset:,}",
           file=sys.stderr)
 
     with open(PATH, "rb") as f:
-        f.seek(START_OFFSET)
-        # Read text
-        f.readline()  # discard partial line
+        f.seek(start_offset)
+        # Discard partial line (safe whether at line start or mid-line).
+        f.readline()
         for raw in f:
             n_lines += 1
-            if n_lines % 5_000_000 == 0:
+            if n_lines % CHECKPOINT_EVERY_TICKS == 0:
                 now = time.time()
                 rate = (n_lines - last_progress_ticks) / max(0.001, now - last_progress_t)
                 last_progress_t = now
@@ -1008,6 +1079,13 @@ def main():
                     top_n = max((s.n_trades, s.name) for s in all_strats)
                 else:
                     top_n = (0, "?")
+                # Write checkpoint before logging so a crash during log
+                # doesn't lose the checkpoint write.
+                try:
+                    save_checkpoint(pos, day_counter, last_day_key, all_strats)
+                except Exception as e:
+                    print(f"  [round3] checkpoint save failed: {e!r}",
+                          file=sys.stderr)
                 print(f"  [round3] {n_lines/1e6:.1f}M ticks "
                       f"rate={rate/1e6:.2f}M/s elapsed={(now-t_start)/60:.1f}m "
                       f"day={day_counter} most_trades={top_n[1]}({top_n[0]})",
@@ -1191,6 +1269,16 @@ def main():
               f"${r['per_trade']:>+6.2f} ${r['max_dd']:>+8.0f} "
               f"${r['worst']:>+7.0f} {r['sharpe']:>+6.2f}{flag}")
     print(f"\nFULL_PASS strategies: {len(full_pass)}")
+
+    # Clean up checkpoint on successful completion. The supervisor uses
+    # absence of this file to know the run is done.
+    try:
+        if os.path.exists(CHECKPOINT_PATH):
+            os.remove(CHECKPOINT_PATH)
+            print(f"[round3] cleared checkpoint {CHECKPOINT_PATH}",
+                  file=sys.stderr)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
