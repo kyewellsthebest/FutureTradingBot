@@ -705,21 +705,25 @@ def load_checkpoint(ckpt_path, all_strats):
 # =============================================================================
 # BUILD ALL
 # =============================================================================
-def build_all_variants():
-    """Build EXACTLY 500 variants across 5 avenues."""
-    print("[round13] building variants...", file=sys.stderr)
-    retest, parsed = build_retest_top100(n_take=100)
+def build_all_variants(scale=1.0):
+    """Build variants across 5 avenues. scale=1.0 -> 500 variants;
+    scale=0.4 -> ~200 variants (same distribution).
+    """
+    n100 = max(20, int(100 * scale))
+    print(f"[round13] building variants (scale={scale}, "
+          f"target {5*n100})...", file=sys.stderr)
+    retest, parsed = build_retest_top100(n_take=n100)
     print(f"[round13] avenue 1 RETEST: {len(retest)} strategies "
           f"(from {len(parsed)} parsed names)", file=sys.stderr)
-    fast = build_fast_variants(n_target=100)
+    fast = build_fast_variants(n_target=n100)
     print(f"[round13] avenue 2 FAST: {len(fast)} strategies", file=sys.stderr)
-    ensembles = build_ensembles(n_target=100)
+    ensembles = build_ensembles(n_target=n100)
     print(f"[round13] avenue 3 ENSEMBLE: {len(ensembles)} strategies",
           file=sys.stderr)
-    multilim = build_multilimit(n_target=100)
+    multilim = build_multilimit(n_target=n100)
     print(f"[round13] avenue 4 MULTI_LIMIT: {len(multilim)} strategies",
           file=sys.stderr)
-    windows = build_window_variants(n_target=100)
+    windows = build_window_variants(n_target=n100)
     print(f"[round13] avenue 5 WINDOW: {len(windows)} strategies",
           file=sys.stderr)
     all_strats = retest + fast + ensembles + multilim + windows
@@ -751,6 +755,8 @@ def main():
     ap.add_argument("--offset", type=int, default=DEFAULT_OFFSET)
     ap.add_argument("--ckpt-suffix", default="")
     ap.add_argument("--max-days", type=int, default=60)
+    ap.add_argument("--scale", type=float, default=1.0,
+                    help="Variant-count scale (1.0=500, 0.4=200)")
     args = ap.parse_args()
 
     ckpt_path = ("/home/user/HFTBot/research/round13_checkpoint"
@@ -759,7 +765,7 @@ def main():
                 f"{args.ckpt_suffix}.csv")
     md_path = "/home/user/HFTBot/research/round13_results.md"
 
-    all_strats, by_avenue = build_all_variants()
+    all_strats, by_avenue = build_all_variants(scale=args.scale)
     for s in all_strats:
         attach_r7_executor(s)
     print(f"[round13] Built {len(all_strats):,} strategies", file=sys.stderr)

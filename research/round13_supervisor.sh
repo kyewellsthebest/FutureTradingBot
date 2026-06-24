@@ -11,6 +11,7 @@ SCRIPT="/home/user/HFTBot/research/round13_search.py"
 OFFSET="${1:-7820974790}"
 SUFFIX="${2:-}"
 MAX_DAYS="${3:-60}"
+SCALE="${4:-1.0}"
 RESULTS="/home/user/HFTBot/research/round13_results.md"
 CHECKPOINT="/home/user/HFTBot/research/round13_checkpoint${SUFFIX}.pkl"
 RUN_LOG="/tmp/round13_run${SUFFIX}.log"
@@ -27,7 +28,7 @@ while true; do
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] supervisor: checkpoint exists (${ckpt_size} bytes) - search will resume from it"
     fi
 
-    python3 -u "$SCRIPT" --offset "$OFFSET" --ckpt-suffix "$SUFFIX" --max-days "$MAX_DAYS" >> "$RUN_LOG" 2>&1
+    python3 -u "$SCRIPT" --offset "$OFFSET" --ckpt-suffix "$SUFFIX" --max-days "$MAX_DAYS" --scale "$SCALE" >> "$RUN_LOG" 2>&1
     rc=$?
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] supervisor: process exited with code $rc"
 
