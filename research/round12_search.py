@@ -165,28 +165,37 @@ MSM = MultiScaleMomentum()
 
 
 class TickRateGauge:
-    """Track ticks per second over rolling windows."""
+    """Track ticks per second over rolling windows. Caches rate per window
+    and only refreshes when at least 1s has passed since last compute.
+    """
     def __init__(self):
-        self._buf = deque(maxlen=2000)  # (ts,)
+        self._buf = deque(maxlen=4000)  # (ts,)
+        self._cache = {}  # window_s -> (last_ts, last_rate)
 
     def feed(self, ts):
         self._buf.append(ts)
-        # prune old
         cutoff = ts - 120.0
         while self._buf and self._buf[0] < cutoff:
             self._buf.popleft()
 
     def rate(self, window_s, now_ts):
+        cached = self._cache.get(window_s)
+        if cached is not None and now_ts - cached[0] < 0.5:
+            return cached[1]
         if not self._buf:
+            self._cache[window_s] = (now_ts, 0.0)
             return 0.0
         cutoff = now_ts - window_s
-        # count from right
+        # binary search would be faster but deque doesn't support it
+        # iterate from right
         n = 0
         for t in reversed(self._buf):
             if t < cutoff:
                 break
             n += 1
-        return n / max(0.001, window_s)
+        rate = n / max(0.001, window_s)
+        self._cache[window_s] = (now_ts, rate)
+        return rate
 
 
 TICK_RATE = TickRateGauge()
@@ -230,30 +239,68 @@ BAP = BidAskPersistence()
 class SwingHighLowTracker:
     """Track recent N-bar swing highs and lows for stop-cluster estimation
     (avenue D) and round-number distance (avenue E).
+
+    Bars only change on bar-close, so cache results per lookback and
+    invalidate on each feed_bar.
     """
     def __init__(self):
         self._bars = deque(maxlen=80)
+        self._cache_hi = {}
+        self._cache_lo = {}
+        self._cache_rng = {}
 
     def feed_bar(self, o, h, l, c):
         self._bars.append((o, h, l, c))
+        self._cache_hi.clear()
+        self._cache_lo.clear()
+        self._cache_rng.clear()
 
     def swing_high(self, lookback):
-        sub = list(self._bars)[-lookback:]
-        if not sub:
+        cached = self._cache_hi.get(lookback)
+        if cached is not None:
+            return cached
+        if not self._bars:
             return None
-        return max(b[1] for b in sub)
+        # Iterate deque directly for last 'lookback' items
+        n = min(lookback, len(self._bars))
+        m = -1e18
+        bars = self._bars
+        # Walk from right by index
+        for i in range(len(bars) - n, len(bars)):
+            v = bars[i][1]
+            if v > m: m = v
+        self._cache_hi[lookback] = m
+        return m
 
     def swing_low(self, lookback):
-        sub = list(self._bars)[-lookback:]
-        if not sub:
+        cached = self._cache_lo.get(lookback)
+        if cached is not None:
+            return cached
+        if not self._bars:
             return None
-        return min(b[2] for b in sub)
+        n = min(lookback, len(self._bars))
+        m = 1e18
+        bars = self._bars
+        for i in range(len(bars) - n, len(bars)):
+            v = bars[i][2]
+            if v < m: m = v
+        self._cache_lo[lookback] = m
+        return m
 
     def avg_range(self, lookback):
-        sub = list(self._bars)[-lookback:]
-        if not sub:
+        cached = self._cache_rng.get(lookback)
+        if cached is not None:
+            return cached
+        if not self._bars:
             return 0.0
-        return sum(b[1] - b[2] for b in sub) / len(sub)
+        n = min(lookback, len(self._bars))
+        total = 0.0
+        bars = self._bars
+        for i in range(len(bars) - n, len(bars)):
+            total += bars[i][1] - bars[i][2]
+        v = total / n
+        self._cache_rng[lookback] = v
+        return v
 
 
 SWHL = SwingHighLowTracker()
@@ -675,6 +722,35 @@ class VolumeVacuumStrategy(_BaseEmitter):
 # =============================================================================
 # Avenue K. Cross-tick momentum at sub-100ms
 # =============================================================================
+class _SharedSubTickBuf:
+    """Single shared buffer for all SubHundredMs strategies. They look up
+    a cached anchor price per window_s via the gauge instead of each
+    keeping its own deque.
+    """
+    def __init__(self):
+        self._buf = deque(maxlen=600)  # (ts, last)
+        self._cache = {}  # window_s -> (last_ts, anchor)
+
+    def feed(self, ts, last):
+        self._buf.append((ts, last))
+
+    def anchor(self, window_s, now_ts):
+        c = self._cache.get(window_s)
+        if c is not None and now_ts - c[0] < 0.02:  # ~20ms cache
+            return c[1]
+        cutoff = now_ts - window_s
+        anchor = None
+        for t, p in self._buf:
+            if t >= cutoff:
+                anchor = p
+                break
+        self._cache[window_s] = (now_ts, anchor)
+        return anchor
+
+
+SUB_TICK_BUF = _SharedSubTickBuf()
+
+
 class SubHundredMsMomentum(_BaseEmitter):
     """Pure microstructure: look at every Wms net delta. Fire on extreme
     intra-W ms moves of >=N ticks.
@@ -686,7 +762,6 @@ class SubHundredMsMomentum(_BaseEmitter):
         super().__init__(name, stop_pts, target_pts, **kwargs)
         self.window_s = window_ms / 1000.0
         self.threshold_pts = threshold_ticks * TICK
-        self._buf = deque(maxlen=200)  # (ts, last)
         self._last_signal_ts = 0.0
 
     def on_bar_close(self, ts, hh, mn, bo, bh, bl, bc, hist):
@@ -694,16 +769,9 @@ class SubHundredMsMomentum(_BaseEmitter):
 
     def feed_signal(self, ts, bid, ask):
         last = (bid + ask) / 2.0
-        self._buf.append((ts, last))
         if ts - self._last_signal_ts < self.cooldown_s:
             return
-        # find oldest tick in window
-        cutoff = ts - self.window_s
-        anchor = None
-        for t, p in self._buf:
-            if t >= cutoff:
-                anchor = p
-                break
+        anchor = SUB_TICK_BUF.anchor(self.window_s, ts)
         if anchor is None:
             return
         delta = last - anchor
@@ -1487,7 +1555,8 @@ def build_all_variants(quick=False, t_sweep=3000):
 
     # ---- O. Stochastic random ----
     O_rng = random.Random(0xBAD1DEAA)
-    o_variants = build_stochastic_variants(2000, O_rng)
+    n_o = 500 if quick else 1000
+    o_variants = build_stochastic_variants(n_o, O_rng)
     for s in o_variants:
         v1m.append(s)
 
@@ -1584,7 +1653,7 @@ def main():
     ap.add_argument("--offset", type=int, default=DEFAULT_OFFSET)
     ap.add_argument("--ckpt-suffix", default="")
     ap.add_argument("--max-days", type=int, default=60)
-    ap.add_argument("--t-sweep", type=int, default=9000,
+    ap.add_argument("--t-sweep", type=int, default=6000,
                     help="Total T-avenue Latin variants (3 bases × N/3)")
     ap.add_argument("--quick", action="store_true",
                     help="Skip the big T sweep + cap A-avenue")
@@ -1602,6 +1671,26 @@ def main():
     all_strats = v1m + vtick
     for s in all_strats:
         attach_r7_executor(s)
+    # Pre-cache feed_signal callable and initialize next-check timestamp
+    # to enable the fast-skip optimization in the main loop.
+    for s in vtick:
+        s._feed_signal_fn = getattr(s, 'feed_signal', None)
+        s._next_feed_ts = 0.0
+        if not hasattr(s, '_last_signal_ts'):
+            s._last_signal_ts = 0.0
+
+    # OPTIMIZATION: wrap StrategyBase.add_setup to add the strategy to a
+    # shared 'active' set. The main loop iterates only the active set
+    # instead of all 13K strategies every tick.
+    _ACTIVE = set()
+    _orig_add_setup = StrategyBase.add_setup
+    def _patched_add_setup(self, *args, **kwargs):
+        _orig_add_setup(self, *args, **kwargs)
+        _ACTIVE.add(id(self))
+        self._active_ref = self  # keep alive
+    StrategyBase.add_setup = _patched_add_setup
+    # Maintain a parallel dict so we can look up strategy by id quickly
+    _ACTIVE_LOOKUP = {id(s): s for s in all_strats}
     print(f"[round12] Built {len(all_strats):,} strategies "
           f"({len(v1m)} 1m + {len(vtick)} tick)", file=sys.stderr)
 
@@ -1687,6 +1776,7 @@ def main():
             MSM.feed(ts, last)
             TICK_RATE.feed(ts)
             BAP.feed(ts, bid, ask)
+            SUB_TICK_BUF.feed(ts, last)
 
             if bb_1m.on_tick(ts, last):
                 closed = bb_1m.closed_bar()
@@ -1698,22 +1788,41 @@ def main():
                     for s in v1m:
                         s.on_bar_close(ts, hh, mn, o, h, l, c, bb_1m.history)
 
-            # Per-tick signal emitters
+            # Per-tick signal emitters — gated by per-strategy cooldown skip.
             for s in vtick:
-                fs = getattr(s, 'feed_signal', None)
-                if fs is not None:
-                    fs(ts, bid, ask)
+                nxt = s._next_feed_ts
+                if ts < nxt:
+                    continue
+                fs = s._feed_signal_fn
+                if fs is None:
+                    s._next_feed_ts = 1e18
+                    continue
+                fs(ts, bid, ask)
+                last_ts = s._last_signal_ts
+                cd = s.cooldown_s
+                s._next_feed_ts = max(ts, last_ts + cd)
 
-            # Avenue A post-processing: update brackets dynamically
+            # Avenue A post-processing: only for strategies currently in_trade
             for s in a_strats:
-                react_postprocess(s, ts)
-            # Avenue S post-processing
+                if s.in_trade is not None:
+                    react_postprocess(s, ts)
+            # Avenue S post-processing: only for strategies currently in_trade
             for s in s_strats:
-                optimal_stop_postprocess(s, ts, bid, ask)
+                if s.in_trade is not None:
+                    optimal_stop_postprocess(s, ts, bid, ask)
 
-            # Bot tick
-            for s in all_strats:
-                r10_bot_on_tick(s, ts, bid, ask, day_counter, hh, mn, last)
+            # Bot tick — FAST PATH: only iterate the active set (strategies
+            # with pending setups or open trade). _ACTIVE is updated by the
+            # patched add_setup hook and pruned here.
+            if _ACTIVE:
+                to_remove = []
+                for sid in _ACTIVE:
+                    s = _ACTIVE_LOOKUP[sid]
+                    r10_bot_on_tick(s, ts, bid, ask, day_counter, hh, mn, last)
+                    if not s.pending and s.in_trade is None:
+                        to_remove.append(sid)
+                for sid in to_remove:
+                    _ACTIVE.discard(sid)
 
     elapsed = time.time() - t_start
     total_days = day_counter + 1
