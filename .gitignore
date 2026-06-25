@@ -41,7 +41,7 @@ data/tick/
 research/bars_*.parquet
 
 # Strategy search runtime checkpoints (binary; regenerated on each run)
-research/round*_checkpoint.pkl
+research/round*_checkpoint.pkl*
 
 # Multi-account runtime state — each account's data dir is initialised
 # on first bot boot in production; never check in local smoke-test state.
