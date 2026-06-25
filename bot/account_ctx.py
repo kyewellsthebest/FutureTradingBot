@@ -93,13 +93,26 @@ def list_known_accounts() -> list[str]:
 # ---------------------------------------------------------------------------
 _DEFAULT_PARAMS = {
     # ACCOUNT 1 -- env-driven so Railway config is the source of truth.
+    #
+    # Defaults below are the VALIDATED "S2 winner" config from the faithful
+    # tick-data search (research/tick_strategy_findings.md): inverse-fade a
+    # shallow 0.118 pullback, tight 5pt stop, large 44pt target. On 24.9M
+    # real NQ ticks (Dec 2025-Feb 2026) under the bot's exact execution
+    # model ($0.74 RT, 0.25pt stop slip, $2/pt, 60s cd, 600s max-hold) this
+    # nets ~+$1,034/day per MNQ (worst month +$620, OOS +$1,515), maxDD
+    # ~$550, profit spread across ~11k trades (top-10 = 1.2% of net), and
+    # holds up at 4x worse slippage. Env vars still override everything.
+    #
+    # Conservative alternative (further-from-price entry = most trustworthy
+    # fills, lower return): PULL=0.236, STOP=6, TARGET=30, IMPULSE=3,
+    # WINDOW=4 -> ~+$528/day per MNQ.
     "1": {
-        "IMPULSE_PTS":         float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
-        "IMPULSE_WINDOW_BARS": int(os.environ.get("STRAT_IMPULSE_BARS", "4")),
-        "PULLBACK_PCT":        float(os.environ.get("STRAT_PULL_PCT", "0.618")),
-        "STOP_PTS":            float(os.environ.get("STRAT_STOP_PTS", "6.0")),
-        "TARGET_PTS":          float(os.environ.get("STRAT_TARGET_PTS", "12.0")),
-        "INVERT":              os.environ.get("STRAT_INVERT", "0") == "1",
+        "IMPULSE_PTS":         float(os.environ.get("STRAT_IMPULSE_PTS", "2.0")),
+        "IMPULSE_WINDOW_BARS": int(os.environ.get("STRAT_IMPULSE_BARS", "3")),
+        "PULLBACK_PCT":        float(os.environ.get("STRAT_PULL_PCT", "0.118")),
+        "STOP_PTS":            float(os.environ.get("STRAT_STOP_PTS", "5.0")),
+        "TARGET_PTS":          float(os.environ.get("STRAT_TARGET_PTS", "44.0")),
+        "INVERT":              os.environ.get("STRAT_INVERT", "1") == "1",
     },
 }
 
