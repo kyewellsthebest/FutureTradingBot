@@ -258,10 +258,12 @@ def simulate(ticks, setups, cfg: SimCfg):
         e_px = float(entry[j]); s_px = float(stop[j]); t_px = float(tgt[j])
         d = int(tdir[j])
 
-        # ---- exit scan from eidx within max_hold ----
+        # ---- exit scan: ticks STRICTLY AFTER the entry tick (bot guard:
+        #      `if now <= entry_ts: return None`) within max_hold ----
         deadline = fire_ts + max_hold
+        lo_x = np.searchsorted(ts, fire_ts, "right")   # first tick > fire_ts
         hi = np.searchsorted(ts, deadline, "right")
-        seg = slice(eidx, hi)
+        seg = slice(lo_x, hi)
         b = bid[seg]; a = ask[seg]; tseg = ts[seg]
         hold_ok = (tseg - fire_ts) >= min_hold
         if d == 1:  # LONG
