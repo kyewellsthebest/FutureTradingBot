@@ -175,7 +175,8 @@ class SimCfg:
     max_wait_s: int = 300
     max_hold_s: int = 600
     stop_slip: float = 0.25
-    entry_slip: float = 0.0    # adverse entry cost (pts) for marketable fills
+    entry_slip: float = 0.0    # adverse entry cost (pts) for marketable fills (flat-cost model)
+    entry_latency_ms: float = 0.0  # >0 = mechanistic fill at real price `latency` after touch
     comm_rt: float = 0.74
     min_tgt_hold_s: int = 0
     n_mnq: int = 1
@@ -273,6 +274,20 @@ def simulate(ticks, setups, cfg: SimCfg):
         e_px = float(entry[j]); s_px = float(stop[j]); t_px = float(tgt[j])
         d = int(tdir[j])
 
+        # ---- MECHANISTIC entry fill (cfg.entry_latency_ms > 0): the order
+        # fills at the actual market price `latency` after the touch, NOT at
+        # the level. Brackets (s_px/t_px) stay at the INTENDED level-based
+        # prices (matching the live bot's use_paper_prices). So when price
+        # spills past the level in the latency window, the fill is worse and
+        # the effective risk/reward is distorted -> reproduces the live
+        # win-rate collapse instead of charging a flat cost. LONG fills at
+        # ask, SHORT at bid (marketable). ---
+        if cfg.entry_latency_ms > 0:
+            fidx = np.searchsorted(ts, fire_ts + cfg.entry_latency_ms * 1_000_000, "left")
+            if fidx >= ntick:
+                break
+            e_px = float(ask[fidx]) if d == 1 else float(bid[fidx])
+            fire_ts = ts[fidx]
         # ---- exit scan: ticks STRICTLY AFTER the entry tick (bot guard:
         #      `if now <= entry_ts: return None`) within max_hold ----
         deadline = fire_ts + max_hold
