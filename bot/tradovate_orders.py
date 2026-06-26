@@ -330,20 +330,31 @@ class TradovateOrders:
         # With MARKET entry, fill price is current market (slipped),
         # so bracket_ref must track live market for the bracket to be
         # placed correctly relative to the actual fill.
-        # Reverted to "limit" 2026-06-22 per user instruction "bot must
-        # trade EXACTLY like the backtest". sim_honest_battery's
-        # +$3,008/day result on the recent 60-day window uses strict
-        # LIMIT semantics at the pullback level. The marketable LIMIT
-        # default I shipped earlier (commit 0e19d96) was a mistake --
-        # it forced fills at live ask/bid which costs ~0.5-1pt per
-        # trade in slip. With the arming gate also removed in
-        # pullback_strategy.py and the anticipatory pre-submit at 10pt,
-        # the strict LIMIT at pullback is what we want: clean fills at
-        # the exact strategy entry, occasional misses on sustained
-        # moves which are NOT a problem because they correspond to
-        # setups the backtest model also wouldn't have filled.
-        # Set BROKER_ENTRY_TYPE=marketable_limit to revert.
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "limit").lower()
+        # Default = "marketable_limit" (2026-06-26).
+        #
+        # HISTORY: was reverted to passive "limit" on 2026-06-22 for the
+        # OLD strategy (0.236 pullback / 10pt stop), where the entry is a
+        # DEEP retracement that price returns to decisively -- so a passive
+        # LIMIT at the level fills cleanly and the "occasional misses"
+        # genuinely corresponded to setups the backtest also wouldn't fill.
+        #
+        # That assumption BREAKS for the current shallow 0.118-pullback
+        # fade strategy: its WINNERS are brief touches of a near-price
+        # level. A passive LIMIT structurally MISSES those winners (the
+        # touch is too quick to fill from the back of the queue) while
+        # always filling the LOSERS (price trades decisively through).
+        # Live bundle 2026-06-26 confirmed it: 3 missed winners (-$262
+        # phantom paper P&L), fills up to 261s late, broker -$76 vs
+        # paper +$116. That's adverse selection on fills, not a price bug.
+        #
+        # marketable_limit fixes it: the LIMIT is bumped past the market
+        # so it fills immediately on the touch (like paper), and
+        # fib_main._revise_paper_entry_to_broker_fill rewrites paper's
+        # entry to the actual fill price -> paper and broker converge by
+        # construction. Costs ~0.5-1pt entry slip, which the strategy
+        # tolerates easily (sim: +$871/day at 0.5pt, +$714/day at 1.0pt
+        # per MNQ). Set BROKER_ENTRY_TYPE=limit to restore the old mode.
+        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "marketable_limit").lower()
 
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None

@@ -161,6 +161,7 @@ class SimCfg:
     max_wait_s: int = 300
     max_hold_s: int = 600
     stop_slip: float = 0.25
+    entry_slip: float = 0.0    # adverse entry cost (pts) for marketable fills
     comm_rt: float = 0.74
     min_tgt_hold_s: int = 0
     n_mnq: int = 1
@@ -293,7 +294,9 @@ def simulate(ticks, setups, cfg: SimCfg):
             x_ts = tseg[xi]; reason = "timeout"
             x_px = (b[xi] + a[xi]) / 2.0
 
-        pnl = d * (x_px - e_px) * PT_VALUE * cfg.n_mnq - cfg.comm_rt * cfg.n_mnq
+        # marketable entry pays an adverse entry slip on every fill
+        pnl = (d * (x_px - e_px) - cfg.entry_slip) * PT_VALUE * cfg.n_mnq \
+              - cfg.comm_rt * cfg.n_mnq
         trades.append({
             "fire_ts": fire_ts, "exit_ts": x_ts,
             "side": "LONG" if d == 1 else "SHORT",
