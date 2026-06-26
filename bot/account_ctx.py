@@ -106,13 +106,19 @@ _DEFAULT_PARAMS = {
     # Conservative alternative (further-from-price entry = most trustworthy
     # fills, lower return): PULL=0.236, STOP=6, TARGET=30, IMPULSE=3,
     # WINDOW=4 -> ~+$528/day per MNQ.
+    # HARD-PINNED to the validated S2-winner so a deploy trades this strategy
+    # regardless of any stale STRAT_* env vars left on Railway (which would
+    # otherwise silently override code defaults and keep the old config).
+    # This block is the single source of truth for the strategy. To tune,
+    # edit these 6 numbers. To restore env-driven control, swap each value
+    # back to e.g. float(os.environ.get("STRAT_STOP_PTS", "5.0")).
     "1": {
-        "IMPULSE_PTS":         float(os.environ.get("STRAT_IMPULSE_PTS", "2.0")),
-        "IMPULSE_WINDOW_BARS": int(os.environ.get("STRAT_IMPULSE_BARS", "3")),
-        "PULLBACK_PCT":        float(os.environ.get("STRAT_PULL_PCT", "0.118")),
-        "STOP_PTS":            float(os.environ.get("STRAT_STOP_PTS", "5.0")),
-        "TARGET_PTS":          float(os.environ.get("STRAT_TARGET_PTS", "44.0")),
-        "INVERT":              os.environ.get("STRAT_INVERT", "1") == "1",
+        "IMPULSE_PTS":         2.0,
+        "IMPULSE_WINDOW_BARS": 3,
+        "PULLBACK_PCT":        0.118,
+        "STOP_PTS":            5.0,
+        "TARGET_PTS":          44.0,
+        "INVERT":              True,
     },
 }
 
