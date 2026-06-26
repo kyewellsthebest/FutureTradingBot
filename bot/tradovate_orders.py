@@ -353,8 +353,18 @@ class TradovateOrders:
         # entry to the actual fill price -> paper and broker converge by
         # construction. Costs ~0.5-1pt entry slip, which the strategy
         # tolerates easily (sim: +$871/day at 0.5pt, +$714/day at 1.0pt
-        # per MNQ). Set BROKER_ENTRY_TYPE=limit to restore the old mode.
-        entry_type = os.environ.get("BROKER_ENTRY_TYPE", "marketable_limit").lower()
+        # per MNQ).
+        #
+        # HARD-PINNED 2026-06-26: the 04:02 bundle proved a stale Railway
+        # env var BROKER_ENTRY_TYPE=limit was overriding the code default,
+        # leaving orders as passive limits (limit_px==entry_est, resting
+        # 16s+ then timing out -> the missed winners). Force marketable
+        # here so Railway env can't silently revert it. To change modes,
+        # edit this line.
+        entry_type = "marketable_limit"
+        _override = os.environ.get("BROKER_ENTRY_TYPE", "").lower()
+        if _override in ("market",):           # allow ONLY an explicit escalation
+            entry_type = _override
 
         bracket_ref = float(entry_estimate)
         cur_bid = cur_ask = None
