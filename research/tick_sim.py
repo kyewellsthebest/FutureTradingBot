@@ -131,6 +131,20 @@ def precompute_setups(bars: pd.DataFrame, params: dict):
         trade_long = orig_up
     trade_dir = np.where(trade_long, 1, -1).astype("int8")
 
+    # HTF trend filter (regime protection): only take trades whose side
+    # agrees with the higher-timeframe trend = sign(close[i]-close[i-LB]).
+    # 0 = off. This is the key defense against fading strong trends.
+    htf_lb = int(params.get("HTF_LOOKBACK_BARS", 0))
+    if htf_lb > 0:
+        prev_i = idx - htf_lb
+        ok = prev_i >= 0
+        trend = np.zeros(len(idx))
+        trend[ok] = c[idx[ok]] - c[prev_i[ok]]
+        keep = ((trade_long & (trend > 0)) | (~trade_long & (trend < 0))) & ok
+        idx = idx[keep]; net = net[keep]; hh = hh[keep]; ll = ll[keep]
+        rng = rng[keep]; orig_up = orig_up[keep]
+        trade_long = trade_long[keep]; trade_dir = trade_dir[keep]
+
     # entry from impulse direction
     entry = np.where(orig_up, hh - pull * rng, ll + pull * rng)
     entry = np.where(orig_up, _tick_round_arr(entry, "floor"),
