@@ -25,19 +25,24 @@ BUCKET_S=5
 _FB=None  # feature buckets: dict of arrays
 
 def build_buckets(bucket_s=BUCKET_S):
-    ts=Z._TS; px=Z._PX
-    b=ts//(bucket_s*NS)                       # bucket id per tick
-    # boundaries where bucket changes
-    chg=np.concatenate([[0], np.where(np.diff(b)!=0)[0]+1, [len(b)]])
-    starts=chg[:-1]; ends=chg[1:]
-    last_px=px[ends-1]
+    """Memory-frugal: no full cumsum. Uses reduceat for per-bucket OFI sum
+    and frees big temporaries as we go (4.5GB ticks already resident)."""
+    ts=Z._TS; px=Z._PX; n=len(ts)
+    b=ts//(bucket_s*NS)                        # bucket id per tick (int64)
+    change=np.empty(n,bool); change[0]=True; np.not_equal(b[1:],b[:-1],out=change[1:])
+    starts=np.nonzero(change)[0]
+    del change, b
+    ends=np.empty(len(starts),"int64"); ends[:-1]=starts[1:]; ends[-1]=n
     cnt=(ends-starts).astype("float64")
-    sgn=np.sign(np.diff(px, prepend=px[0]))    # tick rule
-    csum=np.cumsum(sgn)
-    sign_sum=csum[ends-1]-np.concatenate([[0],csum[ends[:-1]-1]])  # per-bucket sum
-    bts=b[starts]*(bucket_s*NS)                # bucket start ns
-    return {"ts":bts.astype("int64"),"px":last_px.astype("float64"),
-            "cnt":cnt,"ofi":sign_sum.astype("float64")}
+    last_px=px[ends-1].astype("float64")
+    # CRITICAL: a bucket's features (last_px, ofi, cnt) are only known at the
+    # bucket's END. Stamp the signal time as the last tick of the bucket so the
+    # sim enters AFTER that, never before. Using bucket START = lookahead.
+    bts=ts[ends-1].astype("int64")
+    sgn=np.sign(np.diff(px,prepend=px[0]))     # tick rule, 280M float
+    ofi=np.add.reduceat(sgn,starts).astype("float64")
+    del sgn
+    return {"ts":bts,"px":last_px,"cnt":cnt,"ofi":ofi}
 
 def _init_micro():
     global _FB
