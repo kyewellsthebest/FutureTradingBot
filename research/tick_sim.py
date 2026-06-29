@@ -1,5 +1,18 @@
 """Faithful tick-level simulator for the live pullback (INVERSE FADE) bot.
 
+!!! WARNING (2026-06-29): BOTH fill models here are UNREALISTIC. !!!
+  * entry_latency_ms=0  -> fills at the exact pullback LEVEL every time. You
+    cannot get ~157 limit fills/day at the touch price; this is fill fantasy
+    and massively overstates PnL (~+$1000/day on the legacy config).
+  * entry_latency_ms>0  -> fills at market after latency BUT leaves the
+    stop/target brackets anchored to the LEVEL, not the actual fill. When the
+    fill drifts from the level, a "stop" can exit IN PROFIT (72% stop-outs but
+    56% "win rate"). Also fake (~+$2300/day).
+  The CORRECT model (market fill at level + adverse slip, brackets anchored to
+  the ACTUAL fill) lives in research/legacy_correct.py and shows the legacy
+  strategy LOSES ~-$278/day. Use that, not this, for any PnL conclusion.
+
+
 Goal: reproduce EXACTLY what bot/pullback_strategy.py + bot/fib_main.py do
 live, but on real NQ tick data (price+bid+ask), so a strategy that is
 profitable here has a real chance live.
