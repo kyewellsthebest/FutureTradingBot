@@ -1,0 +1,48 @@
+name: Download NQ Ticks
+
+# Manual trigger. Fans out 12 quarterly NQ contracts in parallel, each
+# downloads its front-month trades from Polygon and uploads the parquet to
+# the `nq-ticks-raw` release. Needs repo secret POLYGON_API.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view nq-ticks-raw \
+            || gh release create nq-ticks-raw -t "NQ ticks raw (per-contract)" \
+                 -n "Polygon NQ futures trades, one parquet per quarterly contract"
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        ticker: [NQU3, NQZ3, NQH4, NQM4, NQU4, NQZ4, NQH5, NQM5, NQU5, NQZ5, NQH6, NQM6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pandas pyarrow
+      - name: Download ${{ matrix.ticker }}
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+          TICKER: ${{ matrix.ticker }}
+        run: python -m research.download_nq_ticks
+      - name: Upload ${{ matrix.ticker }} to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload nq-ticks-raw data/tick/raw/${{ matrix.ticker }}.parquet --clobber
