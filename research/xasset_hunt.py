@@ -20,10 +20,12 @@ def load():
     nq=nq[["open","high","low","close"]].copy()
     x={}
     for p in ["ES","ZB","GC","VIX"]:
-        f=f"{XDIR}/{p}_1m.parquet"
-        if os.path.exists(f):
-            d=pd.read_parquet(f); d.index=pd.to_datetime(d["ts"]); 
-            x[p]=d[["open","high","low","close"]].rename(columns=lambda c:f"{p}_{c}")
+        f=next((f"{XDIR}/{p}_{t}.parquet" for t in ("1s","1m") if os.path.exists(f"{XDIR}/{p}_{t}.parquet")),None)
+        if f:
+            d=pd.read_parquet(f); d.index=pd.to_datetime(d["ts"])
+            g=d.resample("1min")   # 1s -> 1min for alignment (we hold minutes+, executable)
+            x[p]=pd.DataFrame({f"{p}_open":g["open"].first(),f"{p}_high":g["high"].max(),
+                               f"{p}_low":g["low"].min(),f"{p}_close":g["close"].last()}).dropna()
     return nq,x
 
 def align(nq,x):
