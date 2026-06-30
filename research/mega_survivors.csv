@@ -1,0 +1,2 @@
+per_day,total,sharpe,maxDD,pos_yrs,n_yrs,n,worst_yr,tf,sig,p,sess,exit,flip
+48.2,37046.0,2.01,4783.0,4,4,768,2101.0,10min,mom,"(5, 0.001)",rth,eod0/0/0,False
