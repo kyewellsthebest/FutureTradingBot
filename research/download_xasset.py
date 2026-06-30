@@ -38,10 +38,13 @@ def get(u,tries=8):
             return None,f"{type(e).__name__}:{e}"
     return None,"exhausted"
 def _norm_ts(t):
-    t=int(t)
-    return t if t>10**15 else t*1_000_000   # ms -> ns guard
+    t=int(t)   # normalize s/ms/us -> ns
+    if t<2*10**9:  return t*1_000_000_000
+    if t<2*10**12: return t*1_000_000
+    if t<2*10**15: return t*1_000
+    return t
 def _row(r):
-    ts=r.get("timestamp") or r.get("t") or r.get("start_timestamp")
+    ts=r.get("window_start") or r.get("timestamp") or r.get("t") or r.get("start_timestamp")
     o=r.get("open",r.get("o")); h=r.get("high",r.get("h")); l=r.get("low",r.get("l"))
     c=r.get("close",r.get("c")); v=r.get("volume",r.get("v",0))
     if ts is None or c is None: return None
