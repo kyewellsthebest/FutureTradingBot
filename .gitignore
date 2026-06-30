@@ -53,3 +53,6 @@ research/round*_supervisor.pid
 
 # Large cross-asset bars (live in the xasset-1m GitHub release, not git)
 data/xasset/
+
+# volume bars (large, rebuildable from data/tick/raw)
+data/tick/nq_bars_1m_vol.parquet
