@@ -1,10 +1,9 @@
 """Download cross-asset history that leads NQ via the POLYGON FUTURES API
 (/futures/v1/aggs) — the same family as the NQ trades download. ES (S&P),
-GC (gold), ZB (bonds) front-month-stitched at 1-SECOND resolution; VIX index
-via /v2 (indices; unentitled on this plan).
+GC (gold), ZB (bonds) front-month-stitched at 1-SECOND resolution.
 
-GitHub Actions matrix mode: set env PRODUCT=ES (or ZB/GC/VIX).
-  -> writes data/xasset/<PRODUCT>_1s.parquet  (VIX -> _1m)
+GitHub Actions matrix mode: set env PRODUCT=ES (or ZB/GC).
+  -> writes data/xasset/<PRODUCT>_1s.parquet
 Needs POLYGON_API.
 """
 import json,os,sys,time,urllib.request,urllib.error
@@ -63,16 +62,6 @@ def futures_aggs(ticker,s_ns,e_ns,resolution="1_second"):
             if row: rows.append(row)
         nx=d.get("next_url"); url=(nx+f"&apiKey={KEY}") if nx else None
     return rows
-def v2_aggs(ticker,s,e,span="minute"):
-    rows=[]; url=(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/{span}/"
-                 f"{s}/{e}?adjusted=true&sort=asc&limit=50000&apiKey={KEY}")
-    while url:
-        d,err=get(url)
-        if err: print(f"  {ticker}: {err}",flush=True); break
-        for r in (d.get("results") or []):
-            rows.append((_norm_ts(r["t"]),float(r["o"]),float(r["h"]),float(r["l"]),float(r["c"]),float(r.get("v",0))))
-        nx=d.get("next_url"); url=(nx+f"&apiKey={KEY}") if nx else None
-    return rows
 def futures_tickers(product,months):
     today=date.today(); start=today-timedelta(days=HISTORY_DAYS+120); end=today+timedelta(days=10)
     out=[]
@@ -91,26 +80,17 @@ def download_futures(product,months):
         if rows:
             df=pd.DataFrame(rows,columns=["ts","open","high","low","close","vol"])
             df=df[(df.ts>=s_ns)&(df.ts<e_ns)]; parts.append(df)
-    if not parts: print("no data"); return
+    if not parts:
+        print(f"NO DATA for {product} (key expired/unentitled?) — failing loudly",flush=True)
+        sys.exit(2)
     full=pd.concat(parts).sort_values("ts"); full=full[~full.ts.duplicated(keep="last")]
     f=OUT/f"{product}_1s.parquet"; full.to_parquet(f,compression="zstd",index=False)
     print(f"{product}: {len(full):,} bars -> {f}",flush=True)
-def download_index(name,ticker):
-    today=date.today(); start=today-timedelta(days=HISTORY_DAYS); rows=[]; cur=start
-    while cur<today:
-        nxt=min(cur+timedelta(days=120),today)
-        rows+=v2_aggs(ticker,cur.isoformat(),nxt.isoformat(),"minute"); cur=nxt
-    if not rows: print("no data"); return
-    df=pd.DataFrame(rows,columns=["ts","open","high","low","close","vol"]).sort_values("ts")
-    df=df[~df.ts.duplicated(keep="last")]
-    f=OUT/f"{name}_1m.parquet"; df.to_parquet(f,compression="zstd",index=False)
-    print(f"{name}: {len(df):,} bars -> {f}",flush=True)
 def main():
     if not KEY: print("NO POLYGON KEY"); sys.exit(1)
     p=os.environ.get("PRODUCT","ES").strip()
     if p=="ES": download_futures("ES",MONTH_CODE)
     elif p=="ZB": download_futures("ZB",MONTH_CODE)
     elif p=="GC": download_futures("GC",GC_MONTHS)
-    elif p=="VIX": download_index("VIX","I:VIX")
     else: print(f"unknown PRODUCT {p}")
 if __name__=="__main__": main()
