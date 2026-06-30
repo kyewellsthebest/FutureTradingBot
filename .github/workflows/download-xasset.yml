@@ -33,4 +33,4 @@ jobs:
       - name: Upload ${{ matrix.product }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload xasset-1m data/xasset/${{ matrix.product }}_1m.parquet --clobber
+        run: gh release upload xasset-1m data/xasset/${{ matrix.product }}_*.parquet --clobber

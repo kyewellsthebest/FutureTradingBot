@@ -33,9 +33,9 @@ def get(u,tries=8):
             if a<tries-1: time.sleep(4); continue
             return None,f"{type(e).__name__}:{e}"
     return None,"exhausted"
-def agg_range(ticker,s,e):
-    """1-min aggs for [s,e] dates via the v2 range endpoint, paginated."""
-    rows=[]; url=(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/minute/"
+def agg_range(ticker,s,e,span="minute"):
+    """aggs for [s,e] dates via the v2 range endpoint, paginated. span=second|minute."""
+    rows=[]; url=(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/{span}/"
                  f"{s}/{e}?adjusted=true&sort=asc&limit=50000&apiKey={KEY}")
     while url:
         d,err=get(url)
@@ -52,20 +52,24 @@ def futures_tickers(product,months):
             exp=third_fri(y,m)
             if start<=exp<=end: out.append((f"{product}{code}{y%10}",exp))
     out.sort(key=lambda t:t[1]); return out
-def download_futures(product,months):
+def download_futures(product,months,span="second"):
     tks=futures_tickers(product,months); parts=[]; prev=None
     for i,(tk,exp) in enumerate(tks):
-        s=(prev or (exp-timedelta(days=130))); e=exp
-        print(f"{tk}: {s}->{e}",flush=True)
-        rows=agg_range(tk,s.isoformat(),e.isoformat())
+        s0=(prev or (exp-timedelta(days=130))); e=exp; prev=exp
+        # page in <=10-day chunks so 1-second pulls stay reliable
+        cur=s0; rows=[]
+        while cur<e:
+            nxt=min(cur+timedelta(days=10),e)
+            rows+=agg_range(tk,cur.isoformat(),nxt.isoformat(),span); cur=nxt
+        print(f"{tk}: {s0}->{e}  {len(rows):,} bars",flush=True)
         if rows:
             df=pd.DataFrame(rows,columns=["ts","open","high","low","close","vol"])
-            df=df[(pd.to_datetime(df.ts)>=pd.Timestamp(s))&(pd.to_datetime(df.ts)<pd.Timestamp(e))]
-            parts.append(df); print(f"  {len(df):,} bars",flush=True)
-        prev=exp
+            df=df[(pd.to_datetime(df.ts)>=pd.Timestamp(s0))&(pd.to_datetime(df.ts)<pd.Timestamp(e))]
+            parts.append(df)
     if not parts: print("no data"); return
     full=pd.concat(parts).sort_values("ts"); full=full[~full.ts.duplicated(keep="last")]
-    f=OUT/f"{product}_1m.parquet"; full.to_parquet(f,compression="zstd",index=False)
+    tag="1s" if span=="second" else "1m"
+    f=OUT/f"{product}_{tag}.parquet"; full.to_parquet(f,compression="zstd",index=False)
     print(f"{product}: {len(full):,} bars -> {f}",flush=True)
 def download_index(name,ticker):
     today=date.today(); start=today-timedelta(days=HISTORY_DAYS)
@@ -82,9 +86,9 @@ def download_index(name,ticker):
 def main():
     if not KEY: print("NO POLYGON KEY"); sys.exit(1)
     p=os.environ.get("PRODUCT","ES").strip()
-    if p=="ES": download_futures("ES",MONTH_CODE)
-    elif p=="ZB": download_futures("ZB",MONTH_CODE)
-    elif p=="GC": download_futures("GC",GC_MONTHS)
-    elif p=="VIX": download_index("VIX","I:VIX")
+    if p=="ES": download_futures("ES",MONTH_CODE,"second")
+    elif p=="ZB": download_futures("ZB",MONTH_CODE,"second")
+    elif p=="GC": download_futures("GC",GC_MONTHS,"second")
+    elif p=="VIX": download_index("VIX","I:VIX")   # index: 1-minute finest
     else: print(f"unknown PRODUCT {p}")
 if __name__=="__main__": main()
