@@ -94,7 +94,9 @@ def download_futures(product,months):
         if rows:
             df=pd.DataFrame(rows,columns=["ts","open","high","low","close","vol"])
             df=df[(df.ts>=s_ns)&(df.ts<e_ns)]; parts.append(df)
-    if not parts: print("no data"); return
+    if not parts:
+        print(f"NO DATA for {product} (key expired/unentitled?) — failing loudly",flush=True)
+        sys.exit(2)
     full=pd.concat(parts).sort_values("ts"); full=full[~full.ts.duplicated(keep="last")]
     f=OUT/f"{product}_1s.parquet"; full.to_parquet(f,compression="zstd",index=False)
     print(f"{product}: {len(full):,} bars -> {f}",flush=True)

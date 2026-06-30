@@ -11,7 +11,7 @@ jobs:
       - name: Ensure release exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release view xasset-1m || gh release create xasset-1m -t "Cross-asset 1m bars" -n "ES/ZB/GC/VIX 1-minute, front-month stitched"
+        run: gh release view xasset-1m || gh release create xasset-1m -t "Cross-asset bars" -n "ES/ZB/GC 1-second, front-month stitched"
   download:
     needs: prepare
     runs-on: ubuntu-latest
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [ES, ZB, GC, VIX]
+        product: [ES, ZB, GC]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,4 +33,4 @@ jobs:
       - name: Upload ${{ matrix.product }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload xasset-1m data/xasset/${{ matrix.product }}_*.parquet --clobber
+        run: gh release upload xasset-1m data/xasset/${{ matrix.product }}_1s.parquet --clobber
