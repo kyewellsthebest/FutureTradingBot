@@ -1,10 +1,7 @@
 """Download cross-asset history that leads NQ via the POLYGON FUTURES API
-(/futures/v1/aggs) — the same family as the NQ trades download. ES (S&P) and
-GC (gold) front-month-stitched at 1-SECOND resolution; ZB (bonds) attempted
-(may be unentitled); VIX index via /v2 (indices; may be unentitled).
-
-1-second is the finest retail-EXECUTABLE resolution and a superset of slower
-bars; it completes within a temp key's life, unlike a full tick pull.
+(/futures/v1/aggs) — the same family as the NQ trades download. ES (S&P),
+GC (gold), ZB (bonds) front-month-stitched at 1-SECOND resolution; VIX index
+via /v2 (indices; unentitled on this plan).
 
 GitHub Actions matrix mode: set env PRODUCT=ES (or ZB/GC/VIX).
   -> writes data/xasset/<PRODUCT>_1s.parquet  (VIX -> _1m)
@@ -38,10 +35,13 @@ def get(u,tries=8):
             return None,f"{type(e).__name__}:{e}"
     return None,"exhausted"
 def _norm_ts(t):
-    t=int(t)
-    return t if t>10**15 else t*1_000_000   # ms -> ns guard
+    t=int(t)   # normalize s/ms/us -> ns
+    if t<2*10**9:  return t*1_000_000_000
+    if t<2*10**12: return t*1_000_000
+    if t<2*10**15: return t*1_000
+    return t
 def _row(r):
-    ts=r.get("timestamp") or r.get("t") or r.get("start_timestamp")
+    ts=r.get("window_start") or r.get("timestamp") or r.get("t") or r.get("start_timestamp")
     o=r.get("open",r.get("o")); h=r.get("high",r.get("h")); l=r.get("low",r.get("l"))
     c=r.get("close",r.get("c")); v=r.get("volume",r.get("v",0))
     if ts is None or c is None: return None
