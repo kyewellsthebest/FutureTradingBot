@@ -462,6 +462,22 @@ class FibRuntime:
         # the original pre-submit design. Only ONE alive at a time.
         # Format: same as _pre_submitted_limit.
         self._anticipatory_limit: Optional[dict] = None
+        # ANTICIPATORY DIAGNOSTICS. Every call to _check_anticipatory_limit
+        # records WHY it did or did not rest a LIMIT. This is the missing
+        # telemetry that let the anticipatory path silently never-fire
+        # (0/150 broker orders in the 2026-07-01 bundle) without any
+        # visible reason. Surfaced in the diagnostic bundle as
+        # `anticipatory_diag` so the exact blocker is provable from a
+        # single live/demo run instead of inferred.
+        #   skips     -> Counter of skip-reason -> count
+        #   submits   -> how many LIMITs we actually rested
+        #   adopts    -> how many rested LIMITs paper later adopted
+        #   last      -> last few (ts, outcome, detail) events (ring)
+        self._anticip_diag = {
+            "skips": {}, "submits": 0, "adopts": 0,
+            "checks": 0, "last": [],
+        }
+        self._anticip_last_drain = 0.0
         # LATENCY: cache the resolved Tradovate symbol so we don't
         # re-resolve from polygon_front_month on every trade. Same
         # value all day. Refreshes on next bot restart.
@@ -501,6 +517,12 @@ class FibRuntime:
         # firing while _tick() is also processing one.
         import threading as _threading
         self._tick_fire_lock = _threading.Lock()
+        # Guards _pending_parent_orders against the WS-thread real-time
+        # fill drain (_drain_ws_fills, runs on the Polygon tick thread)
+        # racing the main-loop cycle poll (_poll_pending_broker_orders).
+        # Both mutate the same list; without this they can drop/duplicate
+        # fill records.
+        self._poll_lock = _threading.Lock()
         try:
             self.monitor.register_tick_callback(self._on_tick_instant)
             logger.info("[FAST PATH] tick callback registered on monitor")
@@ -738,6 +760,52 @@ class FibRuntime:
              diff_pts=round(diff_pts, 4), source=source)
 
     def _poll_pending_broker_orders(self) -> None:
+        """Locked entry point (see _poll_pending_broker_orders_impl).
+        Called from the main-loop cycle AND indirectly from the Polygon
+        tick thread (via _drain_ws_fills), so the mutation of
+        _pending_parent_orders must be serialized."""
+        with self._poll_lock:
+            self._poll_pending_broker_orders_impl()
+
+    def _drain_ws_fills(self) -> None:
+        """REAL-TIME broker-fill detection, called on every Polygon tick.
+
+        The root cause of the phantom "~2 second fill delay" seen in the
+        2026-07-01 bundle: broker ENTRY orders actually fill instantly on
+        Tradovate (New->Filled p50 = 0.0s, 93.7% < 100ms per that
+        bundle's execution_reports), but the bot only DRAINED the user-WS
+        exec-report buffer inside _poll_pending_broker_orders, which ran
+        once per 2s main-loop cycle. So a fill that landed at t+0.02s was
+        not *seen* until the next cycle, and the timeline stamped a stale
+        ws_age_s ~= 2.0s. That lag also delayed paper<->broker entry-price
+        reconciliation AND left the anticipatory netPos/open_position
+        guards stale during the brief flat window between trades -- which
+        is exactly when a resting LIMIT needs to be placed to catch the
+        fast-reversal winners the broker currently misses.
+
+        Draining here (throttled to ~10x/sec) makes fills register in
+        real time. Read-only + idempotent: reuses the same locked poll,
+        which never blocks paper, cancels, or reduces trades. The REST
+        portion stays age-scheduled, so this does NOT add REST spam."""
+        if not self._pending_parent_orders or self.tradovate_orders is None:
+            return
+        nowt = time.time()
+        if nowt - getattr(self, "_anticip_last_drain", 0.0) < 0.1:
+            return
+        self._anticip_last_drain = nowt
+        # Non-blocking: if the main cycle already holds the poll lock it
+        # is doing this exact work right now, so skip rather than stall
+        # the tick thread (which also fires entries -- must stay fast).
+        if not self._poll_lock.acquire(blocking=False):
+            return
+        try:
+            self._poll_pending_broker_orders_impl()
+        except Exception as e:
+            logger.debug(f"ws fill drain: {e!r}")
+        finally:
+            self._poll_lock.release()
+
+    def _poll_pending_broker_orders_impl(self) -> None:
         """Passive broker fill tracker. Polls the parent order ID for
         each recent placeoso to record actual fill status into the
         trade timeline. NEVER blocks paper, NEVER cancels orders,
@@ -785,13 +853,34 @@ class FibRuntime:
                 er = ws_fills_by_order[int(pid)]
                 ord_status = er.get("ordStatus")
                 exec_type = er.get("execType")
+                # TRUE fill latency from Tradovate's own exec-report
+                # timestamp, NOT the bot's poll time. ws_age_s used to be
+                # `now - submitted_at`, which conflated network+matching
+                # latency (instant) with the bot's own 2s poll cadence
+                # (the phantom "2s delay"). broker_fill_latency_s isolates
+                # the real number so the bundle stops mislabeling it.
+                broker_fill_latency_s = None
+                try:
+                    tsx = er.get("timestamp")
+                    if tsx:
+                        from datetime import datetime as _dt
+                        fill_epoch = _dt.fromisoformat(
+                            tsx.replace("Z", "+00:00")).timestamp()
+                        broker_fill_latency_s = round(
+                            fill_epoch - float(entry["submitted_at"]), 3)
+                except Exception:
+                    pass
                 _tl(entry["setup_ref"], "broker_ws_event",
                      exec_type=exec_type, ord_status=ord_status,
                      avg_px=er.get("avgPx"),
                      last_qty=er.get("lastQty"),
                      last_px=er.get("lastPx"),
                      reject_reason=er.get("rejectReason"),
-                     ws_age_s=round(age, 3))
+                     ws_age_s=round(age, 3),
+                     broker_fill_latency_s=broker_fill_latency_s,
+                     detect_lag_s=(round(age - broker_fill_latency_s, 3)
+                                   if broker_fill_latency_s is not None
+                                   else None))
                 # PAPER-MATCHES-BROKER. The moment the broker fill is
                 # confirmed via WS, revise paper's entry_px to the
                 # actual fill price. This eliminates the price-
@@ -892,6 +981,16 @@ class FibRuntime:
 
         Must be fast and safe to run from the WS thread.
         """
+        # REAL-TIME broker-fill detection. Drains the user-WS exec-report
+        # buffer on every tick so instant Tradovate fills register now
+        # instead of up to 2s later on the main cycle. Kills the phantom
+        # "2s fill delay" AND keeps the anticipatory netPos/open_position
+        # guards fresh during the flat window between trades. Throttled +
+        # locked internally; never blocks or cancels.
+        try:
+            self._drain_ws_fills()
+        except Exception as e:
+            logger.debug(f"tick ws drain: {e!r}")
         # TICK-BASED EXIT for active paper trade (mirrors broker reality).
         # Without this, paper's exit logic uses 1-min bar HIGH/LOW which
         # counts every wick that brushed target as a win -- inflating
@@ -1630,11 +1729,53 @@ class FibRuntime:
                 # Begin the per-trade event timeline. Every state
                 # transition from here on is timestamped to setup_ref.
                 from bot.trade_timeline import add_event as _tl
+                # Per-trade execution diagnostics. These are the fields
+                # that pinpoint the missed-winner mechanism: how far live
+                # price had already DRIFTED past the entry level when we
+                # went to enter (big favorable drift => price already left
+                # the level => reactive LIMIT gets safety-capped or rests
+                # stranded), and whether an anticipatory LIMIT was already
+                # resting at the level (the fix). Computed cheaply, inline.
+                _lpx = None
+                try:
+                    _ls0 = self.monitor.latest()
+                    _lpx = float(_ls0.price) if _ls0 is not None else None
+                except Exception:
+                    _lpx = None
+                _drift = None
+                if _lpx is not None:
+                    # Signed so +ve = price already moved in the trade's
+                    # favour (the winner-miss signature).
+                    _drift = round(
+                        (_lpx - trade.entry_px) if trade.side == "LONG"
+                        else (trade.entry_px - _lpx), 2)
+                _anti = self._anticipatory_limit
+                _anti_resting = bool(
+                    _anti and self._setup_key(getattr(trade, 'setup', None))
+                    == _anti.get('setup_key')) if getattr(
+                    trade, 'setup', None) is not None else False
+                _netpos = None
+                try:
+                    from bot.tradovate_user_ws import get_user_ws
+                    _uws0 = get_user_ws()
+                    if _uws0 is not None:
+                        for _cid, _e in (_uws0._netpos_cache or {}).items():
+                            if _e.get("netPos", 0) != 0:
+                                _netpos = _e["netPos"]
+                                break
+                        if _netpos is None:
+                            _netpos = 0
+                except Exception:
+                    _netpos = None
                 _tl(setup_ref, "trade_open_started",
                      side=trade.side, qty=trade.n_mnq,
                      entry_px=trade.entry_px,
                      stop_px=trade.stop_px,
-                     target_px=trade.target_px)
+                     target_px=trade.target_px,
+                     live_px_at_open=_lpx,
+                     entry_drift_pts=_drift,
+                     anticipatory_was_resting=_anti_resting,
+                     broker_netpos_at_open=_netpos)
                 live_snap = self.monitor.latest()
                 logger.info(f"[broker gate 3/4 live_price] snap="
                             f"{'None' if live_snap is None else f'{live_snap.price:.2f}'}")
@@ -1971,6 +2112,27 @@ class FibRuntime:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
 
+    def _anticip_note(self, outcome: str, **detail) -> None:
+        """Record one anticipatory-check outcome for the diagnostic bundle.
+
+        Without this, the anticipatory path silently never-fired
+        (0 of 150 broker orders in the 2026-07-01 bundle) with no way to
+        tell which guard blocked it. Every skip/submit is now counted and
+        the last handful kept with detail so the exact blocker is provable
+        from a single run."""
+        try:
+            d = self._anticip_diag
+            d["skips"][outcome] = d["skips"].get(outcome, 0) + 1
+            if outcome == "submit":
+                d["submits"] += 1
+            rec = {"ts": round(time.time(), 3), "outcome": outcome}
+            rec.update(detail)
+            d["last"].append(rec)
+            if len(d["last"]) > 40:
+                d["last"] = d["last"][-40:]
+        except Exception:
+            pass
+
     def _check_anticipatory_limit(self, current_price: float) -> None:
         """Place a broker LIMIT a moment BEFORE price actually crosses
         the pullback entry level. This way the LIMIT is already
@@ -1980,6 +2142,11 @@ class FibRuntime:
 
         STACKING SAFETY:
           - Only ONE anticipatory LIMIT alive at a time.
+          - A new LIMIT is NEVER submitted while the current one's
+            order_id is still unconfirmed (fire-and-forget in flight) --
+            that was the exact race that let two LIMITs rest and both
+            fill, which got the whole pre-submit path disabled on
+            2026-06-16. See the guard below.
           - When a different setup becomes the closest, the old LIMIT
             is cancelled SYNCHRONOUSLY (we poll status until Canceled
             or other terminal) before submitting the new one. No race.
@@ -1991,12 +2158,16 @@ class FibRuntime:
         if nowt - last < 0.2:
             return
         self._anticip_last_check = nowt
+        self._anticip_diag["checks"] = self._anticip_diag.get("checks", 0) + 1
         if self.tradovate_orders is None:
+            self._anticip_note("no_tradovate_client")
             return
         sess = getattr(self.tradovate_orders, "session", None)
         if sess is None or not sess.is_configured:
+            self._anticip_note("sess_not_configured")
             return
         if self.account.state.open_position is not None:
+            self._anticip_note("paper_open_position")
             return
         # Find the pending setup whose entry is closest to current price
         # and on the correct side (price still APPROACHING, not past).
@@ -2048,12 +2219,28 @@ class FibRuntime:
             # No setup within threshold -- cancel any stale anticipatory.
             if self._anticipatory_limit is not None:
                 self._cancel_anticipatory_sync("price_far_from_all_setups")
+            self._anticip_note(
+                "no_setup_approaching", px=round(current_price, 2),
+                n_pending=len(self.state.pending_setups) if self.state else 0)
             return
         target_key = self._setup_key(best)
         cur_key = (self._anticipatory_limit.get('setup_key')
                     if self._anticipatory_limit else None)
         if cur_key == target_key:
+            self._anticip_note("already_resting_for_setup",
+                               dist=round(best_dist, 2))
             return  # already submitted for this setup
+        # STACKING-RACE GUARD. If an anticipatory LIMIT is live but its
+        # order_id hasn't been confirmed yet (fire-and-forget response
+        # still in flight), we CANNOT cancel it (no id to cancel). Placing
+        # a second LIMIT now is exactly how two ended up resting and both
+        # filling -> netPos +2/+3 stacking -> the pre-submit path was
+        # disabled. Wait for the id before switching setups.
+        if (self._anticipatory_limit is not None
+                and self._anticipatory_limit.get('order_id') is None):
+            self._anticip_note("prev_limit_unconfirmed",
+                               waiting_setup=str(cur_key))
+            return
         # Different (or no) anticipatory. Cancel old synchronously then submit new.
         if self._anticipatory_limit is not None:
             self._cancel_anticipatory_sync("different_setup_closer")
@@ -2085,9 +2272,16 @@ class FibRuntime:
                             cur_net = int(pos["netPos"])
                             break
             if cur_net not in (0, None):
+                self._anticip_note("broker_netpos_nonzero", net=cur_net)
                 return  # broker holds a position, don't pre-submit
-        except Exception:
+        except Exception as e:
+            self._anticip_note("netpos_check_error", err=repr(e)[:120])
             return
+        self._anticip_note(
+            "submit", side=best.side,
+            orig_side=getattr(best, 'orig_side', None),
+            entry=round(float(best.pullback_entry), 2),
+            px=round(current_price, 2), dist=round(best_dist, 2))
         self._submit_anticipatory(best, current_price)
 
     def _submit_anticipatory(self, setup, live_price: float) -> None:
@@ -2336,6 +2530,11 @@ class FibRuntime:
             })
             logger.info(
                 f"[ANTICIPATORY ADOPTED] order_id={oid} setup_ref={setup_ref}")
+            try:
+                self._anticip_diag["adopts"] = (
+                    self._anticip_diag.get("adopts", 0) + 1)
+            except Exception:
+                pass
             self._anticipatory_limit = None
             return oid
         except Exception as e:
@@ -3134,6 +3333,12 @@ class FibRuntime:
                                  if hasattr(self.monitor, "tick_bars")
                                  else 0),
                 "fib": fib_snap,
+                # Anticipatory pre-submit telemetry. Proves, from a single
+                # run, exactly why the pre-rested LIMIT did or didn't get
+                # placed on each check (the path was silently never-firing
+                # -- 0/150 broker orders -- with no visible reason before
+                # this). Surfaced in the diagnostic bundle.
+                "anticipatory_diag": getattr(self, "_anticip_diag", None),
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,
