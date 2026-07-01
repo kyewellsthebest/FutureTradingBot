@@ -2250,27 +2250,57 @@ class FibRuntime:
         try:
             acct_id = sess.get_account_id()
             cur_net = None
+            ws_had_data = False
             try:
                 from bot.tradovate_user_ws import get_user_ws
                 _uws = get_user_ws()
-                if _uws is not None:
-                    # Try to find a cached netPos for any contract we hold.
-                    for cid, entry in (_uws._netpos_cache or {}).items():
+                # Only trust the WS cache when the socket is CONNECTED and
+                # the entries are FRESH (< 5s). The user WS drops
+                # occasionally (seen in the bundle); a stale cache read as
+                # "flat" could green-light a pre-submit while a position is
+                # actually open -> double fill. When stale/disconnected we
+                # fall back to REST below.
+                cache = {}
+                if _uws is not None and getattr(_uws, "connected", False):
+                    raw = _uws._netpos_cache or {}
+                    cache = {c: e for c, e in raw.items()
+                             if (nowt - float(e.get("ts", 0))) < 5.0}
+                if cache:
+                    # The user WS pushes a netPos entry per contract in
+                    # real time. When it has FRESH entries it is
+                    # authoritative: populated-but-all-zero means FLAT, not
+                    # "unknown". The old code left cur_net=None when flat
+                    # and fell through to a REST /position/list on EVERY
+                    # 200ms anticipatory check -- 5 REST calls/sec while
+                    # flat, which rate-limited/errored and made the
+                    # except-branch below skip the pre-submit every time.
+                    # That is a prime suspect for the anticipatory path
+                    # never firing (0/150). Trust the WS when it is fresh.
+                    ws_had_data = True
+                    cur_net = 0
+                    for cid, entry in cache.items():
                         if entry.get("netPos", 0) != 0:
                             cur_net = entry["netPos"]
                             break
             except Exception:
                 pass
-            if cur_net is None:
-                # Fallback to REST.
-                status, positions = sess._rest("GET", "/position/list")
-                if status == 200 and isinstance(positions, list):
-                    for pos in positions:
-                        if not isinstance(pos, dict): continue
-                        if pos.get("accountId") != acct_id: continue
-                        if int(pos.get("netPos") or 0) != 0:
-                            cur_net = int(pos["netPos"])
-                            break
+            if cur_net is None and not ws_had_data:
+                # WS gave us nothing at all -- fall back to REST, but cache
+                # the answer for 1s so rapid checks don't spam the endpoint.
+                _nc = getattr(self, "_anticip_netpos_cache", None)
+                if _nc is not None and (nowt - _nc[0]) < 1.0:
+                    cur_net = _nc[1]
+                else:
+                    cur_net = 0
+                    status, positions = sess._rest("GET", "/position/list")
+                    if status == 200 and isinstance(positions, list):
+                        for pos in positions:
+                            if not isinstance(pos, dict): continue
+                            if pos.get("accountId") != acct_id: continue
+                            if int(pos.get("netPos") or 0) != 0:
+                                cur_net = int(pos["netPos"])
+                                break
+                    self._anticip_netpos_cache = (nowt, cur_net)
             if cur_net not in (0, None):
                 self._anticip_note("broker_netpos_nonzero", net=cur_net)
                 return  # broker holds a position, don't pre-submit
