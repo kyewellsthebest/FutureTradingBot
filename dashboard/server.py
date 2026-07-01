@@ -3863,6 +3863,15 @@ def _build_diagnostic_extras() -> dict:
         extras["per_trade_snapshots_pending"] = get_pending_count()
     except Exception as e:
         extras["per_trade_snapshots"] = {"unavailable": repr(e)}
+    # Anticipatory pre-submit telemetry (why the pre-rested LIMIT did or
+    # didn't get placed on each check). This is the block that makes the
+    # missed-winner / never-fired-anticipatory problem provable from one
+    # bundle instead of inferred from timelines.
+    try:
+        snap = persistence.load_dashboard()
+        extras["anticipatory_diag"] = snap.get("anticipatory_diag")
+    except Exception as e:
+        extras["anticipatory_diag"] = {"unavailable": repr(e)}
     # Bot process uptime + cycle counters from the live snapshot.
     try:
         snap = persistence.load_dashboard()
