@@ -2169,6 +2169,44 @@ class FibRuntime:
         if self.account.state.open_position is not None:
             self._anticip_note("paper_open_position")
             return
+        # GUARD PARITY with paper's "may we trade right now" gate
+        # (try_fire_on_tick). Without this, the pre-rested LIMIT could
+        # fill a trade the paper account would REFUSE -- during a tripped
+        # circuit breaker, a manual/auto pause, the Lucid closed window,
+        # or a news blackout -- making the broker take trades the strategy
+        # never books. We deliberately DO NOT check the cooldown here:
+        # resting a LIMIT during the cooldown so it fills the touch that
+        # paper later books via is_filled is the entire point of the fix.
+        try:
+            st = self.state
+            if st is not None and getattr(st, "circuit_breaker_tripped", False):
+                self._anticip_note("circuit_breaker")
+                if self._anticipatory_limit is not None:
+                    self._cancel_anticipatory_sync("circuit_breaker")
+                return
+            from bot.pullback_strategy import (
+                _get_manual_pause_state, _in_lucid_closed_window,
+                _news_blackout_reason)
+            now_g = real_utc_now()
+            if _get_manual_pause_state().get("paused"):
+                self._anticip_note("manual_pause")
+                if self._anticipatory_limit is not None:
+                    self._cancel_anticipatory_sync("manual_pause")
+                return
+            if _in_lucid_closed_window(now_g):
+                self._anticip_note("lucid_closed_window")
+                if self._anticipatory_limit is not None:
+                    self._cancel_anticipatory_sync("lucid_closed_window")
+                return
+            if _news_blackout_reason(now_g, self.news_calendar) is not None:
+                self._anticip_note("news_blackout")
+                if self._anticipatory_limit is not None:
+                    self._cancel_anticipatory_sync("news_blackout")
+                return
+        except Exception as e:
+            # Fail SAFE: if we can't confirm the gates, do not pre-rest.
+            self._anticip_note("gate_check_error", err=repr(e)[:120])
+            return
         # Find the pending setup whose entry is closest to current price
         # and on the correct side (price still APPROACHING, not past).
         # Default 3.0pt -- captures more setups including ones where
@@ -2238,9 +2276,26 @@ class FibRuntime:
         # disabled. Wait for the id before switching setups.
         if (self._anticipatory_limit is not None
                 and self._anticipatory_limit.get('order_id') is None):
-            self._anticip_note("prev_limit_unconfirmed",
-                               waiting_setup=str(cur_key))
-            return
+            # ...but don't wedge forever. If the WS confirmation never
+            # arrives (dropped socket / lost callback), abandon tracking
+            # after a timeout so the path resumes. Any orphaned resting
+            # LIMIT is caught by _reconcile_with_broker (5-min) and the
+            # per-cycle _check_position_discrepancy backstop. netPos!=0
+            # below still blocks a new rest if the orphan actually filled.
+            unconf_age = nowt - float(
+                self._anticipatory_limit.get("submitted_at", nowt))
+            if unconf_age > 3.0:
+                logger.warning(
+                    f"[ANTICIPATORY unconfirmed timeout] no order_id after "
+                    f"{unconf_age:.1f}s -- abandoning tracking (reconcile "
+                    f"will sweep any orphan)")
+                self._anticip_note("prev_limit_unconfirmed_timeout",
+                                   age_s=round(unconf_age, 1))
+                self._anticipatory_limit = None
+            else:
+                self._anticip_note("prev_limit_unconfirmed",
+                                   waiting_setup=str(cur_key))
+                return
         # Different (or no) anticipatory. Cancel old synchronously then submit new.
         if self._anticipatory_limit is not None:
             self._cancel_anticipatory_sync("different_setup_closer")
