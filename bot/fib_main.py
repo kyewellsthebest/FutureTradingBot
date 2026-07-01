@@ -799,13 +799,16 @@ class FibRuntime:
         if not self._poll_lock.acquire(blocking=False):
             return
         try:
-            self._poll_pending_broker_orders_impl()
+            # record_only: detect + record fills in real time but do NOT
+            # reassign _pending_parent_orders. Removal stays on the main
+            # cycle so there is a single list-mutating thread.
+            self._poll_pending_broker_orders_impl(record_only=True)
         except Exception as e:
             logger.debug(f"ws fill drain: {e!r}")
         finally:
             self._poll_lock.release()
 
-    def _poll_pending_broker_orders_impl(self) -> None:
+    def _poll_pending_broker_orders_impl(self, record_only: bool = False) -> None:
         """Passive broker fill tracker. Polls the parent order ID for
         each recent placeoso to record actual fill status into the
         trade timeline. NEVER blocks paper, NEVER cancels orders,
@@ -820,6 +823,15 @@ class FibRuntime:
         from the timeline whether the broker actually filled or
         not -- so the reconciliation can correctly attribute the
         paper-vs-broker delta.
+
+        record_only=True is the real-time tick-thread path
+        (_drain_ws_fills): it detects fills from the WS buffer and
+        records them, but does NOT reassign _pending_parent_orders.
+        Only the main-loop cycle (record_only=False) ever mutates the
+        list structure, so there is exactly ONE thread that reassigns
+        it -- no cross-thread lost-append/dropped-fill race. A per-entry
+        `_ws_logged` flag keeps the event from being recorded twice when
+        both paths see the same fill.
         """
         if not self._pending_parent_orders or self.tradovate_orders is None:
             return
@@ -841,9 +853,11 @@ class FibRuntime:
             pass
         now_ts = time.time()
         keep = []
-        # Check intervals: at most one poll per tick to avoid burning
-        # rate budget. Stops after 15s.
-        for entry in self._pending_parent_orders:
+        # Iterate a SNAPSHOT copy: the real-time drain (record_only) runs
+        # on the tick thread and could otherwise observe the main cycle's
+        # reassignment mid-loop. The snapshot is stable; per-entry flags
+        # we set below carry over because entries are shared by reference.
+        for entry in list(self._pending_parent_orders):
             age = now_ts - entry["submitted_at"]
             # WS shortcut: if we have a live exec report showing this
             # parent filled/rejected, record it and move on. The REST
@@ -853,59 +867,76 @@ class FibRuntime:
                 er = ws_fills_by_order[int(pid)]
                 ord_status = er.get("ordStatus")
                 exec_type = er.get("execType")
+                # Log once per STATUS TRANSITION (not once ever): the WS
+                # buffer holds the latest report, so New->Working->Filled
+                # must each log exactly once. A plain "already logged"
+                # boolean would suppress the later Filled (and its paper
+                # revise) after an earlier Working was seen.
+                already_logged = (entry.get("_ws_last_status") == ord_status)
                 # TRUE fill latency from Tradovate's own exec-report
                 # timestamp, NOT the bot's poll time. ws_age_s used to be
                 # `now - submitted_at`, which conflated network+matching
                 # latency (instant) with the bot's own 2s poll cadence
                 # (the phantom "2s delay"). broker_fill_latency_s isolates
                 # the real number so the bundle stops mislabeling it.
-                broker_fill_latency_s = None
-                try:
-                    tsx = er.get("timestamp")
-                    if tsx:
-                        from datetime import datetime as _dt
-                        fill_epoch = _dt.fromisoformat(
-                            tsx.replace("Z", "+00:00")).timestamp()
-                        broker_fill_latency_s = round(
-                            fill_epoch - float(entry["submitted_at"]), 3)
-                except Exception:
-                    pass
-                _tl(entry["setup_ref"], "broker_ws_event",
-                     exec_type=exec_type, ord_status=ord_status,
-                     avg_px=er.get("avgPx"),
-                     last_qty=er.get("lastQty"),
-                     last_px=er.get("lastPx"),
-                     reject_reason=er.get("rejectReason"),
-                     ws_age_s=round(age, 3),
-                     broker_fill_latency_s=broker_fill_latency_s,
-                     detect_lag_s=(round(age - broker_fill_latency_s, 3)
-                                   if broker_fill_latency_s is not None
-                                   else None))
+                if not already_logged:
+                    broker_fill_latency_s = None
+                    try:
+                        tsx = er.get("timestamp")
+                        if tsx:
+                            from datetime import datetime as _dt
+                            fill_epoch = _dt.fromisoformat(
+                                tsx.replace("Z", "+00:00")).timestamp()
+                            broker_fill_latency_s = round(
+                                fill_epoch - float(entry["submitted_at"]), 3)
+                    except Exception:
+                        pass
+                    _tl(entry["setup_ref"], "broker_ws_event",
+                         exec_type=exec_type, ord_status=ord_status,
+                         avg_px=er.get("avgPx"),
+                         last_qty=er.get("lastQty"),
+                         last_px=er.get("lastPx"),
+                         reject_reason=er.get("rejectReason"),
+                         ws_age_s=round(age, 3),
+                         broker_fill_latency_s=broker_fill_latency_s,
+                         detect_lag_s=(round(age - broker_fill_latency_s, 3)
+                                       if broker_fill_latency_s is not None
+                                       else None))
+                    # Remember the status we just logged so neither the
+                    # tick drain nor the cycle records this same status
+                    # twice (but a later transition still logs).
+                    entry["_ws_last_status"] = ord_status
                 # PAPER-MATCHES-BROKER. The moment the broker fill is
-                # confirmed via WS, revise paper's entry_px to the
-                # actual fill price. This eliminates the price-
-                # improvement divergence: paper booked at the
-                # theoretical pullback level, but the LIMIT got an
-                # improved fill (e.g. LIMIT BUY at 30597.50 filled
-                # at 30595 because price gapped through). Without
-                # this revision, paper P&L and broker P&L drift by
-                # the improvement amount. With it, both books match
-                # the actual fill exactly. Only revise while the
-                # trade is still open (active_trade non-None) so a
-                # very fast paper exit that closed before fill
-                # confirmation isn't retroactively rewritten.
-                if ord_status == "Filled":
+                # confirmed via WS, revise paper's entry_px to the actual
+                # fill price -- eliminates the price-improvement drift
+                # (paper booked at the theoretical pullback level, the
+                # LIMIT got a better fill). Guarded by its OWN once-flag,
+                # NOT the log dedup: the drain can see Filled BEFORE
+                # _open_trade_ref is set, so the revise must be retried on
+                # later polls until it lands, then marked done. Skipping
+                # it on the first sight (as a shared log flag would) would
+                # lose the revise permanently.
+                if ord_status == "Filled" and not entry.get("_paper_revised"):
                     fill_px = er.get("avgPx") or er.get("lastPx")
                     if (fill_px is not None
                             and entry.get("setup_ref") == self._open_trade_ref):
                         try:
                             self._revise_paper_entry_to_broker_fill(
                                 float(fill_px), source="ws_exec_report")
+                            entry["_paper_revised"] = True
                         except Exception as _re:
                             logger.debug(f"revise_paper_entry: {_re!r}")
+                if record_only:
+                    # Real-time path: recorded the fill, but leave list
+                    # mutation (removal) to the single-threaded main cycle.
+                    continue
                 if ord_status in {"Filled", "Rejected", "Canceled", "Expired"}:
                     # No more polling needed -- WS gave us the answer.
                     continue
+            if record_only:
+                # Real-time path does WS detection only; the REST poll
+                # schedule and list removal stay on the main cycle.
+                continue
             check_schedule = (0.5, 2.0, 5.0, 15.0)
             checks_done = entry.get("checks_done", 0)
             should_check = (
@@ -964,7 +995,10 @@ class FibRuntime:
                 _tl(entry["setup_ref"], "broker_poll_timeout",
                      age_s=round(age, 1),
                      final_status=status or "unknown")
-        self._pending_parent_orders = keep
+        # Only the main cycle reassigns the list (single writer). The
+        # record_only tick path returned above without touching it.
+        if not record_only:
+            self._pending_parent_orders = keep
 
     def _on_tick_instant(self, price: float, ts) -> None:
         """Called inline by PriceMonitor on EVERY Polygon tick. Reacts
@@ -2346,16 +2380,23 @@ class FibRuntime:
                 if _nc is not None and (nowt - _nc[0]) < 1.0:
                     cur_net = _nc[1]
                 else:
-                    cur_net = 0
                     status, positions = sess._rest("GET", "/position/list")
                     if status == 200 and isinstance(positions, list):
+                        cur_net = 0
                         for pos in positions:
                             if not isinstance(pos, dict): continue
                             if pos.get("accountId") != acct_id: continue
                             if int(pos.get("netPos") or 0) != 0:
                                 cur_net = int(pos["netPos"])
                                 break
-                    self._anticip_netpos_cache = (nowt, cur_net)
+                        # Only cache a CONFIRMED read.
+                        self._anticip_netpos_cache = (nowt, cur_net)
+                    else:
+                        # REST failed (503/429/etc). Do NOT assume flat --
+                        # that could green-light a pre-rest over an open
+                        # position. Fail safe: skip this check, don't cache.
+                        self._anticip_note("netpos_rest_failed", status=status)
+                        return
             if cur_net not in (0, None):
                 self._anticip_note("broker_netpos_nonzero", net=cur_net)
                 return  # broker holds a position, don't pre-submit
