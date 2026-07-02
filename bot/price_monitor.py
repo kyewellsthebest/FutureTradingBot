@@ -453,6 +453,25 @@ class PriceMonitor:
             self._ws_client = None
             self._ws_started = False
 
+    def register_tick_callback(self, cb) -> None:
+        """Register a function invoked on EVERY tick that reaches
+        _on_ws_tick (the real Polygon T/A/AM stream), inline on the WS
+        recv thread. fib_main uses this for the sub-100ms fast path
+        (anticipatory pre-submit, real-time fill drain, instant firing).
+
+        Previously fib_main called this on the PriceMonitor, but the only
+        implementation lived on the internal _TickBarAggregator (and its
+        body was corrupted), so registration failed and the entire fast
+        path was dead. Owning it here, next to _on_ws_tick which actually
+        receives the WS ticks, is what makes the fast path run.
+
+        Callbacks must be fast and thread-safe; one raising must not break
+        the tick stream (see the guarded fan-out in _on_ws_tick)."""
+        if not hasattr(self, "_on_tick_callbacks"):
+            self._on_tick_callbacks = []
+        if cb not in self._on_tick_callbacks:
+            self._on_tick_callbacks.append(cb)
+
     def _on_ws_tick(self, price: float, ts_utc: datetime) -> None:
         """Called by PolygonWSClient on every trade event. Updates the
         in-memory price atomically under the existing lock so
@@ -493,6 +512,24 @@ class PriceMonitor:
             self.tick_bars.on_tick(price, ts_utc)
         except Exception as e:
             logger.debug(f"tick_bars.on_tick failed: {e!r}")
+        # INSTANT-FIRE FAN-OUT. The PolygonWSClient delivers ticks to THIS
+        # method (_on_ws_tick), but register_tick_callback() appended the
+        # subscribers (fib_main._on_tick_instant) to _on_tick_callbacks,
+        # which was only ever invoked by the separate, unused on_tick()
+        # method. Result: the entire sub-100ms fast path -- anticipatory
+        # pre-submit, real-time fill drain, instant pullback firing -- was
+        # DEAD (0 anticipatory checks, fills detected ~2s late on the main
+        # cycle) despite being registered. Fan out here, on the real tick
+        # stream, so the fast path actually runs. Callbacks must be fast
+        # and thread-safe (this is the WS recv thread); one raising must
+        # not break the stream.
+        cbs = getattr(self, "_on_tick_callbacks", None)
+        if cbs:
+            for cb in list(cbs):
+                try:
+                    cb(float(price), ts_utc)
+                except Exception as cb_err:
+                    logger.warning(f"tick callback raised: {cb_err!r}")
 
     def _on_ws_bar(self, o: float, h: float, l: float, c: float,
                     v: int, ts_utc: datetime) -> None:
