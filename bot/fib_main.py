@@ -2375,9 +2375,13 @@ class FibRuntime:
                 pass
             if cur_net is None and not ws_had_data:
                 # WS gave us nothing at all -- fall back to REST, but cache
-                # the answer for 1s so rapid checks don't spam the endpoint.
+                # the answer for 2.5s so rapid checks don't spam the
+                # endpoint (the 1s TTL still produced enough call volume
+                # to rate-limit: 371 netpos_rest_failed skips in the
+                # 2026-07-02 05:54 bundle, several of which cost real
+                # winners via the safety-cap path).
                 _nc = getattr(self, "_anticip_netpos_cache", None)
-                if _nc is not None and (nowt - _nc[0]) < 1.0:
+                if _nc is not None and (nowt - _nc[0]) < 2.5:
                     cur_net = _nc[1]
                 else:
                     status, positions = sess._rest("GET", "/position/list")
@@ -2391,11 +2395,28 @@ class FibRuntime:
                                 break
                         # Only cache a CONFIRMED read.
                         self._anticip_netpos_cache = (nowt, cur_net)
+                    elif _nc is not None and (nowt - _nc[0]) < 10.0:
+                        # REST failed but we have a CONFIRMED read <10s
+                        # old -- use it. Positions only change when THIS
+                        # bot trades (single strategy, single account),
+                        # and every submit path stamps tracking state
+                        # (_open_trade_ref / _anticipatory_limit) that the
+                        # guards above already checked. Skipping here
+                        # instead (the old behaviour) silently disarmed
+                        # the anticipatory path for the whole REST outage
+                        # -- the 05:03 and 04:50 +87-point winners were
+                        # both missed exactly this way.
+                        cur_net = _nc[1]
+                        self._anticip_note(
+                            f"netpos_rest_failed_used_stale_{status}")
                     else:
-                        # REST failed (503/429/etc). Do NOT assume flat --
-                        # that could green-light a pre-rest over an open
-                        # position. Fail safe: skip this check, don't cache.
-                        self._anticip_note("netpos_rest_failed", status=status)
+                        # REST failed and no recent confirmed read. Do NOT
+                        # assume flat -- that could green-light a pre-rest
+                        # over an open position. Fail safe: skip, don't
+                        # cache. Status goes into the persistent counter
+                        # key so the bundle shows WHY (429 vs 503 vs None)
+                        # without relying on the last-40 ring.
+                        self._anticip_note(f"netpos_rest_failed_{status}")
                         return
             if cur_net not in (0, None):
                 self._anticip_note("broker_netpos_nonzero", net=cur_net)
