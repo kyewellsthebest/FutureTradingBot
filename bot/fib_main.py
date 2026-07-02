@@ -3114,7 +3114,36 @@ class FibRuntime:
                 #   B. Orphan:   broker has 1 contract but paper expects flat
                 stack_excess = abs(net) > 1
                 orphan = (abs(net) == 1) and (not paper_in_trade)
+                # ANTICIPATORY GRACE. The anticipatory LIMIT rests and
+                # FILLS during the cooldown, a few seconds BEFORE paper
+                # fires the setup and adopts it. In that window
+                # paper_in_trade is False, so the position looks like an
+                # orphan -- and flattening it here market-scratches the
+                # exact fast-reversal winners the anticipatory path exists
+                # to capture (observed: broker entered at the level then
+                # got flattened ~1pt away while paper rode to +44). The
+                # filled anticipatory position carries its OWN OCO bracket
+                # (stop+target), so it is never naked while we wait.
+                #   - If an anticipatory LIMIT is live, it is NOT an orphan.
+                #   - Otherwise give a single orphan a grace period before
+                #     flattening, so cooldown + fire latency can resolve it
+                #     into a normal adopted trade. A genuine orphan that
+                #     outlives the grace is still flattened.
+                if orphan:
+                    if self._anticipatory_limit is not None:
+                        self._broker_orphan_since = None
+                        continue
+                    grace_s = float(os.environ.get(
+                        "BROKER_ORPHAN_GRACE_S", "20"))
+                    since = getattr(self, "_broker_orphan_since", None)
+                    if since is None:
+                        self._broker_orphan_since = time.time()
+                        continue  # first sighting -- start the grace clock
+                    if time.time() - since < grace_s:
+                        continue  # still within grace; bracket protects it
+                    # Grace elapsed -- treat as a real orphan below.
                 if not stack_excess and not orphan:
+                    self._broker_orphan_since = None
                     continue
                 anomaly_kind = "STACK" if stack_excess else "ORPHAN"
                 excess = abs(net) - (1 if not orphan else 0)
@@ -3146,6 +3175,24 @@ class FibRuntime:
                         logger.warning(
                             f"[POSITION {anomaly_kind} FLATTENED] "
                             f"contractId={cid} netPos={net}")
+                        # INSTRUMENTATION: make this flatten visible in the
+                        # bundle. An early ORPHAN flatten of an anticipatory
+                        # fill (before paper adopts) scratches winners the
+                        # broker had entered correctly -- it must be
+                        # attributable per-trade, not just a log line.
+                        try:
+                            from bot.trade_timeline import add_event as _tl2
+                            _ref = (self._open_trade_ref
+                                    or (self._anticipatory_limit or {}).get(
+                                        "setup_key")
+                                    or "unattributed")
+                            _tl2(str(_ref), "broker_discrepancy_flatten",
+                                 anomaly=anomaly_kind, net_pos=net,
+                                 paper_in_trade=paper_in_trade,
+                                 had_anticipatory=(
+                                     self._anticipatory_limit is not None))
+                        except Exception:
+                            pass
                         # On orphan, also wipe stale tracking state so the
                         # next signal doesn't see ghosts.
                         if orphan:

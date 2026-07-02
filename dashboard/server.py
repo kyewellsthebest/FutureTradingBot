@@ -4552,23 +4552,63 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
         best_dt = None
         match_method = None
 
-        # Pass 1: exact setup_ref tag
+        # Resolve this trade's own timeline up front (keyed by setup_ref).
+        # It is the bot's authoritative paper<->broker link, so we can
+        # read the exact broker ENTRY order_id it stamped -- no fuzzy
+        # matching, and it works for adopted anticipatory orders too
+        # (whose text tag is acct*_antc_* and never matched the
+        # reconstructed ref).
+        _tl_for_trade = None
         for ref in ref_candidates:
-            if ref in used_refs:
-                continue
-            ids = order_ids_by_ref.get(ref) or []
-            for oid in ids:
+            if ref in timelines:
+                _tl_for_trade = timelines[ref]
+                break
+
+        # Pass 0: deterministic match via the order_id recorded in the
+        # trade's OWN timeline. placeoso_result carries the reactive
+        # entry order_id; pre_submitted_adopted / anticipatory carry the
+        # pre-rested limit's order_id. Either uniquely identifies the
+        # broker fill pair for THIS paper trade.
+        if best is None and _tl_for_trade:
+            tl_oids = []
+            for e in _tl_for_trade:
+                if not isinstance(e, dict):
+                    continue
+                oid = e.get("order_id")
+                if oid:
+                    tl_oids.append(int(oid))
+            for oid in tl_oids:
                 idx = _pt_index_for_order_id(oid)
                 if idx is not None and idx not in used:
                     best = idx
                     best_dt = 0
-                    match_method = f"ref:{ref}"
-                    used_refs.add(ref)
+                    match_method = "timeline_order_id"
                     break
-            if best is not None:
-                break
 
-        # Pass 2: time-window fallback
+        # Pass 1: exact setup_ref tag
+        if best is None:
+            for ref in ref_candidates:
+                if ref in used_refs:
+                    continue
+                ids = order_ids_by_ref.get(ref) or []
+                for oid in ids:
+                    idx = _pt_index_for_order_id(oid)
+                    if idx is not None and idx not in used:
+                        best = idx
+                        best_dt = 0
+                        match_method = f"ref:{ref}"
+                        used_refs.add(ref)
+                        break
+                if best is not None:
+                    break
+
+        # Pass 2: time-window fallback. Tightened 300s -> 15s: now that
+        # Pass 0 matches deterministically by the timeline's own
+        # order_id, the only reason to fall here is a trade whose
+        # timeline lacks an order_id. A 300s window paired fills MINUTES
+        # apart (seen: 234s deltas) and produced phantom ±40pt slippage
+        # in attribution. 15s keeps genuine near-simultaneous pairings
+        # and leaves the rest honestly UNMATCHED.
         if best is None:
             for idx, pt in enumerate(pair_times):
                 if idx in used:
@@ -4576,7 +4616,7 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
                 if pt["ts_close"] is None or et_dt is None:
                     continue
                 dt = abs((pt["ts_close"] - et_dt).total_seconds())
-                if dt > 300:
+                if dt > 15:
                     continue
                 if best_dt is None or dt < best_dt:
                     best = idx
@@ -4665,7 +4705,8 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
                 ers.extend(er_by_order.get(k, []))
             row["execution_reports"] = ers
             matched += 1
-            if match_method and match_method.startswith("ref:"):
+            if match_method and (match_method.startswith("ref:")
+                                 or match_method == "timeline_order_id"):
                 matched_by_ref += 1
             else:
                 matched_by_time += 1
