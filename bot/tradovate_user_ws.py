@@ -247,23 +247,38 @@ class TradovateUserWS:
         logger.info(f"user_ws: sync response={sync_resp[:200]!r}")
         self.subscribed = True
 
-        self._ws.settimeout(5.0)
+        # Short recv timeout so the heartbeat check runs at least every
+        # 1s even when no frames arrive.
+        self._ws.settimeout(1.0)
         last_heartbeat = time.time()
+
+        def _maybe_heartbeat():
+            # Tradovate requires a client heartbeat ("[]") every ~2.5s or
+            # the SERVER drops the socket. The old code only sent it when
+            # recv() TIMED OUT -- during busy market periods frames arrive
+            # continuously, recv never times out, no heartbeat ever goes
+            # out, and the server kills the connection every few seconds
+            # ("Connection to remote host was lost", seen flapping in
+            # every bundle). Send it on TIME, regardless of frame flow.
+            nonlocal last_heartbeat
+            if time.time() - last_heartbeat > HEARTBEAT_S:
+                self._ws.send("[]")
+                last_heartbeat = time.time()
+
         while not self._stop.is_set():
+            try:
+                _maybe_heartbeat()
+            except Exception as he:
+                logger.warning(f"user_ws heartbeat failed: {he!r}")
+                raise
             try:
                 raw = self._ws.recv()
             except Exception as e:
                 if self._stop.is_set():
                     break
-                # Timeout is expected -- use it to send heartbeat
+                # Timeout is expected -- loop back around (heartbeat is
+                # handled at the top of the loop).
                 if "timed out" in str(e).lower():
-                    if time.time() - last_heartbeat > HEARTBEAT_S:
-                        try:
-                            self._ws.send("[]")
-                            last_heartbeat = time.time()
-                        except Exception as he:
-                            logger.warning(f"user_ws heartbeat failed: {he!r}")
-                            raise
                     continue
                 logger.warning(f"user_ws recv: {e!r} -- reconnecting")
                 raise
