@@ -1903,6 +1903,21 @@ class FibRuntime:
                     if pre_oid is None:
                         pre_oid = self._adopt_pre_submitted_for_active_trade(
                             trade, setup_ref)
+                    # STACK FIX: if an anticipatory LIMIT is resting for a
+                    # DIFFERENT setup than the one firing (adopt returned
+                    # None on key mismatch), cancel it BEFORE submitting
+                    # the reactive entry. Otherwise both stay live -- the
+                    # reactive order fills now and the orphaned resting
+                    # LIMIT fills later when price touches its level ->
+                    # netPos 2 (10 STACK flattens in the 2026-07-02 23:54
+                    # bundle traced to exactly this).
+                    if pre_oid is None and self._anticipatory_limit is not None:
+                        try:
+                            self._cancel_anticipatory_sync(
+                                "different_setup_firing")
+                        except Exception as _ce:
+                            logger.warning(
+                                f"pre-entry anticipatory cancel: {_ce!r}")
                     if pre_oid is not None:
                         # Pre-submitted LIMIT is now the active trade's
                         # broker order. Tracking already added to

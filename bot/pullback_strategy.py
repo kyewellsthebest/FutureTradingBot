@@ -1218,6 +1218,38 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         if getattr(setup, 'fire_attempted', False): continue
         # check if live bar reached pullback_entry (limit fill semantics)
         if not setup.is_filled(last_1m_bar): continue
+        # EXECUTABILITY GATE. is_filled() looks at the bar's HIGH/LOW --
+        # a wick that touched the level possibly a minute ago (or while
+        # the bot was busy in a trade/cooldown). Booking the entry at
+        # that level NOW, when price has already run in the trade's
+        # favour, is a phantom head start no broker order can replicate:
+        # the 2026-07-02 23:54 bundle showed median +5pt / p90 +27pt
+        # favourable drift at open, 71 broker submits rejected by the
+        # price-drift safety cap (median +18pt), and paper +$4,829 vs
+        # broker -$223 on the day. Real LIMIT semantics: the order rests
+        # AT the level and only fills when price is AT the level. So:
+        # only fire when the CURRENT price is still within the gate of
+        # entry on the favourable side. Do NOT mark fire_attempted --
+        # the setup (like the resting LIMIT) stays pending and fires
+        # when price RETURNS to the level. Adverse-side drift is not
+        # gated: a LIMIT there is marketable and fills at-or-better.
+        try:
+            _live = float(last_1m_bar["close"])
+            _fav = ((_live - setup.pullback_entry)
+                    if setup.side == "LONG"
+                    else (setup.pullback_entry - _live))
+            _gate = float(os.environ.get("STRAT_FIRE_DRIFT_GATE_PT", "3.0"))
+            if _fav > _gate:
+                if setup.last_block_reason != "drift_gate":
+                    _log_decision("entry_blocked", reason="drift_gate",
+                                   side=setup.side, source="bar",
+                                   drift_pts=round(_fav, 2),
+                                   pullback_entry=setup.pullback_entry)
+                setup.last_block_reason = "drift_gate"
+                setup.last_block_at = now
+                continue
+        except Exception:
+            pass
         setup.fire_attempted = True
         if setup.armed_at_ts is None:
             try:
@@ -1404,6 +1436,30 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
         # last+/-0.125, which forces last to overshoot the pullback by
         # half a tick before paper fires -- matching the broker LIMIT
         # fill condition.
+        # EXECUTABILITY GATE (same as the bar path). The touch condition
+        # below stays true long AFTER the actual crossing: if the bot was
+        # in a trade / cooldown while price crossed the level and kept
+        # going, the first free tick still satisfies ask<=entry (or
+        # bid>=entry) even with price 20-80pt beyond -- and paper would
+        # book the entry at a level the market left minutes ago. Real
+        # LIMIT semantics: fire only while price is actually AT the level
+        # (within the gate on the favourable side). Otherwise leave the
+        # setup pending -- like the resting LIMIT, it fires when price
+        # RETURNS. Adverse-side drift is not gated (a LIMIT there is
+        # marketable and fills at-or-better).
+        _gate = float(os.environ.get("STRAT_FIRE_DRIFT_GATE_PT", "3.0"))
+        _fav = ((live_price - setup.pullback_entry)
+                if setup.side == "LONG"
+                else (setup.pullback_entry - live_price))
+        if _fav > _gate:
+            if setup.last_block_reason != "drift_gate":
+                _log_decision("entry_blocked", reason="drift_gate",
+                               side=setup.side, source="tick",
+                               drift_pts=round(_fav, 2),
+                               pullback_entry=setup.pullback_entry)
+            setup.last_block_reason = "drift_gate"
+            setup.last_block_at = now
+            continue
         if approach == "LONG" and ent_ask <= setup.pullback_entry:
             fired = setup
             break
