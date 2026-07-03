@@ -463,34 +463,64 @@ class TradovateOrders:
         will_fill_immediately = (
             entry_type in ("market", "marketable_limit")
             or marketable_with_improvement)
-        # Safety cap: skip if drift is so extreme the trade can't be
-        # rescued. Default 12pt (2x stop_pts) -- generous; we rely on
-        # the anticipatory pre-submit + low-latency reaction to keep
-        # actual drift well under 1pt on most fills. Reducing this
-        # would cut trade frequency which the user explicitly opposed.
-        max_drift = float(os.environ.get(
-            "BROKER_MAX_ENTRY_DRIFT_PT", str(float(stop_pts) * 2.0)))
+        # DRIFT POLICY -- rewritten 2026-07-03 per user directive: the
+        # broker must take EVERY trade paper takes. Never skip a trade
+        # that still has room to run; enter at the current market and
+        # mirror the REMAINDER of paper's trade with paper's exact
+        # stop/target levels (exits are additionally synchronized by
+        # BROKER_INSTANT_CLOSE liquidating on every paper exit). The old
+        # 2x-stop (10pt) cap silently dropped 137 trades in one session
+        # -- including every big drifted winner.
+        #
+        # The ONLY remaining skips are trades with nothing left to
+        # mirror:
+        #   - favourable drift >= target distance: the fill would be at
+        #     or past paper's target; paper is exiting that instant and
+        #     the paper-target bracket would be wrong-side (Tradovate
+        #     InvalidPrice). There is no remaining move to capture.
+        #   - adverse drift >= stop distance: the fill would be at or
+        #     past paper's stop; paper is stopping out that instant.
+        #     Entering only donates the spread.
+        # BROKER_MAX_ENTRY_DRIFT_PT (if set) acts as an explicit
+        # absolute override cap in both directions.
         drift = abs(bracket_ref - float(entry_estimate))
+        favorable = ((bracket_ref >= float(entry_estimate))
+                     if side == "LONG"
+                     else (bracket_ref <= float(entry_estimate)))
+        _cap_env = os.environ.get("BROKER_MAX_ENTRY_DRIFT_PT", "").strip()
+        if _cap_env:
+            max_drift = float(_cap_env)
+            cap_kind = "env_override"
+        elif favorable:
+            # Leave 1pt of room so the paper-target LIMIT is still on
+            # the valid side of the fill.
+            max_drift = max(float(target_pts) - 1.0, 0.0)
+            cap_kind = "drift_beyond_target"
+        else:
+            max_drift = float(stop_pts)
+            cap_kind = "drift_beyond_stop"
         if will_fill_immediately and drift > max_drift:
             logger.warning(
-                f"[placeoso ABORT] price drift {drift:.2f}pt > safety "
-                f"cap {max_drift:.2f}pt (entry_est={entry_estimate}, "
-                f"bracket_ref={bracket_ref}, side={side}). The market "
-                f"moved too far between strategy decision and submit. "
-                f"Skipping this trade to preserve risk envelope.")
+                f"[placeoso SKIP {cap_kind}] drift {drift:.2f}pt > "
+                f"{max_drift:.2f}pt (entry_est={entry_estimate}, "
+                f"bracket_ref={bracket_ref}, side={side}, "
+                f"favorable={favorable}). Nothing left of paper's move "
+                f"to mirror at this price.")
             _audit({
                 "kind": "placeoso_aborted_safety_cap",
+                "reason": cap_kind,
                 "side": side, "qty": qty, "symbol": symbol,
                 "entry_estimate": float(entry_estimate),
                 "bracket_ref": bracket_ref,
                 "drift_pts": round(drift, 2),
                 "max_drift_pts": max_drift,
+                "favorable": favorable,
                 "current_bid": cur_bid, "current_ask": cur_ask,
                 "setup_ref": setup_ref,
             })
             return OrderResult(
                 ok=False, order_id=None, status_code=None,
-                response={}, error="price_drift_safety_cap")
+                response={}, error=cap_kind)
 
         # USER REQUIREMENT: bot trades EXACTLY like paper. When paper's
         # exact stop_px/target_px are supplied, use them as the bracket
