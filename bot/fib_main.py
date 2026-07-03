@@ -1615,11 +1615,22 @@ class FibRuntime:
         # Per-account strategy params (account 1 = target=12 legacy --
         # see bot/account_ctx.py). Accounts 2/3 were removed.
         from bot.account_ctx import get_strategy_params
-        record = on_new_1m_bar(self.state, runtime_lucid,
-                               self._bars_1m, last_1m, now,
-                               n_mnq=N_MNQ, bars_trend=self._bars_1m,
-                               params=get_strategy_params(self.account_id),
-                               calendar=self.news_calendar)
+        # SERIALIZE PAPER TRADE-OPENING. on_new_1m_bar (this main-loop
+        # thread) and try_fire_on_tick (the WS tick thread) both open
+        # trades gated on state.active_trade is None -- but without a
+        # common lock they can BOTH pass that check within milliseconds
+        # and both book a trade: the 2026-07-03 04:55 bundle shows 5
+        # double-fires (two placeoso ~20-100ms apart, same price,
+        # consecutive db_ids, same epoch-second refs) each ending in
+        # netPos 2 and a STACK flatten. The WS path already fires under
+        # _tick_fire_lock; taking the same lock here closes the race --
+        # active_trade is set before either side releases.
+        with self._tick_fire_lock:
+            record = on_new_1m_bar(self.state, runtime_lucid,
+                                   self._bars_1m, last_1m, now,
+                                   n_mnq=N_MNQ, bars_trend=self._bars_1m,
+                                   params=get_strategy_params(self.account_id),
+                                   calendar=self.news_calendar)
 
         # Trade opened this tick?
         if not had_trade_before and self.state.active_trade is not None:
@@ -1912,12 +1923,40 @@ class FibRuntime:
                     # netPos 2 (10 STACK flattens in the 2026-07-02 23:54
                     # bundle traced to exactly this).
                     if pre_oid is None and self._anticipatory_limit is not None:
+                        _anti_snapshot = dict(self._anticipatory_limit)
                         try:
-                            self._cancel_anticipatory_sync(
+                            _term = self._cancel_anticipatory_sync(
                                 "different_setup_firing")
                         except Exception as _ce:
+                            _term = None
                             logger.warning(
                                 f"pre-entry anticipatory cancel: {_ce!r}")
+                        # CANCEL LOST THE RACE: the LIMIT filled before
+                        # the cancel landed -- the broker ALREADY holds a
+                        # position (at the other setup's nearby level).
+                        # Submitting the reactive entry now would stack to
+                        # netPos 2 (the 03:44 STACK in the 2026-07-03
+                        # bundle). Adopt the filled order as this trade's
+                        # broker order instead: same side family, bracket
+                        # already attached, and the ws-fill revise will
+                        # sync paper's entry to the actual fill price.
+                        if (_term == "Filled"
+                                and _anti_snapshot.get("order_id")):
+                            pre_oid = int(_anti_snapshot["order_id"])
+                            self._pending_parent_orders.append({
+                                "setup_ref": setup_ref,
+                                "parent_order_id": pre_oid,
+                                "submitted_at": _anti_snapshot.get(
+                                    "submitted_at", time.time()),
+                                "checks_done": 0,
+                                "side": trade.side,
+                                "entry_px": float(trade.entry_px),
+                                "qty": trade.n_mnq,
+                                "anticipatory": True,
+                            })
+                            _tl(setup_ref,
+                                 "anticipatory_fill_adopted_on_mismatch",
+                                 order_id=pre_oid)
                     if pre_oid is not None:
                         # Pre-submitted LIMIT is now the active trade's
                         # broker order. Tracking already added to
@@ -2576,13 +2615,20 @@ class FibRuntime:
             logger.warning(f"anticipatory submit failed: {e!r}")
             self._anticipatory_limit = None
 
-    def _cancel_anticipatory_sync(self, reason: str) -> None:
+    def _cancel_anticipatory_sync(self, reason: str) -> Optional[str]:
         """Cancel the live anticipatory LIMIT and confirm terminal state
         via Tradovate user WS exec_reports (instant push) instead of
         REST polling. Typical wait now ~10-30ms instead of 50-300ms.
-        Fallback to REST poll if WS isn't connected."""
+        Fallback to REST poll if WS isn't connected.
+
+        Returns the observed terminal ordStatus ("Canceled", "Filled",
+        "Rejected", "Expired") or None if unknown. "Filled" means the
+        cancel LOST the race -- the LIMIT became a live position. The
+        caller MUST NOT submit another entry in that case (that is
+        netPos 2); adopt the filled order instead."""
         if not self._anticipatory_limit:
-            return
+            return None
+        terminal_status = None
         oid = self._anticipatory_limit.get('order_id')
         sk = self._anticipatory_limit.get('setup_key')
         try:
@@ -2617,6 +2663,7 @@ class FibRuntime:
                                         f"order_id={oid} status={r.get('ordStatus')} "
                                         f"reason={reason} "
                                         f"latency_ms={int((_t.time()-t_start)*1000)}")
+                                    terminal_status = r.get("ordStatus")
                                     confirmed = True
                                     break
                             if confirmed:
@@ -2629,6 +2676,7 @@ class FibRuntime:
                     try:
                         status = self.tradovate_orders.get_order_status(oid_int)
                         if status in terminal_states:
+                            terminal_status = status
                             confirmed = True
                             logger.info(
                                 f"[ANTICIPATORY cancel REST-confirmed] "
@@ -2666,6 +2714,7 @@ class FibRuntime:
         except Exception as e:
             logger.warning(f"anticipatory cancel lock-setup: {e!r}")
         self._anticipatory_limit = None
+        return terminal_status
 
     def _adopt_anticipatory_for_active_trade(self, trade, setup_ref: str) -> Optional[int]:
         """When paper fires for a setup that we anticipatorily submitted,
