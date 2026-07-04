@@ -3473,27 +3473,66 @@ class FibRuntime:
                         "TRADOVATE_SYMBOL",
                         polygon_front_month(
                             os.environ.get("POLYGON_CONTRACT", "MNQ")))
-                    _tl(self._open_trade_ref, "broker_close_sent",
-                         reason=reason,
-                         paper_exit_px=record.get("exit_px"),
-                         paper_pnl=record.get("pnl_usd"))
-                    result = self.tradovate_orders.submit_market_close(
-                        side=record.get("side", "LONG"),
-                        qty=record.get("n_mnq", 1),
-                        symbol=symbol,
-                        setup_ref=self._open_trade_ref,
-                    )
-                    _tl(self._open_trade_ref, "broker_close_result",
-                         ok=result.ok, order_id=result.order_id,
-                         http_status=result.status_code,
-                         error=result.error)
-                    if result.ok:
-                        logger.info(
-                            f"[tradovate CLOSE OK] order_id={result.order_id} "
-                            f"reason={reason} (zero-delay liquidate)")
+                    # TARGET-EXIT PATIENCE (2026-07-04). The bracket's
+                    # target LIMIT is already RESTING at paper's exact
+                    # target price, and paper only declares "target" when
+                    # bid/ask actually reached that level -- i.e. the
+                    # LIMIT is fillable RIGHT NOW at the exact price
+                    # paper booked. Liquidating instantly instead crosses
+                    # the spread and pays ~0.5-1pt on every winner: the
+                    # 2026-07-03 post-mirror session bled ~$2/trade of
+                    # pure exit slippage (paper +$134.86 vs broker
+                    # +$6.49 with entries synced). So on TARGET exits,
+                    # give the resting LIMIT a short window to fill like
+                    # paper (maker, exact price); force-liquidate only if
+                    # still not flat at the deadline. Stops and timeouts
+                    # stay ZERO-DELAY liquidates -- urgency wins there.
+                    # Safety: patience (2.5s) << cooldown (10s), so no
+                    # new entry can race the deferred flatten; the
+                    # watcher also aborts if a new trade opened. Set
+                    # BROKER_TARGET_PATIENCE_S=0 to restore instant
+                    # liquidate on targets.
+                    patience_s = 0.0
+                    if reason == "target":
+                        try:
+                            patience_s = float(os.environ.get(
+                                "BROKER_TARGET_PATIENCE_S", "2.5"))
+                        except Exception:
+                            patience_s = 2.5
+                    if patience_s > 0:
+                        _tl(self._open_trade_ref, "broker_close_sent",
+                             reason=reason, mode="bracket_patience",
+                             patience_s=patience_s,
+                             paper_exit_px=record.get("exit_px"),
+                             paper_pnl=record.get("pnl_usd"))
+                        self._spawn_target_patience_watcher(
+                            setup_ref=self._open_trade_ref,
+                            side=record.get("side", "LONG"),
+                            qty=record.get("n_mnq", 1),
+                            symbol=symbol,
+                            patience_s=patience_s)
                     else:
-                        logger.warning(
-                            f"[tradovate CLOSE FAIL] {result.error}")
+                        _tl(self._open_trade_ref, "broker_close_sent",
+                             reason=reason,
+                             paper_exit_px=record.get("exit_px"),
+                             paper_pnl=record.get("pnl_usd"))
+                        result = self.tradovate_orders.submit_market_close(
+                            side=record.get("side", "LONG"),
+                            qty=record.get("n_mnq", 1),
+                            symbol=symbol,
+                            setup_ref=self._open_trade_ref,
+                        )
+                        _tl(self._open_trade_ref, "broker_close_result",
+                             ok=result.ok, order_id=result.order_id,
+                             http_status=result.status_code,
+                             error=result.error)
+                        if result.ok:
+                            logger.info(
+                                f"[tradovate CLOSE OK] order_id={result.order_id} "
+                                f"reason={reason} (zero-delay liquidate)")
+                        else:
+                            logger.warning(
+                                f"[tradovate CLOSE FAIL] {result.error}")
                 except Exception as te:
                     logger.warning(f"tradovate close failed: {te!r}")
             elif self.traderspost is not None:
@@ -3520,6 +3559,96 @@ class FibRuntime:
         except Exception as e:
             self.last_error = f"close failed: {e}"
             logger.exception(f"close failed: {e}")
+
+    def _spawn_target_patience_watcher(self, *, setup_ref: str, side: str,
+                                        qty: int, symbol: str,
+                                        patience_s: float) -> None:
+        """Background watcher for TARGET exits: give the bracket's
+        resting target LIMIT (already at paper's exact price, already
+        fillable -- paper just detected bid/ask AT that level) a short
+        window to fill like paper's exit. If the broker is flat before
+        the deadline, the bracket captured the exit at the exact paper
+        price (maker -- no spread cost). Otherwise force-liquidate.
+
+        Safety properties:
+          - patience (default 2.5s) << strategy cooldown (10s), so the
+            deferred flatten cannot collide with the next entry.
+          - The watcher aborts (no liquidate) if a new trade opened
+            meanwhile (_open_trade_ref set) -- that trade's own
+            lifecycle owns the position then.
+          - Any error path falls through TO the liquidate, never away
+            from it: fail toward flat."""
+        import threading
+
+        def _watch():
+            try:
+                from bot.trade_timeline import add_event as _tl
+                deadline = time.time() + max(0.5, float(patience_s))
+                flat_seen = False
+                while time.time() < deadline:
+                    try:
+                        from bot.tradovate_user_ws import get_user_ws
+                        _uws = get_user_ws()
+                        if (_uws is not None
+                                and getattr(_uws, "connected", False)):
+                            cache = _uws._netpos_cache or {}
+                            fresh = {c: e for c, e in cache.items()
+                                     if time.time() - float(
+                                         e.get("ts", 0)) < 10.0}
+                            if fresh and all(
+                                    e.get("netPos", 0) == 0
+                                    for e in fresh.values()):
+                                flat_seen = True
+                                break
+                    except Exception:
+                        pass
+                    time.sleep(0.15)
+                if flat_seen:
+                    _tl(setup_ref, "broker_close_result",
+                         ok=True, order_id=None, http_status=None,
+                         error=None, mode="bracket_fill_at_target")
+                    logger.info(
+                        f"[tradovate CLOSE via bracket] target LIMIT "
+                        f"filled at paper's exact price (no liquidate "
+                        f"needed) ref={setup_ref}")
+                    return
+                # Deadline passed and not confirmed flat. If a NEW trade
+                # opened meanwhile, its lifecycle owns the position.
+                if self._open_trade_ref is not None:
+                    _tl(setup_ref, "broker_close_result",
+                         ok=False, order_id=None, http_status=None,
+                         error="patience_aborted_new_trade_open",
+                         mode="bracket_patience")
+                    logger.warning(
+                        f"[target patience ABORT] new trade opened "
+                        f"during patience window ref={setup_ref}")
+                    return
+                result = self.tradovate_orders.submit_market_close(
+                    side=side, qty=qty, symbol=symbol,
+                    setup_ref=setup_ref)
+                _tl(setup_ref, "broker_close_result",
+                     ok=result.ok, order_id=result.order_id,
+                     http_status=result.status_code,
+                     error=result.error,
+                     mode="liquidate_after_patience")
+                logger.info(
+                    f"[tradovate CLOSE after patience] ok={result.ok} "
+                    f"ref={setup_ref} (bracket didn't fill in "
+                    f"{patience_s}s)")
+            except Exception as we:
+                # Last-resort flatten -- never leave a position running
+                # because the watcher crashed.
+                logger.warning(f"target patience watcher: {we!r}")
+                try:
+                    self.tradovate_orders.submit_market_close(
+                        side=side, qty=qty, symbol=symbol,
+                        setup_ref=setup_ref)
+                except Exception as fe:
+                    logger.error(
+                        f"target patience fallback flatten FAILED: {fe!r}")
+
+        threading.Thread(target=_watch, daemon=True,
+                          name=f"tgt-patience-{setup_ref[-12:]}").start()
 
     # ---- dashboard data publish ---------------------------------------
     def _publish_dashboard(self) -> None:
