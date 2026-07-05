@@ -478,6 +478,11 @@ class FibRuntime:
             "checks": 0, "last": [],
         }
         self._anticip_last_drain = 0.0
+        # EXIT-PATH LEDGER. Counts how each broker close was captured
+        # (bracket fill at paper's exact target vs liquidate variants vs
+        # discrepancy flattens). Turns "did target-patience recover the
+        # spread?" into a single bundle lookup instead of a timeline scan.
+        self._close_path_counts: dict = {}
         # LATENCY: cache the resolved Tradovate symbol so we don't
         # re-resolve from polygon_front_month on every trade. Same
         # value all day. Refreshes on next bot restart.
@@ -2200,6 +2205,14 @@ class FibRuntime:
             self.last_error = f"open failed: {e}"
             logger.exception(f"open failed: {e}")
 
+    def _count_close_path(self, key: str) -> None:
+        """Bump the exit-path ledger (see __init__). Never raises."""
+        try:
+            self._close_path_counts[key] = \
+                self._close_path_counts.get(key, 0) + 1
+        except Exception:
+            pass
+
     def _anticip_note(self, outcome: str, **detail) -> None:
         """Record one anticipatory-check outcome for the diagnostic bundle.
 
@@ -3276,6 +3289,8 @@ class FibRuntime:
                                  paper_in_trade=paper_in_trade,
                                  had_anticipatory=(
                                      self._anticipatory_limit is not None))
+                            self._count_close_path(
+                                f"discrepancy_flatten_{anomaly_kind.lower()}")
                         except Exception:
                             pass
                         # On orphan, also wipe stale tracking state so the
@@ -3527,10 +3542,12 @@ class FibRuntime:
                              http_status=result.status_code,
                              error=result.error)
                         if result.ok:
+                            self._count_close_path("instant_liquidate")
                             logger.info(
                                 f"[tradovate CLOSE OK] order_id={result.order_id} "
                                 f"reason={reason} (zero-delay liquidate)")
                         else:
+                            self._count_close_path("instant_liquidate_failed")
                             logger.warning(
                                 f"[tradovate CLOSE FAIL] {result.error}")
                 except Exception as te:
@@ -3604,6 +3621,7 @@ class FibRuntime:
                         pass
                     time.sleep(0.15)
                 if flat_seen:
+                    self._count_close_path("bracket_fill_at_target")
                     _tl(setup_ref, "broker_close_result",
                          ok=True, order_id=None, http_status=None,
                          error=None, mode="bracket_fill_at_target")
@@ -3615,6 +3633,7 @@ class FibRuntime:
                 # Deadline passed and not confirmed flat. If a NEW trade
                 # opened meanwhile, its lifecycle owns the position.
                 if self._open_trade_ref is not None:
+                    self._count_close_path("patience_aborted_new_trade")
                     _tl(setup_ref, "broker_close_result",
                          ok=False, order_id=None, http_status=None,
                          error="patience_aborted_new_trade_open",
@@ -3626,6 +3645,7 @@ class FibRuntime:
                 result = self.tradovate_orders.submit_market_close(
                     side=side, qty=qty, symbol=symbol,
                     setup_ref=setup_ref)
+                self._count_close_path("liquidate_after_patience")
                 _tl(setup_ref, "broker_close_result",
                      ok=result.ok, order_id=result.order_id,
                      http_status=result.status_code,
@@ -3726,6 +3746,31 @@ class FibRuntime:
                 # -- 0/150 broker orders -- with no visible reason before
                 # this). Surfaced in the diagnostic bundle.
                 "anticipatory_diag": getattr(self, "_anticip_diag", None),
+                # Exit-path ledger: how each broker close was captured.
+                # bracket_fill_at_target vs liquidate_* quantifies the
+                # spread recovered by target-patience in one glance.
+                "close_path_counts": getattr(
+                    self, "_close_path_counts", None),
+                # Effective execution knobs. Bundles carried the data but
+                # not the SETTINGS that produced it -- a stale Railway env
+                # var once silently reverted the entry type for days.
+                # Snapshot every tunable so each bundle is self-describing.
+                "exec_knobs": {
+                    k: os.environ.get(k) for k in (
+                        "BROKER_ENTRY_TYPE",
+                        "BROKER_INSTANT_CLOSE",
+                        "BROKER_TARGET_PATIENCE_S",
+                        "BROKER_ORPHAN_GRACE_S",
+                        "BROKER_MAX_ENTRY_DRIFT_PT",
+                        "BROKER_MARKETABLE_BUFFER_PTS",
+                        "BROKER_STOP_WICK_TOLERANCE_PTS",
+                        "ANTICIPATORY_THRESHOLD_PT",
+                        "STRAT_FIRE_DRIFT_GATE_PT",
+                        "STRAT_COOLDOWN_SECS",
+                        "STRAT_ARMING",
+                        "TRADOVATE_LIVE",
+                    )
+                },
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,

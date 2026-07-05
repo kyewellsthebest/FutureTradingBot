@@ -96,6 +96,22 @@ class TradovateUserWS:
         # fills happen, so this cache is more current than REST polling.
         self._netpos_cache: dict = {}  # contractId -> {netPos, ts}
         self.cash_updates: "deque[dict]" = deque(maxlen=200)
+        # CONNECTION HISTORY. health() used to expose only the
+        # point-in-time `connected` flag, which made WS stability
+        # unverifiable from a bundle (the heartbeat-starvation bug hid
+        # behind a momentarily-true flag for weeks). Track cumulative
+        # counters so one bundle proves stability over the whole session.
+        self._connects = 0
+        self._disconnect_since: Optional[float] = None
+        self._downtime_s = 0.0
+        # FILL ARCHIVE. Tradovate's REST /fill/list is TRADE-DATE-scoped:
+        # a bundle taken after the 5pm CT roll (or on a holiday) returns
+        # ZERO fills for the day just traded -- the 2026-07-04 bundle had
+        # no July-3 fills and per-trade broker P&L was unverifiable. The
+        # WS receives every fill in real time, so persist them to a
+        # rolling JSONL archive (7 days) that the bundle can always read.
+        self._archive_date: Optional[str] = None
+        self._archive_fh = None
 
     # ----- lifecycle -----
 
@@ -129,6 +145,9 @@ class TradovateUserWS:
 
     def health(self) -> dict:
         now = time.time()
+        downtime = self._downtime_s
+        if self._disconnect_since is not None:
+            downtime += now - self._disconnect_since
         return {
             "url": _user_ws_url(),
             "connected": self.connected,
@@ -140,7 +159,53 @@ class TradovateUserWS:
             "last_msg_age_s": (round(now - self._last_msg_ts, 1)
                                 if self._last_msg_ts else None),
             "last_error": self.last_error,
+            # Session-lifetime stability counters: `connects` counts
+            # successful (re)connections, `cumulative_downtime_s` sums
+            # every disconnected gap. connects=1, downtime~0 across a
+            # full day = the socket held; connects in the hundreds =
+            # flapping (the pre-heartbeat-fix pathology), regardless of
+            # what the point-in-time `connected` flag happens to say.
+            "connects": self._connects,
+            "cumulative_downtime_s": round(downtime, 1),
+            "disconnected_since": self._disconnect_since,
         }
+
+    def _archive_fill(self, entity: dict) -> None:
+        """Append one fill to the rolling on-disk archive (JSONL, one
+        file per UTC day, 7-day retention). Never raises: archiving is
+        diagnostics, the trading path must not feel it."""
+        try:
+            import json as _json
+            from datetime import datetime as _dt, timezone as _tz
+            from bot.account_ctx import data_dir as _dd
+            day = _dt.now(_tz.utc).strftime("%Y%m%d")
+            if day != self._archive_date or self._archive_fh is None:
+                if self._archive_fh is not None:
+                    try:
+                        self._archive_fh.close()
+                    except Exception:
+                        pass
+                base = _dd()
+                path = base / f"fill_archive_{day}.jsonl"
+                self._archive_fh = open(path, "a", buffering=1)
+                self._archive_date = day
+                # Prune archives older than 7 days.
+                try:
+                    import re as _re
+                    cutoff = int(day) - 7
+                    for f in base.glob("fill_archive_*.jsonl"):
+                        m = _re.search(r"(\d{8})", f.name)
+                        if m and int(m.group(1)) < cutoff:
+                            f.unlink()
+                except Exception:
+                    pass
+            rec = {"archived_at": round(time.time(), 3)}
+            rec.update({k: entity.get(k) for k in (
+                "id", "orderId", "contractId", "timestamp", "tradeDate",
+                "action", "qty", "price", "active") if k in entity})
+            self._archive_fh.write(_json.dumps(rec) + "\n")
+        except Exception as e:
+            logger.debug(f"fill archive write: {e!r}")
 
     def get_netpos_cached(self, contract_id: int, max_age_s: float = 5.0) -> Optional[int]:
         """Return the most recent netPos for contract_id pushed via WS.
@@ -174,6 +239,8 @@ class TradovateUserWS:
                 self.last_error = repr(e)
                 self.connected = False
                 self.subscribed = False
+                if self._disconnect_since is None:
+                    self._disconnect_since = time.time()
                 # Token-absence is a different failure mode than a
                 # dropped TCP. Wait longer so the background-refresh
                 # thread has a chance to land fresh tokens before we
@@ -237,6 +304,10 @@ class TradovateUserWS:
         auth_resp = self._ws.recv()
         logger.info(f"user_ws: auth response={auth_resp[:200]!r}")
         self.connected = True
+        self._connects += 1
+        if self._disconnect_since is not None:
+            self._downtime_s += time.time() - self._disconnect_since
+            self._disconnect_since = None
 
         # Subscribe to user/syncrequest -- this returns initial state +
         # streams updates for ALL entity types for this user.
@@ -429,6 +500,7 @@ class TradovateUserWS:
         entity = data.get("entity") if isinstance(data, dict) else None
         if entity_type == "fill" and isinstance(entity, dict):
             self.fills.append(entity)
+            self._archive_fill(entity)
             logger.info(f"[user_ws FILL] id={entity.get('id')} "
                         f"orderId={entity.get('orderId')} "
                         f"action={entity.get('action')} "
