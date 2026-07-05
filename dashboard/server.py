@@ -3870,8 +3870,40 @@ def _build_diagnostic_extras() -> dict:
     try:
         snap = persistence.load_dashboard()
         extras["anticipatory_diag"] = snap.get("anticipatory_diag")
+        # Exit-path ledger + effective execution knobs (published by the
+        # bot alongside anticipatory_diag; see fib_main._publish_dashboard).
+        extras["close_path_counts"] = snap.get("close_path_counts")
+        extras["exec_knobs"] = snap.get("exec_knobs")
     except Exception as e:
         extras["anticipatory_diag"] = {"unavailable": repr(e)}
+    # FILL ARCHIVE. Tradovate's /fill/list is trade-date-scoped, so a
+    # bundle taken after the 5pm CT roll (or on a holiday) has NO fills
+    # for the day just traded -- the 2026-07-04 bundle couldn't verify
+    # July 3's broker P&L at all. The user-WS persists every fill to a
+    # rolling JSONL archive (bot/tradovate_user_ws._archive_fill); embed
+    # the last 3 days so per-trade broker P&L is always reconstructable
+    # from the bundle alone (join on orderId against the timelines).
+    try:
+        import json as _json
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        from bot.account_ctx import data_dir as _acct_dd
+        _rows = []
+        _base = _acct_dd()
+        for _d in range(3):
+            _day = (_dt.now(_tz.utc) - _td(days=_d)).strftime("%Y%m%d")
+            _f = _base / f"fill_archive_{_day}.jsonl"
+            if not _f.exists():
+                continue
+            for _line in _f.read_text().splitlines():
+                try:
+                    _rows.append(_json.loads(_line))
+                except Exception:
+                    continue
+        # Newest last; cap so a hyperactive week can't bloat the bundle.
+        extras["fill_archive"] = _rows[-6000:]
+        extras["fill_archive_count"] = len(_rows)
+    except Exception as e:
+        extras["fill_archive"] = {"unavailable": repr(e)}
     # Bot process uptime + cycle counters from the live snapshot.
     try:
         snap = persistence.load_dashboard()
