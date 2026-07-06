@@ -178,6 +178,20 @@ class TradovateUserWS:
             import json as _json
             from datetime import datetime as _dt, timezone as _tz
             from bot.account_ctx import data_dir as _dd
+            # Dedupe by fill id: the same fill can arrive more than once
+            # (reconnect sync replay; historically a second socket).
+            # Duplicate rows double-count position math in every consumer.
+            fid = entity.get("id")
+            if fid is not None:
+                seen = getattr(self, "_archived_fill_ids", None)
+                if seen is None:
+                    seen = set()
+                    self._archived_fill_ids = seen
+                if fid in seen:
+                    return
+                seen.add(fid)
+                if len(seen) > 20000:
+                    seen.clear()
             day = _dt.now(_tz.utc).strftime("%Y%m%d")
             if day != self._archive_date or self._archive_fh is None:
                 if self._archive_fh is not None:
