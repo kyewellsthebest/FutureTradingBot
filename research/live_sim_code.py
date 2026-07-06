@@ -162,8 +162,8 @@ def run(tick_files):
     from bot.pullback_strategy import (FibStrategyState, on_new_1m_bar,
                                        try_fire_on_tick, should_exit_on_tick,
                                        close_trade)
-    from bot.price_monitor import _TickBarAggregator
     from bot.lucid_account import LucidAccount
+    from bot.tick_history import record_tick
 
     frames = [pd.read_parquet(f) for f in sorted(tick_files)]
     ticks = pd.concat(frames).sort_values("ts").reset_index(drop=True)
@@ -175,15 +175,21 @@ def run(tick_files):
 
     state = FibStrategyState()
     account = LucidAccount()
-    agg = _TickBarAggregator()
     broker = BrokerSim()
     open_ref = None           # duplicate-entry guard state
     ref_n = 0
     paper_trades = []
     guard_skips = 0
     divergence_skips = 0
+    # 1-minute bars built from the full tape -- equivalent to the
+    # Polygon AM minute events that feed the live bot's bar frame
+    # (the live _TickBarAggregator's own tick path is dead code; live
+    # bars arrive via on_bar from AM events).
+    MAXB = 2000
+    bar_rows = []             # (ts, o, h, l, c, v) closed bars
+    cur_min = None
+    cur = None                # [o, h, l, c, v]
     bars_df = None
-    last_closed_n = 0
 
     def paper_open(trade, px, now):
         nonlocal open_ref, ref_n, guard_skips, divergence_skips
@@ -227,15 +233,31 @@ def run(tick_files):
         t = ts_arr[i]
         px = float(px_arr[i])
         now = datetime.fromtimestamp(t, timezone.utc)
+        # live parity: every Polygon tick lands in the tick_history ring
+        try:
+            record_tick(px, src="polygon")
+        except Exception:
+            pass
         # 1. exchange advances on this tick (fills, brackets, liqs)
         broker.on_tick(t, px)
         # 2. bar aggregation; a newly CLOSED bar drives on_new_1m_bar
-        agg.on_tick(px, now)
-        if agg.closed_count > last_closed_n:
-            last_closed_n = agg.closed_count
-            closed = agg.get_bars()
-            if closed is not None and len(closed) >= 5:
-                bars_df = closed
+        minute = now.replace(second=0, microsecond=0)
+        if cur_min is None:
+            cur_min, cur = minute, [px, px, px, px, 1]
+        elif minute == cur_min:
+            cur[1] = max(cur[1], px)
+            cur[2] = min(cur[2], px)
+            cur[3] = px
+            cur[4] += 1
+        else:
+            bar_rows.append((cur_min, *cur))
+            if len(bar_rows) > MAXB:
+                bar_rows = bar_rows[-MAXB:]
+            cur_min, cur = minute, [px, px, px, px, 1]
+            if len(bar_rows) >= 5:
+                bars_df = pd.DataFrame(
+                    bar_rows, columns=["ts", "open", "high", "low",
+                                       "close", "volume"]).set_index("ts")
                 had = state.active_trade
                 try:
                     rec = on_new_1m_bar(
