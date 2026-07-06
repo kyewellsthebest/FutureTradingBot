@@ -555,6 +555,27 @@ class FibRuntime:
         except Exception as e:
             logger.warning(f"tradovate_user_ws init failed: {e!r}")
             self.tradovate_user_ws = None
+        # BROKER TREND ENGINE (2026-07-06): the broker no longer mirrors
+        # the fade (measured -$4.8k/wk on real ticks at every policy);
+        # it trades the validated Donchian continuation instead. Paper
+        # is untouched. BROKER_ENGINE=mirror restores the old mirroring,
+        # =off disables broker entries entirely.
+        self.trend_engine = None
+        try:
+            from bot.broker_trend_engine import BrokerTrendEngine, engine_mode
+            if self.tradovate_orders is not None and engine_mode() == "trend":
+                def _sym():
+                    from research.data_loader import polygon_front_month
+                    return os.environ.get(
+                        "TRADOVATE_SYMBOL",
+                        polygon_front_month(
+                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                self.trend_engine = BrokerTrendEngine(
+                    self.tradovate_orders, _sym)
+                logger.warning("[trend] broker trend engine ACTIVE "
+                               "(BROKER_ENGINE=trend); fade mirror OFF")
+        except Exception as e:
+            logger.warning(f"trend engine init failed: {e!r}")
 
     def _hydrate_recent_trades(self) -> None:
         """Load the last 30 closed trades from persistence so the Trades
@@ -1160,6 +1181,13 @@ class FibRuntime:
     def _tick(self) -> None:
         self.cycle += 1
         now = real_utc_now()
+        # Broker trend engine: evaluate on every cycle (acts only on
+        # newly CLOSED 15m bars + the EOD flatten window).
+        if self.trend_engine is not None:
+            try:
+                self.trend_engine.on_cycle(self._bars_1m, now)
+            except Exception as e:
+                logger.debug(f"trend engine cycle: {e!r}")
         # Persist tracking state to disk every ~10s (cycle * 2s = 10s
         # when in CYCLE_FLAT_SECONDS=2). Cheap atomic JSON write. If
         # the bot crashes / Railway redeploys, we recover within
@@ -1770,6 +1798,14 @@ class FibRuntime:
             # gate fired and with what values. Previously several of
             # these were silent skips, which is how 88 paper trades
             # got booked while the broker tab showed "0 signals".
+            # ENGINE GATE: when the trend engine owns the broker, the
+            # fade mirror never forwards (paper books above as always).
+            try:
+                from bot.broker_trend_engine import engine_mode
+                if engine_mode() != "mirror":
+                    return
+            except Exception:
+                pass
             # DUPLICATE-ENTRY GUARD: if _open_trade_ref is already set,
             # the broker still holds a position from a previous trade.
             # Sending another entry would open a SECOND position with its
@@ -2964,7 +3000,9 @@ class FibRuntime:
                 paper_in_trade = (
                     (self.state is not None
                      and self.state.active_trade is not None)
-                    or self.account.state.open_position is not None)
+                    or self.account.state.open_position is not None
+                    or (self.trend_engine is not None
+                        and self.trend_engine.holds_position()))
                 recent_close = False
                 try:
                     lc = getattr(self.state, "last_trade_close_ts", None) if self.state else None
@@ -3260,6 +3298,11 @@ class FibRuntime:
         except Exception as _e:
             logger.debug(f"paper orphan check: {_e!r}")
         if self.tradovate_orders is None:
+            return
+        # ENGINE EXEMPTION: when the trend engine holds the broker
+        # position, it is SUPPOSED to exist while paper is flat -- the
+        # orphan/stack flatten logic below must not touch it.
+        if self.trend_engine is not None and self.trend_engine.holds_position():
             return
         sess = getattr(self.tradovate_orders, "session", None)
         if sess is None or not sess.is_configured:
@@ -3900,8 +3943,16 @@ class FibRuntime:
                         "STRAT_COOLDOWN_SECS",
                         "STRAT_ARMING",
                         "TRADOVATE_LIVE",
+                        "BROKER_ENGINE",
+                        "BROKER_TREND_QTY",
+                        "BROKER_TREND_N",
                     )
                 },
+                "trend_engine": (
+                    {"active": True, "pos": self.trend_engine.pos,
+                     "last_bar": str(self.trend_engine.last_bar_ts),
+                     "qty": self.trend_engine.qty, "N": self.trend_engine.N}
+                    if self.trend_engine is not None else {"active": False}),
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,
