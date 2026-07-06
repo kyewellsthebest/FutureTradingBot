@@ -49,9 +49,14 @@ os.environ.setdefault("BOT_SHADOW_MODE", "1")   # never touch a real broker
 
 import pandas as pd  # noqa: E402
 
-PARAMS = {"IMPULSE_PTS": 2.0, "IMPULSE_WINDOW_BARS": 3,
-          "PULLBACK_PCT": 0.118, "STOP_PTS": 5.0, "TARGET_PTS": 44.0,
+PARAMS = {"IMPULSE_PTS": float(os.environ.get("SIM_IMPULSE_PTS", "2.0")),
+          "IMPULSE_WINDOW_BARS": int(os.environ.get("SIM_IMPULSE_BARS", "3")),
+          "PULLBACK_PCT": float(os.environ.get("SIM_PULLBACK_PCT", "0.118")),
+          "STOP_PTS": float(os.environ.get("SIM_STOP_PTS", "5.0")),
+          "TARGET_PTS": float(os.environ.get("SIM_TARGET_PTS", "44.0")),
           "INVERT": True}
+if os.environ.get("SIM_COOLDOWN"):
+    os.environ["STRAT_COOLDOWN_SECS"] = os.environ["SIM_COOLDOWN"]
 HALF = 0.125          # half-spread convention, same constant as fib_main
 STOP_SLIP = 0.25      # broker stop adverse slip (matches live fills)
 LATENCY_S = 0.065     # live-measured signal->placeoso p50
@@ -75,6 +80,12 @@ class BrokerSim:
     # -- order placement (logic from tradovate_orders) -------------------
     def submit(self, ref, side, level, stop_px, target_px, live_px, t):
         mode = os.environ.get("BROKER_SIM_MODE", "marketable")
+        # SIM_CHASE_MAX_DRIFT: only mirror trades whose head start is
+        # small (fired at/near the touch). Everything else is skipped.
+        cap = os.environ.get("SIM_CHASE_MAX_DRIFT")
+        if cap and abs(live_px - level) > float(cap):
+            self.skips["over_drift_cap"] += 1
+            return False
         if mode == "rest_at_level":
             # Candidate policy: LIMIT at paper's exact level. Fills at
             # paper's price or better, or not at all (cancelled when
@@ -107,9 +118,16 @@ class BrokerSim:
 
     def request_close(self, t, reason):
         """Paper closed. Target exits get bracket patience; everything
-        else liquidates as soon as the order can reach the exchange."""
+        else liquidates as soon as the order can reach the exchange.
+
+        SIM_INDEPENDENT_EXITS=1: the broker does NOT follow paper's
+        exits at all -- it rides its own bracket, with only a max-hold
+        liquidation mirroring the strategy's 600s timeout."""
         if self.pos is None:
             self.cancel_entry()
+            return
+        if os.environ.get("SIM_INDEPENDENT_EXITS") == "1":
+            self.liq_at = (self.pos["t_in"] + 600.0, "timeout")
             return
         delay = PATIENCE_S if reason == "target" else LATENCY_S
         self.liq_at = (t + delay, reason)
@@ -134,8 +152,19 @@ class BrokerSim:
                 elif e["limit"] <= px:
                     fill = px
             if fill is not None:
+                stop_px, target_px = e["stop"], e["target"]
+                if os.environ.get("SIM_BRACKET_ANCHOR") == "fill":
+                    # Anchor brackets to the ACTUAL fill instead of
+                    # paper's level: the broker keeps the strategy's
+                    # intended 5/44 geometry no matter the head start.
+                    sp = PARAMS["STOP_PTS"]
+                    tp = PARAMS["TARGET_PTS"]
+                    if side == "LONG":
+                        stop_px, target_px = fill - sp, fill + tp
+                    else:
+                        stop_px, target_px = fill + sp, fill - tp
                 self.pos = {"ref": e["ref"], "side": side, "entry": fill,
-                            "stop": e["stop"], "target": e["target"],
+                            "stop": stop_px, "target": target_px,
                             "t_in": t, "level": e["level"]}
                 self.entry = None
         p = self.pos
@@ -336,7 +365,23 @@ def run(tick_files):
         bdays[d]["net"] = round(bdays[d]["net"] + r["pnl_net"], 2)
         bdays[d]["paths"][r["path"]] += 1
 
+    # hour-of-day economics (UTC) for the hour-filter avenue
+    bhours = defaultdict(lambda: [0, 0.0])
+    for r in broker.trades:
+        h = datetime.fromtimestamp(r["t_out"], timezone.utc).hour
+        bhours[h][0] += 1
+        bhours[h][1] = round(bhours[h][1] + r["pnl_net"], 2)
     out = {
+        "variant": {
+            "mode": os.environ.get("BROKER_SIM_MODE", "marketable"),
+            "chase_max_drift": os.environ.get("SIM_CHASE_MAX_DRIFT"),
+            "bracket_anchor": os.environ.get("SIM_BRACKET_ANCHOR", "paper"),
+            "independent_exits": os.environ.get("SIM_INDEPENDENT_EXITS"),
+            "no_tick_fire": os.environ.get("SIM_NO_TICK_FIRE"),
+            "cooldown": os.environ.get("STRAT_COOLDOWN_SECS"),
+        },
+        "broker_hours_utc": {str(k): {"n": v[0], "net": v[1]}
+                             for k, v in sorted(bhours.items())},
         "params": PARAMS,
         "paper_days": {k: {"n": v["n"], "net_usd": v["net"],
                            "exits": dict(v["exits"])}
@@ -353,7 +398,7 @@ def run(tick_files):
         "divergence_skips": divergence_skips,
     }
     print(json.dumps(out, indent=1))
-    with open("live_sim_result.json", "w") as fh:
+    with open(os.environ.get("SIM_OUT", "live_sim_result.json"), "w") as fh:
         json.dump(out, fh, indent=1)
     return out
 
