@@ -74,6 +74,17 @@ class BrokerSim:
 
     # -- order placement (logic from tradovate_orders) -------------------
     def submit(self, ref, side, level, stop_px, target_px, live_px, t):
+        mode = os.environ.get("BROKER_SIM_MODE", "marketable")
+        if mode == "rest_at_level":
+            # Candidate policy: LIMIT at paper's exact level. Fills at
+            # paper's price or better, or not at all (cancelled when
+            # paper closes). No drift caps needed -- the limit price
+            # bounds the fill by construction.
+            limit = level
+            self.entry = {"ref": ref, "side": side, "limit": limit,
+                          "stop": stop_px, "target": target_px,
+                          "arrive": t + LATENCY_S, "level": level}
+            return True
         drift = abs(live_px - level)
         favorable = (live_px >= level) if side == "LONG" else (live_px <= level)
         if favorable and drift >= PARAMS["TARGET_PTS"] - 1.0:
@@ -290,7 +301,12 @@ def run(tick_files):
                 state.last_trade_close_ts = now
                 paper_close(rec, now)
                 continue
-        # 4. tick fire
+        # 4. tick fire (SIM_NO_TICK_FIRE=1 mimics the pre-Jul-2 live
+        # build where the WS tick callback was not wired: fires then
+        # happened only on the bar/cycle path, booking the level price
+        # up to a minute after the touch)
+        if os.environ.get("SIM_NO_TICK_FIRE") == "1":
+            continue
         if state.pending_setups and state.active_trade is None:
             fired = try_fire_on_tick(
                 state=state, lucid=account._build_runtime_lucid_state(),
