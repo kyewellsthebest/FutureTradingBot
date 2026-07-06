@@ -538,10 +538,18 @@ class FibRuntime:
         # REST poll above), but with it we see fills in <100ms.
         try:
             if self.tradovate_session is not None:
-                from bot.tradovate_user_ws import TradovateUserWS
-                self.tradovate_user_ws = TradovateUserWS(self.tradovate_session)
-                started = self.tradovate_user_ws.start()
-                logger.info(f"tradovate_user_ws started={started}")
+                # Use the module singleton -- constructing a second
+                # TradovateUserWS here opened a SECOND socket alongside
+                # the one every other call site gets via get_user_ws().
+                # Tradovate then delivered every exec/fill event on both
+                # sockets: doubled log lines, doubled fill-archive rows
+                # (bundle11: 817 rows, 407 unique fills), and doubled
+                # event processing.
+                from bot.tradovate_user_ws import get_user_ws
+                self.tradovate_user_ws = get_user_ws()
+                logger.info(
+                    f"tradovate_user_ws singleton attached="
+                    f"{self.tradovate_user_ws is not None}")
             else:
                 self.tradovate_user_ws = None
         except Exception as e:
@@ -1687,23 +1695,6 @@ class FibRuntime:
         # whether we'd ALSO send a real broker order (we never do yet,
         # so today shadow and live are functionally identical).
         #
-        # DUPLICATE-ENTRY GUARD: if _open_trade_ref is already set, the
-        # broker thinks we already have a position open. Sending another
-        # entry would open a SECOND identical position, with each having
-        # its own bracket. During fast moves the brackets can fail to
-        # fill simultaneously (Tradovate matching engine partials), and
-        # in the worst case one position runs naked while the other
-        # closes -- producing the 58-74pt losses observed in user's
-        # cash log. Hard-block here so the broker never gets a duplicate
-        # open while a previous one is still active.
-        if self._open_trade_ref is not None:
-            logger.error(
-                f"[traderspost SKIP] duplicate entry blocked: "
-                f"_open_trade_ref={self._open_trade_ref} still active. "
-                f"Strategy fired {trade.side} setup but broker already "
-                f"has a position open. Paper account books normally; "
-                f"broker stays single-position.")
-            return
         try:
             # Pullback strategy uses LIMIT-style entries (waits for price to
             # touch pullback_entry, fills at that level). Override the paper
@@ -1766,6 +1757,20 @@ class FibRuntime:
             # gate fired and with what values. Previously several of
             # these were silent skips, which is how 88 paper trades
             # got booked while the broker tab showed "0 signals".
+            # DUPLICATE-ENTRY GUARD: if _open_trade_ref is already set,
+            # the broker still holds a position from a previous trade.
+            # Sending another entry would open a SECOND position with its
+            # own bracket -- the stacking bug class. Skip ONLY the broker
+            # forwarding; the paper trade above is already booked (paper
+            # must trade identically no matter what the broker is doing).
+            if self._open_trade_ref is not None:
+                logger.error(
+                    f"[broker SKIP] duplicate entry blocked: "
+                    f"_open_trade_ref={self._open_trade_ref} still active. "
+                    f"Strategy fired {trade.side} setup but broker already "
+                    f"has a position open. Paper account books normally; "
+                    f"broker stays single-position.")
+                return
             shadow_on = _is_shadow_mode()
             logger.info(f"[broker gate 1/4 SHADOW_MODE] env={shadow_on} "
                         f"(env var BOT_SHADOW_MODE="
@@ -2933,10 +2938,58 @@ class FibRuntime:
                     self._broker_side = None
                     self._broker_target_sent = False
             else:
-                logger.warning(
-                    f"[reconcile] broker has open position netPos="
-                    f"{broker_net} -- bot will treat as in-flight "
-                    f"trade until bracket OCO closes it")
+                # Broker holds a position. If paper also holds the trade,
+                # it's genuinely in-flight -- leave the bracket to close
+                # it. But if paper is FLAT (startup scratched the trade,
+                # or the position is a leftover the bot no longer knows
+                # about), the broker is diverging from paper: it will
+                # ride to its own bracket with no paper counterpart AND
+                # the duplicate-entry guard blocks every new mirror until
+                # it closes (bundle 06:48-07:05: 17 minutes stuck short 1
+                # against a flat paper book, 2 mirrors blocked). Flatten
+                # immediately so broker == paper within seconds.
+                paper_in_trade = (
+                    (self.state is not None
+                     and self.state.active_trade is not None)
+                    or self.account.state.open_position is not None)
+                recent_close = False
+                try:
+                    lc = getattr(self.state, "last_trade_close_ts", None) if self.state else None
+                    if lc is not None:
+                        recent_close = (real_utc_now() - lc).total_seconds() < 10.0
+                except Exception:
+                    recent_close = False
+                if paper_in_trade or recent_close:
+                    logger.warning(
+                        f"[reconcile] broker has open position netPos="
+                        f"{broker_net} -- bot will treat as in-flight "
+                        f"trade until bracket OCO closes it")
+                else:
+                    logger.warning(
+                        f"[reconcile] broker holds netPos={broker_net} but "
+                        f"paper is FLAT -- flattening now so broker matches "
+                        f"paper (was: wait for bracket, which stranded the "
+                        f"position and blocked new mirrors)")
+                    try:
+                        from research.data_loader import polygon_front_month
+                        symbol = os.environ.get(
+                            "TRADOVATE_SYMBOL",
+                            polygon_front_month(
+                                os.environ.get("POLYGON_CONTRACT", "MNQ")))
+                        self.tradovate_orders.submit_market_close(
+                            side=("LONG" if broker_net > 0 else "SHORT"),
+                            qty=abs(int(broker_net)),
+                            symbol=symbol,
+                            setup_ref=str(self._open_trade_ref or "reconcile_stale"),
+                        )
+                        self._count_close_path("reconcile_flatten_stale")
+                    except Exception as fe:
+                        logger.warning(f"[reconcile] stale flatten failed: {fe!r}")
+                    self._open_trade_ref = None
+                    self._broker_stop_px = None
+                    self._broker_target_px = None
+                    self._broker_side = None
+                    self._broker_target_sent = False
         except Exception:
             pass
         self._persist_state()  # Save the reconciled state.
@@ -3166,7 +3219,13 @@ class FibRuntime:
                     except Exception:
                         quiet_long_enough = True
                 self._paper_orphan_streak = getattr(self, "_paper_orphan_streak", 0) + 1
-                if quiet_long_enough or self._paper_orphan_streak >= 3:
+                # Require BOTH: sustained mismatch (3+ cycles) AND no
+                # paper close in the last 5s. The old OR fired on the
+                # FIRST cycle whenever no trade had closed recently,
+                # scratching real paper trades on a transient desync
+                # (bundle 06:40: trades 857/858 scratched at entry,
+                # paper re-fired, broker double-entered -> netPos -2).
+                if quiet_long_enough and self._paper_orphan_streak >= 3:
                     logger.warning(
                         f"[PAPER ORPHAN] paper holds {paper_op.side} qty="
                         f"{paper_op.qty} @ {paper_op.entry_px:.2f} "

@@ -3899,6 +3899,20 @@ def _build_diagnostic_extras() -> dict:
                     _rows.append(_json.loads(_line))
                 except Exception:
                     continue
+        # Dedupe by fill id (archives written before the dedupe fix, or
+        # replayed on reconnect, contain the same fill 2+ times; keep
+        # the first row). Position math on duplicated fills fabricates
+        # phantom netPos stacks.
+        _seen_ids = set()
+        _ded = []
+        for _r in _rows:
+            _fid = _r.get("id")
+            if _fid is not None and _fid in _seen_ids:
+                continue
+            if _fid is not None:
+                _seen_ids.add(_fid)
+            _ded.append(_r)
+        _rows = _ded
         # Newest last; cap so a hyperactive week can't bloat the bundle.
         extras["fill_archive"] = _rows[-6000:]
         extras["fill_archive_count"] = len(_rows)
@@ -4440,12 +4454,36 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
                     continue
     except Exception as e:
         out["fill_archive_error"] = repr(e)
+    # Merge today's REST /fill/list (authoritative for the current trade
+    # date) over the WS-observed archive: fills that landed during a WS
+    # outage or bot restart are missing from the archive, and each gap
+    # skews the running-netPos walk for everything after it.
+    try:
+        rest_fills = tradovate_snap.get("fill_list_raw")
+        if (isinstance(rest_fills, (list, tuple)) and len(rest_fills) == 2
+                and isinstance(rest_fills[1], list)):
+            rest_fills = rest_fills[1]
+        for f in (rest_fills or []):
+            if isinstance(f, dict) and f.get("id") is not None:
+                fills_by_id[f["id"]] = {
+                    k: f.get(k) for k in (
+                        "id", "orderId", "contractId", "timestamp",
+                        "tradeDate", "action", "qty", "price", "active")}
+    except Exception:
+        pass
     fills = sorted(fills_by_id.values(), key=lambda x: _p(x["timestamp"]))
     out["fills_used"] = len(fills)
     if not fills:
         out["verdict"] = "NO_DATA"
         out["reasons"] = ["fill archive empty -- no broker activity yet"]
         return out
+    # Reporting window: violations older than AUDIT_WINDOW_H hours are
+    # aged out of the verdict (they belong to code that has since been
+    # redeployed). The FIFO walk still runs over ALL fills so pairing
+    # and netPos stay correct; only the REPORTED events are filtered.
+    window_h = float(os.environ.get("AUDIT_WINDOW_H", "24"))
+    cutoff = _dt.now(_tz.utc).timestamp() - window_h * 3600.0
+    out["window_h"] = window_h
 
     # ---- 2. FIFO-pair fills into unit round trips; track netPos path
     lots: list = []          # open lots: (side +1/-1, px, oid, ts)
@@ -4470,10 +4508,13 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
                 lots.append((d, float(f["price"]), f.get("orderId"),
                              f["timestamp"]))
             pos += d
-            max_abs_pos = max(max_abs_pos, abs(pos))
-        if abs(pos) > 1:
+            if _p(f["timestamp"]) >= cutoff:
+                max_abs_pos = max(max_abs_pos, abs(pos))
+        if abs(pos) > 1 and _p(f["timestamp"]) >= cutoff:
             excursions += 1
     out["open_lots_at_snapshot"] = len(lots)
+    # Age out round trips that closed before the reporting window.
+    rts = [rt for rt in rts if _p(rt["exit_ts"]) >= cutoff]
 
     # ---- 3. Map entry order ids -> paper trades (from recon timelines)
     rows = recon.get("rows") or []
@@ -4485,7 +4526,34 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
                                  "anticipatory_fill_adopted_on_mismatch"):
                 oid_to_row.setdefault(int(e["order_id"]), i)
 
-    session_lo = _p(fills[0]["timestamp"]) - 600
+    # RESTART-PROOF JOIN. Timelines live in memory and are wiped by every
+    # Railway restart, which killed the oid->paper join (bundle11: 0/163
+    # matched after two restarts). The bot audit log lives on disk and
+    # records setup_ref + parsed_order_id for every placeoso -- use it
+    # as a second join source: oid -> setup_ref -> recon row.
+    ref_to_row: dict = {}
+    id_to_row: dict = {}
+    for i, r in enumerate(rows):
+        if r.get("setup_ref"):
+            ref_to_row.setdefault(str(r["setup_ref"]), i)
+        if r.get("paper_id") is not None:
+            id_to_row.setdefault(int(r["paper_id"]), i)
+    import re as _re_mod
+    _re_audit = _re_mod.compile(r"^acct\d+_(\d+)_(\d+)$")
+    oid_to_ref: dict = {}
+    try:
+        al = tradovate_snap.get("bot_audit_log") or []
+        if isinstance(al, list) and len(al) == 2 and isinstance(al[0], int):
+            al = al[1]
+        for a in (al or []):
+            if (isinstance(a, dict) and a.get("kind") == "placeoso"
+                    and a.get("parsed_order_id")):
+                oid_to_ref[int(a["parsed_order_id"])] = str(
+                    a.get("setup_ref") or "")
+    except Exception:
+        pass
+
+    session_lo = max(_p(fills[0]["timestamp"]) - 600, cutoff)
     win_idx = set()
     for i, r in enumerate(rows):
         try:
@@ -4498,12 +4566,42 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
 
     trades: list = []
     orphans: list = []
+    link_lost: list = []
     matched_row_idx: set = set()
     for rt in rts:
-        idx = oid_to_row.get(int(rt["entry_oid"])) if rt.get(
-            "entry_oid") is not None else None
+        eoid = int(rt["entry_oid"]) if rt.get("entry_oid") is not None else None
+        idx = oid_to_row.get(eoid) if eoid is not None else None
+        aud_ref = oid_to_ref.get(eoid) if eoid is not None else None
+        if idx is None and aud_ref:
+            idx = ref_to_row.get(aud_ref)
+        if idx is None and aud_ref:
+            # The setup_ref encodes the paper trade's DB id:
+            # "acct1_<trade_id>_<fire_epoch>". Both survive restarts,
+            # so this join works even when timelines were wiped.
+            m = _re_audit.match(aud_ref)
+            if m:
+                idx = id_to_row.get(int(m.group(1)))
+                if idx is None:
+                    # Fallback: fire epoch vs paper entry time (±10s).
+                    fire_t = float(m.group(2))
+                    best = None
+                    for j, r2 in enumerate(rows):
+                        try:
+                            d = abs(_p(r2["paper_entry_time"]) - fire_t)
+                        except Exception:
+                            continue
+                        if d <= 10 and (best is None or d < best[1]):
+                            best = (j, d)
+                    if best is not None:
+                        idx = best[0]
         if idx is None:
-            orphans.append(rt)
+            if aud_ref:
+                # Bot-submitted (audit log has the placeoso) but the
+                # paper row can't be located -- a restart artifact,
+                # NOT a broker-only trade. Don't count as orphan.
+                link_lost.append({**rt, "ref": aud_ref})
+            else:
+                orphans.append(rt)
             continue
         matched_row_idx.add(idx)
         r = rows[idx]
@@ -4514,6 +4612,10 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
                 booked_entry = e.get("entry_px")
             if e.get("event") == "broker_close_result":
                 exit_path = e.get("mode") or "instant_liquidate"
+        if booked_entry is None:
+            # Timeline wiped by a restart -- the recon row's DB price is
+            # the same paper entry, so parity stays measurable.
+            booked_entry = r.get("paper_entry_px")
         side = r.get("paper_side")
         egap = xgap = None
         if booked_entry is not None:
@@ -4552,9 +4654,10 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
         # Sum TradePaired cash deltas whose timestamps fall inside the
         # archive's own time span -- exact same window as the fills we
         # paired, so the two numbers are directly comparable.
-        lo_t = _p(fills[0]["timestamp"]) - 60
+        lo_t = max(_p(fills[0]["timestamp"]) - 60, cutoff)
         hi_t = _p(fills[-1]["timestamp"]) + 60
         tp = 0.0
+        n_tp = 0
         for c in (cbh or []):
             if not isinstance(c, dict) or c.get(
                     "cashChangeType") != "TradePaired":
@@ -4565,7 +4668,12 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
                 continue
             if lo_t <= ct <= hi_t:
                 tp += c.get("delta") or 0
-        ledger_gross = round(tp, 2)
+                n_tp += 1
+        # No TradePaired entries in the window means the cash-history
+        # snapshot is empty/stale (common right after a restart), not
+        # that the broker made $0 -- comparing against 0.0 fabricated
+        # a RED "unexplained money" verdict. Report None instead.
+        ledger_gross = round(tp, 2) if n_tp > 0 else None
     except Exception:
         pass
     rt_gross = round(sum(rt["pnl_gross"] for rt in rts), 2)
@@ -4581,6 +4689,7 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
             "matched": len(matched_row_idx),
             "paper_without_broker_fill": len(unfilled_paper),
             "broker_rts_without_paper": len(orphans),
+            "bot_submitted_link_lost": len(link_lost),
         },
         "single_position": {
             "max_abs_netpos": max_abs_pos, "excursions_gt1": excursions,
@@ -4636,6 +4745,7 @@ def _build_execution_audit(recon: dict, tradovate_snap: dict) -> dict:
         "verdict": verdict, "reasons": reasons, "invariants": inv,
         "trades": trades[-250:],
         "orphans": orphans[-50:],
+        "link_lost": link_lost[-50:],
         "unfilled_paper": unfilled_paper[-50:],
         "fees_per_rt_assumed": fees_rt,
     })
@@ -4916,6 +5026,7 @@ def _build_reconciliation_payload(tradovate_snap: dict) -> dict:
                     best_dt = dt
                     match_method = "time_window"
         row = {
+            "paper_id": t.get("id"),
             "paper_entry_time": t.get("entry_time"),
             "paper_exit_time": et,
             "paper_side": side,

@@ -393,6 +393,9 @@ class LucidAccount(PaperAccount):
         balance updated, but today_pnl didn't."""
         self._maybe_roll_eod(now)
         result = super()._close(exit_px_raw, reason, adverse, now)
+        if result is None:
+            # Desync no-op close (account held no position). Nothing to book.
+            return None
         pnl = float(result.get("pnl", 0.0))
         self.lucid.today_pnl += pnl
         # Microscalp tracker (Lucid's >5s hold rule)

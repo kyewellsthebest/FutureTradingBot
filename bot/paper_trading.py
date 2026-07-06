@@ -271,7 +271,14 @@ class PaperAccount:
     def _close(self, exit_px_raw: float, reason: str,
                adverse: bool, now: datetime) -> dict:
         op = self.state.open_position
-        assert op is not None
+        if op is None:
+            # Desync guard: strategy asked to close but the account holds
+            # no position (seen when a broker-side guard skipped booking,
+            # or a scratch path cleared it first). Raising here aborted
+            # the whole _on_trade_close pipeline (broker close, counters).
+            logger.error("paper _close called with no open position -- "
+                         "skipping account close (desync, non-fatal)")
+            return None
         adv = ADVERSE_SLIPPAGE_POINTS if op.adverse_slip_pts is None else op.adverse_slip_pts
         if adverse:
             exit_px = exit_px_raw - adv if op.side == "LONG" else exit_px_raw + adv
