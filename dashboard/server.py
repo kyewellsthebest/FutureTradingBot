@@ -5248,6 +5248,46 @@ def api_download(kind: str):
         # named evidence. Read THIS first in every bundle: GREEN over a
         # full session means fixed by definition; anything else names
         # the violating trade/order/reason.
+        # STRATEGY REPLAY BASELINE. The real strategy code run over the
+        # last week of Polygon 1m bars with no account filters: what
+        # paper SHOULD have made each day. Computed in a background
+        # thread + disk cache, so this never blocks the bundle build.
+        try:
+            from bot.strategy_replay import get_replay
+            payload["strategy_replay"] = get_replay()
+            # Side-by-side: live paper's ACTUAL per-day results from the
+            # DB, same trade-date convention as the replay. Divergence
+            # between these two tables on the same day = paper-runtime
+            # bug; parallel movement = market regime.
+            try:
+                from datetime import timedelta as _tdd
+                live_days: dict = {}
+                for t in persistence.load_trades(limit=10_000,
+                                                 only_closed=True):
+                    et = t.get("entry_time")
+                    if not et or t.get("pnl") is None:
+                        continue
+                    d = (datetime.fromisoformat(et) + _tdd(hours=2)
+                         ).strftime("%Y-%m-%d")
+                    rec = live_days.setdefault(
+                        d, {"n_trades": 0, "net_usd": 0.0, "wins": 0,
+                            "exits": {}})
+                    rec["n_trades"] += 1
+                    rec["net_usd"] = round(rec["net_usd"] + t["pnl"], 2)
+                    if t["pnl"] > 0:
+                        rec["wins"] += 1
+                    er = str(t.get("exit_reason") or "?")
+                    rec["exits"][er] = rec["exits"].get(er, 0) + 1
+                cutoff_d = (datetime.now(timezone.utc)
+                            - _tdd(days=10)).strftime("%Y-%m-%d")
+                payload["strategy_replay"]["live_paper_days"] = {
+                    k: v for k, v in sorted(live_days.items())
+                    if k >= cutoff_d}
+            except Exception as e:
+                payload["strategy_replay"]["live_paper_days"] = {
+                    "error": repr(e)}
+        except Exception as e:
+            payload["strategy_replay"] = {"error": repr(e)}
         try:
             payload["execution_audit"] = _build_execution_audit(
                 payload.get("reconciliation") or {}, tradovate_snap)
