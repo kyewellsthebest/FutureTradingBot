@@ -736,8 +736,25 @@ class FibRuntime:
         Safe to call multiple times for the same trade; idempotent
         if the entry price already equals the fill price. Skips if
         no active trade or if the trade is already closed.
+
+        OFF BY DEFAULT since 2026-07-06 (user directive: paper is the
+        untouchable reference). This hook rewrites PAPER'S OWN BOOKS
+        with broker fill prices. While the drift safety cap skipped
+        big-drift entries it only fired on small improvements and was
+        harmless; the 2026-07-03 mirror policy made the broker fill
+        EVERY trade -- including entries 5-33pt past paper's level --
+        so this hook began silently repricing paper's biggest winners
+        down to broker reality on every trade. That is exactly the
+        "paper trading changed since Friday" regression the user
+        observed: selection was unchanged, but the books were being
+        rewritten. Paper must book its OWN prices; the paper-vs-broker
+        gap is measured honestly in execution_audit.entry_parity_pts
+        instead of being hidden by mutating the reference. Set
+        PAPER_MATCH_BROKER_FILL=1 to re-enable the old behaviour.
         """
         from bot.trade_timeline import add_event as _tl
+        if os.environ.get("PAPER_MATCH_BROKER_FILL", "0") != "1":
+            return
         if self.state is None or self.state.active_trade is None:
             return
         trade = self.state.active_trade
