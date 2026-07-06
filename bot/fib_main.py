@@ -1061,6 +1061,19 @@ class FibRuntime:
         # paper P&L vs what the broker bracket can actually capture.
         # Now paper exits use bid/ask just like the matching engine does.
         if self.state and self.state.active_trade is not None:
+            # BOOKING BARRIER (2026-07-06). The fire path sets
+            # state.active_trade a few ms BEFORE account.enter() books
+            # the position (different thread). If this tick-exit runs
+            # inside that window it closes a trade the account doesn't
+            # hold yet: paper _close no-ops, the broker close is
+            # skipped (_open_trade_ref not set), the booking then lands
+            # orphaned and gets scratched, and the next fire stacks on
+            # the never-closed broker position (live trades 919/921,
+            # 11:19 & 11:21 UTC). Defer the exit one tick until the
+            # account holds the position -- millisecond delay, same
+            # exit price model.
+            if self.account.state.open_position is None:
+                return
             try:
                 from bot.pullback_strategy import should_exit_on_tick, close_trade
                 from bot.tick_history import latest_by_src
