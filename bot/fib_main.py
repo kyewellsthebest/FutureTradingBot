@@ -3284,11 +3284,37 @@ class FibRuntime:
                                     or (self._anticipatory_limit or {}).get(
                                         "setup_key")
                                     or "unattributed")
+                            # FORENSICS: the 2026-07-06 bundle showed 9
+                            # netPos-2 moments with no way to attribute
+                            # WHICH two orders filled (anticipatory
+                            # submits bypass the audit log). Capture the
+                            # last few fills + every order id the bot is
+                            # tracking, so the next stack names its two
+                            # entry orderIds directly in the bundle.
+                            _recent_fills = []
+                            try:
+                                from bot.tradovate_user_ws import get_user_ws
+                                _uf = get_user_ws()
+                                if _uf is not None:
+                                    _recent_fills = [
+                                        {k: f.get(k) for k in (
+                                            "id", "orderId", "action",
+                                            "qty", "price", "timestamp")}
+                                        for f in list(_uf.fills)[-6:]]
+                            except Exception:
+                                pass
                             _tl2(str(_ref), "broker_discrepancy_flatten",
                                  anomaly=anomaly_kind, net_pos=net,
                                  paper_in_trade=paper_in_trade,
                                  had_anticipatory=(
-                                     self._anticipatory_limit is not None))
+                                     self._anticipatory_limit is not None),
+                                 anticip_oid=(self._anticipatory_limit or
+                                              {}).get("order_id"),
+                                 tracked_parent_oids=[
+                                     e.get("parent_order_id")
+                                     for e in self._pending_parent_orders],
+                                 open_trade_ref=self._open_trade_ref,
+                                 recent_fills=_recent_fills)
                             self._count_close_path(
                                 f"discrepancy_flatten_{anomaly_kind.lower()}")
                         except Exception:
