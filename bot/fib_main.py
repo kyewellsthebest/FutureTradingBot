@@ -2260,6 +2260,22 @@ class FibRuntime:
             return
         self._anticip_last_check = nowt
         self._anticip_diag["checks"] = self._anticip_diag.get("checks", 0) + 1
+        # DISABLED BY DEFAULT (2026-07-06, evidence-based). The Sunday
+        # session bundle -- the first with the fill archive -- priced the
+        # pre-rest definitively: 59 rests produced only 15 adopted trades
+        # but 44 UNADOPTED fills (27 during the 10s cooldown when paper
+        # cannot fire; 17 from touch asymmetry -- the resting LIMIT fills
+        # on the exact touch while paper's fire condition needs a tick
+        # through). Orphan unwinds cost -$84 gross / -$170 with fees, and
+        # ALL 9 netPos-2 stack events traced to an orphan sitting hidden
+        # when the next reactive entry landed. Meanwhile the reactive
+        # tick-fire path now executes at parity with paper (median +0.21pt
+        # on 96 matched trades), so the pre-rest's incremental edge on the
+        # 15 adopted trades was ~+$8/session vs -$170 of damage. Set
+        # ANTICIPATORY_ENABLED=1 to re-enable for A/B.
+        if os.environ.get("ANTICIPATORY_ENABLED", "0") != "1":
+            self._anticip_note("disabled")
+            return
         if self.tradovate_orders is None:
             self._anticip_note("no_tradovate_client")
             return
