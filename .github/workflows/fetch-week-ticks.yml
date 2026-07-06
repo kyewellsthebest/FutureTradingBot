@@ -1,0 +1,45 @@
+name: Fetch Week Ticks
+
+# Manual trigger. Downloads the last N days of MNQ trades (ticks) from
+# Polygon, one parquet per UTC day, and uploads them to the `week-ticks`
+# release. Needs repo secret POLYGON_API. Used for the no-lookahead
+# live-bot simulation over last week's real tick stream.
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Contract (Polygon futures ticker)"
+        default: "MNQU6"
+        required: true
+      days:
+        description: "Days back from today"
+        default: "9"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pandas pyarrow
+      - name: Download ticks
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+          TICKER: ${{ inputs.ticker }}
+          DAYS: ${{ inputs.days }}
+        run: python -m research.download_week_ticks
+      - name: Upload to week-ticks release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view week-ticks \
+            || gh release create week-ticks -t "Week ticks (per-day)" \
+                 -n "Polygon MNQ futures trades, one parquet per UTC day"
+          gh release upload week-ticks data/tick/week/*.parquet --clobber
