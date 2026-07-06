@@ -76,6 +76,75 @@ class BrokerSim:
         self.trades = []        # completed broker round trips
         self.skips = Counter()
         self.liq_at = None      # (t_exec, tag) pending liquidation
+        self.anticip = None     # resting pre-touch limit (anticipatory mode)
+        self.stats = Counter()  # anticipatory bookkeeping
+
+    # -- anticipatory pre-touch resting limit ----------------------------
+    # The ONLY mechanism that can buy paper's fill price: the LIMIT is
+    # already on the book when the touch happens. Managed with strict
+    # discipline: rest only while paper CAN fire (flat + cooldown ok +
+    # live setup); cancel the moment eligibility disappears; any fill
+    # not adopted by a paper fire within ADOPT_S is flattened at market.
+    ADOPT_S = 1.5
+
+    def anticipatory_manage(self, t, px, eligible):
+        """eligible: list of (side, level) paper setups that could fire
+        right now. Called once per tick, after fills processed."""
+        if self.pos is not None:
+            # holding (possibly awaiting adoption) -- no new rests
+            if self.anticip is not None:
+                self.anticip = None
+                self.stats["anticip_cancelled"] += 1
+            return
+        if not eligible:
+            if self.anticip is not None:
+                self.anticip = None
+                self.stats["anticip_cancelled"] += 1
+            return
+        side, level = min(eligible, key=lambda e: abs(e[1] - px))
+        a = self.anticip
+        if a is not None and a["side"] == side and abs(a["level"] - level) < 0.25:
+            return  # already resting at the right price
+        self.anticip = {"side": side, "level": float(level),
+                        "arrive": t + LATENCY_S}
+        self.stats["anticip_rested"] += 1
+
+    def _anticip_fill_check(self, t, px):
+        a = self.anticip
+        if a is None or t < a["arrive"] or self.pos is not None:
+            return
+        L = a["level"]
+        filled = (px <= L - HALF) if a["side"] == "LONG" else (px >= L + HALF)
+        if filled:
+            # fills AT the level -- the price paper books
+            self.pos = {"ref": None, "side": a["side"], "entry": L,
+                        "stop": None, "target": None, "t_in": t,
+                        "level": L, "await_adopt_until": t + self.ADOPT_S}
+            self.anticip = None
+            self.stats["anticip_filled"] += 1
+
+    def adopt(self, ref, side, stop_px, target_px, t):
+        """Paper fired: claim the anticipatory fill (or the resting
+        order) as this trade's entry. Returns True if adopted."""
+        p = self.pos
+        if p is not None and p.get("await_adopt_until") and p["side"] == side:
+            p["ref"] = ref
+            p["stop"] = float(stop_px)
+            p["target"] = float(target_px)
+            p.pop("await_adopt_until", None)
+            self.stats["anticip_adopted"] += 1
+            return True
+        a = self.anticip
+        if a is not None and a["side"] == side:
+            # not filled yet -- convert the resting order into the
+            # trade's entry order at the same price
+            self.entry = {"ref": ref, "side": side, "limit": a["level"],
+                          "stop": float(stop_px), "target": float(target_px),
+                          "arrive": a["arrive"], "level": a["level"]}
+            self.anticip = None
+            self.stats["anticip_converted"] += 1
+            return True
+        return False
 
     # -- order placement (logic from tradovate_orders) -------------------
     def submit(self, ref, side, level, stop_px, target_px, live_px, t):
@@ -137,6 +206,21 @@ class BrokerSim:
 
     # -- exchange matching -----------------------------------------------
     def on_tick(self, t, px):
+        self._anticip_fill_check(t, px)
+        # unadopted anticipatory fill past its deadline -> flatten NOW
+        p0 = self.pos
+        if (p0 is not None and p0.get("await_adopt_until")
+                and t >= p0["await_adopt_until"]):
+            exit_px = px - HALF if p0["side"] == "LONG" else px + HALF
+            pts = ((exit_px - p0["entry"]) if p0["side"] == "LONG"
+                   else (p0["entry"] - exit_px))
+            self.trades.append({
+                "ref": "orphan", "side": p0["side"], "entry": p0["entry"],
+                "exit": exit_px, "path": "orphan_flatten",
+                "level": p0["level"], "t_in": p0["t_in"], "t_out": t,
+                "pnl_net": round(pts * PT - FEES_RT, 2)})
+            self.stats["anticip_orphaned"] += 1
+            self.pos = None
         e = self.entry
         if e and t >= e["arrive"]:
             side = e["side"]
@@ -168,7 +252,7 @@ class BrokerSim:
                             "t_in": t, "level": e["level"]}
                 self.entry = None
         p = self.pos
-        if p is not None:
+        if p is not None and p.get("stop") is not None:
             exit_px = None
             path = None
             # pending liquidation reached the exchange?
@@ -231,6 +315,9 @@ def run(tick_files):
     cur = None                # [o, h, l, c, v]
     bars_df = None
 
+    ANTICIP = os.environ.get("BROKER_SIM_MODE") == "anticipatory"
+    COOLDOWN_S = float(os.environ.get("STRAT_COOLDOWN_SECS", "10"))
+
     def paper_open(trade, px, now):
         nonlocal open_ref, ref_n, guard_skips, divergence_skips
         account.enter(
@@ -241,6 +328,15 @@ def run(tick_files):
                / max(abs(trade.stop_px - trade.entry_px), 1e-9),
             now=now, entry_slip_pts=0.0, adverse_slip_pts=0.25,
             commission_per_mnq_rt=0.74)
+        ref_n += 1
+        ref = f"sim_{ref_n}"
+        # ANTICIPATORY: the fill (or resting order) at paper's level is
+        # already there -- claim it. Falls back to the live chase policy
+        # only when there was nothing resting (late setup detection).
+        if ANTICIP and broker.adopt(ref, trade.side, trade.stop_px,
+                                    trade.target_px, now.timestamp()):
+            open_ref = ref
+            return
         # broker forwarding (fc5455a): guard skips ONLY the broker leg
         if not broker.flat():
             guard_skips += 1
@@ -248,8 +344,6 @@ def run(tick_files):
         if abs(trade.entry_px - px) > DIVERGENCE_PT:
             divergence_skips += 1
             return
-        ref_n += 1
-        ref = f"sim_{ref_n}"
         if broker.submit(ref, trade.side, float(trade.entry_px),
                          float(trade.stop_px), float(trade.target_px),
                          px, now.timestamp()):
@@ -330,6 +424,27 @@ def run(tick_files):
                 state.last_trade_close_ts = now
                 paper_close(rec, now)
                 continue
+        # 3.5 anticipatory resting-limit management: rest at the nearest
+        # live setup's level ONLY while paper could fire right now.
+        if ANTICIP:
+            eligible = []
+            if state.active_trade is None and state.pending_setups:
+                cd_ok = True
+                lc = state.last_trade_close_ts
+                if lc is not None:
+                    try:
+                        cd_ok = (now - lc).total_seconds() >= COOLDOWN_S
+                    except Exception:
+                        cd_ok = True
+                if cd_ok:
+                    for s in state.pending_setups:
+                        try:
+                            if not s.used and now < s.expires_at:
+                                eligible.append((s.side,
+                                                 float(s.pullback_entry)))
+                        except Exception:
+                            continue
+            broker.anticipatory_manage(t, px, eligible)
         # 4. tick fire (SIM_NO_TICK_FIRE=1 mimics the pre-Jul-2 live
         # build where the WS tick callback was not wired: fires then
         # happened only on the bar/cycle path, booking the level price
@@ -396,6 +511,7 @@ def run(tick_files):
         "broker_skips": dict(broker.skips),
         "guard_skips": guard_skips,
         "divergence_skips": divergence_skips,
+        "anticipatory": dict(broker.stats),
     }
     print(json.dumps(out, indent=1))
     with open(os.environ.get("SIM_OUT", "live_sim_result.json"), "w") as fh:
