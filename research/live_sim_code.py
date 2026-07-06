@@ -229,7 +229,13 @@ def run(tick_files):
         open_ref = None
 
     n = len(ticks)
+    import time as _time
+    _t0 = _time.time()
     for i in range(n):
+        if i and i % 500_000 == 0:
+            print(f"...{i:,}/{n:,} ticks "
+                  f"({_time.time()-_t0:.0f}s, paper={len(paper_trades)}, "
+                  f"broker={len(broker.trades)})", flush=True)
         t = ts_arr[i]
         px = float(px_arr[i])
         now = datetime.fromtimestamp(t, timezone.utc)
