@@ -1,0 +1,58 @@
+{
+ "portfolio": {
+  "legs": [
+   "THRX_k2.5_5min_time30h0_all",
+   "THRX_k2.5_3min_time60h0_all",
+   "THRX_k2.5_3min_time60h20_rth",
+   "THRX_k2.5_5min_time30h0_rth",
+   "RSI2_5min_time60h20_all",
+   "THRX_k2.5_5min_trail4.0h0_rth",
+   "THRX_k2.5_5min_time60h20_rth"
+  ],
+  "n_legs": 7,
+  "trades_per_week": 95.2,
+  "usd_per_week_avg": 510.1,
+  "usd_per_week_median": 262.0,
+  "worst_week": -7413.1,
+  "best_week": 11337.4,
+  "pct_weeks_positive": 53.8,
+  "total": 80592.0,
+  "max_dd_weekly_basis": 16442.0,
+  "yearly": {
+   "2023": 7381.0,
+   "2024": 23658.0,
+   "2025": 19032.0,
+   "2026": 30522.0
+  }
+ },
+ "legs_detail": {
+  "THRX_k2.5_5min_time30h0_all": {
+   "trades": 2109,
+   "total": 16398.0
+  },
+  "THRX_k2.5_3min_time60h0_all": {
+   "trades": 2578,
+   "total": 15673.0
+  },
+  "THRX_k2.5_3min_time60h20_rth": {
+   "trades": 1427,
+   "total": 10936.0
+  },
+  "THRX_k2.5_5min_time30h0_rth": {
+   "trades": 931,
+   "total": 10049.0
+  },
+  "RSI2_5min_time60h20_all": {
+   "trades": 5684,
+   "total": 10046.0
+  },
+  "THRX_k2.5_5min_trail4.0h0_rth": {
+   "trades": 988,
+   "total": 9728.0
+  },
+  "THRX_k2.5_5min_time60h20_rth": {
+   "trades": 1219,
+   "total": 7763.0
+  }
+ }
+}
