@@ -145,12 +145,10 @@ def main():
         o = df["open"].to_numpy(); h = df["high"].to_numpy()
         l = df["low"].to_numpy(); c = df["close"].to_numpy()
         idx = df.index
-        hrs = idx.hour + idx.minute / 60.0
-        years = idx.year.to_numpy()
-        rth = ((hrs >= 13.5) & (hrs < 20.9)).to_numpy() \
-            if hasattr(hrs, "to_numpy") else ((hrs >= 13.5) & (hrs < 20.9))
-        hrs = np.asarray(hrs)
-        sessions = {"all": np.ones(len(c), bool), "rth": np.asarray(rth)}
+        hrs = np.asarray(idx.hour) + np.asarray(idx.minute) / 60.0
+        years = np.asarray(idx.year)
+        rth = (hrs >= 13.5) & (hrs < 20.9)
+        sessions = {"all": np.ones(len(c), bool), "rth": rth}
 
         cs = pd.Series(c)
         hi_s = pd.Series(h); lo_s = pd.Series(l)
