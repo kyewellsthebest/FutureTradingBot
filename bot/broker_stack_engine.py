@@ -66,7 +66,8 @@ class BrokerStackEngine:
         self.max_net = int(os.environ.get("STACK_MAX_NET", "10"))
         self.disaster_pt = float(os.environ.get("STACK_DISASTER_PT", "250"))
         self.enabled_legs = set(
-            os.environ.get("STACK_LEGS", ",".join(LEGS)).split(","))
+            os.environ.get("STACK_LEGS",
+                           "DON,TDAY,ONH,ENGX").split(","))
         self.pos: dict = {}          # leg -> {side,+1/-1, entry_px, entry_ts, bars_held_key}
         self.last_bar: dict = {}     # tf -> last processed bar ts (iso)
         self.counters = {"entries": 0, "exits": 0, "cap_skips": 0,
