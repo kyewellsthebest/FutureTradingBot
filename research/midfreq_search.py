@@ -56,6 +56,52 @@ def resample(df, rule):
     }).dropna()
 
 
+def run_config_exit(o, h, l, c, atr, years, sig, mode, p1, p2, max_hold):
+    """Exit-engineered variant. Modes:
+      trail : p1 = ATR multiple trail from peak, p2 = hard stop pts
+      time  : p1 = hold bars, p2 = hard stop pts
+      eodstop: exit at hour>=20.9 (needs hrs via closure) unsupported
+               here -- handled by max_hold on RTH masks instead
+    Entry: next bar open + adverse slip. Both-checks pessimistic."""
+    n = len(c)
+    out_years, out_pnl = [], []
+    i = 0
+    while i < n - 2:
+        s = sig[i]
+        if s == 0:
+            i += 1
+            continue
+        ei = i + 1
+        entry = o[ei] + SLIP * s
+        hard = entry - p2 * s if p2 > 0 else None
+        peak = entry
+        j = ei
+        end = min(n - 1, ei + max_hold)
+        pnl_pts = None
+        while j <= end:
+            if hard is not None:
+                if (s > 0 and l[j] <= hard) or (s < 0 and h[j] >= hard):
+                    pnl_pts = (hard - SLIP * s - entry) * s
+                    break
+            if mode == "trail":
+                peak = max(peak, h[j]) if s > 0 else min(peak, l[j])
+                tr_px = peak - p1 * atr[j] * s
+                if (s > 0 and l[j] <= tr_px) or (s < 0 and h[j] >= tr_px):
+                    pnl_pts = (tr_px - SLIP * s - entry) * s
+                    break
+            elif mode == "time" and j - ei >= p1:
+                pnl_pts = (c[j] - entry) * s
+                break
+            j += 1
+        if pnl_pts is None:
+            j = min(j, n - 1)
+            pnl_pts = (c[j] - entry) * s
+        out_years.append(years[ei])
+        out_pnl.append(pnl_pts * PT - FEES)
+        i = j + 1
+    return out_years, out_pnl
+
+
 def run_config(o, h, l, c, hrs, years, sig, stop_pts, tgt_pts, max_hold):
     """sig: +1/-1/0 per bar (signal evaluated on bar close). Entry at
     next bar open with adverse slip. Returns per-trade (year, pnl$)."""
@@ -216,6 +262,42 @@ def main():
                                         sp, tp, 180)
                     emit(f"THR_{tf}_k{k}_s{sp}t{tp}_{sess}", "thrust",
                          tf, sess, metrics(ys, ps, span_days))
+        # ---- E. Exit-engineered variants (round 2): trailing & time
+        # exits on the signal families -- the June winners' shape.
+        if os.environ.get("MFS_ROUND2", "1") == "1":
+            rsi_n = 2
+            delta = cs.diff()
+            up = delta.clip(lower=0).rolling(rsi_n).mean()
+            dn = (-delta.clip(upper=0)).rolling(rsi_n).mean()
+            rsi2 = (100 - 100 / (1 + up / dn.replace(0, np.nan))).to_numpy()
+            sma200 = cs.rolling(200).mean().to_numpy()
+            fams = {}
+            for N in (8, 20, 40):
+                dh = hi_s.rolling(N).max().shift(1).to_numpy()
+                dl = lo_s.rolling(N).min().shift(1).to_numpy()
+                fams[f"DONX_N{N}"] = (c > dh, c < dl)
+            for k in (1.5, 2.5):
+                thr = (h - l) > k * atr
+                fams[f"THRX_k{k}"] = (thr & (c > o), thr & (c < o))
+            fams["RSI2"] = ((rsi2 < 10) & (c > sma200),
+                            (rsi2 > 90) & (c < sma200))
+            for W, imp in ((2, 6), (3, 9)):
+                mom = cs.diff(W).to_numpy()
+                fams[f"IMPX_w{W}i{imp}"] = (mom <= -imp, mom >= imp)
+            for fname, (rl, rs_) in fams.items():
+                for mode, p1s in (("trail", (1.5, 2.5, 4.0)),
+                                  ("time", (10, 30, 60))):
+                    for p1 in p1s:
+                        for p2 in (0, 10, 20):
+                            for sess, mask in sessions.items():
+                                sig = np.where(rl & mask, 1,
+                                               np.where(rs_ & mask, -1, 0))
+                                ys, ps = run_config_exit(
+                                    o, h, l, c, atr, years, sig,
+                                    mode, p1, p2, 300)
+                                emit(f"{fname}_{tf}_{mode}{p1}h{p2}_{sess}",
+                                     "exit_eng", tf, sess,
+                                     metrics(ys, ps, span_days))
         print(f"[{tf}] done cum_configs={len(rows)} "
               f"({time.time()-t0:.0f}s)", flush=True)
 
