@@ -37,7 +37,7 @@ logger = logging.getLogger("stack_engine")
 
 
 def engine_mode() -> str:
-    m = os.environ.get("BROKER_ENGINE", "stack").strip().lower()
+    m = os.environ.get("BROKER_ENGINE", "off").strip().lower()
     return {"trend": "stack"}.get(m, m)   # trend = legacy alias
 
 
@@ -254,7 +254,15 @@ class BrokerStackEngine:
 
     # ---- main cycle hook ---------------------------------------------------
     def on_cycle(self, bars_1m, now: datetime) -> None:
-        if engine_mode() != "stack" or self.orders is None:
+        if self.orders is None:
+            return
+        if engine_mode() != "stack":
+            # Engine disabled: flatten anything still held, then idle.
+            if self.pos:
+                logger.warning(f"[stack] mode=off -- flattening {list(self.pos)}")
+                self.pos = {}
+                self._reconcile_net(f"stk_off_{int(time.time())}")
+                self._save()
             return
         try:
             self._on_cycle(bars_1m, now)
