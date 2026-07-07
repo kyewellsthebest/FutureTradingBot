@@ -563,7 +563,7 @@ class FibRuntime:
         self.trend_engine = None
         try:
             from bot.broker_stack_engine import BrokerStackEngine, engine_mode
-            if self.tradovate_orders is not None and engine_mode() == "stack":
+            if self.tradovate_orders is not None and engine_mode() in ("stack", "off"):
                 def _sym():
                     from research.data_loader import polygon_front_month
                     return os.environ.get(
