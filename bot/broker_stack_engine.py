@@ -63,8 +63,8 @@ class BrokerStackEngine:
         self.orders = tradovate_orders
         self.symbol_fn = symbol_fn
         self.qty = int(os.environ.get("STACK_QTY_PER_LEG", "1"))
-        self.max_net = int(os.environ.get("STACK_MAX_NET", "6"))
-        self.disaster_pt = float(os.environ.get("STACK_DISASTER_PT", "150"))
+        self.max_net = int(os.environ.get("STACK_MAX_NET", "10"))
+        self.disaster_pt = float(os.environ.get("STACK_DISASTER_PT", "250"))
         self.enabled_legs = set(
             os.environ.get("STACK_LEGS", ",".join(LEGS)).split(","))
         self.pos: dict = {}          # leg -> {side,+1/-1, entry_px, entry_ts, bars_held_key}
@@ -320,16 +320,17 @@ class BrokerStackEngine:
                                  "tag": f"stk_{leg}_{self.oid_seq}"}
                 self.counters["entries"] += 1
                 logger.warning(f"[stack] ENTRY {leg} {'L' if side>0 else 'S'} @~{px}")
-        # 3. Disaster guard on the NET book
+        # 3. Disaster guard: PER-LEG exit at -disaster_pt (validated
+        # legs never see this in normal regimes; it only bounds tails
+        # without flattening healthy legs alongside).
         if self.pos:
             last_px = float(bars_1m["close"].iloc[-1])
-            worst = min((last_px - p["entry_px"]) * p["side"]
-                        for p in self.pos.values())
-            if worst <= -self.disaster_pt:
-                logger.error(f"[stack] DISASTER flatten (worst {worst:.0f}pt)")
-                self.pos = {}
-                self.counters["disaster"] += 1
-                changed = True
+            for leg, p in list(self.pos.items()):
+                if (last_px - p["entry_px"]) * p["side"] <= -self.disaster_pt:
+                    logger.error(f"[stack] LEG DISASTER exit {leg}")
+                    self.pos.pop(leg)
+                    self.counters["disaster"] += 1
+                    changed = True
         # 4. Send the diff order if the target moved
         if changed:
             self._reconcile_net(f"stk_net_{int(time.time())}")
