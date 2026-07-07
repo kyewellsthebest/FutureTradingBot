@@ -17,8 +17,8 @@ def build_volume_bars(b5, thresh):
     vol = b5["vol"].to_numpy()
     cum = np.cumsum(vol)
     bar_id = (cum // thresh).astype(np.int64)
-    g = b5.assign(bar=bar_id, tsv=b5.index.asi8)
-    a = g.groupby("bar").agg(open=("open", "first"), close=("close", "last"),
+    g = b5.reset_index(drop=True).assign(vbid=bar_id, tsv=b5.index.asi8)
+    a = g.groupby("vbid").agg(open=("open", "first"), close=("close", "last"),
                              high=("high", "max"), low=("low", "min"),
                              vol=("vol", "sum"), t0=("tsv", "first"),
                              t1=("tsv", "last"))
