@@ -74,9 +74,9 @@ def main():
         s = pd.Series([p for _, p in out],
                       index=pd.to_datetime([t for t, _ in out], utc=True))
         s = s[(s.index >= lo) & (s.index < hi)]
-        if not len(s):
-            return dict(usd_wk=0.0, tr_wk=0.0, per=0.0, worst=0.0, pos=0)
         w = s.resample("W").sum(); w = w[w != 0]
+        if not len(s) or not len(w):
+            return dict(usd_wk=0.0, tr_wk=0.0, per=0.0, worst=0.0, pos=0)
         wkn = max(len(w), 1)
         return dict(usd_wk=round(s.sum() / wkn, 0), tr_wk=round(len(s) / wkn, 1),
                     per=round(s.mean(), 2), worst=round(w.min(), 0),
