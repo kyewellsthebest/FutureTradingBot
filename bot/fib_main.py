@@ -562,18 +562,18 @@ class FibRuntime:
         # =off disables broker entries entirely.
         self.trend_engine = None
         try:
-            from bot.broker_trend_engine import BrokerTrendEngine, engine_mode
-            if self.tradovate_orders is not None and engine_mode() == "trend":
+            from bot.broker_stack_engine import BrokerStackEngine, engine_mode
+            if self.tradovate_orders is not None and engine_mode() == "stack":
                 def _sym():
                     from research.data_loader import polygon_front_month
                     return os.environ.get(
                         "TRADOVATE_SYMBOL",
                         polygon_front_month(
                             os.environ.get("POLYGON_CONTRACT", "MNQ")))
-                self.trend_engine = BrokerTrendEngine(
+                self.trend_engine = BrokerStackEngine(
                     self.tradovate_orders, _sym)
-                logger.warning("[trend] broker trend engine ACTIVE "
-                               "(BROKER_ENGINE=trend); fade mirror OFF")
+                logger.warning("[stack] 10-leg verified stack ACTIVE "
+                               "(BROKER_ENGINE=stack); fade mirror OFF")
         except Exception as e:
             logger.warning(f"trend engine init failed: {e!r}")
 
@@ -1801,7 +1801,7 @@ class FibRuntime:
             # ENGINE GATE: when the trend engine owns the broker, the
             # fade mirror never forwards (paper books above as always).
             try:
-                from bot.broker_trend_engine import engine_mode
+                from bot.broker_stack_engine import engine_mode
                 if engine_mode() != "mirror":
                     return
             except Exception:
@@ -3949,9 +3949,7 @@ class FibRuntime:
                     )
                 },
                 "trend_engine": (
-                    {"active": True, "pos": self.trend_engine.pos,
-                     "last_bar": str(self.trend_engine.last_bar_ts),
-                     "qty": self.trend_engine.qty, "N": self.trend_engine.N}
+                    self.trend_engine.snapshot()
                     if self.trend_engine is not None else {"active": False}),
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
