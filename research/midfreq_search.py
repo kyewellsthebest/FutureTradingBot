@@ -27,9 +27,10 @@ import time
 import numpy as np
 import pandas as pd
 
+import os as _os
 PT = 2.0
-FEES = 1.96
-SLIP = 0.25
+FEES = float(_os.environ.get("SIM_FEES", "1.96"))
+SLIP = float(_os.environ.get("SIM_SLIP", "0.25"))
 BARS_PARQUET = "data/tick/nq_bars_1m_2p5y.parquet"
 OUT = os.environ.get("MFS_OUT", "research/midfreq_results.csv")
 MAX_HOLD_BARS = 240
