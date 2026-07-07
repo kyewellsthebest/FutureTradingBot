@@ -15,10 +15,12 @@ WEEKS = 156.1
 def build_features():
     if os.path.exists(FEAT):
         return pd.read_parquet(FEAT)
-    pf = pq.ParquetFile("data/tick/nq_ticks_2p5y.parquet")
+    import glob as _g
+    files = sorted(_g.glob("data/tick/raw/NQ*.parquet"))
     parts = []
-    for i in range(pf.num_row_groups):
-        t = pf.read_row_group(i, columns=["ts","price","size"]).to_pandas()
+    rgs = [(f, i) for f in files for i in range(pq.ParquetFile(f).num_row_groups)]
+    for n, (f, i) in enumerate(rgs):
+        t = pq.ParquetFile(f).read_row_group(i, columns=["ts","price","size"]).to_pandas()
         dt = pd.to_datetime(t["ts"], utc=True)
         m = dt.dt.floor("1min")
         px = t["price"].to_numpy(); sz = t["size"].to_numpy()
@@ -27,7 +29,7 @@ def build_features():
         g = pd.DataFrame({"m": m, "vol": sz, "nt": 1,
                           "imb": d*sz, "bigv": np.where(big, d*sz, 0)})
         parts.append(g.groupby("m").sum())
-        if i % 40 == 0: print(f"rg {i}/{pf.num_row_groups}", flush=True)
+        if n % 40 == 0: print(f"rg {n}/{len(rgs)}", flush=True)
     f = pd.concat(parts).groupby(level=0).sum()
     f.to_parquet(FEAT)
     return f
