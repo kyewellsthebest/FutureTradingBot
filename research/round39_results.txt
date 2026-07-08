@@ -1,0 +1,40 @@
+=== A. FADESZ+P: passive entry + magnitude ladder (NEVER RUN) ===
+  sinceMar: $   1330/wk 109.7tr/wk avg $ 12.12 worst $   -400 pos  82%
+  blind   : $   2344/wk 101.2tr/wk avg $ 23.15 worst $    113 pos 100%
+  Mar-May : $   1018/wk 112.3tr/wk avg $  9.06 worst $   -400 pos  77%
+  (45s)
+
+=== B. PFADE sampled at 15s (faster reaction) ===
+  sinceMar: $    207/wk 118.0tr/wk avg $  1.75 worst $  -1588 pos  59%
+  (54s)
+
+=== C. PFADE side split ===
+  long-only : $    216/wk  69.8tr/wk avg $  3.10 worst $  -1094 pos  65%
+  short-only: $   -110/wk  71.2tr/wk avg $ -1.55 worst $  -2001 pos  35%
+  (55s)
+
+=== D. same fade on MES (does the edge exist in ES?) ===
+  MES PFADE Apr+: $   -144/wk  80.5tr/wk avg $ -1.79 worst $   -321 pos   7%
+  (60s)
+
+=== E. LOOKAHEAD CANARY (harness causality proof) ===
+  baseline : $    727/wk 109.7tr/wk avg $  6.63 worst $   -342 pos  76%
+  peek -1m : $    617/wk 110.7tr/wk avg $  5.57 worst $   -695 pos  71%
+  delay +1m: $   -638/wk 104.8tr/wk avg $ -6.08 worst $  -1756 pos  24%
+  (60s)
+
+=== F. fee sensitivity ===
+  PFADE  fee$1.52: $    725/wk 109.7tr/wk avg $  6.61 worst $   -345 pos  76%
+  FADESZ+P fee$1.52: $   1327/wk 109.7tr/wk avg $ 12.09 worst $   -404 pos  82%
+  PFADE  fee$1.96: $    677/wk 109.7tr/wk avg $  6.17 worst $   -390 pos  76%
+  FADESZ+P fee$1.96: $   1253/wk 109.7tr/wk avg $ 11.42 worst $   -484 pos  82%
+  PFADE  fee$2.5: $    618/wk 109.7tr/wk avg $  5.63 worst $   -446 pos  76%
+  FADESZ+P fee$2.5: $   1162/wk 109.7tr/wk avg $ 10.59 worst $   -582 pos  76%
+  (61s)
+
+=== G. PAIRZ stress (60m z3 t30) ===
+  1t 65ms  : $    126/wk  11.6tr/wk avg $ 10.84 worst $   -814 pos  46%
+  2t 200ms: $    118/wk  11.6tr/wk avg $ 10.20 worst $   -827 pos  46%
+  3t 500ms: $     96/wk  11.6tr/wk avg $  8.22 worst $   -904 pos  46%
+
+DONE (61s)
