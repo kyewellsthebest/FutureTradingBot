@@ -15,6 +15,10 @@ on:
         description: "Days back from today"
         default: "9"
         required: true
+      data:
+        description: "Data type: trades or quotes"
+        default: "trades"
+        required: true
 
 permissions:
   contents: write
@@ -34,6 +38,7 @@ jobs:
           POLYGON_API: ${{ secrets.POLYGON_API }}
           TICKER: ${{ inputs.ticker }}
           DAYS: ${{ inputs.days }}
+          DATA: ${{ inputs.data }}
         run: python -m research.download_week_ticks
       - name: Upload to week-ticks release
         env:

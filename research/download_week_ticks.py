@@ -15,6 +15,7 @@ import pandas as pd
 KEY = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
 TICKER = os.environ.get("TICKER", "MNQU6").strip()
 DAYS = int(os.environ.get("DAYS", "9"))
+DATA = os.environ.get("DATA", "trades").strip().lower()   # trades | quotes
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "tick" / "week"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -42,13 +43,14 @@ def _get(url, tries=8):
 
 def fetch_day(day_start: datetime) -> None:
     day = day_start.strftime("%Y%m%d")
-    path = OUT / f"{TICKER}_{day}.parquet"
+    prefix = f"Q_{TICKER}" if DATA == "quotes" else TICKER
+    path = OUT / f"{prefix}_{day}.parquet"
     if path.exists():
-        print(f"{day}: already have {pd.read_parquet(path).shape[0]:,} ticks", flush=True)
+        print(f"{day}: already have {pd.read_parquet(path).shape[0]:,} rows", flush=True)
         return
     s_ns = int(day_start.timestamp()) * NS
     e_ns = int((day_start + timedelta(days=1)).timestamp()) * NS
-    url = (f"https://api.polygon.io/futures/v1/trades/{TICKER}"
+    url = (f"https://api.polygon.io/futures/v1/{DATA}/{TICKER}"
            f"?timestamp.gte={s_ns}&timestamp.lt={e_ns}"
            f"&order=asc&limit={LIMIT}&apiKey={KEY}")
     rows, page = [], 0
@@ -59,18 +61,27 @@ def fetch_day(day_start: datetime) -> None:
             break
         for r in (data.get("results") or []):
             try:
-                rows.append((int(r["timestamp"]), float(r["price"]),
-                             int(r.get("size", 1))))
+                if DATA == "quotes":
+                    rows.append((int(r["timestamp"]),
+                                 float(r.get("bid_price") or 0),
+                                 float(r.get("ask_price") or 0),
+                                 int(r.get("bid_size") or 0),
+                                 int(r.get("ask_size") or 0)))
+                else:
+                    rows.append((int(r["timestamp"]), float(r["price"]),
+                                 int(r.get("size", 1))))
             except Exception:
                 continue
         page += 1
         nxt = data.get("next_url")
         url = (nxt + f"&apiKey={KEY}") if nxt else None
         if page % 10 == 0:
-            print(f"{day}: {len(rows):,} ticks (page {page})...", flush=True)
-    df = pd.DataFrame(rows, columns=["ts", "price", "size"])
+            print(f"{day}: {len(rows):,} rows (page {page})...", flush=True)
+    cols = (["ts", "bid", "ask", "bid_size", "ask_size"]
+            if DATA == "quotes" else ["ts", "price", "size"])
+    df = pd.DataFrame(rows, columns=cols)
     df.to_parquet(path, compression="zstd", index=False)
-    print(f"{day}: COMPLETE {len(df):,} ticks -> {path.name}", flush=True)
+    print(f"{day}: COMPLETE {len(df):,} rows -> {path.name}", flush=True)
 
 
 def main():
