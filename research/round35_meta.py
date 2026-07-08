@@ -19,11 +19,16 @@ START = pd.Timestamp("2023-09-01", tz="UTC")
 def main():
     t0 = time.time()
     bars = pd.read_parquet("data/tick/nq_bars_1m_2p5y.parquet")
+    if bars.index.tz is None:
+        bars.index = bars.index.tz_localize("UTC")
     try:
         vf = pd.read_parquet("data/tick/minute_volfeat.parquet")
-        bars = bars.join(vf, how="left")
+        if vf.index.tz is None:
+            vf.index = vf.index.tz_localize("UTC")
+        bars = bars.join(vf[["imb"]], how="left")
     except Exception:
         bars["imb"] = 0.0
+    assert bars["imb"].notna().sum() > 100000, "flow join produced no data"
     o = bars["open"].to_numpy(); h = bars["high"].to_numpy()
     l = bars["low"].to_numpy(); c = bars["close"].to_numpy()
     iv = bars["imb"].fillna(0).to_numpy()
@@ -87,9 +92,9 @@ def main():
     rows = []
     meta_pnl = []
     for M in months:
-        m_start = M.to_timestamp(tz="UTC")
-        m_end = (M + 1).to_timestamp(tz="UTC")
-        s_start = (M - 2).to_timestamp(tz="UTC")
+        m_start = M.to_timestamp().tz_localize("UTC")
+        m_end = (M + 1).to_timestamp().tz_localize("UTC")
+        s_start = (M - 2).to_timestamp().tz_localize("UTC")
         scores = {}
         for k, s in MENU.items():
             w = s[(s.index >= s_start) & (s.index < m_start)]
