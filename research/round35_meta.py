@@ -83,7 +83,8 @@ def main():
     sigA = np.where(fire5 & (oiv > base5), 1,
                     np.where(fire5 & (oiv < -base5), -1, 0))
     MENU["AUCT"] = sim(sigA, 240)
-    MENU["FLAT"] = pd.Series(dtype=float)     # cash is a menu option
+    MENU["FLAT"] = pd.Series(dtype=float,
+                             index=pd.DatetimeIndex([], tz="UTC"))
     for k, s in MENU.items():
         print(f"{k}: {len(s)} trades ({time.time()-t0:.0f}s)", flush=True)
 
