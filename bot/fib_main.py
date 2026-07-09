@@ -3338,6 +3338,15 @@ class FibRuntime:
         # acting, so we don't race a mid-flight legitimate close.
         try:
             paper_op = self.account.state.open_position
+            # FADESZ+P: the engine books paper positions while the OLD
+            # strategy state is permanently flat — that is the normal
+            # operating condition, not an orphan. The engine manages its
+            # own position lifecycle; never scratch its paper book.
+            # (Bug 2026-07-09: first live session had all 24 paper trades
+            # scratched at entry as orphan_recovered by this guard.)
+            if getattr(self, "fadesz_mode", False):
+                self._paper_orphan_streak = 0
+                paper_op = None
             if (paper_op is not None
                     and (self.state is None or self.state.active_trade is None)):
                 last_close = getattr(self.state, "last_trade_close_ts", None) if self.state else None
