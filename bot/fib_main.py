@@ -561,21 +561,90 @@ class FibRuntime:
         # is untouched. BROKER_ENGINE=mirror restores the old mirroring,
         # =off disables broker entries entirely.
         self.trend_engine = None
+        self.fadesz_mode = False
         try:
-            from bot.broker_stack_engine import BrokerStackEngine, engine_mode
-            if self.tradovate_orders is not None and engine_mode() in ("stack", "off"):
-                def _sym():
-                    from research.data_loader import polygon_front_month
-                    return os.environ.get(
-                        "TRADOVATE_SYMBOL",
-                        polygon_front_month(
-                            os.environ.get("POLYGON_CONTRACT", "MNQ")))
-                self.trend_engine = BrokerStackEngine(
-                    self.tradovate_orders, _sym)
-                logger.warning("[stack] 10-leg verified stack ACTIVE "
-                               "(BROKER_ENGINE=stack); fade mirror OFF")
+            from bot.fadesz_engine import FadeszEngine, strategy_mode
+
+            def _sym():
+                from research.data_loader import polygon_front_month
+                return os.environ.get(
+                    "TRADOVATE_SYMBOL",
+                    polygon_front_month(
+                        os.environ.get("POLYGON_CONTRACT", "MNQ")))
+            _mode = strategy_mode()
+            if _mode in ("fadesz", "off"):
+                # FADESZ+P DEPLOY (2026-07-08, user-authorized): the
+                # 39-round champion replaces the fib fade ENTIRELY on
+                # both books. Old strategy signal path is disabled below
+                # (self.fadesz_mode gates on_new_1m_bar). One-time hard
+                # reset of paper account + legacy engine state on first
+                # boot (marker file fadesz_deployed.marker).
+                self.fadesz_mode = True
+                self._fadesz_reset_once()
+
+                def _paper_enter(side, entry_px, qty, now):
+                    self.account.enter(
+                        signal_name=f"FADESZ_{side}",
+                        side=side, entry_px_raw=float(entry_px),
+                        stop_px=float(entry_px) - (250.0 if side == "LONG"
+                                                   else -250.0),
+                        target_px=float(entry_px) + (250.0 if side == "LONG"
+                                                     else -250.0),
+                        qty=int(qty), vol_regime="FADESZ", rr=1.0, now=now,
+                        entry_slip_pts=0.0, adverse_slip_pts=0.25,
+                        commission_per_mnq_rt=1.50)
+
+                def _paper_close(exit_px, now):
+                    rec = self.account._close(
+                        exit_px_raw=float(exit_px),
+                        reason="fadesz_time_exit", adverse=False, now=now)
+                    if rec is not None:
+                        try:
+                            self.recent_trades.appendleft(rec)
+                        except Exception:
+                            pass
+
+                self.trend_engine = FadeszEngine(
+                    self.tradovate_orders, _sym,
+                    paper_enter=_paper_enter, paper_close=_paper_close)
+                logger.warning("[fadesz] FADESZ+P ACTIVE on paper+broker "
+                               f"(mode={_mode}); old strategy DISABLED")
+            elif _mode in ("stack", "mirror"):
+                from bot.broker_stack_engine import BrokerStackEngine
+                if self.tradovate_orders is not None and _mode == "stack":
+                    self.trend_engine = BrokerStackEngine(
+                        self.tradovate_orders, _sym)
+                    logger.warning("[stack] legacy stack engine active")
         except Exception as e:
             logger.warning(f"trend engine init failed: {e!r}")
+
+    def _fadesz_reset_once(self) -> None:
+        """One-time full reset on FADESZ+P deploy (user: 'reset everything
+        and anything, delete everything from the current strategy').
+        Wipes the paper account/DB/dashboard cache and legacy engine
+        state exactly once, then drops a marker so restarts are normal."""
+        try:
+            from bot.account_ctx import data_dir
+            marker = data_dir() / "fadesz_deployed.marker"
+            if marker.exists():
+                return
+            logger.warning("[fadesz] FIRST BOOT: hard-resetting paper "
+                           "account + wiping legacy strategy state")
+            try:
+                self.account._hard_reset_all()
+            except Exception as e:
+                logger.error(f"[fadesz] paper reset failed: {e!r}")
+            for legacy in ("stack_engine.json", "trend_engine.json",
+                           "shadow_engine.json", "fadesz_engine.json"):
+                try:
+                    p = data_dir() / legacy
+                    if p.exists():
+                        p.unlink()
+                except Exception:
+                    pass
+            marker.write_text(datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            logger.error(f"[fadesz] reset-once failed: {e!r}")
 
     def _hydrate_recent_trades(self) -> None:
         """Load the last 30 closed trades from persistence so the Trades
@@ -1052,6 +1121,11 @@ class FibRuntime:
             self._pending_parent_orders = keep
 
     def _on_tick_instant(self, price: float, ts) -> None:
+        # FADESZ+P: old strategy's tick-path (touch fires, anticipatory
+        # limits, tick exits) fully disabled — the engine manages its
+        # own orders on the cycle loop.
+        if getattr(self, "fadesz_mode", False):
+            return
         """Called inline by PriceMonitor on EVERY Polygon tick. Reacts
         to pullback-level touches in <100ms total latency:
           tick arrives over WS -> on_tick fires -> we check pending
@@ -1431,7 +1505,7 @@ class FibRuntime:
         # interval (typically <1s of the actual tick) and the broker's
         # market entry fills at near-pullback price. Most of the paper-
         # vs-broker timing gap goes away.
-        if (not in_trade and snap is not None
+        if (not self.fadesz_mode and not in_trade and snap is not None
                 and self.state.pending_setups):
             # Acquire the fire-lock so we don't race the instant-tick
             # callback path. If it's already firing, just skip -- we'll
@@ -1696,6 +1770,11 @@ class FibRuntime:
         # netPos 2 and a STACK flatten. The WS path already fires under
         # _tick_fire_lock; taking the same lock here closes the race --
         # active_trade is set before either side releases.
+        # FADESZ+P mode: the old fib/fade strategy is fully disabled —
+        # no signals, no paper bookings, no broker mirroring. The engine
+        # (self.trend_engine.on_cycle in _tick) drives both books.
+        if self.fadesz_mode:
+            return
         with self._tick_fire_lock:
             record = on_new_1m_bar(self.state, runtime_lucid,
                                    self._bars_1m, last_1m, now,
