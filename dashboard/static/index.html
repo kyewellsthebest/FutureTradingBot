@@ -2,434 +2,189 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d13" />
   <title>Trading Bot</title>
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" defer></script>
 </head>
-<body data-page="live" data-data-source="broker">
+<body>
 
-  <!-- ─── TOP BAR ─────────────────────────────────────────────────────── -->
+  <!-- top progress bar (refresh animation) -->
+  <div class="loadbar" id="loadbar"></div>
+
+  <!-- ─── TOP BAR ──────────────────────────────────────────────── -->
   <header class="topbar">
-    <button class="nav-trigger" id="nav-trigger" type="button"
-            aria-label="Open menu" aria-expanded="false">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
-           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-    </button>
-
     <div class="brand">
       <span class="brand-mark">◆</span>
-      <span class="brand-name">Trading Bot</span>
+      <span class="brand-name">Trading&nbsp;Bot</span>
+      <span class="pill pill-live" id="pill-status"><span class="dot"></span>LIVE</span>
     </div>
-
-    <div class="topbar-actions">
-      <button class="btn-icon btn-source" id="data-source-toggle" type="button"
-              onclick="setDataSource(dataSource === 'broker' ? 'paper' : 'broker')">
-        <span id="data-source-label">Broker</span>
-      </button>
-      <button class="btn-icon btn-pause" id="btn-pause" type="button"
-              data-paused="0">
-        <span>Pause</span>
-      </button>
-    </div>
+    <button class="btn-pause" id="btn-pause" type="button" data-paused="0">Pause</button>
   </header>
 
-  <!-- ─── KPI STRIP (always visible, sticky under header) ─────────────── -->
-  <div class="kpi-strip">
-    <div class="kpi-strip-inner">
-      <div class="tb-kpi">
-        <div class="tb-kpi-label">Balance</div>
-        <div class="tb-kpi-value" id="kpi-balance">—</div>
-      </div>
-      <div class="tb-kpi">
-        <div class="tb-kpi-label">Today</div>
-        <div class="tb-kpi-value" id="kpi-today">—</div>
-      </div>
-      <div class="tb-kpi">
-        <div class="tb-kpi-label">Position</div>
-        <div class="tb-kpi-value" id="kpi-position">FLAT</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── SLIDE-OUT NAV ───────────────────────────────────────────────── -->
-  <nav class="nav-drawer" id="nav-drawer" aria-hidden="true">
-    <div class="nav-drawer-header">
-      <div class="nav-drawer-title">Menu</div>
-      <button class="nav-drawer-close" id="nav-close" type="button"
-              aria-label="Close menu">✕</button>
-    </div>
-    <div class="nav-drawer-inner">
-      <button class="nav-item active" data-page="live" type="button">Live</button>
-      <button class="nav-item" data-page="performance" type="button">Performance</button>
-      <button class="nav-item" data-page="trades" type="button">Trades</button>
-      <button class="nav-item" data-page="downloads" type="button">Downloads</button>
-    </div>
+  <!-- ─── TAB NAV ──────────────────────────────────────────────── -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-page="overview" type="button">Overview</button>
+    <button class="tab" data-page="trades" type="button">Trades</button>
+    <button class="tab" data-page="tools" type="button">Tools</button>
   </nav>
-  <div class="nav-backdrop" id="nav-backdrop"></div>
 
-  <!-- ─── PAUSE/PROFIT BADGE ──────────────────────────────────────────── -->
-  <div class="banner-row">
-    <span class="badge-paused" id="badge-paused" hidden>PAUSED</span>
-  </div>
-
-  <!-- ─── MAIN ────────────────────────────────────────────────────────── -->
   <main class="content">
 
-    <!-- ─── LIVE ───────────────────────────────────────────────────── -->
-    <section class="page active" id="page-live">
-      <div class="page-head">
-        <h1>Live</h1>
-        <p class="muted">Real-time bot activity.</p>
+    <!-- ─── OVERVIEW ─────────────────────────────────────────── -->
+    <section class="page active" id="page-overview">
+
+      <!-- KPI cards -->
+      <div class="kpi-grid">
+        <div class="card kpi" id="kpi-balance-card">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Balance</div>
+              <div class="kpi-value skel" id="kpi-balance">&nbsp;</div>
+            </div>
+            <div class="kpi-spark" id="spark-balance"></div>
+          </div>
+          <div class="kpi-sub" id="kpi-open">&nbsp;</div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Today</div>
+              <div class="kpi-value skel" id="kpi-today">&nbsp;</div>
+            </div>
+            <div class="kpi-ico" id="kpi-today-ico">◷</div>
+          </div>
+          <div class="kpi-sub" id="kpi-today-n">&nbsp;</div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">This&nbsp;Week</div>
+              <div class="kpi-value skel" id="kpi-week">&nbsp;</div>
+            </div>
+            <div class="kpi-ico">▦</div>
+          </div>
+          <div class="kpi-sub" id="kpi-week-sub">&nbsp;</div>
+        </div>
+
+        <div class="card kpi">
+          <div class="kpi-top">
+            <div>
+              <div class="kpi-label">Position</div>
+              <div class="kpi-value skel" id="kpi-pos">&nbsp;</div>
+            </div>
+            <div class="kpi-ico" id="kpi-pos-ico">▣</div>
+          </div>
+          <div class="kpi-sub" id="kpi-pos-sub">&nbsp;</div>
+        </div>
       </div>
 
-      <div class="grid g-3 compact-3">
-        <div class="card stat-card">
-          <div class="stat-label">NQ</div>
-          <div class="stat-value" id="live-nq-price">—</div>
+      <!-- Equity chart -->
+      <div class="card chart-card">
+        <div class="card-head">
+          <div>
+            <h3>Equity</h3>
+            <div class="muted small">Cumulative P&amp;L, broker fills. Touch the chart for exact time&nbsp;&amp;&nbsp;value.</div>
+          </div>
+          <div class="seg" id="equity-range">
+            <button data-r="day" type="button">Day</button>
+            <button data-r="week" class="on" type="button">Week</button>
+            <button data-r="month" type="button">Month</button>
+            <button data-r="all" type="button">All</button>
+          </div>
         </div>
-        <div class="card stat-card">
-          <div class="stat-label">Trades</div>
-          <div class="stat-value" id="live-trades-today">0</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-label">Setups</div>
-          <div class="stat-value" id="live-pending-n">0</div>
+        <div class="chart-readout" id="equity-readout">&nbsp;</div>
+        <div class="chart-wrap">
+          <div class="chart-skel" id="equity-skel"><span class="spinner"></span></div>
+          <div class="chart" id="chart-equity"></div>
         </div>
       </div>
 
-      <div class="grid g-2">
-        <div class="card big-card">
-          <div class="card-head">
-            <h3>Active Trade</h3>
-            <span class="muted small" id="live-active-source"></span>
-          </div>
-          <div class="card-body" id="live-active">
-            <div class="empty-state">No open position.</div>
+      <!-- Daily P&L + Win/Loss -->
+      <div class="grid-2">
+        <div class="card chart-card">
+          <div class="card-head"><h3>Daily P&amp;L</h3></div>
+          <div class="chart-readout" id="daily-readout">&nbsp;</div>
+          <div class="chart-wrap sm">
+            <div class="chart-skel" id="daily-skel"><span class="spinner"></span></div>
+            <div class="chart" id="chart-daily"></div>
           </div>
         </div>
 
-        <div class="card big-card">
-          <div class="card-head">
-            <h3>Pending Setups</h3>
-          </div>
-          <div class="card-body">
-            <div class="pending-list" id="live-pending-list">
-              <div class="empty-state muted">No setups armed.</div>
+        <div class="card chart-card">
+          <div class="card-head"><h3>Win / Loss</h3></div>
+          <div class="donut-row">
+            <div class="donut-wrap"><svg id="donut" viewBox="0 0 120 120"></svg>
+              <div class="donut-center">
+                <div class="donut-big skel" id="donut-wr">&nbsp;</div>
+                <div class="donut-cap">win rate</div>
+              </div>
+            </div>
+            <div class="donut-legend">
+              <div><span class="lg-dot pos"></span>Wins <b id="lg-wins">–</b></div>
+              <div><span class="lg-dot neg"></span>Losses <b id="lg-losses">–</b></div>
+              <div><span class="lg-dot flat"></span>Scratch <b id="lg-flat">–</b></div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="grid">
-        <div class="card big-card chart-card">
-          <div class="card-head">
-            <h3>NQ · Last 60 minutes</h3>
-          </div>
-          <div class="card-body chart-body" id="live-mini-chart"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─── PERFORMANCE ───────────────────────────────────────────── -->
-    <section class="page" id="page-performance">
-      <div class="page-head">
-        <h1>Performance</h1>
-        <p class="muted" id="perf-subtitle">All-time results.</p>
-      </div>
-
-      <div class="grid g-4">
-        <div class="card stat-card">
-          <div class="stat-label" id="lifetime-pnl-label">Total P&amp;L</div>
-          <div class="stat-value" id="lifetime-pnl">—</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-label">Trades</div>
-          <div class="stat-value" id="lifetime-trades">—</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-label">Win rate</div>
-          <div class="stat-value" id="lifetime-wr">—</div>
-        </div>
-        <div class="card stat-card">
-          <div class="stat-label">Max drawdown</div>
-          <div class="stat-value neg" id="lifetime-dd">—</div>
-        </div>
-      </div>
-
-      <div class="period-row">
-        <button class="btn-pill btn-period" data-period="today">Today</button>
-        <button class="btn-pill btn-period active" data-period="week">Week</button>
-        <button class="btn-pill btn-period" data-period="month">Month</button>
-        <button class="btn-pill btn-period" data-period="all">All time</button>
-      </div>
-
-      <div class="grid">
-        <div class="card big-card chart-card">
-          <div class="card-head">
-            <h3>Equity curve</h3>
-          </div>
-          <div class="card-body chart-body">
-            <canvas id="chart-equity"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid g-2">
-        <div class="card chart-card">
-          <div class="card-head">
-            <h3>Monthly P&amp;L</h3>
-          </div>
-          <div class="card-body chart-body">
-            <canvas id="chart-monthly"></canvas>
-          </div>
-        </div>
-        <div class="card chart-card">
-          <div class="card-head">
-            <h3>Win / loss size</h3>
-          </div>
-          <div class="card-body chart-body">
-            <canvas id="chart-wlhist"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Hidden placeholder for compatibility with renderPerfPanels -->
-      <canvas id="chart-holds" hidden></canvas>
-    </section>
-
-    <!-- ─── TRADES ─────────────────────────────────────────────────── -->
-    <section class="page" id="page-trades">
-      <div class="page-head">
-        <h1>Trades</h1>
-        <p class="muted">Click any row for full trade history.</p>
-      </div>
-
+      <!-- Stats chips -->
       <div class="card">
-        <div class="card-body table-card-body">
-          <div class="table-wrap">
-            <table class="data-table" id="trades-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Side</th>
-                  <th>Qty</th>
-                  <th>Entry</th>
-                  <th>Exit</th>
-                  <th>P&amp;L</th>
-                  <th>Reason</th>
-                  <th>Hold</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td colspan="8" class="muted center" style="padding:40px;">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="card-head"><h3>Statistics</h3><span class="muted small">since reset · broker fills</span></div>
+        <div class="chip-grid" id="stat-chips">
+          <div class="chip"><span>Trades</span><b id="st-n" class="skel">&nbsp;</b></div>
+          <div class="chip"><span>Profit&nbsp;factor</span><b id="st-pf" class="skel">&nbsp;</b></div>
+          <div class="chip"><span>Avg&nbsp;win</span><b id="st-aw" class="skel">&nbsp;</b></div>
+          <div class="chip"><span>Avg&nbsp;loss</span><b id="st-al" class="skel">&nbsp;</b></div>
+          <div class="chip"><span>Max&nbsp;drawdown</span><b id="st-dd" class="skel">&nbsp;</b></div>
+          <div class="chip"><span>Total&nbsp;P&amp;L</span><b id="st-total" class="skel">&nbsp;</b></div>
         </div>
       </div>
     </section>
 
-    <!-- ─── DOWNLOADS ──────────────────────────────────────────────── -->
-    <section class="page" id="page-downloads">
-      <div class="page-head">
-        <h1>Downloads</h1>
-        <p class="muted">Everything in one file. Paste into chat when something looks off.</p>
+    <!-- ─── TRADES ───────────────────────────────────────────── -->
+    <section class="page" id="page-trades">
+      <div class="card">
+        <div class="card-head"><h3>Trades</h3><span class="muted small" id="trades-count"></span></div>
+        <div id="trades-list">
+          <div class="trade-skel"></div><div class="trade-skel"></div>
+          <div class="trade-skel"></div><div class="trade-skel"></div>
+        </div>
+        <button class="btn-more" id="trades-more" type="button" hidden>Show more</button>
       </div>
+    </section>
 
-      <div class="grid">
-        <div class="card hero-card">
-          <div class="hero-icon">⬇</div>
-          <h2>Diagnostic Bundle</h2>
-          <p>One file with every diagnostic the assistant needs to debug the bot — health, config, code state, trades, broker fills, reconciliation, tick history, decision log, paper-vs-broker divergence, the bot's audit log, and recent log tail.</p>
-          <button class="btn-primary btn-dl" data-dl="bundle" data-ext="json">
-            Download diagnostic bundle
-          </button>
-          <div id="dl-status" class="muted small" style="margin-top:14px">Ready when you are.</div>
-          <input type="checkbox" id="dl-include-verify" checked hidden />
+    <!-- ─── TOOLS ────────────────────────────────────────────── -->
+    <section class="page" id="page-tools">
+      <div class="card">
+        <div class="card-head"><h3>Bundle</h3></div>
+        <p class="muted small">Diagnostic bundle for debugging — everything the bot knows, one JSON.</p>
+        <button class="btn-wide" id="dl-bundle" type="button">Download bundle</button>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Exports</h3></div>
+        <div class="btn-row">
+          <button class="btn-lite" data-dl="trades.csv" type="button">Trades CSV</button>
+          <button class="btn-lite" data-dl="equity.csv" type="button">Equity CSV</button>
+          <button class="btn-lite" data-dl="daily.csv" type="button">Daily CSV</button>
+          <button class="btn-lite" data-dl="health" type="button">Health</button>
         </div>
       </div>
-
-      <div class="grid g-3">
-        <button class="card targeted-dl btn-dl" data-dl="reconcile" data-ext="json">
-          <div class="targeted-dl-title">Paper vs Broker</div>
-          <div class="targeted-dl-desc">Per-trade reconciliation</div>
-        </button>
-        <button class="card targeted-dl btn-dl" data-dl="audit_log" data-ext="json">
-          <div class="targeted-dl-title">Order audit log</div>
-          <div class="targeted-dl-desc">Every placeoso attempt</div>
-        </button>
-        <button class="card targeted-dl btn-dl" data-dl="tradovate_full" data-ext="json">
-          <div class="targeted-dl-title">Tradovate dump</div>
-          <div class="targeted-dl-desc">All broker endpoints</div>
-        </button>
-        <button class="card targeted-dl btn-dl" data-dl="diagnostics" data-ext="json">
-          <div class="targeted-dl-title">Diagnostics</div>
-          <div class="targeted-dl-desc">Decisions, ticks, WS state</div>
-        </button>
-        <button class="card targeted-dl btn-dl" data-dl="timeline" data-ext="json">
-          <div class="targeted-dl-title">Trade timelines</div>
-          <div class="targeted-dl-desc">Event chain per trade</div>
-        </button>
-        <button class="card targeted-dl btn-dl" data-dl="trades.csv" data-ext="csv">
-          <div class="targeted-dl-title">Trades CSV</div>
-          <div class="targeted-dl-desc">For spreadsheets</div>
-        </button>
-      </div>
-
-      <!-- Reset account -- destructive. Lives at the bottom of Downloads
-           so it's away from daily controls but findable when needed. -->
-      <div class="grid" style="margin-top:32px">
-        <div class="card hero-card" style="border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.04)">
-          <div class="hero-icon" style="color:#ef4444">⚠</div>
-          <h2 style="color:#ef4444">Reset account</h2>
-          <p>Wipes the active account's trade history, balance state,
-            dashboard snapshot, equity curve, Performance graphs, daily /
-            weekly / monthly P&amp;L, and the broker history cache.
-            Tradovate's real cash balance is preserved (it lives on
-            their servers; we can't touch it). After reset every tab on
-            the dashboard starts from zero and only counts trades from
-            the reset moment forward.</p>
-          <p class="muted small" style="margin-top:6px">Requires
-            confirmation + password. No undo.</p>
-          <button class="btn-primary" id="btn-reset-account"
-                  style="background:#ef4444;border-color:#ef4444">
-            Reset account
-          </button>
-        </div>
+      <div class="card">
+        <div class="card-head"><h3>Engine</h3></div>
+        <div class="kv" id="engine-kv"><div class="trade-skel"></div></div>
       </div>
     </section>
 
   </main>
 
-  <!-- Trade detail modal -->
-  <div id="trade-detail-modal" class="trade-modal" onclick="if(event.target===this)closeTradeDetail()">
-    <div class="trade-modal-inner">
-      <button class="trade-modal-close" onclick="closeTradeDetail()" aria-label="Close">✕</button>
-      <div id="trade-detail-body"><div class="muted">Loading…</div></div>
-    </div>
-  </div>
-
-  <!-- Hidden compat shells so legacy renderers don't NPE -->
-  <div hidden>
-    <span id="badge-version">pullback</span>
-    <span id="badge-mode">shadow</span>
-    <span id="badge-src">synth 1m</span>
-    <span id="kpi-price"></span>
-    <span id="kpi-updated"></span>
-    <span id="kpi-trades-today"></span>
-    <span id="gauge-arc"></span>
-    <span id="gauge-text"></span>
-    <span id="gauge-status"></span>
-    <span id="brand-text-label"></span>
-    <span id="account-toggle"></span>
-    <span id="account-menu"></span>
-    <span id="today-fired"></span>
-    <span id="today-closed"></span>
-    <span id="today-pnl"></span>
-    <span id="today-wr"></span>
-    <span id="today-hold"></span>
-    <span id="sys-strategy"></span>
-    <span id="sys-size"></span>
-    <span id="sys-minhold"></span>
-    <span id="sys-cycle"></span>
-    <span id="sys-breaker"></span>
-    <span id="sys-error"></span>
-    <span id="lifetime-daily-dd"></span>
-    <span id="lifetime-today-dd"></span>
-    <span id="live-ret-mo"></span>
-    <span id="live-dd"></span>
-    <span id="live-wr-rr"></span>
-    <span id="live-trades-mo"></span>
-    <span id="health-check-body"></span>
-    <span id="broker-perf-summary"></span>
-    <span id="slip-calibration-body"></span>
-    <span id="polygon-readiness-body"></span>
-    <span id="bracket-ab-body"></span>
-    <span id="perf-source-banner"></span>
-    <span id="trades-source-label"></span>
-    <span id="dl-status"></span>
-  </div>
-
-<script src="/static/app.js" defer></script>
-<script>
-  // Page routing + nav drawer. Bulletproofed for mobile: robust touch
-  // handling, guarded against missing elements, and the trigger button
-  // is always visible/tappable regardless of drawer state.
-  (function() {
-    function wireNav() {
-      var nav      = document.getElementById("nav-drawer");
-      var backdrop = document.getElementById("nav-backdrop");
-      var trigger  = document.getElementById("nav-trigger");
-      var closeBtn = document.getElementById("nav-close");
-      if (!nav || !backdrop || !trigger) return;
-
-      function openNav()  {
-        nav.classList.add("open");
-        backdrop.classList.add("show");
-        nav.setAttribute("aria-hidden", "false");
-        trigger.setAttribute("aria-expanded", "true");
-        document.body.classList.add("nav-open");
-      }
-      function closeNav() {
-        nav.classList.remove("open");
-        backdrop.classList.remove("show");
-        nav.setAttribute("aria-hidden", "true");
-        trigger.setAttribute("aria-expanded", "false");
-        document.body.classList.remove("nav-open");
-      }
-
-      trigger.addEventListener("click", function(e) {
-        e.preventDefault(); e.stopPropagation();
-        nav.classList.contains("open") ? closeNav() : openNav();
-      });
-      if (closeBtn) {
-        closeBtn.addEventListener("click", function(e) {
-          e.preventDefault(); e.stopPropagation(); closeNav();
-        });
-      }
-      backdrop.addEventListener("click", closeNav);
-
-      // ESC closes the drawer (desktop)
-      document.addEventListener("keydown", function(e) {
-        if (e.key === "Escape" && nav.classList.contains("open")) closeNav();
-      });
-
-      var navItems = document.querySelectorAll(".nav-item[data-page]");
-      navItems.forEach(function(btn) {
-        btn.addEventListener("click", function(e) {
-          e.preventDefault();
-          var target = btn.dataset.page;
-          document.body.dataset.page = target;
-          document.querySelectorAll(".page").forEach(function(p) {
-            p.classList.remove("active");
-          });
-          var pageEl = document.getElementById("page-" + target);
-          if (pageEl) pageEl.classList.add("active");
-          document.querySelectorAll(".nav-item").forEach(function(n) {
-            n.classList.toggle("active", n.dataset.page === target);
-          });
-          closeNav();
-          try { if (target === "performance" && typeof renderPerformanceGraphs === "function") renderPerformanceGraphs(); } catch (err) {}
-          try { if (target === "trades"      && typeof renderTradesTable      === "function") renderTradesTable(); } catch (err) {}
-          try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (err) {}
-        });
-      });
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", wireNav);
-    } else {
-      wireNav();
-    }
-  })();
-</script>
+  <script src="/static/app.js" defer></script>
 </body>
 </html>
