@@ -114,7 +114,7 @@ body {
   gap: 12px; margin-bottom: 14px;
 }
 @media (min-width: 720px) { .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.kpi { margin-bottom: 0; padding: 14px; }
+.kpi { margin-bottom: 0; padding: 14px; overflow: hidden; }
 .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .kpi-value {
@@ -124,7 +124,11 @@ body {
 }
 .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-ico { font-size: 18px; color: var(--accent); opacity: .8; flex: none; }
-.kpi-spark { width: 72px; height: 34px; flex: none; }
+.kpi-spark {
+  width: 72px; max-width: 40%; height: 34px; flex: none;
+  overflow: hidden; border-radius: 6px; position: relative;
+}
+.kpi-spark > div { max-width: 100% !important; }
 .pos-t { color: var(--pos-text) !important; }
 .neg-t { color: var(--neg-text) !important; }
 

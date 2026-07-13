@@ -27,8 +27,14 @@ const paint = (el, v) => {
   if (v < 0) el.classList.add("neg-t");
 };
 const reveal = (el) => { if (el) el.classList.add("done"); };
-const fmtWhen = (unixSec) => {
-  const d = new Date(unixSec * 1000);
+/* Lightweight-charts renders unix timestamps in UTC on the axis. Shift
+   every point by the viewer's own UTC offset so the axis (and crosshair
+   time tag) read in LOCAL time — Australian time on the user's phone —
+   then un-shift before formatting readout text with Date (which is
+   already local). */
+const TZOFF = -new Date().getTimezoneOffset() * 60;
+const fmtWhen = (shiftedSec) => {
+  const d = new Date((shiftedSec - TZOFF) * 1000);
   return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) +
     " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 };
@@ -165,7 +171,7 @@ $("equity-range").addEventListener("click", (e) => {
 
 function renderEquity() {
   if (!eqSeries || !eqData.length) return;
-  const now = Date.now() / 1000;
+  const now = Date.now() / 1000 + TZOFF;   // eqData times are TZ-shifted
   const spans = { day: 86400, week: 7 * 86400, month: 31 * 86400, all: Infinity };
   const cut = now - (spans[equityRange] || Infinity);
   let pts = eqData.filter((d) => d.time >= cut);
@@ -225,7 +231,7 @@ async function pollStats() {
     // equity curve
     const seen = new Set();
     eqData = (s.equity_curve || []).map((p) => {
-      let ts = Math.floor(new Date(p.ts).getTime() / 1000);
+      let ts = Math.floor(new Date(p.ts).getTime() / 1000) + TZOFF;
       while (seen.has(ts)) ts += 1;          // strictly increasing
       seen.add(ts);
       return { time: ts, value: p.cum_pnl, trade: p.trade_pnl };
