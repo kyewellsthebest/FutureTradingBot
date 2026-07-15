@@ -39,7 +39,9 @@ HN = lambda m: int(m * 60_000_000_000)
 
 def load_history():
     t0 = time.time()
-    tb = pd.read_parquet("data/tick/nq_ticks_2p5y.parquet")
+    import pyarrow.parquet as pq
+    tb = pq.read_table("data/tick/nq_ticks_2p5y.parquet",
+                       columns=["ts", "price"])
     ts = tb["ts"].to_numpy()
     px = tb["price"].to_numpy()
     del tb
@@ -53,12 +55,17 @@ def load_2026():
 
 
 def bars_of(ts, px):
-    m = (ts // 60_000_000_000) * 60_000_000_000
-    g = pd.DataFrame({"m": m, "px": px})
-    b = g.groupby("m").agg(open=("px", "first"), high=("px", "max"),
-                           low=("px", "min"), close=("px", "last"),
-                           nt=("px", "size"))
-    b.index = pd.to_datetime(b.index, utc=True)
+    """Memory-frugal minute bars via reduceat (ticks are time-sorted)."""
+    m = ts // 60_000_000_000
+    starts = np.concatenate(([0], np.flatnonzero(np.diff(m)) + 1))
+    ends = np.concatenate((starts[1:], [len(m)]))
+    b = pd.DataFrame({
+        "open": px[starts],
+        "high": np.maximum.reduceat(px, starts),
+        "low": np.minimum.reduceat(px, starts),
+        "close": px[ends - 1],
+        "nt": ends - starts,
+    }, index=pd.to_datetime(m[starts] * 60_000_000_000, utc=True))
     return b
 
 
