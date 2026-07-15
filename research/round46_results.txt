@@ -1,0 +1,51 @@
+ROUND 46 RESULTS — BULLETPROOF GA (the max-power search)
+=========================================================
+1,941 genomes bred over 40 generations. Fitness demanded: min 2026
+fold $/wk, >=80% positive weeks, worst week >=-1200, worst day >=-800,
+profit in strong-reversion 2023-24 weeks (mechanism present), minimal
+bleed in weak-reversion (trending) 2023-24 weeks. 2025 fully held out.
+
+CONVERGENCE: all 12 finalists = ONE family:
+  champion signal (MOMR 10 bars / 1.2xATR fade, hold 15, RTH)
+  + TREND-DAY GUARD: no new entries once |px - day 14:00 open| > 8xATR20
+  + DISASTER STOP tightened 100pt -> 60pt
+  (execution/ladder knobs vary across a smooth plateau)
+
+HEADLINE: FADESZ-BP  {MOMR 10/1.2, daytrend 8.0, ladder 2.0/4.0,
+                      market entry, hold 15, dis 60}
+  2026 (Jan-Jul6, tick-walked, $1.50/RT):
+    $819/wk | 88% positive weeks (23/26) | worst week -$1,071
+    worst day -$1,450 | p5 day -$914 | 65 tr/wk
+    folds: JanFeb $788, MarApr $744, May $785, JunJul $898 (min $744)
+  stress: $2.50/RT -> $717/wk 85% pos | 200ms latency -> $834/wk 85%
+  history: strong-rev pools POSITIVE all 3 years (+$91/273/386 wk);
+    weak-rev bleed cut 30-40% vs champion; hostile years still lose
+    overall (no fade config survives a trending year - kill-switch
+    remains the regime defense).
+  passive variant (off 1.5 / cancel 180): $797/wk 81% pos, ww -$1,109,
+    wd -$1,364 — closest to live-validated execution.
+
+vs DEPLOYED CHAMPION (same sim): $882/wk, 77% pos, ww -$1,590,
+  wd -$2,402, folds $34/$1,050/$756/$2,344, 107 tr/wk.
+  BP trades $63/wk and the fat Jun-Jul tail for: +11pts positive
+  weeks, worst day cut 40%, worst week cut 33%, and a JanFeb fold
+  that goes $34 -> $788/wk (the consistency the user asked for).
+
+ROBUSTNESS AUDIT (why this is NOT another W1):
+  - whole leaderboard is one family (smooth plateau), not an
+    interaction spike
+  - daytrend axis is a hill: dt6/dt10 degrade gracefully, same
+    mechanism; W1's hour gate inverted at +/-30min
+  - mechanism is causal and interpretable: stop fading trend days -
+    the exact failure mode of Jul 15 and of weak-reversion regimes
+  - guard helps BOTH tapes (2026 folds + 2023-25 weak-rev bleed)
+  - hold 12/20 collapse = consistent with validated 15-min alpha law
+  - flagged: dis-stop axis jumpy (80pt bad, 60/100 fine); 60pt is a
+    tightening of the already-deployed 100pt guard, partially fitted
+  - pending true blind: Jul 9-15 tape (user one-click fetch MNQU6,
+    days 9) - will show whether the guard clips the Jul 15 loss
+
+STATUS: NOT deployed (user directive: bot untouched this week).
+Ready to stage into fadesz_engine.py on user's word: guard needs
+day-open + ATR (already computed), ladder l2 3.0->4.0, dis 100->60,
+optional market-entry mode.
