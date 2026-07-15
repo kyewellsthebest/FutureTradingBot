@@ -24,6 +24,7 @@ FEES = 1.50
 TICK = 0.25
 LAT_NS = 65_000_000
 HN = lambda m: int(m * 60_000_000_000)
+PJ = pd.Timestamp("2026-01-01", tz="UTC")
 P0 = pd.Timestamp("2026-03-01", tz="UTC")
 P1 = pd.Timestamp("2026-05-01", tz="UTC")
 P2 = pd.Timestamp("2026-06-01", tz="UTC")
@@ -165,20 +166,26 @@ def eval_genome(gn):
         busy = ts[xe]
         i += 1
     if len(out_p) < 120:
-        return (-9999.0, 0, 0, 0, 0)
+        return (-9999.0, 0, 0, 0, 0, 0, 0)
     s_ = pd.Series(out_p, index=pd.to_datetime(np.array(out_t), utc=True))
     folds = []
-    for lo, hi in ((P0, P1), (P1, P2), (P2, P3)):
+    for lo, hi in ((PJ, P0), (P0, P1), (P1, P2), (P2, P3)):
         f = s_[(s_.index >= lo) & (s_.index < hi)]
         wk = f.resample("W").sum(); wk = wk[wk != 0]
         folds.append(f.sum() / max(len(wk), 1) if len(f) else -9999.0)
     dy = s_.resample("D").sum(); dy = dy[dy != 0]
     worst_day = dy.min() if len(dy) else 0.0
-    fitness = min(folds) - 0.15 * max(0.0, -worst_day - 800)
     wk_all = s_.resample("W").sum(); wk_all = wk_all[wk_all != 0]
+    pos_pct = (wk_all > 0).mean() * 100 if len(wk_all) else 0.0
+    worst_wk = wk_all.min() if len(wk_all) else 0.0
+    fitness = (min(folds)
+               - 0.15 * max(0.0, -worst_day - 800)
+               - 15.0 * max(0.0, 75.0 - pos_pct)
+               - 0.30 * max(0.0, -worst_wk - 1200))
     return (round(float(fitness), 1), round(float(min(folds)), 0),
             round(float(s_.sum() / max(len(wk_all), 1)), 0),
-            round(float(worst_day), 0), round(len(s_) / max(len(wk_all), 1), 1))
+            round(float(worst_day), 0), round(len(s_) / max(len(wk_all), 1), 1),
+            round(float(pos_pct)), round(float(worst_wk), 0))
 
 
 def pick(lst):
@@ -245,7 +252,7 @@ def main():
     genomes = {}
     pool = Pool(6, initializer=init_worker)
     hist = []
-    for gen in range(25):
+    for gen in range(40):
         todo = [g_ for g_ in pop if gkey(g_) not in cache]
         res = pool.map(eval_genome, todo)
         for g_, r_ in zip(todo, res):
@@ -257,6 +264,7 @@ def main():
         hist.append((gen, fb))
         print(f"gen {gen:02d}: fit {fb[0]:8.1f} minfold ${fb[1]:6.0f}/wk "
               f"all ${fb[2]:6.0f}/wk wd ${fb[3]:6.0f} {fb[4]:5.1f}tr/wk "
+              f"pos {fb[5]:3.0f}% ww ${fb[6]:6.0f} "
               f"| {json.dumps(best, default=str)[:120]} "
               f"({time.time()-t0:.0f}s)", flush=True)
         elite = scored[:20]
