@@ -1,0 +1,61 @@
+ROUND 44-45 RESULTS (evolutionary synthesis + regime-matched pooling)
+======================================================================
+
+ROUND 44 GA — two runs, ~3,300 unique strategies, tick-walked fills
+-------------------------------------------------------------------
+Run A (fitness = min $/wk over Mar-Apr / May / Jun-Jul6 folds):
+  winner HYBRID flow-divergence fade (mom8/1.0 + flow10/1.0 confirm,
+  market entry, fvol cap, hold 22, ladder 1.5/4.0), fit 722.9 vs
+  champion 464.1. REJECTED: Jan-Feb pseudo-blind = -$55/wk, 44% pos
+  weeks; worst week -$3,190; one +$8,848 week carries the total.
+
+Run B (hardened fitness: + Jan-Feb fold, + pos-week and worst-week
+penalties, 40 generations):
+  winner W1 = champion signal + hour gate 14-18 UTC + ladder 1.5/3.0
+  + offset 0.5 / cancel 60s. On paper 88% pos weeks, ww -$755.
+  REJECTED on three grounds:
+  1. Fragility cliffs: gate shifted 30 min (14.5-18.5) -> fitness
+     -653; offset 0.5->1.0 -> fitness 102. Each ingredient alone is
+     WORSE than champion. Sharp interaction peak = overfit signature.
+  2. Ladder normalization artifact: in deployed-consistent form
+     (raw fmag thresholds) W1 and champion are both 77% pos weeks,
+     W1 worst wk -$1,550 vs champion -$1,590, and W1 gives up
+     ~$190/wk + half the Jun-Jul upside.
+  3. Zero historical support (round 45): W1 in 2023-2025 loses more
+     than champion every year; in anti-regime weeks -781 vs -414/wk.
+
+ROUND 45 — 2.5yr regime-matched pooling (280M ticks, Jun23-Jun26)
+------------------------------------------------------------------
+Champion FADESZ+P (price-only form) across history:
+  2023: -$506/wk 28% pos | 2024: -$424/wk 32% | 2025: -$608/wk 36%
+  2026: +$882/wk 77% pos (same code path)
+  Regime-matched NEAR-30 hist weeks: -$355/wk; FAR-30: -$906/wk.
+
+THE STRUCTURAL DISCOVERY:
+  weekly reversion coefficient rev = corr(mom10, fwd 15m return) on
+  RTH bars. corr(rev, weekly champion P&L) = -0.505 over 157 weeks.
+  Historical quartiles (2023-2025 only, never optimized on):
+    strongest-reversion quartile: +$632/wk, 72% pos weeks
+    q2:   -$31/wk 41% | q3: -$502/wk 33%
+    weakest (trending) quartile: -$1,285/wk, 10% pos
+  => The edge mechanism is REAL and confirmed outside 2026 for the
+     first time: whenever the reversion regime appears, the fade
+     pays. 2026 Mar+ mean rev -0.057 vs hist mean -0.016: 2026 is an
+     extended strong-reversion regime. Week ending Jul 5 flipped to
+     +0.098 (trending) — consistent with the Jul 15 whipsaw loss.
+
+  BUT the gauge is NOT predictive week-ahead:
+    corr(rev lag-1, pnl) = -0.067; ma2 -0.069; ma4 -0.099.
+    Best on/off rules only avoid marginally worse weeks; ON pools
+    still lose in history. Regime timing is not possible from the
+    gauge's own past. P&L-based trailing-4wk kill-switch remains the
+    correct guardrail.
+
+VERDICT
+-------
+No genome out of ~3,300 beats deployed FADESZ+P after discipline
+checks. The champion's edge is regime-conditional, mechanistically
+confirmed on 2.5 years of virgin history, and not improvable by
+regime timing at weekly granularity. Remaining unexplored power:
+fresh Jul 9-15 tick validation (user one-click fetch MNQU6 days 9)
+and workflow-parallel mega-search (needs explicit user opt-in).
