@@ -1,0 +1,52 @@
+=== A. matrix-profile motifs (20m shapes) ===
+  motifs found: 5 (16s)
+   MOTIF0(n=3511,mu=-2.1) SEL: $     43/wk  36.2tr/wk pos  38% worstday $  -382 worstwk $  -602
+   MOTIF0 BLIND: $    187/wk  26.2tr/wk pos  50% worstday $  -368 worstwk $  -278
+   MOTIF1(n=2584,mu=+6.6) SEL: $    298/wk  29.9tr/wk pos  84% worstday $  -268 worstwk $  -352
+   MOTIF1 BLIND: $    -20/wk  32.0tr/wk pos  25% worstday $  -830 worstwk $  -244
+   MOTIF2(n=260,mu=+5.2) SEL: $     82/wk  11.2tr/wk pos  53% worstday $  -264 worstwk $  -332
+   MOTIF2 BLIND: $    -95/wk  10.8tr/wk pos  25% worstday $  -274 worstwk $  -362
+   MOTIF3(n=227,mu=+3.8) SEL: $     44/wk  10.9tr/wk pos  69% worstday $  -294 worstwk $  -585
+   MOTIF3 BLIND: $     81/wk  10.5tr/wk pos  50% worstday $  -354 worstwk $  -436
+   MOTIF4(n=94,mu=+0.9) SEL: $     -5/wk   5.5tr/wk pos  61% worstday $  -514 worstwk $  -354
+   MOTIF4 BLIND: (n=17)
+[A] done (16s)
+=== B. skip-grams (A _ B _ C over 1m symbols) ===
+   SKIP_1498 SEL: $    267/wk  15.8tr/wk pos  69% worstday $  -340 worstwk $  -212
+   SKIP_1498 BLIND: $    102/wk  21.0tr/wk pos  25% worstday $  -974 worstwk $  -868
+   SKIP_706 SEL: $    289/wk  19.5tr/wk pos  76% worstday $  -324 worstwk $  -247
+   SKIP_706 BLIND: $   -435/wk  26.0tr/wk pos  25% worstday $ -1170 worstwk $ -1075
+   SKIP_628 SEL: $    197/wk  24.7tr/wk pos  69% worstday $  -402 worstwk $  -228
+   SKIP_628 BLIND: $   -455/wk  30.2tr/wk pos  25% worstday $ -1082 worstwk $ -1197
+   SKIP_1492 SEL: $    229/wk  18.9tr/wk pos  61% worstday $  -344 worstwk $  -409
+   SKIP_1492 BLIND: $   -668/wk  24.0tr/wk pos  25% worstday $ -1030 worstwk $ -1322
+   SKIP_634 SEL: $    319/wk  26.8tr/wk pos  69% worstday $  -294 worstwk $  -350
+   SKIP_634 BLIND: $    232/wk  34.5tr/wk pos  75% worstday $ -1325 worstwk $ -1160
+   SKIP_1636 SEL: $    154/wk  13.1tr/wk pos  76% worstday $  -498 worstwk $  -632
+   SKIP_1636 BLIND: $   -584/wk  20.5tr/wk pos  25% worstday $ -2026 worstwk $ -1332
+   SKIP_700 SEL: $    224/wk  23.8tr/wk pos  61% worstday $  -416 worstwk $  -368
+   SKIP_700 BLIND: $     64/wk  29.0tr/wk pos  50% worstday $ -1189 worstwk $ -1332
+   SKIP_707 SEL: $    146/wk  13.6tr/wk pos  76% worstday $  -342 worstwk $  -492
+   SKIP_707 BLIND: $   -282/wk  19.2tr/wk pos   0% worstday $ -1336 worstwk $  -580
+[B] done (16s)
+=== C. depth-3 tree rule, monthly walk-forward ===
+   TREE-RULE wf: $     37/wk  10.8tr/wk pos  38% worstday $  -812 worstwk $ -1000
+[C] done (26s)
+=== D. 2-grams x hour x vol regime ===
+   C2G_1241 SEL: $    214/wk  10.4tr/wk pos  84% worstday $  -360 worstwk $  -177
+   C2G_1241 BLIND: $     26/wk   9.8tr/wk pos  50% worstday $  -895 worstwk $  -754
+   C2G_1361 SEL: $    179/wk   9.0tr/wk pos  69% worstday $  -439 worstwk $  -685
+   C2G_1361 BLIND: $     -7/wk   9.5tr/wk pos  50% worstday $  -234 worstwk $  -276
+   C2G_1301 SEL: $    156/wk   8.8tr/wk pos  61% worstday $  -388 worstwk $  -370
+   C2G_1301 BLIND: $    328/wk   9.2tr/wk pos  75% worstday $  -572 worstwk $  -326
+   C2G_581 SEL: $    151/wk  13.0tr/wk pos  61% worstday $  -360 worstwk $  -374
+   C2G_581 BLIND: $   -222/wk  11.8tr/wk pos  25% worstday $  -504 worstwk $  -528
+   C2G_525 SEL: $     66/wk   5.0tr/wk pos  61% worstday $  -525 worstwk $  -516
+   C2G_525 BLIND: $    -37/wk   7.8tr/wk pos  50% worstday $  -352 worstwk $  -257
+   C2G_713 SEL: $    104/wk   7.5tr/wk pos  69% worstday $  -386 worstwk $  -326
+   C2G_713 BLIND: $     43/wk   8.8tr/wk pos  50% worstday $  -260 worstwk $  -380
+   C2G_583 SEL: $     88/wk   9.5tr/wk pos  61% worstday $  -418 worstwk $  -431
+   C2G_583 BLIND: $   -242/wk  10.2tr/wk pos  25% worstday $  -522 worstwk $  -688
+   C2G_521 SEL: $     57/wk  12.4tr/wk pos  46% worstday $  -506 worstwk $  -642
+   C2G_521 BLIND: $   -107/wk  12.0tr/wk pos  25% worstday $  -530 worstwk $  -352
+[D] done — round 42 complete (26s)
