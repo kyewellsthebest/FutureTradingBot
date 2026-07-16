@@ -77,6 +77,7 @@ class FadeszEngine:
         self.day_open_px: Optional[float] = None  # first close >= 14:00 UTC
         self.week_id: Optional[str] = None        # ISO year-week (UTC)
         self.week_pnl = 0.0                       # realized $ this week
+        self.last_day_trend = 0.0                 # |px-open|/ATR last cycle
         self.counters = {"signals": 0, "placed": 0, "filled": 0,
                          "canceled": 0, "exits": 0, "order_errors": 0,
                          "disaster": 0, "guard_skips": 0, "xaccel_exits": 0,
@@ -124,11 +125,26 @@ class FadeszEngine:
         return bool(self.pos) or bool(self.pending)
 
     def snapshot(self) -> dict:
+        now = datetime.now(timezone.utc)
+        hr = now.hour + now.minute / 60.0
+        in_session = ENTRY_LO <= hr < 20.92 and now.weekday() < 5
+        guard_on = self.last_day_trend > GUARD_ATR
+        brake_on = self.week_pnl <= -WEEK_BRAKE_USD
+        if not in_session:
+            status = "closed"
+        elif guard_on:
+            status = "guard"
+        elif brake_on:
+            status = "brake"
+        else:
+            status = "trading"
         return {"active": True, "strategy": "FADESZ BP-Final",
                 "pos": self.pos, "pending": self.pending,
                 "qty_cap": self.qty_cap,
+                "status": status, "in_session": in_session,
+                "guard_on": guard_on, "brake_on": brake_on,
+                "day_trend_atrs": round(self.last_day_trend, 2),
                 "week_pnl": round(self.week_pnl, 2),
-                "week_brake_on": self.week_pnl <= -WEEK_BRAKE_USD,
                 "day_open_px": self.day_open_px,
                 "counters": dict(self.counters)}
 
@@ -280,6 +296,7 @@ class FadeszEngine:
         if self.day_open_px is not None and self.day_open_day == today \
                 and atr > 0:
             day_trend_atrs = abs(last_close - self.day_open_px) / atr
+        self.last_day_trend = day_trend_atrs
 
         # 2) position exit --------------------------------------------------
         if self.pos is not None:

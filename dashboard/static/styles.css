@@ -64,6 +64,12 @@ body {
 }
 .pill-paused { background: rgba(230, 103, 103, .15); color: var(--neg-text); }
 .pill-paused .dot { background: var(--neg-text); animation: none; }
+.pill-guard { background: rgba(233, 176, 90, .16); color: #e9b05a; }
+.pill-guard .dot { background: #e9b05a; animation: none; }
+.pill-brake { background: rgba(57, 135, 229, .16); color: #6aa8ef; }
+.pill-brake .dot { background: #6aa8ef; animation: none; }
+.pill-closed { background: rgba(138, 145, 168, .14); color: var(--muted, #8a91a8); }
+.pill-closed .dot { background: #8a91a8; animation: none; }
 @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
 .btn-pause {
