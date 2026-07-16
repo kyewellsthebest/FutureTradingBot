@@ -1,0 +1,115 @@
+{
+ "BP full (baseline)": {
+  "cfg": {},
+  "m": {
+   "usd_wk": 743,
+   "pos": 88,
+   "wd": -1450,
+   "ww": -1636,
+   "mdd": -2981,
+   "trwk": 64.6,
+   "sH": 322,
+   "wH": -838
+  }
+ },
+ "wb700 (round48 best)": {
+  "cfg": {
+   "weekbrake": 700.0
+  },
+  "m": {
+   "usd_wk": 702,
+   "pos": 88,
+   "wd": -1205,
+   "ww": -1636,
+   "mdd": -1876,
+   "trwk": 64.6,
+   "sH": 269,
+   "wH": -715
+  }
+ },
+ "qgate + wb700": {
+  "cfg": {
+   "qgate": true,
+   "weekbrake": 700.0
+  },
+  "m": {
+   "usd_wk": 695,
+   "pos": 88,
+   "wd": -1072,
+   "ww": -1707,
+   "mdd": -3608,
+   "trwk": 57.5,
+   "sH": 280,
+   "wH": -705
+  }
+ },
+ "qgate + wb1000": {
+  "cfg": {
+   "qgate": true,
+   "weekbrake": 1000.0
+  },
+  "m": {
+   "usd_wk": 721,
+   "pos": 81,
+   "wd": -1326,
+   "ww": -1428,
+   "mdd": -3696,
+   "trwk": 57.4,
+   "sH": 302,
+   "wH": -773
+  }
+ },
+ "qgate + wb700 + nd600": {
+  "cfg": {
+   "qgate": true,
+   "weekbrake": 700.0,
+   "nextday": 600.0
+  },
+  "m": {
+   "usd_wk": 671,
+   "pos": 81,
+   "wd": -1072,
+   "ww": -1485,
+   "mdd": -3302,
+   "trwk": 57.8,
+   "sH": 269,
+   "wH": -720
+  }
+ },
+ "qgate + wb700 + eq10/20": {
+  "cfg": {
+   "qgate": true,
+   "weekbrake": 700.0,
+   "eqgov": [
+    1000.0,
+    2000.0
+   ]
+  },
+  "m": {
+   "usd_wk": 633,
+   "pos": 81,
+   "wd": -1072,
+   "ww": -1016,
+   "mdd": -2568,
+   "trwk": 57.3,
+   "sH": 125,
+   "wH": -471
+  }
+ },
+ "qgate + wb500": {
+  "cfg": {
+   "qgate": true,
+   "weekbrake": 500.0
+  },
+  "m": {
+   "usd_wk": 629,
+   "pos": 77,
+   "wd": -1125,
+   "ww": -1461,
+   "mdd": -3638,
+   "trwk": 57.1,
+   "sH": 258,
+   "wH": -647
+  }
+ }
+}
