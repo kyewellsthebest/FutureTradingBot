@@ -1,0 +1,31 @@
+ROUND 56 - WEEK-ANCHOR AUDIT (triggered by the user's $2k cap question)
+=======================================================================
+BUG FOUND: all sims with week-scoped governors (rounds 48-55) computed
+the week id as days // 7d from the Unix epoch = THURSDAY-anchored
+weeks. The deployed engine uses ISO Monday weeks.
+
+ANCHOR ROBUSTNESS TEST (BP-Final, 28-wk tape, brake wb700):
+  anchor   $/wk   posW   MDD
+  Mon       508    71%  -4231   <- deployed reality
+  Tue       411    71%  -4084
+  Wed       654    86%  -2638
+  Thu       708    89%  -2512   <- the accidental sim anchor
+  Fri       477    75%  -4450
+  no brake  706    86%  -3730
+VERDICT: week brake benefit = anchoring luck. REMOVED from deployed
+engine (FADESZ_WEEK_BRAKE default 0).
+
+$2k WEEK PROFIT CAP (user proposal), no-brake config:
+  anchor  Mon 794 | Tue 611 | Wed 569 | Thu 616 | Fri 842  (base 706)
+VERDICT: sign flips with anchor -> noise. NOT added. (At cap-1 it
+never triggers anyway: max weekly peak $1,948.)
+
+CORRECTED BP-Final v2 PROFILE (28 wks incl. hostile, Monday reality):
+  full ladder: $706/wk | 86% pos weeks | avg day $152 | wd -2,131
+               MDD -3,730 | hostile week -237
+  cap-1:       $267/wk | 75% pos weeks | avg day  $58 | wd -1,162
+               MDD -2,406 | hostile week -534
+Unaffected genes (day-level, anchor-independent, still validated):
+trend-day guard 8xATR, exit-accel 10xATR, disaster stop 60pt, and the
+core fade. Prior wd -1,270 / MDD -2,512 quotes were Thu-brake
+flattered; the table above is the honest deployed expectation.

@@ -130,7 +130,7 @@ def sim54(g):
             continue
         if days[i] != cur_day:
             cur_day = days[i]; day_pnl = 0.0
-        wk_id = days[i] // 604_800_000_000_000
+        wk_id = (days[i] // 86_400_000_000_000 + 3) // 7   # Monday-anchored
         if wk_id != cur_wk:
             cur_wk = wk_id; wk_pnl = 0.0
         s = int(sig[i])
