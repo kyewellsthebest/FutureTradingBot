@@ -1,0 +1,26 @@
+ROUND 57 - HF GRIND HUNT (400-500 tr/wk mandate): FINAL VERDICT
+================================================================
+Families tested on 28-wk faithful tape (folds + hostile week):
+  VWAP-magnet (24 cfgs):       ALL NEGATIVE. Dead.
+  Micro-fade 15/30/60s clocks (384 cfgs): nothing in the 300-600
+    tr/wk band cleared $250/wk with pos>=70% and hostile>-400. The
+    fee wall (~$2.7/trade all-in) eats the sub-minute edge. Dead.
+  Strangle quoter, timer exits: all negative (adverse selection).
+  Strangle quoter, TARGET exits: spectacular on 2026 (x10/tgt20:
+    $1,815/wk @ 1 lot, 100% pos weeks, wd -270, hostile +3,896,
+    survives fee/latency stress) -- then EXECUTED by history:
+      2023: -$175/wk (32% pos)   MDD  -5,136
+      2024: -$185/wk (30% pos)   MDD -11,518
+      2025: -$397/wk (30% pos)   MDD -22,665, worst day -3,574
+    2-tick adversarial fill model: worse still.
+  VERDICT: the strangle is a pure 2026-regime artifact - a short-vol
+  reversion harvester that mints money in a hyper-reverting regime
+  and detonates in trending years. REJECTED for deployment.
+
+STRUCTURAL CONCLUSION (now proven with 430+ configs at HF):
+  At retail latency and $1.50/RT, no 400-500 tr/wk strategy on this
+  instrument clears its own commission bill across regimes. The
+  commission wall at 450 tr/wk is ~$675/wk plus slippage; multi-year
+  edges at that frequency do not exist in this data. The user's
+  "small constant wins" profile exists only as a regime lease with
+  catastrophic terms when the regime flips.
