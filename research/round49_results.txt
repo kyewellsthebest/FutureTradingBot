@@ -1,0 +1,31 @@
+ROUND 49 — NEW-EDGE HUNT (drawdown-first, faithful session rules)
+==================================================================
+Families: RIDE (trend-day ride), FLOWF (flow follow), DONCH
+(Donchian breakout), ORB (opening-range breakout), GAP (overnight
+gap). Market entries, 65ms, 1 adverse tick, $1.50/RT, flat by 20:55.
+
+DEAD: FLOWF (loses everywhere - momentum at retail latency confirmed
+dead again). DONCH (negative across grid). GAP fade (2026 ok, but
+2023 -6/wk, 2024 -40/wk on history = noise).
+
+ALIVE - ORB s60 (opening-range breakout, 60pt stop, ride to close,
+1 trade/day, ~4.7 tr/wk, 1 contract):
+  2026: $227/wk | 62% pos wks | worst day -$128 | ww -$618 | MAXDD -$1,008
+        folds [JanFeb +238, MarApr +238, May +28, JunJul +365]
+  2023: $18/wk | wd -$129 | MAXDD -$1,244
+  2024: $112/wk | wd -$163 | MAXDD -$3,160
+  2025: $110/wk | wd -$136 | MAXDD -$3,064
+  -> FIRST strategy in 49 rounds green in EVERY year of 3.5y data.
+  -> Worst day structurally capped (~$130/lot). Anti-correlated with
+     the fade (wins trend days).
+  -> Weakness: long losing streaks; $/wk-to-MAXDD ratio worse than
+     BP+brake; per-contract income modest.
+
+RIDE d5 s100: 2026 $220/wk wd -$222; history +186/+136 in 2024/25 but
+2023 -$52/wk. Partial pass - second-best different edge.
+
+COMPARISON at ~equal income (2026):
+  BP + week brake:      $702/wk  wd -$1,205  MAXDD -$1,876  88% pos wks
+  ORB s60 x3 MNQ flat:  $681/wk  wd   -$384  MAXDD -$3,024  62% pos wks
+  (in a 2024-type year ORB x3 would grind ~-$9k MAXDD at $336/wk;
+   BP-type fade years are handled by the kill-switch pause instead)
