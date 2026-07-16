@@ -1,0 +1,346 @@
+{
+ "BP-Final (bench)": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null
+  },
+  "m": {
+   "usd_wk": 708,
+   "avg_day": 152,
+   "pos_day": 54,
+   "pos_wk": 89,
+   "med_grn": 426,
+   "med_red": -256,
+   "wd": -1270,
+   "bd": 3396,
+   "mdd": -2512,
+   "hostile": 243
+  }
+ },
+ "lock 200": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 200.0
+  },
+  "m": {
+   "usd_wk": 266,
+   "avg_day": 57,
+   "pos_day": 63,
+   "pos_wk": 71,
+   "med_grn": 297,
+   "med_red": -351,
+   "wd": -1270,
+   "bd": 1002,
+   "mdd": -4272,
+   "hostile": -165
+  }
+ },
+ "lock 250": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 250.0
+  },
+  "m": {
+   "usd_wk": 267,
+   "avg_day": 58,
+   "pos_day": 62,
+   "pos_wk": 64,
+   "med_grn": 326,
+   "med_red": -351,
+   "wd": -1270,
+   "bd": 1002,
+   "mdd": -4401,
+   "hostile": -165
+  }
+ },
+ "lock 300": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 300.0
+  },
+  "m": {
+   "usd_wk": 315,
+   "avg_day": 68,
+   "pos_day": 58,
+   "pos_wk": 71,
+   "med_grn": 383,
+   "med_red": -304,
+   "wd": -1270,
+   "bd": 1002,
+   "mdd": -4208,
+   "hostile": 22
+  }
+ },
+ "lock 400": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 400.0
+  },
+  "m": {
+   "usd_wk": 289,
+   "avg_day": 62,
+   "pos_day": 56,
+   "pos_wk": 71,
+   "med_grn": 454,
+   "med_red": -293,
+   "wd": -1270,
+   "bd": 1002,
+   "mdd": -3970,
+   "hostile": 22
+  }
+ },
+ "lock 250 + floor 400": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 250.0,
+   "dfloor": 400.0
+  },
+  "m": {
+   "usd_wk": 117,
+   "avg_day": 25,
+   "pos_day": 57,
+   "pos_wk": 68,
+   "med_grn": 325,
+   "med_red": -449,
+   "wd": -755,
+   "bd": 1002,
+   "mdd": -4014,
+   "hostile": -82
+  }
+ },
+ "lock 250 + floor 500": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 250.0,
+   "dfloor": 500.0
+  },
+  "m": {
+   "usd_wk": 57,
+   "avg_day": 12,
+   "pos_day": 58,
+   "pos_wk": 61,
+   "med_grn": 325,
+   "med_red": -522,
+   "wd": -892,
+   "bd": 1002,
+   "mdd": -4286,
+   "hostile": -690
+  }
+ },
+ "lock 300 + floor 500": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 300.0,
+   "dfloor": 500.0
+  },
+  "m": {
+   "usd_wk": 52,
+   "avg_day": 11,
+   "pos_day": 55,
+   "pos_wk": 61,
+   "med_grn": 372,
+   "med_red": -514,
+   "wd": -892,
+   "bd": 1002,
+   "mdd": -4128,
+   "hostile": -504
+  }
+ },
+ "lock 300 + floor 600": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 300.0,
+   "dfloor": 600.0
+  },
+  "m": {
+   "usd_wk": 80,
+   "avg_day": 17,
+   "pos_day": 55,
+   "pos_wk": 64,
+   "med_grn": 395,
+   "med_red": -582,
+   "wd": -952,
+   "bd": 1002,
+   "mdd": -4298,
+   "hostile": -210
+  }
+ },
+ "lock 400 + floor 500": {
+  "cfg": {
+   "clock": 60,
+   "k": 10,
+   "a": 1.2,
+   "entry": [
+    false
+   ],
+   "guard": 8.0,
+   "xaccel": 10.0,
+   "dis": 60.0,
+   "ladder": [
+    2.0,
+    3.0
+   ],
+   "hold": 15,
+   "wb": 700.0,
+   "dcap": null,
+   "glday": null,
+   "dlock": 400.0,
+   "dfloor": 500.0
+  },
+  "m": {
+   "usd_wk": -9,
+   "avg_day": -2,
+   "pos_day": 52,
+   "pos_wk": 46,
+   "med_grn": 436,
+   "med_red": -514,
+   "wd": -892,
+   "bd": 960,
+   "mdd": -4108,
+   "hostile": -504
+  }
+ }
+}

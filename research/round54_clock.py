@@ -140,6 +140,10 @@ def sim54(g):
         q = 3 if mag[i] >= lb else (2 if mag[i] >= la else 1)
         if dcap is not None and day_pnl <= -dcap:
             q = 1
+        if g.get("dlock") is not None and day_pnl >= g["dlock"]:
+            continue
+        if g.get("dfloor") is not None and day_pnl <= -g["dfloor"]:
+            continue
         if wb is not None and wk_pnl <= -wb:
             q = 1
         if passive:
