@@ -301,13 +301,11 @@ def main():
               "nd": None, "eqg": None, "dcap": None}]
     pop = seeds + [rand_genome() for _ in range(300 - len(seeds))]
     cache = {}; genomes = {}
-    ctx = get_context("fork")
-    pool = ctx.Pool(4)
     bench = None
-    for gen in range(100):
+    for gen in range(60):
         todo = [g for g in pop if gkey(g) not in cache]
-        for g, res in zip(todo, pool.map(eval_genome, todo)):
-            cache[gkey(g)] = res; genomes[gkey(g)] = g
+        for g in todo:
+            cache[gkey(g)] = eval_genome(g); genomes[gkey(g)] = g
         if bench is None:
             bench = cache[gkey(bp_brake)]
             print(f"BP+brake benchmark: {bench}", flush=True)
@@ -327,7 +325,11 @@ def main():
                 ch = mutate(ch)
             children.append(ch)
         pop = elite + children + [rand_genome() for _ in range(45)]
-    pool.close(); pool.join()
+        ck = sorted(cache.items(), key=lambda kv: -kv[1][0])[:15]
+        with open("research/round50_checkpoint.json", "w") as f:
+            json.dump({"gen": gen, "evals": len(cache),
+                       "top": [{"fit": v, "genome": genomes[k]}
+                               for k, v in ck]}, f, default=str, indent=1)
     lb = sorted(cache.items(), key=lambda kv: -kv[1][0])
     print(f"\n=== TOP 15 of {len(cache)} (dominance target: "
           f">$702/wk AND MDD >-1876) ===")
