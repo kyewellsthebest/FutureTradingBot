@@ -50,7 +50,11 @@ ENTRY_LO, ENTRY_HI = 14.0, 20.73     # UTC hours; exit lands pre-close
 DISASTER_PT = 60.0           # was 100; worst single trade ~ -$130/lot
 GUARD_ATR = 8.0              # no new entries once |px - day open| > 8*ATR
 XACCEL_ATR = 10.0            # bail mid-hold if the day turns into a runner
-WEEK_BRAKE_USD = float(os.environ.get("FADESZ_WEEK_BRAKE", "700"))
+# Week brake DISABLED by default: the round-56 anchor audit showed its
+# backtest benefit was an artifact of week-boundary alignment (helped
+# only on Thu-anchored weeks, hurt on Mon/Tue/Fri). Set FADESZ_WEEK_BRAKE
+# to a positive dollar amount to re-enable.
+WEEK_BRAKE_USD = float(os.environ.get("FADESZ_WEEK_BRAKE", "0"))
 PT_VALUE = 2.0               # $/pt per MNQ
 COMMISSION_RT = 1.50
 
@@ -129,7 +133,7 @@ class FadeszEngine:
         hr = now.hour + now.minute / 60.0
         in_session = ENTRY_LO <= hr < 20.92 and now.weekday() < 5
         guard_on = self.last_day_trend > GUARD_ATR
-        brake_on = self.week_pnl <= -WEEK_BRAKE_USD
+        brake_on = WEEK_BRAKE_USD > 0 and self.week_pnl <= -WEEK_BRAKE_USD
         if not in_session:
             status = "closed"
         elif guard_on:
@@ -356,7 +360,7 @@ class FadeszEngine:
         side = 1 if mom10 < 0 else -1
         fmag = abs(mom10) / atr
         qty = 3 if fmag >= LADDER[1] else (2 if fmag >= LADDER[0] else 1)
-        if self.week_pnl <= -WEEK_BRAKE_USD:
+        if WEEK_BRAKE_USD > 0 and self.week_pnl <= -WEEK_BRAKE_USD:
             if qty > 1:
                 self.counters["brake_caps"] += 1
             qty = 1
