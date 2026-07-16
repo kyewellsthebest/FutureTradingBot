@@ -359,6 +359,7 @@ async function pollPause() {
 }
 function setPaused(p) {
   const btn = $("btn-pause"), pill = $("pill-status");
+  enginePaused = !!p;
   btn.dataset.paused = p ? "1" : "0";
   btn.textContent = p ? "Resume" : "Pause";
   pill.className = "pill " + (p ? "pill-paused" : "pill-live");
@@ -382,21 +383,45 @@ document.querySelectorAll("[data-dl]").forEach((b) =>
     window.location.href = af("/api/download/" + b.dataset.dl);
   }));
 
+let enginePaused = false;
+function setStatusPill(te) {
+  const pill = $("pill-status");
+  if (!pill || enginePaused) return;   // pause state owns the pill
+  const st = (te && te.status) || "trading";
+  const cfg = {
+    trading: ["pill-live",   "LIVE"],
+    guard:   ["pill-guard",  "GUARD — trend day"],
+    brake:   ["pill-brake",  "BRAKE — 1 lot"],
+    closed:  ["pill-closed", "CLOSED"],
+  }[st] || ["pill-live", "LIVE"];
+  pill.className = "pill " + cfg[0];
+  pill.innerHTML = `<span class="dot"></span>${cfg[1]}`;
+}
+
 async function pollEngine() {
   try {
     const r = await fetch(af("/api/data"));
     const j = await r.json();
     const te = (j && (j.trend_engine ||
       (j.live_snapshot && j.live_snapshot.trend_engine))) || null;
+    setStatusPill(te);
     const kv = $("engine-kv");
     if (!te) { kv.innerHTML = `<div class="muted small">Engine snapshot unavailable.</div>`; return; }
     const c = te.counters || {};
     const row = (k, v) => `<div class="row"><span>${k}</span><b>${v}</b></div>`;
+    const money = (v) => (v == null ? "—" :
+      `${v < 0 ? "-" : "+"}$${Math.abs(v).toLocaleString()}`);
     kv.innerHTML =
       row("Strategy", te.strategy || "—") +
+      row("Size cap", te.qty_cap != null ? `${te.qty_cap} MNQ` : "—") +
+      row("Week P&L (bot)", money(te.week_pnl)) +
+      row("Trend-day meter", te.day_trend_atrs != null
+        ? `${te.day_trend_atrs} / 8 ATR${te.guard_on ? " — GUARD ON" : ""}` : "—") +
+      row("Week brake", te.brake_on ? "ON — 1 lot until Monday" : "off") +
       row("Position", te.pos ? `${te.pos.side > 0 ? "LONG" : "SHORT"} ${te.pos.qty} @ ${te.pos.entry_px}` : "flat") +
       row("Pending order", te.pending ? `${te.pending.side > 0 ? "BUY" : "SELL"} ${te.pending.qty} @ ${te.pending.price}` : "none") +
       row("Signals", c.signals ?? "—") +
+      row("Guard skips", c.guard_skips ?? 0) +
       row("Filled / canceled", `${c.filled ?? "—"} / ${c.canceled ?? "—"}`) +
       row("Exits", c.exits ?? "—") +
       row("Order errors", c.order_errors ?? "—") +

@@ -142,6 +142,8 @@ def sim54(g):
             q = 1
         if g.get("dlock") is not None and day_pnl >= g["dlock"]:
             continue
+        if g.get("wlock") is not None and wk_pnl >= g["wlock"]:
+            continue
         if g.get("dfloor") is not None and day_pnl <= -g["dfloor"]:
             continue
         if wb is not None and wk_pnl <= -wb:
