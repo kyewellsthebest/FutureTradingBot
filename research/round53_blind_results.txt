@@ -1,0 +1,31 @@
+ROUND 53 — TRUE BLIND: Jul 7-15 2026 (7 sessions, never seen by any
+search, fetched by user after all candidates were frozen)
+=================================================================
+                      total   07-07  07-08  07-09  07-10  07-13  07-14  07-15
+BP (deployed form)     -449   -1885    270   1404    -98    224    316   -680
+BP + week brake        -360   -1405   -120   1404    -98    224    316   -680
+HYBRID + brake        -2037   -1370   -448   1262    -29   -142   -114  -1196
+HYBRID-X              -2146   -1467   -546   1887   -132   -372   -322  -1194
+ORB s60 x1             -750    -122   -122     -8   -124   -129   -123   -122
+ORB s60 x3            -2252
+
+VERDICTS
+--------
+1. The week was a weak-reversion regime (rev gauge had flipped to
+   +0.098 trending at Jul 5) - hostile to every candidate.
+2. HYBRID / HYBRID-X: REJECTED. Lost 4.5x more than BP on first
+   virgin tape. The ride leg got whipsawed on the V-shaped Jul 7 and
+   Jul 15 (fade stops out, ride enters with "trend", trend reverses =
+   double loss). Their backtest edge over BP did not survive one
+   fresh week -> selection-bias debt collected.
+3. ORB: stopped out 7 days straight (its known grind mode). Not a
+   switch candidate.
+4. BP (closest to deployed): sim -449 on the full stretch; the LIVE
+   deployed bot (passive fills) actually made +1,292 over Jul 9-15,
+   beating its own market-entry sim - live execution edge confirmed
+   again. Champion survives its own blind week better than every
+   challenger built to replace it.
+5. $500/day at 1-3 MNQ: no candidate made even $0/day on this tape.
+   52 rounds + virgin-week test say the honest path to $500/day is
+   the compounding plan (size scaling with capital), not a magic
+   config at current size.
