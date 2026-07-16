@@ -119,7 +119,15 @@ def sim52(g, D):
                 fill = px[xe] - R.TICK * s
                 k_exit = xe
             pnl = ((fill - entry) * s * R.PT - R.FEES) * q
-            if addon is not None and q < 3:
+            amode = g.get("addon_mode")
+            addon_ok = addon is not None and q < 3
+            if addon_ok and amode == "q1":
+                addon_ok = q == 1
+            if addon_ok and amode == "posday":
+                addon_ok = day_pnl >= 0
+            if addon_ok and amode == "q1posday":
+                addon_ok = q == 1 and day_pnl >= -200
+            if addon_ok:
                 seg = px[fi + 1:k_exit]
                 lvl = entry - addon * s
                 hh = np.flatnonzero(seg * s <= lvl * s + 1e-9) \

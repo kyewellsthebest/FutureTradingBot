@@ -1,0 +1,379 @@
+{
+ "HYB+wb bench (ride 1x EOD)": {
+  "cfg": {
+   "wb": 700.0
+  },
+  "m": {
+   "usd_wk": 710,
+   "avg_day": 150,
+   "pos": 73,
+   "wd": -1274,
+   "bd": 3448,
+   "mdd": -2420,
+   "trwk": 59.1,
+   "sH": 385,
+   "wH": -491
+  }
+ },
+ "ride 2x": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2
+  },
+  "m": {
+   "usd_wk": 787,
+   "avg_day": 168,
+   "pos": 81,
+   "wd": -1274,
+   "bd": 3904,
+   "mdd": -3684,
+   "trwk": 59.1,
+   "sH": 490,
+   "wH": -451
+  }
+ },
+ "ride 3x": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3
+  },
+  "m": {
+   "usd_wk": 854,
+   "avg_day": 182,
+   "pos": 65,
+   "wd": -1275,
+   "bd": 4796,
+   "mdd": -4122,
+   "trwk": 59.1,
+   "sH": 568,
+   "wH": -383
+  }
+ },
+ "ride 1x trail30": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_trail": 30.0
+  },
+  "m": {
+   "usd_wk": 687,
+   "avg_day": 145,
+   "pos": 81,
+   "wd": -1168,
+   "bd": 3144,
+   "mdd": -2970,
+   "trwk": 68.3,
+   "sH": 226,
+   "wH": -733
+  }
+ },
+ "ride 2x trail30": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0
+  },
+  "m": {
+   "usd_wk": 664,
+   "avg_day": 140,
+   "pos": 77,
+   "wd": -1264,
+   "bd": 3298,
+   "mdd": -3532,
+   "trwk": 68.3,
+   "sH": 190,
+   "wH": -741
+  }
+ },
+ "ride 2x trail40": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 40.0
+  },
+  "m": {
+   "usd_wk": 545,
+   "avg_day": 115,
+   "pos": 65,
+   "wd": -1189,
+   "bd": 3260,
+   "mdd": -4028,
+   "trwk": 68.0,
+   "sH": 218,
+   "wH": -747
+  }
+ },
+ "ride 3x trail30": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3,
+   "ride_trail": 30.0
+  },
+  "m": {
+   "usd_wk": 647,
+   "avg_day": 137,
+   "pos": 77,
+   "wd": -1264,
+   "bd": 3451,
+   "mdd": -4128,
+   "trwk": 68.3,
+   "sH": 137,
+   "wH": -755
+  }
+ },
+ "ride 3x trail40": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3,
+   "ride_trail": 40.0
+  },
+  "m": {
+   "usd_wk": 516,
+   "avg_day": 109,
+   "pos": 65,
+   "wd": -1202,
+   "bd": 3396,
+   "mdd": -4706,
+   "trwk": 68.0,
+   "sH": 184,
+   "wH": -745
+  }
+ },
+ "ride 2x trail30 re2": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "ride_re": 2
+  },
+  "m": {
+   "usd_wk": 668,
+   "avg_day": 141,
+   "pos": 77,
+   "wd": -1230,
+   "bd": 3262,
+   "mdd": -3512,
+   "trwk": 72.5,
+   "sH": 202,
+   "wH": -762
+  }
+ },
+ "ride 3x trail40 re2": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3,
+   "ride_trail": 40.0,
+   "ride_re": 2
+  },
+  "m": {
+   "usd_wk": 478,
+   "avg_day": 101,
+   "pos": 54,
+   "wd": -1365,
+   "bd": 3277,
+   "mdd": -4366,
+   "trwk": 71.7,
+   "sH": 268,
+   "wH": -695
+  }
+ },
+ "addon 8": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 8.0
+  },
+  "m": {
+   "usd_wk": 912,
+   "avg_day": 193,
+   "pos": 69,
+   "wd": -1700,
+   "bd": 4902,
+   "mdd": -2982,
+   "trwk": 59.1,
+   "sH": 456,
+   "wH": -675
+  }
+ },
+ "addon 12": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 917,
+   "avg_day": 194,
+   "pos": 73,
+   "wd": -1638,
+   "bd": 5034,
+   "mdd": -2697,
+   "trwk": 59.1,
+   "sH": 418,
+   "wH": -639
+  }
+ },
+ "hold2 25@2.5": {
+  "cfg": {
+   "wb": 700.0,
+   "hold2": [
+    2.5,
+    25
+   ]
+  },
+  "m": {
+   "usd_wk": 266,
+   "avg_day": 57,
+   "pos": 58,
+   "wd": -1554,
+   "bd": 1684,
+   "mdd": -3947,
+   "trwk": 53.6,
+   "sH": 194,
+   "wH": -511
+  }
+ },
+ "ride2 trail30 + addon12": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 862,
+   "avg_day": 182,
+   "pos": 81,
+   "wd": -1607,
+   "bd": 4884,
+   "mdd": -3965,
+   "trwk": 68.3,
+   "sH": 218,
+   "wH": -930
+  }
+ },
+ "ride2 trail30 + hold2": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "hold2": [
+    2.5,
+    25
+   ]
+  },
+  "m": {
+   "usd_wk": 199,
+   "avg_day": 42,
+   "pos": 58,
+   "wd": -1192,
+   "bd": 1824,
+   "mdd": -3706,
+   "trwk": 61.5,
+   "sH": 100,
+   "wH": -720
+  }
+ },
+ "ride2 trail30 + glday300": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "glday": [
+    300.0,
+    0.5
+   ]
+  },
+  "m": {
+   "usd_wk": 663,
+   "avg_day": 140,
+   "pos": 77,
+   "wd": -1264,
+   "bd": 4096,
+   "mdd": -3876,
+   "trwk": 68.3,
+   "sH": 159,
+   "wH": -756
+  }
+ },
+ "ride3 trail40 + addon12": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3,
+   "ride_trail": 40.0,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 703,
+   "avg_day": 149,
+   "pos": 69,
+   "wd": -1628,
+   "bd": 4982,
+   "mdd": -4748,
+   "trwk": 68.0,
+   "sH": 203,
+   "wH": -990
+  }
+ },
+ "FULL: r2 t30 re2 addon12": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "ride_re": 2,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 817,
+   "avg_day": 173,
+   "pos": 77,
+   "wd": -1669,
+   "bd": 4848,
+   "mdd": -4256,
+   "trwk": 72.5,
+   "sH": 299,
+   "wH": -1002
+  }
+ },
+ "FULL: r3 t40 re2 addon12": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 3,
+   "ride_trail": 40.0,
+   "ride_re": 2,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 662,
+   "avg_day": 140,
+   "pos": 69,
+   "wd": -1732,
+   "bd": 4864,
+   "mdd": -4695,
+   "trwk": 71.7,
+   "sH": 335,
+   "wH": -955
+  }
+ },
+ "FULL+glday": {
+  "cfg": {
+   "wb": 700.0,
+   "ride_q": 2,
+   "ride_trail": 30.0,
+   "ride_re": 2,
+   "addon": 12.0,
+   "glday": [
+    300.0,
+    0.5
+   ]
+  },
+  "m": {
+   "usd_wk": 761,
+   "avg_day": 161,
+   "pos": 73,
+   "wd": -1669,
+   "bd": 5298,
+   "mdd": -4452,
+   "trwk": 72.5,
+   "sH": 273,
+   "wH": -1032
+  }
+ }
+}

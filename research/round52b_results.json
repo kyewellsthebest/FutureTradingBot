@@ -1,0 +1,145 @@
+{
+ "HYB+wb bench": {
+  "cfg": {
+   "wb": 700.0
+  },
+  "m": {
+   "usd_wk": 710,
+   "avg_day": 150,
+   "pos": 73,
+   "wd": -1274,
+   "bd": 3448,
+   "mdd": -2420,
+   "trwk": 59.1,
+   "sH": 385,
+   "wH": -491
+  }
+ },
+ "addon12 (raw)": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0
+  },
+  "m": {
+   "usd_wk": 917,
+   "avg_day": 194,
+   "pos": 73,
+   "wd": -1638,
+   "bd": 5034,
+   "mdd": -2697,
+   "trwk": 59.1,
+   "sH": 418,
+   "wH": -639
+  }
+ },
+ "addon12 q1-only": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0,
+   "addon_mode": "q1"
+  },
+  "m": {
+   "usd_wk": 825,
+   "avg_day": 174,
+   "pos": 73,
+   "wd": -1488,
+   "bd": 3850,
+   "mdd": -2645,
+   "trwk": 59.1,
+   "sH": 462,
+   "wH": -587
+  }
+ },
+ "addon12 posday-only": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0,
+   "addon_mode": "posday"
+  },
+  "m": {
+   "usd_wk": 816,
+   "avg_day": 172,
+   "pos": 77,
+   "wd": -1326,
+   "bd": 5034,
+   "mdd": -2323,
+   "trwk": 59.1,
+   "sH": 410,
+   "wH": -638
+  }
+ },
+ "addon12 q1+day>-200": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0,
+   "addon_mode": "q1posday"
+  },
+  "m": {
+   "usd_wk": 786,
+   "avg_day": 166,
+   "pos": 69,
+   "wd": -1286,
+   "bd": 3850,
+   "mdd": -2562,
+   "trwk": 59.1,
+   "sH": 460,
+   "wH": -585
+  }
+ },
+ "addon15 q1-only": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 15.0,
+   "addon_mode": "q1"
+  },
+  "m": {
+   "usd_wk": 729,
+   "avg_day": 154,
+   "pos": 77,
+   "wd": -1448,
+   "bd": 3694,
+   "mdd": -2645,
+   "trwk": 59.1,
+   "sH": 432,
+   "wH": -560
+  }
+ },
+ "addon12 q1 + ride2": {
+  "cfg": {
+   "wb": 700.0,
+   "addon": 12.0,
+   "addon_mode": "q1",
+   "ride_q": 2
+  },
+  "m": {
+   "usd_wk": 898,
+   "avg_day": 190,
+   "pos": 77,
+   "wd": -1488,
+   "bd": 4307,
+   "mdd": -3670,
+   "trwk": 59.1,
+   "sH": 553,
+   "wH": -518
+  }
+ },
+ "addon12 q1 + ride2 + wb500": {
+  "cfg": {
+   "wb": 500.0,
+   "addon": 12.0,
+   "addon_mode": "q1",
+   "ride_q": 2
+  },
+  "m": {
+   "usd_wk": 854,
+   "avg_day": 181,
+   "pos": 73,
+   "wd": -1488,
+   "bd": 4307,
+   "mdd": -3518,
+   "trwk": 59.1,
+   "sH": 489,
+   "wH": -513
+  }
+ }
+}
