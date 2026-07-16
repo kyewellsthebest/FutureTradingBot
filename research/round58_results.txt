@@ -1,0 +1,26 @@
+ROUND 58 - FREQUENCY FRONTIER: THE DEFINITIVE MAP
+==================================================
+Mandate: most tr/wk with smallest wins/losses at ~$500/wk; beat 200.
+
+Sweep 1: 864 configs (fade, 60s+30s clocks, a 0.6-1.1, holds 3-12min,
+  dis 40/60, passive+market, flat-1, guard 8), bar = 180+ tr/wk,
+  $400+/wk, pos>=75%, hostile>-400:      ZERO SURVIVORS.
+Sweep 2: same 864 at relaxed bar (100+ tr/wk, $300+, pos>=70,
+  hostile>-500):                          ZERO QUALIFIERS.
+Sweep 3: the missing cell - hold 15 (the alpha horizon) with low
+  thresholds a 0.8-1.2: two discoveries that close the question:
+  a) FREQUENCY IS EXIT-BOUND, NOT SIGNAL-BOUND. Even at a=0.8
+     (signals nearly continuous) the busy chain caps at ~68 tr/wk:
+     one position at a time x 15-min holds = the strategy's
+     metabolic rate. More trades REQUIRES shorter holds; holds
+     3-12min destroy the edge (verified in all 864).
+  b) SUB-THRESHOLD SIGNALS ARE NET-NEGATIVE FILLER. Lowering a from
+     1.2 to 0.8 ADDS trades but REMOVES money ($252 -> $142/wk at
+     flat-1): weak signals displace strong ones via the busy chain.
+
+CONCLUSION (rounds 57+58, ~1,760 configs):
+  The honest frequency ceiling on this instrument at retail costs is
+  ~65 tr/wk flat / ~107 tr/wk laddered - set by the 15-minute alpha
+  horizon, which is physics, not preference. 200+ tr/wk with real
+  multi-year profit does not exist here. BP-Final IS the maximum-
+  frequency honest strategy this market offers.
