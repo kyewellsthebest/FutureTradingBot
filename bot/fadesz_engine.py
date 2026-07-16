@@ -1,8 +1,12 @@
-"""FADESZ+P — the deployed strategy. Passive-entry sized overextension
-fade, the champion of the 39-round hunt (research/round39_results.txt):
-since Mar 2026: $1,330/wk at ~110 trades/wk, worst week -$400, 82%
-positive weeks; blind Jun-Jul: $2,344/wk, 100% positive weeks. All at
-tick-walked fills with $1.50/RT.
+"""FADESZ BP-Final — the deployed strategy. Passive-entry sized
+overextension fade (champion of rounds 1-54) plus the four defensive
+genes validated in rounds 46-54 on 28 weeks incl. the Jul 7-15
+whipsaw week and 2.5y history regime pools:
+  trend-day guard (8xATR), exit-accel (10xATR), 60pt disaster stop,
+  week brake (week P&L <= -$700 -> 1 lot until Monday).
+Full-ladder sim: $708/wk, 89% positive weeks, worst day -$1,270,
+whipsaw week +$243. Deployed at FADESZ_MAX_QTY=1 (cap-1 ramp; user
+raises the cap manually as capital grows).
 
 Rules (exactly the validated simulation):
   - signal on each CLOSED 1m bar, 14:00 <= UTC < 20:44 (entry cutoff so
@@ -41,7 +45,14 @@ OFFSET_PT = 1.0
 CANCEL_S = 180
 HOLD_MIN = 15
 ENTRY_LO, ENTRY_HI = 14.0, 20.73     # UTC hours; exit lands pre-close
-DISASTER_PT = 100.0
+# --- BP-Final defensive genes (rounds 46-54, validated on 28 weeks
+# incl. the Jul 7-15 whipsaw week + 2.5y history regime pools) --------
+DISASTER_PT = 60.0           # was 100; worst single trade ~ -$130/lot
+GUARD_ATR = 8.0              # no new entries once |px - day open| > 8*ATR
+XACCEL_ATR = 10.0            # bail mid-hold if the day turns into a runner
+WEEK_BRAKE_USD = float(os.environ.get("FADESZ_WEEK_BRAKE", "700"))
+PT_VALUE = 2.0               # $/pt per MNQ
+COMMISSION_RT = 1.50
 
 
 def strategy_mode() -> str:
@@ -57,14 +68,19 @@ class FadeszEngine:
         self.symbol_fn = symbol_fn
         self.paper_enter = paper_enter
         self.paper_close = paper_close
-        self.qty_cap = int(os.environ.get("FADESZ_MAX_QTY", "3"))
+        self.qty_cap = int(os.environ.get("FADESZ_MAX_QTY", "1"))
         self.pos: Optional[dict] = None      # side, qty, entry_px, exit_due
         self.pending: Optional[dict] = None  # order_id, side, qty, price, ts
         self.last_bar_ts: Optional[str] = None
         self.first_cycle_done = False
+        self.day_open_day: Optional[str] = None   # UTC date of RTH open px
+        self.day_open_px: Optional[float] = None  # first close >= 14:00 UTC
+        self.week_id: Optional[str] = None        # ISO year-week (UTC)
+        self.week_pnl = 0.0                       # realized $ this week
         self.counters = {"signals": 0, "placed": 0, "filled": 0,
                          "canceled": 0, "exits": 0, "order_errors": 0,
-                         "disaster": 0}
+                         "disaster": 0, "guard_skips": 0, "xaccel_exits": 0,
+                         "brake_caps": 0}
         self._load()
 
     # ---- persistence -----------------------------------------------------
@@ -80,6 +96,10 @@ class FadeszEngine:
                 self.pos = d.get("pos")
                 self.pending = d.get("pending")
                 self.last_bar_ts = d.get("last_bar_ts")
+                self.day_open_day = d.get("day_open_day")
+                self.day_open_px = d.get("day_open_px")
+                self.week_id = d.get("week_id")
+                self.week_pnl = float(d.get("week_pnl", 0.0))
                 self.counters.update(d.get("counters", {}))
                 if self.pos or self.pending:
                     logger.warning(f"[fadesz] resumed pos={self.pos} "
@@ -92,6 +112,9 @@ class FadeszEngine:
             self._path().write_text(json.dumps({
                 "pos": self.pos, "pending": self.pending,
                 "last_bar_ts": self.last_bar_ts,
+                "day_open_day": self.day_open_day,
+                "day_open_px": self.day_open_px,
+                "week_id": self.week_id, "week_pnl": self.week_pnl,
                 "counters": self.counters}))
         except Exception as e:
             logger.debug(f"[fadesz] save: {e!r}")
@@ -101,8 +124,12 @@ class FadeszEngine:
         return bool(self.pos) or bool(self.pending)
 
     def snapshot(self) -> dict:
-        return {"active": True, "strategy": "FADESZ+P",
+        return {"active": True, "strategy": "FADESZ BP-Final",
                 "pos": self.pos, "pending": self.pending,
+                "qty_cap": self.qty_cap,
+                "week_pnl": round(self.week_pnl, 2),
+                "week_brake_on": self.week_pnl <= -WEEK_BRAKE_USD,
+                "day_open_px": self.day_open_px,
                 "counters": dict(self.counters)}
 
     # ---- broker I/O ----------------------------------------------------------
@@ -228,10 +255,31 @@ class FadeszEngine:
 
         if bars_1m is None or len(bars_1m) < 25:
             return
+        import numpy as np
         c = bars_1m["close"].to_numpy()
         h = bars_1m["high"].to_numpy()
         l = bars_1m["low"].to_numpy()
         last_close = float(c[-1])
+        r1 = np.abs(np.diff(c[-21:]))          # 20 close-to-close moves
+        trr = np.maximum(h[-20:] - l[-20:], r1)
+        atr = float(np.mean(trr))
+
+        # week rollover (ISO week, UTC) for the week brake ---------------
+        wk = f"{now.isocalendar().year}-W{now.isocalendar().week:02d}"
+        if wk != self.week_id:
+            self.week_id = wk
+            self.week_pnl = 0.0
+
+        # day-open tracking for the trend-day guard ----------------------
+        hr_now = now.hour + now.minute / 60.0
+        today = now.date().isoformat()
+        if hr_now >= 14.0 and self.day_open_day != today:
+            self.day_open_day = today
+            self.day_open_px = last_close
+        day_trend_atrs = 0.0
+        if self.day_open_px is not None and self.day_open_day == today \
+                and atr > 0:
+            day_trend_atrs = abs(last_close - self.day_open_px) / atr
 
         # 2) position exit --------------------------------------------------
         if self.pos is not None:
@@ -239,7 +287,10 @@ class FadeszEngine:
             side = int(self.pos["side"])
             adverse = (self.pos["entry_px"] - last_close) * side
             eod = (now.hour == 20 and now.minute >= 55) or now.hour == 21
-            if now >= due or eod or adverse >= DISASTER_PT:
+            xaccel = day_trend_atrs > XACCEL_ATR
+            if xaccel:
+                self.counters["xaccel_exits"] += 1
+            if now >= due or eod or xaccel or adverse >= DISASTER_PT:
                 if adverse >= DISASTER_PT:
                     self.counters["disaster"] += 1
                 action = "Sell" if side > 0 else "Buy"
@@ -249,6 +300,13 @@ class FadeszEngine:
                                      None, "fadesz_exit") is not None
                 if ok:
                     self.counters["exits"] += 1
+                    try:
+                        realized = ((last_close - float(self.pos["entry_px"]))
+                                    * side * PT_VALUE
+                                    - COMMISSION_RT) * int(self.pos["qty"])
+                        self.week_pnl += realized
+                    except Exception:
+                        pass
                     if self.paper_close is not None:
                         try:
                             self.paper_close(exit_px=last_close, now=now)
@@ -269,18 +327,22 @@ class FadeszEngine:
         if not (ENTRY_LO <= hr < ENTRY_HI):
             self._save()
             return
-        import numpy as np
         mom10 = last_close - float(c[-11])
-        r1 = np.abs(np.diff(c[-21:]))          # 20 close-to-close moves
-        trr = np.maximum(h[-20:] - l[-20:], r1)
-        atr = float(np.mean(trr))
         if atr <= 0 or abs(mom10) <= THRESH_ATR * atr:
+            self._save()
+            return
+        if day_trend_atrs > GUARD_ATR:
+            self.counters["guard_skips"] += 1
             self._save()
             return
         self.counters["signals"] += 1
         side = 1 if mom10 < 0 else -1
         fmag = abs(mom10) / atr
         qty = 3 if fmag >= LADDER[1] else (2 if fmag >= LADDER[0] else 1)
+        if self.week_pnl <= -WEEK_BRAKE_USD:
+            if qty > 1:
+                self.counters["brake_caps"] += 1
+            qty = 1
         qty = min(qty, self.qty_cap)
         price = last_close - OFFSET_PT * side
         action = "Buy" if side > 0 else "Sell"
