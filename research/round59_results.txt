@@ -1,0 +1,20 @@
+ROUND 59 - CONCURRENCY UNLOCK + SESSION EXPANSION: VERDICT
+===========================================================
+A. Overlapping slots (K=2-4, spacing 0-300s): frequency mechanically
+   unlocked (232 tr/wk at K4) but P&L collapses (-$122..+$173/wk) and
+   tails explode (wd -$4,500, MDD -$10k). Slots stack into the SAME
+   move: correlated entries, collective losses. The one-position rule
+   was an accidental quality filter.
+B. EU morning 07-13 UTC: NO EDGE (-$94..-$307/wk, 25-36% pos weeks).
+   The fade is a US-session phenomenon. Door closed.
+C. Event-dedup slots (fresh-overextension arming): all negative
+   (K2/K3 -$73..-$160/wk); even K1-dedup underperforms plain champion
+   (repeat signals within an armed cluster carry real edge).
+
+FREQUENCY QUESTION - FINAL (rounds 57-59, ~2,300 configs):
+   65 tr/wk flat / ~107 laddered is the market's payout rate for this
+   edge at our costs. Higher frequency exists mechanically but not
+   profitably: more trades = weaker trades or correlated trades,
+   every time, on every clock, in every session, with every entry
+   style. Closed until the physics change (new data, new instrument,
+   or queue-priority infrastructure).
