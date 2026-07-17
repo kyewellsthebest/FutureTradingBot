@@ -48,7 +48,7 @@ def build_tape():
     wf = []
     for f in sorted(glob.glob("/tmp/claude-0/weekticks/MNQU6_202607*.parquet")):
         day = f[-16:-8]
-        if day < "20260707" or day >= "20260716":
+        if day < "20260707" or day >= "20260717":
             continue
         t = pd.read_parquet(f)
         wf.append((np.asarray(t["ts"].to_numpy(), dtype=np.int64),
