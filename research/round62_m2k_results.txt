@@ -1,0 +1,22 @@
+ROUND 62 - SECOND INSTRUMENT (M2K RUSSELL): VERDICT
+====================================================
+Data: M2KU6 ticks Jun 11 - Jul 16 (5+ wks dense; Apr-May empty -
+U6 wasn't front month). Zero-refit transfer: NQ BP-Final params
+frozen, ATR-scaled dollar knobs, faithful fills.
+
+RESULT: -$107/wk, 33% pos weeks, 44% trade WR over 362 trades -
+during the exact stretch when the same strategy on MNQ was printing
+its best run of the year (+$2,344/wk blind Jun-Jul). NO TRANSFER.
+
+STRUCTURAL REASON (deeper than "didn't work"): cost-to-volatility.
+Median RTH ATR on M2K = 1.64pt = $8.20/contract. All-in friction
+~$3/trade = 37% of one ATR. On MNQ: ~$3.50 on a ~$40 ATR = 9%.
+Micro Russell charges 4x more friction per unit of movement - the
+edge could exist in the prices and still be unharvestable at micro
+scale. Same math doomed MES (~12%). MNQ is not just where the edge
+lives; it is the only micro index future whose cost structure lets
+a 15-minute reversion edge survive at all.
+
+Second-instrument door: CLOSED at micro scale. Would reopen only at
+full-size NQ (same instrument, 10x point) or with sub-$1 all-in
+costs (prop/member rates).
