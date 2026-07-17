@@ -1,0 +1,27 @@
+ROUND 61 - THE TRUE DOUBLING: FINAL
+====================================
+2,700 configs x 2 fee models = 5,400 evaluations (72 min compute).
+Deep passive offsets 1.5-3.0pt, 3 clocks, 5 momentum windows,
+12 bracket geometries, dual fees ($1.50 worst / $0.78 real-broker).
+Dream detector verified by synthetic self-test before the run
+(fires correctly on a fabricated 50%WR/2:1/295tr-wk series).
+
+DREAM FLAGS: 0 of 5,400.
+BEST CONFIG of 2,700 at worst-case fees: -$36/wk. All negative.
+
+THE MEASURED FEASIBILITY FRONTIER (best realized win/loss ratio the
+market ever printed, at >=150 tr/wk, best-case fees):
+   WR 35-39%: 1.31   (loses $581/wk)
+   WR 40-44%: 1.31   (loses $528/wk)
+   WR 45-49%: 1.05   (loses $940/wk)
+   WR 50-54%: 0.88   (loses $518/wk)   <- dream spec needs 2.00 here
+   WR 55-59%: 0.60
+   WR 60-64%: 0.59
+   WR 65-69%: 0.35
+   WR 70-74%: 0.35
+The user's spec (50% WR, 2:1 ratio) requires a point at (50, 2.0).
+The market's measured maximum at 50% is 0.88 - less than half -
+and every point on the entire frontier loses money.
+
+HF hunt cumulative (rounds 57-61): ~4,600 configs / ~7,300
+evaluations. Zero survivors. Zero dream flags. CLOSED.
