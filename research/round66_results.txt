@@ -1,0 +1,55 @@
+ROUND 65-66 - QUOTE-PRIMARY STRATEGY HUNT: VERDICT
+===================================================
+Mandate: completely different strategy with quotes as the PRIMARY
+signal; latency upgraded as far as needed; every instrument.
+Data: 22 MNQ quote days (Jun 8 - Jul 7), 13 with tick overlap after
+the June->September contract roll ate Jun 16-26 tick coverage.
+(Quotes exist ONLY for MNQ - other instruments need fetches.)
+
+ROUND 65 - WHAT THE BOOK ACTUALLY KNOWS (decay map, 22 days,
+250ms grid, ~2.2M observations, latency 0-500ms):
+  - Microprice tilt / short imbalance DO predict direction - at 1-5
+    second horizons, worth 0.07-0.15pt per event. Fees + spread cost
+    ~1.25pt. Under water 5x even at 0ms latency.
+  - VACUUM continuation (thin+wide book, go with move): +0.55pt at
+    0ms decaying to +0.13pt at 500ms. Latency-sensitive AND under
+    cost at every speed.
+  - Quote-rate is a superb VOLATILITY forecaster (IC +0.34 out to
+    15m) but knows nothing about direction.
+  - Two latency-PROOF candidates survived to round 66:
+    IMB60-FADE (-11pt drift against extreme 60s book imbalance by
+    5m) and THIN-MOMO (+8.2pt with the move during sustained thin
+    book), both flat from 0ms to 500ms reaction time.
+
+ROUND 66 - FAITHFUL SIMS OF THE SURVIVORS (tick fills, $1.50/RT,
+market and passive arms, 40+ configs each):
+  - THIN-MOMO: DEAD. Positive cells entirely outlier-driven -
+    clip the top 3 trades and every configuration goes negative.
+  - IMB60-FADE: the trap that justified this whole process. Headline
+    +$790-1,021/wk, 63-65% WR, 100% positive days, latency-proof...
+    and the daily breakdown shows ALL of it in Jun 8-11, the roll
+    transition week, when the September book was thin and lopsided
+    (Jun 9 alone: +$1,341 of +$2,054). In the post-roll liquid book
+    - today's actual market - |imb60| p90 collapses from >0.08 to
+    ~0.02 and the strategy barely fires: +$36, +$3, +$31, -$30.
+  - Recalibrated post-roll grid (th 0.02-0.06 x hold 2/5/15m, 7
+    days): negative in 14 of 15 cells; the one positive cell is 3
+    lucky trades (clip3 = -$1). IMB60-FADE is a ROLL-WEEK ARTIFACT.
+
+THE LATENCY QUESTION, ANSWERED WITH NUMBERS: upgrading reaction
+speed (200ms -> 65ms -> 0ms) unlocks nothing. The fast book signals
+are worth fractions of the ~1.25pt round-trip cost even at zero
+latency - they are for firms paying $0.10/side with colocation. The
+slow book signals don't need speed. No infrastructure upgrade is
+justified by measurement.
+
+STATE OF THE HUNT: on available data, no quote-primary strategy
+survives honest testing. This is NOT the final word - the sample is
+13 overlap days, 4 of them roll-distorted. The verdict hardens or
+breaks with: MNQU6 ticks Jun 8-26 (aligns ticks with the quotes we
+already have), MNQ quotes Jul 8+ (extends the clean post-roll
+window), MES/MGC quotes+ticks (only instruments whose friction
+leaves any room). Quote-rate-as-vol-forecast is the one genuinely
+new asset from this round - a possible future GATE for sizing/
+pausing FADESZ, to be tested when the post-roll quote sample is big
+enough to split.
