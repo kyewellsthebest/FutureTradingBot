@@ -1,0 +1,31 @@
+ROUND 63 - INSTRUMENTS 3/4/5 (GOLD, DOW, BITCOIN): VERDICT
+===========================================================
+Zero-refit transfer of BP-Final (frozen NQ params, ATR-scaled dollar
+knobs, faithful fills, $1.50/RT). Same template as round 62 (M2K).
+
+COST-TO-VOLATILITY SCREEN (all-in friction as % of median 1m RTH ATR):
+  MNQ   9%   <- the only PASS; the deployed edge lives here
+  MES  12%   FAIL (round 62 precedent)
+  MGC  18%   FAIL  ($3.50 friction on a $19.95 ATR)
+  MYM  28%   FAIL  ($2.50 on $8.88)
+  M2K  37%   FAIL  (round 62)
+  MBT  52%   FAIL  ($2.50 on $4.83) - worst cost structure of all
+
+SIM RESULTS (worst-case fills):
+  MGC gold  562 tr (62/wk)  WR 44%  -$209/wk  33% pos wks  MDD -$2,331
+            weekly: +447 -497 -429 -802 +206 +1229 -135 -1023 -879
+  MYM dow   376 tr (63/wk)  WR 47%   -$17/wk  50% pos wks  MDD -$639
+  MBT btc   225 tr (56/wk)  WR 40%  -$124/wk  25% pos wks  MDD -$556
+
+CONCLUSION: no transfer, anywhere. Gold - the one with genuinely
+different physics - is the most violent failure (its weekly swings are
+big in both directions, meaning the 15-min reversion signal itself is
+noise there, not just fee-eaten). Dow and bitcoin are simply
+unharvestable at micro scale: friction eats 28-52% of every minute's
+range before the edge gets a vote.
+
+FIVE INSTRUMENTS TESTED, FIVE FAILURES, ONE LAW:
+MNQ is not just where the edge lives - it is the only micro future
+whose cost structure lets a 15-minute reversion edge survive at all.
+The second-instrument door is CLOSED at micro scale. It reopens only
+at full-size NQ (10x point value, same fee) or sub-$1 member rates.
