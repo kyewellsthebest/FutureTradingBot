@@ -1,0 +1,50 @@
+ROUND 64 - QUOTES A/B ON BP-FINAL: MEASURED VERDICT
+====================================================
+Question (user): "if we implement quotes into our strategy, does that
+make our win rate higher / the strategy more accurate?"
+Method: every BP-Final trade in the real-quote window Jun 8 - Jul 8
+(131 trades quoted of 208 generated; 23 fell on days without quote
+files) tagged with the actual top-of-book state at its signal moment.
+Same trades, split by book condition. Tercile splits + 20,000-sample
+bootstrap on every feature. No theory.
+
+1. BID/ASK IMBALANCE ("knowing the bids"): NO.
+   Fast (~1.5s), slow (~15s), and instantaneous imbalance - aligned
+   with the fade direction or against it - all noise-compatible
+   (bootstrap 0.85-0.96, bar is 0.975). Win rate sits in the same
+   40-50% band in every bucket, and the fast/slow splits aren't even
+   monotonic (middle tercile best). Also structural: summed over even
+   1.5s, MNQ book imbalance almost never leaves 0.47-0.53 - there is
+   nearly nothing to condition on. Confirms round 38: at 65ms retail
+   latency the imbalance signal is spent before we can touch it.
+
+2. BOOK STRESS: THE ONE REAL SIGNAL - and it's inverted vs intuition.
+   - TOP DEPTH (bootstrap P=0.019, SIGNIFICANT): thin-book trades
+     avg +$44.85 (WR 50%) vs thick-book -$28.33 (WR 39%).
+   - SPREAD (P=0.970, just under the bar, same story): wide-spread
+     trades avg +$51.97 (WR 52.6%) vs tight-spread -$14.00.
+   Physics: a wide, thin book at the signal moment = a genuine
+   liquidity vacuum = the panic move we fade overshot = harder snap-
+   back. A tight, deep book = the move is real two-sided business =
+   less edge. The "safe-looking" book is the bad one.
+
+3. HONEST CAVEATS (why this is a LEAD, not a deploy):
+   - 131 trades, one 4.5-week window, ~8 hypotheses tested; one hit
+     at p<0.025 is exactly what multiple comparisons can gift you.
+   - A depth/spread gate keeps only ~1/3 of trades - frequency drops
+     to ~20/wk, so even if real it reshapes the strategy materially.
+   - Quote-rate feature unusable (bursty duplicate timestamps in the
+     feed); depth cuts (<=4.3 / >8 contracts) are regime-dependent.
+
+DECISION: do NOT gate the deployed bot on this yet. Path to verdict:
+accumulate more evidence cheaply - Tradovate already streams live
+bid/ask to the bot, so a logging-only patch can record spread+depth
+at every FADESZ signal during the ongoing validation weeks, building
+the confirmation dataset for free with zero trading-logic change.
+Re-test the depth gate when the sample reaches ~400+ signals.
+
+Bottom line for the user: quotes do NOT raise win rate via imbalance
+(measured, not guessed). Book STRESS at the signal moment is the one
+quote signal with real promise - it marks which fades have the most
+snap-back - but on 131 trades it stays in the "watch and verify"
+column, not in the live engine.
