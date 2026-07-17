@@ -38,6 +38,9 @@ def attach(recs):
         bs = t.column("bid_size").to_numpy().astype(np.float64)
         asz = t.column("ask_size").to_numpy().astype(np.float64)
         del t
+        # CRITICAL: quote files are stored newest-first - sort ascending
+        o = np.argsort(qts, kind="stable")
+        qts, bid, ask, bs, asz = qts[o], bid[o], ask[o], bs[o], asz[o]
         for sig_ts, s, pnl, exit_ts in by_day[d]:
             j = int(np.searchsorted(qts, sig_ts + LAT_NS, "right")) - 1
             if j < W_SLOW:
