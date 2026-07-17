@@ -48,3 +48,33 @@ instruments, every latency 0-500ms):
 
 FINAL TEST - QUOTE-RATE GATE ON BP-FINAL (max sample, 40 quote
 days): see appended result below.
+
+FINAL TEST RESULT - QUOTE-RATE GATE ON BP-FINAL (294 trades, 40
+quote days Jun 8 - Jul 17, tercile split, 20k bootstrap):
+  calm book  (<376 q/s):  n=98  WR 52.0%  avg +$27.79  tot +$2,724
+  mid        (376-1346):  n=98  WR 49.0%  avg  -$2.49  tot   -$244
+  frantic    (>1346 q/s): n=98  WR 36.7%  avg -$20.95  tot -$2,054
+  bootstrap P = 0.015 -> SIGNIFICANT. Monotonic in both WR and avg$.
+  Same direction as the 185-trade subsample (P=0.036) - the effect
+  strengthened as the sample grew, which mirages don't do.
+
+MECHANISM: quote-rate is the book's volatility forecast (IC +0.34
+out to 15m). A frantic book at signal time means the panic move is
+still being fueled - the fade gets run over. A calm book means the
+move is exhausted - the snap-back works. This is the first quote
+signal that (a) survives the corrected pipeline, (b) grows stronger
+with sample size, (c) has a mechanism we independently measured.
+
+WHAT A GATE WOULD HAVE DONE on these 40 days: skip the frantic
+tercile -> keep 196/294 trades, P&L +$426 -> +$2,480, and the win
+rate of kept trades rises ~4 points. CAVEATS: 294 trades is one
+regime window; there are NO historical quotes to run the 2.5-year
+judgment on; and 6 features were tested (P=0.015 with prior
+replication survives that, but barely).
+
+RECOMMENDED PATH (no trading change without explicit approval):
+add SHADOW LOGGING to the live engine - count quotes/sec from the
+existing Tradovate feed, record it at every FADESZ signal, mark
+would-have-skipped trades on the dashboard. Zero behavior change.
+After 3-4 validation weeks the gate gets a live-sample verdict, and
+only then - on the user's word - becomes a real filter.
