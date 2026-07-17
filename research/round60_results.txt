@@ -1,0 +1,24 @@
+ROUND 60 - DREAM-SPEC MEGA-SWEEP: VERDICT
+==========================================
+560 new configs across four never-tested families (bracket micro-
+fades on 2 clocks, bracketed strangles, level-touch fades incl.
+round-number magnets, power-hour concentrates), faithful fills,
+guard, folds + hostile week.
+
+DREAM DETECTOR (WR 45-55% AND realized win/loss ratio >= 1.5 AND
+tr/wk >= 150, profitability NOT required): fired ZERO times in 560.
+
+SURVIVORS (>=150 tr/wk, >=$400/wk, pos>=70, hostile>-400): ZERO.
+Best config in the entire sweep: -$59/wk.
+
+THE MEASURED LAW (now proven on the bracket structure itself):
+a nominal 6pt-target / 10pt-stop bracket realizes avg win $10.5 vs
+avg loss -$22.8 (ratio 0.46, not 0.60) - costs compress the win and
+inflate the loss - and the win rate the market assigns never
+compensates. Across every (target, stop) geometry tested, realized
+ratios ran 0.25-0.81. A 1.5+ ratio at ~50% win rate at 150+ tr/wk
+does not exist in any corner of bracket space on this instrument at
+these costs. The dream spec's coordinates lie outside the market's
+feasible set - measured directly, not asserted.
+
+HF hunt cumulative (rounds 57-60): ~2,940 configs, zero survivors.
