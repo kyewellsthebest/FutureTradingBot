@@ -1,0 +1,50 @@
+ROUNDS 67-68 - 50-DAY MULTI-INSTRUMENT QUOTE HUNT: VERDICT
+===========================================================
+New data: MNQ quotes extended to 40 days (Jun 8 - Jul 17), MES
+quotes 31 days (Jun 17 - Jul 17), MES ticks to Jul 8, MNQ ticks to
+Jul 16. Clean post-roll ticks+quotes overlap: 14 days.
+
+ROUND 67 - CLEAN-WINDOW RE-TEST (no roll distortion possible):
+  - IMB60-FADE: negative in ALL 12 recalibrated cells on 14 clean
+    days ($/wk -11 to -434). The round 66 kill is confirmed on
+    double the sample: the June profit was the roll-week book, not
+    a strategy.
+  - IMB60 events in the liquid regime actually show the OPPOSITE
+    sign (weak continuation, +1.0pt at 60s, latency-flat, n=312).
+    Simmed the follow-version too (18 configs): best cell +$121/wk
+    with clip3 -$132 -> every positive cell is 3 lucky trades. Dead.
+  - VACUUM in the clean regime flips to reversal at minutes horizon
+    (-9pt at 5m) on n=36 events - sign-unstable across regimes,
+    untradeable. THIN10: n=7 events. Gone entirely in liquid books.
+  - S2 THIN-MOMO: 0-11 events on 14 days. The signal barely exists
+    outside the roll window.
+
+ROUND 68 - MES SOLO + CROSS-BOOK (the untried avenue):
+  - MES's book knows its own future BETTER than MNQ's: microprice
+    tilt IC +0.198 at 1s (vs MNQ +0.039), decaying to zero by 15m.
+    Same wall: the knowledge lives at 1-5 seconds, worth fractions
+    of a point against ~1.2pt round-trip retail cost. This is the
+    clearest picture yet of WHERE book alpha lives: with colocated
+    firms paying cents, not with us.
+  - CROSS-BOOK: MES book pressure does NOT lead MNQ price. IC flat
+    zero at every horizon 1s-15m (23 paired days); event tables
+    (15k tilt events, 8.6k imbalance events) show +-0.1pt noise at
+    50% hit. Book-level lead-lag joins price-level lead-lag
+    (rounds 33/36) in the closed-doors list.
+
+THE COMPLETE QUOTE MAP (rounds 38, 64-68, ~60 quote-days, 2
+instruments, every latency 0-500ms):
+  1. Direction IS in the book - at 1-5s horizons, always, on both
+     instruments. Unharvestable below ~$0.30 all-in cost per side.
+  2. Nothing slower survives: every multi-second book signal tested
+     is either a regime artifact (roll-week imbalance), outlier
+     luck (thin-book momentum), or zero (cross-book).
+  3. Latency upgrades buy nothing: every viable-looking edge was
+     latency-FLAT (and still failed on cost or regime), every
+     latency-SENSITIVE edge was already dead at 0ms.
+  4. The one durable quote asset: quote-rate as a volatility
+     forecaster (IC +0.34 to 15m). Direction-blind; a candidate
+     GATE for the deployed strategy, tested in the final section.
+
+FINAL TEST - QUOTE-RATE GATE ON BP-FINAL (max sample, 40 quote
+days): see appended result below.

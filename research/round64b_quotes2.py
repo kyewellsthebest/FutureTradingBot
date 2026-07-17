@@ -96,7 +96,7 @@ def main():
     prep_clock(K.D[60], K.D["ts"])
     recs = sim_bp_trades(K.D["ts"], K.D["px"], K.D[60])
     lo = pd.Timestamp("2026-06-08", tz="UTC").value
-    hi = pd.Timestamp("2026-07-09", tz="UTC").value
+    hi = pd.Timestamp("2026-07-18", tz="UTC").value
     recs = [r for r in recs if lo <= r[0] < hi]
     K.D.clear()
     rows = attach(recs)
