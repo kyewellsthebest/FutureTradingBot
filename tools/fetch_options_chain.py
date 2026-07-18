@@ -90,6 +90,14 @@ def fetch_chain():
 def main():
     d = dt.date.today().strftime("%Y%m%d")
     df = fetch_chain()
+    # underlying close (chain snapshot leaves it empty on Starter)
+    try:
+        j = get(f"{BASE}/v2/aggs/ticker/{UNDERLYING}/prev")
+        px = j["results"][0]["c"]
+        df["underlying"] = df["underlying"].fillna(px)
+        print(f"underlying {UNDERLYING} prev close: {px}")
+    except Exception as e:
+        print(f"underlying fetch failed ({e}) - continuing")
     n_oi = int(df["open_interest"].notna().sum())
     n_g = int(df["gamma"].notna().sum())
     print(f"contracts: {len(df)} | with OI: {n_oi} | "
