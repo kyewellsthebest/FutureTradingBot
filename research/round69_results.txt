@@ -1,0 +1,38 @@
+ROUND 69 - QUOTES INSIDE THE STRATEGY (user's framing): VERDICT
+================================================================
+Arms tested on 14 clean post-roll overlap days (a hostile stretch -
+baseline BP itself ran -$438/wk here, incl. the red validation wk):
+
+  PANIC-EXIT (bail when book gets frantic mid-trade): WORSE in all
+    3 variants (-446 to -854/wk). It cuts the winners: the fade's
+    profit comes from holding through the last shake.
+  STRESS-OFFSET (deeper limit when spread wide): NEUTRAL - spread
+    is rarely stressed enough at signal time to move the needle.
+  CALM-WAIT (signal fires normally; the limit order waits within
+    its 180s window until 1s quote-rate < k x 10-min median):
+    IMPROVES on baseline across the whole k grid 0.4-0.7
+    (-96/+257/-15/-36 vs -438), keeping ~95% of trades. Best cells
+    ~+$400-700/wk better than baseline in this window.
+
+MECHANISM DECOMPOSITION (the important part):
+  - Pure-timing control (wait for calm but keep the ORIGINAL price
+    level): WORSE than baseline (-346 to -945). The gain is NOT
+    from timing.
+  - The gain comes from RE-ANCHORING: while waiting out the panic,
+    price falls further, and the limit re-references lower ->
+    effectively an ADAPTIVE deeper offset that deepens only while
+    panic persists.
+  - Fixed off=4.0 control nearly replicates it (-41/wk) in this
+    window - but the 2.5-year tape already ruled that deep fixed
+    offsets lose long-run (round 43: off 1.0 won). The adaptive
+    version is exactly what deep-fixed is not: deep only when the
+    book says the knife is still falling.
+
+HONEST STATUS: calm-wait is the second real quote product (after
+the quote-rate gate - same mechanism family: the book's panic gauge
+timing our liquidity provision). It cannot face the 2.5-year
+judgment (no historical quotes). 14 days, bumpy k-surface, hostile-
+regime window: NOT deployable evidence. Same path as the gate:
+SHADOW-LOG live (record 1s quote-rate at signal + through the entry
+window at every FADESZ signal) -> one logging patch validates BOTH
+the gate and calm-wait on real sessions with zero trading change.
