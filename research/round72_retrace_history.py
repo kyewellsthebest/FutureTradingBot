@@ -144,31 +144,56 @@ def main():
     del ts26, px26, C26, K.D["ts"], K.D["px"]
     K.D.clear(); gc.collect()
     print(f"2026 sims done ({time.time()-t0:.0f}s)", flush=True)
-    # ---------- 2023-2025 history
-    t = pq.read_table("data/tick/nq_ticks_2p5y.parquet",
-                      columns=["ts", "price"])
-    tsH = t.column("ts").to_numpy()
-    pxH = pd.to_numeric(pd.Series(t.column("price").to_numpy()),
-                        errors="coerce").to_numpy(np.float64)
-    del t; gc.collect()
-    okm = np.isfinite(pxH)
-    tsH, pxH = tsH[okm], pxH[okm]
-    o = np.argsort(tsH, kind="stable")
-    tsH, pxH = tsH[o], pxH[o]
-    wd = (tsH // 86_400_000_000_000 + 4) % 7
-    keep = wd < 5
-    tsH, pxH = tsH[keep], pxH[keep]
-    del o, wd, keep, okm; gc.collect()
-    CH = prep(tsH, pxH)
-    print(f"history ready: {len(tsH):,} ticks "
-          f"({time.time()-t0:.0f}s)", flush=True)
+    # ---------- 2023-2025 history, memory-frugal: bucket by year
+    pf = pq.ParquetFile("data/tick/nq_ticks_2p5y.parquet")
+    buckets = {}
+    for batch in pf.iter_batches(batch_size=8_000_000,
+                                 columns=["ts", "price"]):
+        bt = batch.column("ts").to_numpy()
+        bp = batch.column("price").to_numpy().astype(np.float32)
+        yrs = bt // 31_536_000_000_000_000  # coarse year bucketing
+        for y in np.unique(yrs):
+            m_ = yrs == y
+            buckets.setdefault(int(y), []).append(
+                (bt[m_], bp[m_]))
+    print(f"history batched ({time.time()-t0:.0f}s)", flush=True)
+    trades_by_cfg = {}
+    for y in sorted(buckets):
+        tsY = np.concatenate([a for a, _ in buckets[y]])
+        pxY = np.concatenate([b for _, b in buckets[y]]) \
+            .astype(np.float64)
+        buckets[y] = None; gc.collect()
+        o = np.argsort(tsY, kind="stable")
+        tsY, pxY = tsY[o], pxY[o]
+        del o
+        okm = np.isfinite(pxY)
+        wd = (tsY // 86_400_000_000_000 + 4) % 7
+        keep = okm & (wd < 5)
+        tsY, pxY = tsY[keep], pxY[keep]
+        del okm, wd, keep; gc.collect()
+        if len(tsY) < 1_000_000:
+            continue
+        CY = prep(tsY, pxY)
+        yr_lab = pd.to_datetime(tsY[0]).year
+        print(f"  chunk {yr_lab}: {len(tsY):,} ticks "
+              f"({time.time()-t0:.0f}s)", flush=True)
+        for g in GRID:
+            nm = (f"m{g['m']} L{g['L']} r{g['r']} t{g['tgt']} "
+                  f"s{g['stop']}")
+            p, idx = sim_retrace(tsY, pxY, CY, g)
+            a = trades_by_cfg.setdefault(nm, ([], []))
+            a[0].append(p); a[1].append(idx)
+        del tsY, pxY, CY; gc.collect()
     print(f"\n{'config':<26} {'yr':>5} {'n':>6} {'tr/wk':>6} "
           f"{'WR%':>5} {'ratio':>5} {'$/wk':>6} {'posW%':>5} "
           f"{'wd':>7}", flush=True)
     allrows = {}
     for g in GRID:
         nm = f"m{g['m']} L{g['L']} r{g['r']} t{g['tgt']} s{g['stop']}"
-        p, idx = sim_retrace(tsH, pxH, CH, g)
+        ps, idxs = trades_by_cfg.get(nm, ([], []))
+        p = np.concatenate(ps) if ps else np.array([])
+        idx = idxs[0].append(idxs[1:]) if len(idxs) > 1 else \
+            (idxs[0] if idxs else pd.DatetimeIndex([], tz="UTC"))
         rows = year_rows(p, idx) + res26.get(nm, [])
         allrows[nm] = rows
         for (yr, n_, tw, wr, ra, uw, pw, wdm) in rows:
