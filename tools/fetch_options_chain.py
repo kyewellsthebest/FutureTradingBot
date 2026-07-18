@@ -28,9 +28,17 @@ import time
 import pandas as pd
 import requests
 
-KEY = os.environ.get("POLYGON_API_KEY", "")
+KEY = sys.argv[1] if len(sys.argv) > 1 else \
+    os.environ.get("POLYGON_API_KEY", "")
 if not KEY:
-    sys.exit("set POLYGON_API_KEY first")
+    try:
+        KEY = input("paste your Polygon API key and press "
+                    "Enter: ").strip()
+    except EOFError:
+        KEY = ""
+if not KEY:
+    sys.exit("no key given - run: python3 fetch_options_chain.py "
+             "YOUR_KEY")
 BASE = "https://api.polygon.io"
 UNDERLYING = "QQQ"
 OUTDIR = os.environ.get("OPT_OUTDIR", ".")
