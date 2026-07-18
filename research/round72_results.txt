@@ -1,0 +1,29 @@
+ROUND 72 - RETRACE FAMILY vs 2.5-YEAR HISTORY: VERDICT
+=======================================================
+Round 71's only retail-positive clean-slate family (user's original
+retrace idea: trend leg -> passive limit at r% pullback -> 15/8-ish
+bracket) faced the full judgment: 36 configs x 2023/2024/2025/2026,
+280M history ticks + 62M 2026 ticks, faithful fills, $1.50/RT.
+
+RESULT: 0 of 36 configs ALL-GREEN. Flagship (m1.5 L15 r0.3 t15 s8):
+  2023 -$78/wk | 2024 -$12/wk | 2025 -$57/wk | 2026 -$8/wk
+  (the +$176/wk round-71 fortnight was variance)
+WR is eerily stable at 38.6-40.3% every year, ratio 1.47-1.49 -
+the bracket geometry fixes the shape; there is NO alpha in the
+entry. Gross EV per trade almost exactly equals the fee.
+
+THE USEFUL AUTOPSY: this is the first HF family that is a FEE-LINE
+STRADDLER rather than deeply negative (previous HF attempts:
+-$300 to -$2,000/wk). At 120-209 tr/wk:
+  $1.50/RT  -> -$8 to -$115/wk       dead
+  ~$0.78/RT -> ~breakeven            no margin of safety
+  $0.35-0.60 (member/lease/volume) -> ~+$100-300/wk/contract  alive
+FILED AS: dormant asset, viability condition "all-in < ~$0.80/RT".
+Wakes up if account size ever justifies a seat lease / volume tier.
+Diversification value then: bracket-momentum shape, uncorrelated
+with the deployed fade.
+
+Round 71/72 close the clean-slate sweep on current data. Remaining
+open fronts: GEX dataset (building daily from Jul 18, Options
+Starter), VIX 2.5y regime test (awaiting file upload), shadow
+logging for gate + calm-wait (awaiting user go).
