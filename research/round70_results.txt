@@ -1,0 +1,49 @@
+ROUND 70 - THE QUOTES x STRATEGY MATRIX: COMPLETE MAP
+======================================================
+User asks: (1) old high-frequency guardless strategy + quotes;
+(2) every remaining combination role of quotes + ticks.
+Bench: 14 clean post-roll overlap days (hostile stretch - deployed
+BP baseline -$399 to -438/wk here), faithful fills, $1.50/RT.
+
+OLD (guardless, no disaster) x quotes:
+  OLD plain           -$104/wk  90.7 tr/wk  WR 52%
+  OLD + gate          -$81 to -175 (relative-threshold gate is
+                      toothless - skips ~1 trade; see note below)
+  OLD + calm-wait     -$424/wk  <- HURTS without a tail cap:
+                      adaptive deepening into uncapped trend days
+                      = deeper knife-catching. Mechanism confirmed
+                      by OLD+dis60: calm-wait then improves
+                      (-398 -> -161). Calm-wait REQUIRES the tail
+                      already capped (guard and/or disaster stop).
+  NOTE: OLD beat BP on this particular fortnight (-104 vs -399).
+  Do not over-read: the guard won over 28 weeks of tape; one
+  hostile fortnight where guardless wins is regime noise, and none
+  of the OLD variants make money here anyway.
+
+BP x quotes (the deployed strategy):
+  BP CALM-WAIT        -$1 to +$32/wk   (vs -438 plain), posD 67%
+  BP GATE+WAIT        +$101/wk         best cell in the matrix
+  BP HOLDMOD 15->25m  -$556  (15-min alpha horizon law holds AGAIN)
+  BP WIDESTOP 60->90  no effect
+  QSCALE offset (mechanical deepening by qrate, no waiting):
+                      -$452 to -511 <- WORSE than plain. The wait
+                      is essential: the edge comes from the market
+                      falling further while you wait for calm
+                      confirmation, not from a bigger offset.
+
+GATE IMPLEMENTATION NOTE: the relative form (qrate > g x 10-min
+median) is toothless - sustained panic raises the median and
+normalizes itself away. The real gate (round 64d, P=0.015) uses
+absolute levels (~>1,350 q/s = skip). Deployable calibration needs
+live shadow data.
+
+COMBINATION ROLES NOW TESTED (rounds 38, 64-70 - the full space):
+standalone quote triggers | static gates (abs + rel) | calm-wait
+entries | pure-timing entries | continuous offset scaling | stress
+offsets | panic exits | hold modulation | stop modulation | cross-
+instrument book lead | both strategy generations +/- guard +/- dis.
+
+THE SURVIVING SYSTEM: deployed BP-Final + CALM-WAIT entries
+(+ absolute-calibrated GATE), pending live shadow validation. On
+the hostile fortnight it converts -$438/wk into +$101/wk with 67%
+positive days at ~62 tr/wk. That is the quote campaign's product.

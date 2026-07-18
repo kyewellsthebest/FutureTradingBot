@@ -1,0 +1,130 @@
+{
+ "OLD plain": {
+  "n": 254,
+  "usd_wk": -104,
+  "wr": 52,
+  "clip3": -1664,
+  "posd": 42,
+  "wd": -721
+ },
+ "OLD GATE g=1.5": {
+  "n": 248,
+  "usd_wk": -175,
+  "wr": 53,
+  "clip3": -1864,
+  "posd": 42,
+  "wd": -712
+ },
+ "OLD GATE g=2.0": {
+  "n": 253,
+  "usd_wk": -81,
+  "wr": 53,
+  "clip3": -1600,
+  "posd": 42,
+  "wd": -721
+ },
+ "OLD GATE g=3.0": {
+  "n": 254,
+  "usd_wk": -95,
+  "wr": 52,
+  "clip3": -1640,
+  "posd": 42,
+  "wd": -721
+ },
+ "OLD CALM-WAIT": {
+  "n": 253,
+  "usd_wk": -424,
+  "wr": 50,
+  "clip3": -2444,
+  "posd": 50,
+  "wd": -776
+ },
+ "OLD GATE+WAIT g=2.0": {
+  "n": 253,
+  "usd_wk": -375,
+  "wr": 51,
+  "clip3": -2306,
+  "posd": 50,
+  "wd": -776
+ },
+ "OLD GATE+WAIT g=3.0": {
+  "n": 253,
+  "usd_wk": -372,
+  "wr": 51,
+  "clip3": -2298,
+  "posd": 50,
+  "wd": -776
+ },
+ "BP plain": {
+  "n": 184,
+  "usd_wk": -399,
+  "wr": 47,
+  "clip3": -2350,
+  "posd": 50,
+  "wd": -996
+ },
+ "BP GATE g=1.5": {
+  "n": 182,
+  "usd_wk": -529,
+  "wr": 46,
+  "clip3": -2713,
+  "posd": 42,
+  "wd": -987
+ },
+ "BP GATE g=2.0": {
+  "n": 184,
+  "usd_wk": -399,
+  "wr": 47,
+  "clip3": -2350,
+  "posd": 50,
+  "wd": -996
+ },
+ "BP GATE g=3.0": {
+  "n": 184,
+  "usd_wk": -399,
+  "wr": 47,
+  "clip3": -2350,
+  "posd": 50,
+  "wd": -996
+ },
+ "BP CALM-WAIT": {
+  "n": 175,
+  "usd_wk": 32,
+  "wr": 49,
+  "clip3": -1143,
+  "posd": 67,
+  "wd": -1047
+ },
+ "BP GATE+WAIT g=2.0": {
+  "n": 174,
+  "usd_wk": 101,
+  "wr": 50,
+  "clip3": -952,
+  "posd": 67,
+  "wd": -1047
+ },
+ "BP GATE+WAIT g=3.0": {
+  "n": 175,
+  "usd_wk": 73,
+  "wr": 50,
+  "clip3": -1028,
+  "posd": 67,
+  "wd": -1047
+ },
+ "BP HOLDMOD 15->25 calm": {
+  "n": 170,
+  "usd_wk": -556,
+  "wr": 44,
+  "clip3": -2872,
+  "posd": 50,
+  "wd": -811
+ },
+ "BP WIDESTOP 60->90 frantic": {
+  "n": 184,
+  "usd_wk": -399,
+  "wr": 47,
+  "clip3": -2350,
+  "posd": 50,
+  "wd": -996
+ }
+}
