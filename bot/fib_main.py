@@ -609,6 +609,14 @@ class FibRuntime:
                     paper_enter=_paper_enter, paper_close=_paper_close)
                 logger.warning("[fadesz] FADESZ+P ACTIVE on paper+broker "
                                f"(mode={_mode}); old strategy DISABLED")
+                try:
+                    from bot.levelride_engine import LevelrideEngine
+                    self.levelride = LevelrideEngine()
+                    logger.warning("[levelride] LADDER-3 PAPER shadow "
+                                   "engine active (no broker orders)")
+                except Exception as e:
+                    self.levelride = None
+                    logger.warning(f"[levelride] init failed: {e!r}")
             elif _mode in ("stack", "mirror"):
                 from bot.broker_stack_engine import BrokerStackEngine
                 if self.tradovate_orders is not None and _mode == "stack":
@@ -1262,6 +1270,11 @@ class FibRuntime:
                 self.trend_engine.on_cycle(self._bars_1m, now)
             except Exception as e:
                 logger.debug(f"trend engine cycle: {e!r}")
+        if getattr(self, "levelride", None) is not None:
+            try:
+                self.levelride.on_cycle(self._bars_1m, now)
+            except Exception as e:
+                logger.debug(f"levelride cycle: {e!r}")
         # Persist tracking state to disk every ~10s (cycle * 2s = 10s
         # when in CYCLE_FLAT_SECONDS=2). Cheap atomic JSON write. If
         # the bot crashes / Railway redeploys, we recover within
