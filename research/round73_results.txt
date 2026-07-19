@@ -1,0 +1,32 @@
+ROUND 73 - DEALER-GAMMA (GEX) FROM 2Y RECONSTRUCTED OPTIONS: VERDICT
+=====================================================================
+Data: 2y QQQ options daily bars (132k contracts, 2.0M contract-days)
+fetched via GitHub Actions. Build: underlying from put-call parity
+(500 days, sane 475->695 path), 1.16M BS IV inversions, gamma per
+contract-day. No historical OI exists anywhere at this tier, so two
+proxies tested; BP-Final daily P&L re-simmed 2024-07 -> 2026-07
+(417 overlap days) as the target.
+
+PROXY 1 (daily-volume weighted): FAILS the mechanism check
+(corr(lag-1 NGP, |move|) = +0.05, theory demands negative).
+Its regime nulls are therefore uninformative. Discarded.
+
+PROXY 2 (cumulative-volume synthetic OI): mechanism flips to the
+correct sign (-0.072) but weak. Regime results, lag-1 causal:
+  NGP > 0 (long-gamma days):  n=170  avg +$31.04/day  49% pos days
+  NGP <= 0 (short-gamma):     n=247  avg -$32.82/day  41% pos days
+  bootstrap P = 0.916  -> RIGHT DIRECTION, NOT SIGNIFICANT (0.975).
+Flip-distance gradient from round 73a also points the same way
+(price far above flip = bad for fades, 55%->30% pos day gradient).
+
+HONEST CLOSE: the theory's fingerprints are visible in both the
+mechanism and the regime split, but a volume-derived proxy cannot
+prove it - reconstruction has hit its ceiling. The decisive
+instrument is the TRUE-OI daily snapshot pile (building since
+Jul 18, one command/day). At ~30 snapshots, plug real OI into this
+round's prebuilt harness (bp_daily_pnl_2y.csv + gexmap builders)
+for the clean verdict; at ~60, level strategies (flip/pin zones).
+
+Also banked this round: reusable BP daily P&L series (417 days),
+gexmap_daily.csv / gexmap2_daily.csv, and the full options-history
+GitHub Actions fetch pipeline (push-triggered, no local machine).
