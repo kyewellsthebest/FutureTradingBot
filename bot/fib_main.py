@@ -608,6 +608,7 @@ class FibRuntime:
                 # Jul 19 2026). FADESZ engine not constructed; set
                 # LEVELRIDE_ENABLED=0 + restore FadeszEngine to revert.
                 self.trend_engine = None
+                self._levelride_reset_once()
                 try:
                     from bot.levelride_engine import LevelrideEngine
                     self.levelride = LevelrideEngine(
@@ -627,6 +628,42 @@ class FibRuntime:
                     logger.warning("[stack] legacy stack engine active")
         except Exception as e:
             logger.warning(f"trend engine init failed: {e!r}")
+
+    def _levelride_reset_once(self) -> None:
+        """One-time FULL account-state reset on LEVELRIDE deploy (user:
+        'reset account fully, all trading history, stats everything,
+        except the balance'). Broker cash balance lives at Tradovate
+        and is untouched. Wipes paper DB/stats, lucid tracker, engine
+        states, audit log, dashboard caches - exactly once."""
+        try:
+            from bot.account_ctx import data_dir
+            marker = data_dir() / "levelride_deployed.marker"
+            if marker.exists():
+                return
+            logger.warning("[levelride] FIRST BOOT: full state reset "
+                           "(history/stats wiped; balance untouched)")
+            try:
+                self.account._hard_reset_all()
+            except Exception as e:
+                logger.error(f"[levelride] paper reset failed: {e!r}")
+            for f in ("fadesz_engine.json", "levelride_engine.json",
+                      "lucid_account.json", "stack_engine.json",
+                      "trend_engine.json", "shadow_engine.json",
+                      "bot_audit_log.jsonl", "dashboard_data.json",
+                      "fill_archive.json"):
+                try:
+                    p = data_dir() / f
+                    if p.exists():
+                        p.unlink()
+                except Exception:
+                    pass
+            try:
+                self.recent_trades.clear()
+            except Exception:
+                pass
+            marker.write_text(datetime.now(timezone.utc).isoformat())
+        except Exception as e:
+            logger.error(f"[levelride] reset-once failed: {e!r}")
 
     def _fadesz_reset_once(self) -> None:
         """One-time full reset on FADESZ+P deploy (user: 'reset everything
