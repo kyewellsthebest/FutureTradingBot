@@ -604,19 +604,21 @@ class FibRuntime:
                         except Exception:
                             pass
 
-                self.trend_engine = FadeszEngine(
-                    self.tradovate_orders, _sym,
-                    paper_enter=_paper_enter, paper_close=_paper_close)
-                logger.warning("[fadesz] FADESZ+P ACTIVE on paper+broker "
-                               f"(mode={_mode}); old strategy DISABLED")
+                # LEVELRIDE replaces FADESZ on the broker (user order,
+                # Jul 19 2026). FADESZ engine not constructed; set
+                # LEVELRIDE_ENABLED=0 + restore FadeszEngine to revert.
+                self.trend_engine = None
                 try:
                     from bot.levelride_engine import LevelrideEngine
-                    self.levelride = LevelrideEngine()
-                    logger.warning("[levelride] LADDER-3 PAPER shadow "
-                                   "engine active (no broker orders)")
+                    self.levelride = LevelrideEngine(
+                        self.tradovate_orders, _sym)
+                    logger.warning(
+                        "[levelride] LADDER-3 ACTIVE on BROKER "
+                        "(market in/out, 1 MNQ/rung, max 3); "
+                        "FADESZ disabled per user")
                 except Exception as e:
                     self.levelride = None
-                    logger.warning(f"[levelride] init failed: {e!r}")
+                    logger.error(f"[levelride] init failed: {e!r}")
             elif _mode in ("stack", "mirror"):
                 from bot.broker_stack_engine import BrokerStackEngine
                 if self.tradovate_orders is not None and _mode == "stack":
