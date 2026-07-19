@@ -1,0 +1,18 @@
+ROUND 74 - DUAL-ENGINE / GAMMA-GATE: VERDICT (2y, 417 gamma days)
+==================================================================
+FADE always        2024 -86  2025 -238  2026 +304  ALL -60/wk  43%
+FADE sticky-only   2024 +66  2025 -112  2026 +385  ALL +49/wk  54%
+MOMO always        ALL -233/wk (control, expected loser)
+MOMO slippery-only ALL -57/wk (slippery days not harvestable inverse)
+DUAL               ALL -13/wk (momo leg drags; dead)
+DUAL-INVERTED      ALL -280/wk (sanity passed: worst in table)
+
+FINDINGS: gamma gate improves the fade EVERY year incl. +304->+385
+in the live-regime year on ~40% fewer trading days; right-way vs
+wrong-way gap +$329/wk = the information content of options data.
+Slippery days are stay-out days, not momentum days.
+STATUS: proxy-gamma evidence, consistent with round 73's +31/-33
+daily split. NOT deployable until true-OI snapshot pile confirms
+(~30 days). Live form: one number pre-open from the daily OPT
+snapshot -> trade/guard. Arsenal now: quote-rate gate + calm-wait +
+gamma gate, all awaiting validation data already flowing.
