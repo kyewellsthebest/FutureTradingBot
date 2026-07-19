@@ -637,7 +637,7 @@ class FibRuntime:
         states, audit log, dashboard caches - exactly once."""
         try:
             from bot.account_ctx import data_dir
-            marker = data_dir() / "levelride_deployed.marker"
+            marker = data_dir() / "levelride_reset2.marker"
             if marker.exists():
                 return
             logger.warning("[levelride] FIRST BOOT: full state reset "
@@ -646,7 +646,9 @@ class FibRuntime:
                 self.account._hard_reset_all()
             except Exception as e:
                 logger.error(f"[levelride] paper reset failed: {e!r}")
-            for f in ("fadesz_engine.json", "levelride_engine.json",
+            for f in ("paper_trades.db", "paper_trades.db-wal",
+                      "paper_trades.db-shm",
+                      "fadesz_engine.json", "levelride_engine.json",
                       "lucid_account.json", "stack_engine.json",
                       "trend_engine.json", "shadow_engine.json",
                       "bot_audit_log.jsonl", "dashboard_data.json",
