@@ -131,19 +131,21 @@ def main():
     idx = F.index.union(Mo.index)
     stick = sticky.reindex(idx)
     ok = stick.notna()
+    is_st = stick.fillna(True).astype(bool).to_numpy()
+    is_sl = (~stick.fillna(True).astype(bool)).to_numpy()
+    Fv = F.reindex(idx).fillna(0).to_numpy()
+    Mv = Mo.reindex(idx).fillna(0).to_numpy()
+    def S(a):
+        return pd.Series(a, index=idx)
     variants = {
-        "FADE always (baseline)": F.reindex(idx).fillna(0),
-        "FADE sticky-only": F.reindex(idx).fillna(0)
-        .where(stick.fillna(True), 0.0),
-        "MOMO always (control)": Mo.reindex(idx).fillna(0),
-        "MOMO slippery-only": Mo.reindex(idx).fillna(0)
-        .where(~stick.fillna(False), 0.0),
-        "DUAL fade-sticky+momo-slip": F.reindex(idx).fillna(0)
-        .where(stick.fillna(True), 0.0)
-        + Mo.reindex(idx).fillna(0).where(~stick.fillna(False), 0.0),
-        "DUAL-INVERTED (sanity)": F.reindex(idx).fillna(0)
-        .where(~stick.fillna(False), 0.0)
-        + Mo.reindex(idx).fillna(0).where(stick.fillna(True), 0.0),
+        "FADE always (baseline)": S(Fv),
+        "FADE sticky-only": S(np.where(is_st, Fv, 0.0)),
+        "MOMO always (control)": S(Mv),
+        "MOMO slippery-only": S(np.where(is_sl, Mv, 0.0)),
+        "DUAL fade-sticky+momo-slip": S(np.where(is_st, Fv, 0.0)
+                                        + np.where(is_sl, Mv, 0.0)),
+        "DUAL-INVERTED (sanity)": S(np.where(is_sl, Fv, 0.0)
+                                    + np.where(is_st, Mv, 0.0)),
     }
     print(f"\ngamma-known days: {int(ok.sum())} of {len(idx)}")
     print(f"{'variant':<30} {'yr':>5} {'$/wk':>7} {'posW%':>6} "
