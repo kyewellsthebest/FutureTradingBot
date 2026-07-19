@@ -637,6 +637,26 @@ class FibRuntime:
         states, audit log, dashboard caches - exactly once."""
         try:
             from bot.account_ctx import data_dir
+            # Unconditional every-boot purge of pre-LEVELRIDE history
+            # (user: 'delete all of the old trades from last week').
+            try:
+                import sqlite3 as _sq
+                _db = data_dir() / "paper_trades.db"
+                if _db.exists():
+                    _c = _sq.connect(str(_db))
+                    _n = _c.execute(
+                        "DELETE FROM trades WHERE entry_time < "
+                        "'2026-07-20'").rowcount
+                    _c.commit(); _c.close()
+                    if _n:
+                        logger.warning(
+                            f"[levelride] purged {_n} pre-deploy trades")
+            except Exception as e:
+                logger.error(f"[levelride] trade purge: {e!r}")
+            try:
+                self.recent_trades.clear()
+            except Exception:
+                pass
             marker = data_dir() / "levelride_reset2.marker"
             if marker.exists():
                 return
