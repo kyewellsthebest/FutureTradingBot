@@ -9,6 +9,9 @@ on:
         description: "history (one-time 2y pull) or daily (snapshot)"
         required: false
         default: daily
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: [".github/fetch-request"]
 
 permissions:
   contents: write
@@ -26,11 +29,17 @@ jobs:
         run: pip install requests pandas pyarrow
       - name: fetch + upload
         env:
-          KEY: ${{ inputs.polygon_key }}
+          KEY_IN: ${{ inputs.polygon_key }}
+          MODE_IN: ${{ inputs.mode }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          if [ "${{ inputs.mode }}" = "history" ]; then
+          KEY="${KEY_IN}"; MODE="${MODE_IN}"
+          if [ -z "$KEY" ] && [ -f .github/fetch-request ]; then
+            MODE=$(sed -n 1p .github/fetch-request)
+            KEY=$(sed -n 2p .github/fetch-request)
+          fi
+          if [ "$MODE" = "history" ]; then
             python3 tools/fetch_options_history.py "$KEY"
             gh release upload week-ticks OPTHIST_QQQ_*.parquet --clobber
           else
