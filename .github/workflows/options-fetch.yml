@@ -1,0 +1,39 @@
+name: options-fetch
+on:
+  workflow_dispatch:
+    inputs:
+      polygon_key:
+        description: Polygon API key
+        required: true
+      mode:
+        description: "history (one-time 2y pull) or daily (snapshot)"
+        required: false
+        default: daily
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: deps
+        run: pip install requests pandas pyarrow
+      - name: fetch + upload
+        env:
+          KEY: ${{ inputs.polygon_key }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          if [ "${{ inputs.mode }}" = "history" ]; then
+            python3 tools/fetch_options_history.py "$KEY"
+            gh release upload week-ticks OPTHIST_QQQ_*.parquet --clobber
+          else
+            python3 tools/fetch_options_chain.py "$KEY"
+            gh release upload week-ticks OPT_QQQ_*.parquet --clobber
+          fi
