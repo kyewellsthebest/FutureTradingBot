@@ -1,0 +1,13 @@
+ROUND 76 - GAMMA FLIP-BREAK: FIRST ALL-YEARS-GREEN NEW-DATA STRATEGY
+=====================================================================
+4,230-config mass grid over 2y -> 740 positive-with-clip3 -> top
+family = FLIP-BREAK (cross yesterday's gamma-flip level, go with the
+cross, wide bracket, <=1h hold, ~2 tr/wk, both directions).
+LAG-1 (fully tradable) verdict - all 18 family configs green all 3
+years. Best (t120/s40/h60): 2024 +$52/wk, 2025 +$148/wk, 2026
++$134/wk, 54-65% pos weeks. Smooth plateau; survived the lookahead
+correction nearly unchanged (levels are slow-moving).
+Caveats: volume-proxy levels (true-OI snapshots will refine); ~200
+trades/config/2y; hostile-week + fee-stress + blind audits pending.
+Uncorrelated with FADESZ. Candidate name: FLIPBREAK.
+NEXT: gauntlet audits, then shadow-paper alongside the three gates.
