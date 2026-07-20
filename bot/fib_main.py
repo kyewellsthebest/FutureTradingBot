@@ -609,10 +609,30 @@ class FibRuntime:
                 # LEVELRIDE_ENABLED=0 + restore FadeszEngine to revert.
                 self.trend_engine = None
                 self._levelride_reset_once()
+                def _levelride_trade(rec):
+                    # surface each closed rung on the dashboard + DB
+                    try:
+                        self.recent_trades.appendleft(rec)
+                    except Exception:
+                        pass
+                    try:
+                        import bot.persistence as _p
+                        tid = _p.insert_trade({
+                            "signal_name": "LEVELRIDE",
+                            "side": rec["side"],
+                            "entry_time": rec["entry_ts"],
+                            "entry_px": rec["entry_px"],
+                            "stop_px": 0, "target_px": 0, "qty": 1,
+                            "vol_regime": "LEVELRIDE", "rr": 3.25})
+                        _p.close_trade(tid, rec["ts"], rec["exit_px"],
+                                       rec["exit_reason"], rec["pnl_usd"])
+                    except Exception as e:
+                        logger.debug(f"[levelride] persist: {e!r}")
                 try:
                     from bot.levelride_engine import LevelrideEngine
                     self.levelride = LevelrideEngine(
-                        self.tradovate_orders, _sym)
+                        self.tradovate_orders, _sym,
+                        on_trade=_levelride_trade)
                     logger.warning(
                         "[levelride] LADDER-3 ACTIVE on BROKER "
                         "(market in/out, 1 MNQ/rung, max 3); "
@@ -4113,6 +4133,10 @@ class FibRuntime:
                 "trend_engine": (
                     self.trend_engine.snapshot()
                     if self.trend_engine is not None else {"active": False}),
+                "levelride": (
+                    self.levelride.snapshot()
+                    if getattr(self, "levelride", None) is not None
+                    else {"active": False}),
                 "news_calendar": cal_snap,
                 "shadow_engine": shadow_snap,
                 "lucid_account": lucid_snap,
