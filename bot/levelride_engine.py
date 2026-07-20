@@ -39,10 +39,12 @@ SESS_OPEN = (14, 0)
 
 
 class LevelrideEngine:
-    def __init__(self, tradovate_orders=None, symbol_fn=None):
+    def __init__(self, tradovate_orders=None, symbol_fn=None,
+                 on_trade=None):
         self.enabled = os.environ.get("LEVELRIDE_ENABLED", "1") == "1"
         self.orders = tradovate_orders
         self.symbol_fn = symbol_fn
+        self.on_trade = on_trade      # dashboard/DB sink for closed trades
         self.broker_on = (os.environ.get("LEVELRIDE_BROKER", "1") == "1"
                           and tradovate_orders is not None)
         self.day = None
@@ -142,6 +144,20 @@ class LevelrideEngine:
             "t_in": p["t_in"], "t_out": now.isoformat()})
         logger.warning(f"[levelride] EXIT rung{ri} {reason} "
                        f"pnl {pnl:+.2f} (day {self.day_pnl:+.0f})")
+        if self.on_trade is not None:
+            try:
+                hold_s = (now - datetime.fromisoformat(
+                    p["t_in"])).total_seconds()
+                self.on_trade({
+                    "ts": now.isoformat(), "entry_ts": p["t_in"],
+                    "side": "LONG" if p["side"] > 0 else "SHORT",
+                    "n_mnq": 1, "entry_px": float(p["entry"]),
+                    "exit_px": float(px),
+                    "exit_reason": f"levelride_r{ri}_{reason}",
+                    "pnl_usd": round(pnl, 2), "pnl_pts": 0.0,
+                    "hold_s": float(hold_s)})
+            except Exception as e:
+                logger.debug(f"[levelride] on_trade: {e!r}")
         self._save()
 
     def on_cycle(self, bars_1m, now: datetime) -> None:
