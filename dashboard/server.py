@@ -2840,15 +2840,26 @@ def _reset_cutoff_ts():
     rows into the UI after a reset."""
     try:
         from bot.account_ctx import data_dir as _acct_dir
+        candidates = []
+        # explicit strategy-deploy cutoff (written on LEVELRIDE reset) —
+        # authoritative, survives lucid rewrites
+        cf = _acct_dir() / "strategy_cutoff.txt"
+        if cf.exists():
+            try:
+                candidates.append(pd.Timestamp(cf.read_text().strip()))
+            except Exception:
+                pass
         lp = _acct_dir() / "lucid_account.json"
-        if not lp.exists():
+        if lp.exists():
+            sa = json.loads(lp.read_text()).get("started_at")
+            if sa:
+                candidates.append(pd.Timestamp(sa))
+        if not candidates:
             return None
-        ls = json.loads(lp.read_text())
-        sa = ls.get("started_at")
-        if not sa:
-            return None
-        t = pd.Timestamp(sa)
-        return t.tz_convert("UTC") if t.tz is not None else t.tz_localize("UTC")
+        # use the LATEST cutoff so old broker fills are always excluded
+        t = max((c.tz_convert("UTC") if c.tz is not None
+                 else c.tz_localize("UTC")) for c in candidates)
+        return t
     except Exception as e:
         logger.warning(f"reset cutoff parse failed: {e}")
         return None

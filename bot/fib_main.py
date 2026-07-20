@@ -657,6 +657,16 @@ class FibRuntime:
         states, audit log, dashboard caches - exactly once."""
         try:
             from bot.account_ctx import data_dir
+            # Write the strategy-deploy cutoff ONCE. The dashboard filters
+            # every trade view (incl. broker fill history on Tradovate's
+            # servers, which a local wipe can't touch) to after this ts.
+            try:
+                cutf = data_dir() / "strategy_cutoff.txt"
+                if not cutf.exists():
+                    cutf.write_text(
+                        datetime.now(timezone.utc).isoformat())
+            except Exception as e:
+                logger.error(f"[levelride] cutoff write: {e!r}")
             # Unconditional every-boot purge of pre-LEVELRIDE history
             # (user: 'delete all of the old trades from last week').
             try:
