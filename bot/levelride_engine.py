@@ -221,7 +221,12 @@ class LevelrideEngine:
                 if not self._mkt("Buy" if side > 0 else "Sell",
                                  f"levelride_enter_L{li}"):
                     continue
-                entry = px + ADVERSE_PT * side
+                # RESTING STOP-ORDER fill: order was pre-placed AT the
+                # level, so the exchange fills at the level (+ slippage),
+                # NOT at wherever price reached by the time the bot
+                # noticed. This is the fix - bot cadence no longer
+                # affects the fill price.
+                entry = lev + ADVERSE_PT * side
                 self.pos[li] = {"side": side, "entry": entry,
                                 "t_in": now.isoformat()}
                 self.armed[li] = False
