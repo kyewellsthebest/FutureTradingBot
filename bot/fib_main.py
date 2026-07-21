@@ -635,8 +635,8 @@ class FibRuntime:
                         on_trade=_levelride_trade)
                     logger.warning(
                         "[levelride] LADDER-3 ACTIVE on BROKER "
-                        "(market in/out, 1 MNQ/rung, max 3); "
-                        "FADESZ disabled per user")
+                        "(resting stop-entry + OCO bracket, 1 MNQ/rung, "
+                        "max 3); FADESZ disabled per user")
                 except Exception as e:
                     self.levelride = None
                     logger.error(f"[levelride] init failed: {e!r}")
@@ -3495,6 +3495,15 @@ class FibRuntime:
         # position, it is SUPPOSED to exist while paper is flat -- the
         # orphan/stack flatten logic below must not touch it.
         if self.trend_engine is not None and self.trend_engine.holds_position():
+            return
+        # LEVELRIDE EXEMPTION: the ladder runs up to 3 concurrent broker
+        # positions (netPos 2-3) each protected by its own server-side
+        # OCO bracket, and it is the SOLE broker strategy. To this
+        # single-position guard those look like stacks/orphans and it
+        # would flatten the extra rungs. LEVELRIDE manages its own
+        # lifecycle (resting entries + EOD liquidateposition), so skip
+        # the guard entirely while it is active on the broker.
+        if getattr(getattr(self, "levelride", None), "broker_on", False):
             return
         sess = getattr(self.tradovate_orders, "session", None)
         if sess is None or not sess.is_configured:
