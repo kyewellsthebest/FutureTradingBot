@@ -1,0 +1,71 @@
+name: polygon-futures-fetch
+# Pulls TICK-LEVEL MNQ trades + quotes from Polygon Futures Advanced on a
+# GitHub runner and pushes the parquet straight to the `week-ticks` release.
+# You keep no tabs open and nothing lands on your device.
+#
+# Set the key ONCE as a repo secret (Settings > Secrets and variables >
+# Actions > New repository secret):  name = POLYGON_API_KEY
+# Then run this workflow from the Actions tab. Do PROBE first (30s, free-ish)
+# to confirm the contract + schema, then BOTH for the real pull.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "probe (do this first) | trades | quotes | both"
+        required: true
+        default: probe
+      start:
+        description: "start date YYYY-MM-DD (inclusive)"
+        required: false
+        default: ""
+      end:
+        description: "end date YYYY-MM-DD (inclusive)"
+        required: false
+        default: ""
+      ticker:
+        description: "MNQ contract ticker override (blank = auto front-month)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: deps
+        run: pip install requests pandas pyarrow
+      - name: ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view week-ticks >/dev/null 2>&1 \
+            || gh release create week-ticks --title "week-ticks" \
+                 --notes "tick data bucket" || true
+      - name: fetch + upload
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          TICKER: ${{ inputs.ticker }}
+        run: |
+          set -e
+          if [ -z "$POLYGON_API_KEY" ]; then
+            echo "::error::POLYGON_API_KEY secret is not set."; exit 1
+          fi
+          MNQ_TICKER="$TICKER" python3 tools/fetch_polygon_futures.py \
+            "$MODE" "$POLYGON_API_KEY" "$START" "$END" "$TICKER"
+          if ls PGF_MNQ_*.parquet >/dev/null 2>&1; then
+            gh release upload week-ticks PGF_MNQ_*.parquet --clobber
+            echo "uploaded:"; ls -lh PGF_MNQ_*.parquet
+          else
+            echo "no parquet produced (probe mode, or empty window)."
+          fi
