@@ -13,7 +13,7 @@ name: Fetch Polygon Futures History
 
 on:
   push:
-    branches: [claude/transfer-trading-bot-GiNxs]
+    branches: [claude/transfer-trading-bot-GiNxs, claude/hello-vc2ivo]
     paths:
       - "data/polygon/.fetch_trigger"
   workflow_dispatch:
