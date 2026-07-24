@@ -45,9 +45,26 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s",
 log = logging.getLogger("fetch_polygon")
 
 KEY = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
-PRODUCTS = ["NQ", "ES", "RTY", "YM", "ZN", "ZB", "GC", "CL"]
+# override with e.g. PRODUCTS="MBT" to fetch a single product without
+# re-downloading the whole universe
+_default_products = [
+    # equity index          rates                   metals
+    "NQ", "ES", "RTY", "YM", "ZT", "ZF", "ZN", "ZB", "GC", "SI", "HG",
+    # energy                 FX                       crypto (monthly)
+    "CL", "NG", "RB", "HO", "6E", "6B", "6J", "6A", "MBT", "ETH",
+    # grains
+    "ZC", "ZS", "ZW",
+]
+PRODUCTS = (os.environ.get("PRODUCTS", "").split(",")
+            if os.environ.get("PRODUCTS") else _default_products)
+PRODUCTS = [p.strip().upper() for p in PRODUCTS if p.strip()]
 HISTORY_DAYS = 920                       # ~2.5 years
 MONTH_CODE = {3: "H", 6: "M", 9: "U", 12: "Z"}   # quarterly cycle
+ALL_MONTH_CODE = {1: "F", 2: "G", 3: "H", 4: "J", 5: "K", 6: "M",
+                  7: "N", 8: "Q", 9: "U", 10: "V", 11: "X", 12: "Z"}
+# products on a MONTHLY listing cycle (CME crypto: expiry = LAST Friday
+# of the contract month, not the third)
+MONTHLY_PRODUCTS = {"MBT", "BTC", "MET", "ETH"}
 
 
 def _third_friday(year: int, month: int) -> date:
@@ -57,16 +74,30 @@ def _third_friday(year: int, month: int) -> date:
     return date(year, month, first_friday + 14)
 
 
+def _last_friday(year: int, month: int) -> date:
+    """Last Friday of a month — CME crypto futures expiry."""
+    nxt = date(year + (month == 12), (month % 12) + 1, 1)
+    d = nxt - timedelta(days=1)
+    while d.weekday() != 4:
+        d -= timedelta(days=1)
+    return d
+
+
 def quarterly_tickers(product: str) -> list[tuple[str, date]]:
-    """Every quarterly contract (ticker, expiry) whose expiry falls inside
-    the history window — constructed from the calendar, no API call."""
+    """Every contract (ticker, expiry) whose expiry falls inside the
+    history window — constructed from the calendar, no API call.
+    Quarterly (H/M/U/Z, 3rd-Friday) for index/rate/metal/energy products;
+    MONTHLY (all 12 codes, LAST-Friday) for CME crypto (MBT etc.)."""
     today = date.today()
     start = today - timedelta(days=HISTORY_DAYS + 120)
     end = today + timedelta(days=120)
+    monthly = product in MONTHLY_PRODUCTS
+    codes = ALL_MONTH_CODE if monthly else MONTH_CODE
     out: list[tuple[str, date]] = []
     for year in range(start.year, end.year + 1):
-        for month, code in MONTH_CODE.items():
-            exp = _third_friday(year, month)
+        for month, code in codes.items():
+            exp = (_last_friday(year, month) if monthly
+                   else _third_friday(year, month))
             if start <= exp <= end:
                 out.append((f"{product}{code}{year % 10}", exp))
     out.sort(key=lambda t: t[1])
@@ -187,21 +218,23 @@ def main() -> None:
 
     # 1-min for NQ only (live trading + 1-min strategy backtest). 1-min
     # for all 8 products would be ~560MB committed; we only need it for
-    # the one product we actually trade.
-    log.info("=== NQ 1-min ===")
-    try:
-        df1 = build_continuous("NQ", resolution="1_minute")
-    except Exception as e:
-        log.warning(f"NQ 1-min crashed: {e}")
-        df1 = None
-    if df1 is None or df1.empty:
-        summary["NQ_1min"] = "FAILED"
-    else:
-        out = OUT_DIR / "NQ_1min.csv"
-        df1.to_csv(out)
-        summary["NQ_1min"] = (f"{len(df1)} bars "
-                               f"{df1.index[0].date()}→{df1.index[-1].date()}")
-        log.info(f"NQ 1-min: wrote {len(df1):,} bars → {out.name}")
+    # the one product we actually trade. Skipped when PRODUCTS override
+    # excludes NQ (e.g. an MBT-only fetch).
+    if "NQ" in PRODUCTS:
+        log.info("=== NQ 1-min ===")
+        try:
+            df1 = build_continuous("NQ", resolution="1_minute")
+        except Exception as e:
+            log.warning(f"NQ 1-min crashed: {e}")
+            df1 = None
+        if df1 is None or df1.empty:
+            summary["NQ_1min"] = "FAILED"
+        else:
+            out = OUT_DIR / "NQ_1min.csv"
+            df1.to_csv(out)
+            summary["NQ_1min"] = (f"{len(df1)} bars "
+                                   f"{df1.index[0].date()}→{df1.index[-1].date()}")
+            log.info(f"NQ 1-min: wrote {len(df1):,} bars → {out.name}")
 
     log.info("=" * 50)
     log.info("SUMMARY")
