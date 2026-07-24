@@ -316,6 +316,9 @@ class BasketEngine:
         self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
         self.feats = {r: Features() for r in self.roots}
         self.bar_src = {r: None for r in self.roots}   # polygon/tradovate/None
+        self._cid_cache = {}         # contractId -> name (for reconciler)
+        self._recon_streak = {}      # root -> consecutive mismatch count
+        self.recon = {}              # last reconcile snapshot (for status)
         self.gates = Gates()
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
         self.halted_today = False
@@ -539,6 +542,7 @@ class BasketEngine:
                              "last": (self.feats[r].bars[-1]["ts"]
                                       if self.feats[r].bars else None)}
                          for r in self.roots},
+                "recon": self.recon,
                 "sleeves": sleeves,
             }
             STATUS_PATH.write_text(json.dumps(status))
@@ -591,6 +595,73 @@ class BasketEngine:
                         f"aaii={rec['aaii_bb']} naaim={rec['naaim']}")
         except Exception as e:
             logger.error(f"[basket] gates write failed: {e!r}")
+
+    # ---------------- broker reconciliation ----------------
+    def _reconcile_broker(self):
+        """Broker positions must equal the sum of the sleeves' intent.
+        A rejected order, a manual close, or an outside flattener (the
+        old NQ orphan guard did exactly this on 2026-07-24) can desync
+        them — and a desynced sleeve's later exit would create REAL
+        unwanted exposure. Rule: after 3 consecutive mismatched checks
+        (~2 min, so in-flight fills don't trigger it), send a market
+        order that realigns the broker to the sleeves' intent. Capped
+        at 3 contracts per root per action; loud in the log."""
+        try:
+            from bot.tradovate_client import get_session
+            sess = get_session()
+            if not sess.is_configured:
+                return
+            acct_id = sess.get_account_id()
+            if acct_id is None:
+                return
+            status, positions = sess._rest("GET", "/position/list")
+            if status != 200 or not isinstance(positions, list):
+                return
+            sym2root = {v: k for k, v in self.symbols.items()}
+            broker = {r: 0 for r in self.roots}
+            for p in positions:
+                if not isinstance(p, dict) or p.get("accountId") != acct_id:
+                    continue
+                np_val = int(p.get("netPos") or 0)
+                if not np_val:
+                    continue
+                cid = p.get("contractId")
+                name = self._cid_cache.get(cid)
+                if name is None:
+                    try:
+                        cs, c = sess._rest("GET", "/contract/item",
+                                           params={"id": int(cid)})
+                        name = (c.get("name") or "") if (
+                            cs == 200 and isinstance(c, dict)) else ""
+                    except Exception:
+                        name = ""
+                    if name:
+                        self._cid_cache[cid] = name
+                root = sym2root.get(name)
+                if root:
+                    broker[root] += np_val
+            snap = {}
+            for r in self.roots:
+                eng = sum(sl.pos for sl in self.sleeves if sl.instr == r) * UNITS
+                snap[r] = {"engine": eng, "broker": broker[r]}
+                if eng != broker[r]:
+                    self._recon_streak[r] = self._recon_streak.get(r, 0) + 1
+                    if self._recon_streak[r] >= 3:
+                        diff = eng - broker[r]
+                        if 0 < abs(diff) <= 3 and not KILL_FLAG.exists():
+                            logger.warning(
+                                f"[basket] RECONCILE {r}: engine net {eng} "
+                                f"vs broker {broker[r]} for 3 checks -> "
+                                f"ordering {diff:+d} to realign")
+                            self.market(r, "Buy" if diff > 0 else "Sell",
+                                        abs(diff), f"reconcile-{r}")
+                        self._recon_streak[r] = 0
+                else:
+                    self._recon_streak[r] = 0
+            self.recon = {"ts": dt.datetime.utcnow().isoformat() + "Z",
+                          "nets": snap}
+        except Exception as e:
+            logger.debug(f"[basket] reconcile: {e!r}")
 
     # ---------------- risk rails ----------------
     def _roll_day(self):
@@ -732,6 +803,7 @@ class BasketEngine:
                             self.on_new_bar(root)
                     except Exception as e:
                         logger.warning(f"[basket] {root} poll error: {e}")
+                self._reconcile_broker()
                 self._write_status()
             except Exception as e:
                 logger.error(f"[basket] loop error: {e}")
