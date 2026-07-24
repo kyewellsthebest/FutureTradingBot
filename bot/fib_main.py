@@ -648,6 +648,24 @@ class FibRuntime:
                     logger.warning("[stack] legacy stack engine active")
         except Exception as e:
             logger.warning(f"trend engine init failed: {e!r}")
+        # SNAP-BACK BASKET (2026-07-24, user: "deploy this on the demo"):
+        # 26 validated fade-family sleeves on MES/M2K/MYM/MGC/MCL/ZB,
+        # demo-only (engine refuses non-demo sessions). Runs in its own
+        # thread, independent of the NQ paths above. Enable/disable via
+        # data/basket_enabled.flag; kill-switch writes basket_killed.flag.
+        try:
+            from pathlib import Path as _P
+            _flag = _P(__file__).resolve().parent.parent / "data" / "basket_enabled.flag"
+            if _flag.exists():
+                from bot.basket_engine import start_in_thread as _basket_start
+                self.basket_thread = _basket_start()
+                logger.warning("[basket] SNAP-BACK BASKET engine started "
+                               "(26 sleeves, DEMO-only, thread)")
+            else:
+                self.basket_thread = None
+        except Exception as e:
+            self.basket_thread = None
+            logger.error(f"[basket] init failed: {e!r}")
 
     def _levelride_reset_once(self) -> None:
         """One-time FULL account-state reset on LEVELRIDE deploy (user:

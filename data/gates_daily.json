@@ -1,0 +1,9 @@
+{
+ "date": "2026-07-24",
+ "vix": 17.83,
+ "vix_med": 17.93,
+ "vix_src": "macro_csv(carry)",
+ "aaii_bb": 0.116279,
+ "naaim": 80.61,
+ "naaim_med": 71.28571428571428
+}

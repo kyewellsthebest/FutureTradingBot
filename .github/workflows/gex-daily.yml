@@ -1,0 +1,47 @@
+name: gex-daily
+# Daily dealer-GEX regime snapshot (validation-gated project; does NOT trade).
+# After the US close: fetch the QQQ option chain (real OI + greeks), compute the
+# net-GEX regime, append the auditable record to data/gex_daily_log.jsonl, and
+# archive the raw snapshot to the options-gex release.
+# Uses the existing POLYGON_API secret. Touches NO trading account.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 21 * * 1-5"   # 21:35 UTC ~ after US cash close (weekdays)
+
+permissions:
+  contents: write
+
+jobs:
+  gex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests pandas pyarrow
+      - name: fetch chain + compute regime (safe-state on failure)
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e   # never fail the job: a failed fetch must still log UNKNOWN
+          python3 tools/fetch_options_chain.py "$POLYGON_API_KEY"
+          python3 bot/gex_daily.py
+          echo "--- latest regime record ---"; tail -1 data/gex_daily_log.jsonl
+          # basket gates (VIX/AAII/NAAIM): stale file = gated sleeves safe-OFF
+          pip install yfinance >/dev/null 2>&1
+          python3 tools/update_gates.py && echo "gates updated" || echo "gates update FAILED (engine stays safe-OFF)"
+          # archive raw snapshot (best-effort)
+          gh release view options-gex >/dev/null 2>&1 \
+            || gh release create options-gex -t "options-gex" -n "daily QQQ chain snapshots" || true
+          ls OPT_QQQ_*.parquet >/dev/null 2>&1 && gh release upload options-gex OPT_QQQ_*.parquet --clobber || true
+      - name: commit the daily regime log
+        run: |
+          git config user.name "gex-bot"
+          git config user.email "gex-bot@users.noreply.github.com"
+          git add data/gex_daily_log.jsonl data/gates_daily.json || true
+          git commit -m "gex-daily: append regime record + basket gates [skip ci]" || echo "no change"
+          for i in 1 2 3 4; do git push && break || sleep $((2**i)); done
