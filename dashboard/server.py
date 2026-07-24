@@ -1306,10 +1306,10 @@ def api_basket():
     Merges the engine's status file (sleeve states, positions, day/cum
     P&L — written every poll cycle) with the live-price file (Polygon,
     ~5s) and computes open P&L per sleeve and per instrument."""
-    repo = Path(__file__).resolve().parent.parent
+    from bot.basket_engine import DATA as _basket_data
     def _read(p):
         try:
-            return json.loads((repo / "data" / p).read_text())
+            return json.loads((_basket_data / p).read_text())
         except Exception:
             return None
     status = _read("basket_status.json")
@@ -5323,6 +5323,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
     broker-vs-engine position cross-check, basket-tagged fills, the
     engine's own log lines, and a CHECKS list with an overall verdict.
     Read `checks` first: any ERROR names the broken invariant."""
+    from bot.basket_engine import DATA as _bdata, basket_enabled
     repo = Path(__file__).resolve().parent.parent
     now = datetime.now(timezone.utc)
     out: dict = {"checks": [], "verdict": "GREEN"}
@@ -5337,7 +5338,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
 
     def _read_json(name):
         try:
-            return json.loads((repo / "data" / name).read_text())
+            return json.loads((_bdata / name).read_text())
         except FileNotFoundError:
             return None
         except Exception as e:
@@ -5352,9 +5353,10 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
         except Exception:
             return None
 
-    enabled = (repo / "data" / "basket_enabled.flag").exists()
-    killed = (repo / "data" / "basket_killed.flag").exists()
-    out["enabled_flag"] = enabled
+    enabled = basket_enabled()
+    killed = (_bdata / "basket_killed.flag").exists()
+    out["enabled"] = enabled
+    out["data_dir"] = str(_bdata)
     out["kill_flag"] = killed
 
     status = _read_json("basket_status.json")
@@ -5386,7 +5388,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
     # -- engine liveness --
     if not enabled:
         _chk("WARN", "not_enabled",
-             "basket_enabled.flag missing — engine will not start")
+             "basket disabled via BASKET_ENABLED=0 or basket_disabled.flag")
     if status is None:
         _chk("ERROR" if enabled else "WARN", "no_status",
              "basket_status.json missing — engine has never completed a cycle")
@@ -5448,12 +5450,14 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
             out["gates_age_days"] = gage
             if gage > 5:
                 _chk("WARN", "gates_file_old",
-                     f"gates_daily.json is {gage} days old (gex-daily workflow "
-                     "not committing?)")
+                     f"gates_daily.json is {gage} days old — engine's daily "
+                     "self-update isn't running (check VIX fetch in log_lines)")
         except Exception:
             _chk("WARN", "gates_date", "gates_daily.json date unparseable")
     else:
-        _chk("WARN", "no_gates", "gates_daily.json missing — gated sleeves OFF")
+        _chk("WARN", "no_gates",
+             "gates_daily.json missing — engine writes it at startup; if the "
+             "engine is running this means its first cycle hasn't finished")
 
     # -- broker cross-check: engine's open sleeves vs Tradovate positions --
     try:
