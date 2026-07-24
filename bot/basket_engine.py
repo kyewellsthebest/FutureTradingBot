@@ -315,6 +315,7 @@ class BasketEngine:
         cmap = self.cfg.get("contracts", {})
         self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
         self.feats = {r: Features() for r in self.roots}
+        self.bar_src = {r: None for r in self.roots}   # polygon/tradovate/None
         self.gates = Gates()
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
         self.halted_today = False
@@ -334,11 +335,59 @@ class BasketEngine:
             self._orders = TradovateOrders(get_session())
         return self._orders
 
+    def _polygon_bars(self, sym: str, n: int = 240):
+        """5-min OHLCV bars from Polygon's futures aggs — the SAME source
+        and format the entire backtest was built on. REST, no websockets,
+        no interference with Tradovate's order/market-data sockets.
+        (v1 fetched bars via a new Tradovate chart WS per call — ~540
+        connections/hour; Tradovate rejected all of them and the churn
+        destabilized the bot's other sockets. 2026-07-24 bundle.)"""
+        key = (os.environ.get("POLYGON_API")
+               or os.environ.get("POLYGON_API_KEY"))
+        if not key:
+            return None
+        import urllib.request
+        now_ns = int(time.time() * 1e9)
+        url = (f"https://api.polygon.io/futures/v1/aggs/{sym}"
+               f"?resolution=5_minute"
+               f"&window_start.gte={now_ns - 90 * 3600 * 1_000_000_000}"
+               f"&limit=2000&apiKey={key}")
+        try:
+            with urllib.request.urlopen(url, timeout=8) as r:
+                rs = (json.loads(r.read().decode()) or {}).get("results") or []
+        except Exception:
+            return None
+        rows = []
+        for b in rs:
+            try:
+                rows.append((int(b["window_start"]), float(b["open"]),
+                             float(b["high"]), float(b["low"]),
+                             float(b["close"]), float(b.get("volume", 0) or 0)))
+            except Exception:
+                continue
+        if not rows:
+            return None
+        rows.sort()
+        # CLOSED bars only: drop the still-forming 5-min window
+        if rows[-1][0] > now_ns - 300 * 1_000_000_000:
+            rows = rows[:-1]
+        return [dict(ts=str(t), o=o, h=h, l=l, c=c, v=v)
+                for t, o, h, l, c, v in rows[-n:]]
+
     def bars_for(self, root):
-        from bot.tradovate_bars import get_bars
         sym = self.symbols[root]
-        df = get_bars(sym, "5m", 240)
+        out = self._polygon_bars(sym)
+        if out:
+            self.bar_src[root] = "polygon"
+            return out
+        # fallback: Tradovate chart WS (cached; only hit when Polygon fails)
+        try:
+            from bot.tradovate_bars import get_bars
+            df = get_bars(sym, "5m", 240)
+        except Exception:
+            df = None
         if df is None or len(df) < 2:
+            self.bar_src[root] = None
             return []
         out = []
         for ts, row in df.iterrows():
@@ -348,6 +397,7 @@ class BasketEngine:
                                 v=float(row.get("volume", 0) or 0)))
             except Exception:
                 continue
+        self.bar_src[root] = "tradovate"
         return out[:-1]                          # drop the forming bar: CLOSED only
 
     def market(self, root, side, qty=1, why=""):
@@ -484,6 +534,11 @@ class BasketEngine:
                           ("vix", "vix_med", "aaii_bb", "naaim", "naaim_med")}},
                 "symbols": self.symbols,
                 "pv": PV,
+                "bars": {r: {"n": len(self.feats[r].bars),
+                             "src": self.bar_src.get(r),
+                             "last": (self.feats[r].bars[-1]["ts"]
+                                      if self.feats[r].bars else None)}
+                         for r in self.roots},
                 "sleeves": sleeves,
             }
             STATUS_PATH.write_text(json.dumps(status))

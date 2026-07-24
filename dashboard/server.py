@@ -5438,6 +5438,21 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
             _chk("ERROR", "no_symbols",
                  "status.symbols is empty — engine has no contracts to "
                  "trade (idle). Restart bug or contract resolver failure.")
+        # bar feed: without bars the bots are blind (07:23 bundle: all
+        # Tradovate chart fetches rejected, prox stuck at 0, no trades)
+        bars = status.get("bars") or {}
+        if bars:
+            dead = [r for r, v in bars.items()
+                    if not (isinstance(v, dict) and v.get("n"))]
+            out["bar_feed"] = {r: (v.get("src"), v.get("n"))
+                               for r, v in bars.items() if isinstance(v, dict)}
+            if len(dead) == len(bars):
+                _chk("ERROR", "no_bars",
+                     "NO market has bars — bots are blind, zero trades "
+                     "possible (check Polygon aggs + log)")
+            elif dead:
+                _chk("WARN", "bars_missing",
+                     f"no bars for: {', '.join(dead)} — those bots idle")
 
     # -- price feed health --
     if isinstance(prices, dict) and not prices and status is not None:
