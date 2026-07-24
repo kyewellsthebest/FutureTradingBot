@@ -308,7 +308,12 @@ class BasketEngine:
             raise RuntimeError("basket_sleeves.json missing")
         self.sleeves = [Sleeve(i, s) for i, s in enumerate(self.cfg["sleeves"])]
         self.roots = sorted({s.instr for s in self.sleeves})
-        self.symbols = {}
+        # Resolve tradable contracts IMMEDIATELY — not only on day roll.
+        # (Bug found via 2026-07-24 bundle: a same-day restart loaded
+        # state with day==today, the roll never fired, symbols stayed {}
+        # and the engine sat idle with no bars, no prices, no trades.)
+        cmap = self.cfg.get("contracts", {})
+        self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
         self.feats = {r: Features() for r in self.roots}
         self.gates = Gates()
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
@@ -356,17 +361,41 @@ class BasketEngine:
 
     # ---------------- live prices (Polygon REST, Tradovate fallback) ----
     def _poll_price_polygon(self, sym: str):
-        """Latest trade price from Polygon (the user's live-price feed).
-        Falls back to the latest 1-min aggregate close."""
+        """Latest price from Polygon's futures REST (the user's live feed).
+        Endpoint format mirrors research/fetch_polygon_history.py, the
+        one PROVEN shape against this account: /futures/v1/aggs/{ticker}
+        with resolution "1_minute" (underscore — "1min" 400s). We window
+        to the last 2h and take the newest bar client-side; the forming
+        minute updates in near-real-time. A trades endpoint is tried
+        first for true last-trade, tolerated to fail."""
         key = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
         if not key:
             return None
         import urllib.request
+        now_ns = int(time.time() * 1e9)
+
+        def newest(j, tkeys, vkey):
+            rs = (j or {}).get("results") or []
+            best = None
+            for r in rs:
+                try:
+                    t = max(int(r.get(k) or 0) for k in tkeys)
+                    v = float(r[vkey])
+                    if best is None or t > best[0]:
+                        best = (t, v)
+                except Exception:
+                    continue
+            return best[1] if best else None
+
         for url, pick in (
-            (f"https://api.polygon.io/futures/v1/trades/{sym}?limit=1&sort=timestamp.desc&apiKey={key}",
-             lambda j: (j.get("results") or [{}])[0].get("price")),
-            (f"https://api.polygon.io/futures/v1/aggs/{sym}?resolution=1min&limit=1&sort=window_start.desc&apiKey={key}",
-             lambda j: (j.get("results") or [{}])[0].get("close")),
+            (f"https://api.polygon.io/futures/v1/trades/{sym}"
+             f"?limit=10&apiKey={key}",
+             lambda j: newest(j, ("sip_timestamp", "timestamp",
+                                  "participant_timestamp"), "price")),
+            (f"https://api.polygon.io/futures/v1/aggs/{sym}"
+             f"?resolution=1_minute&window_start.gte={now_ns - 7_200_000_000_000}"
+             f"&limit=200&apiKey={key}",
+             lambda j: newest(j, ("window_start",), "close")),
         ):
             try:
                 with urllib.request.urlopen(url, timeout=4) as r:
@@ -381,8 +410,10 @@ class BasketEngine:
         """Every ~5s: refresh live prices for all traded contracts and write
         basket_prices.json for the dashboard. Polygon = live (user pays for
         it); last closed 5-min bar = fallback, tagged so the UI is honest."""
+        last_warn = 0.0
         while True:
             out = {}
+            n_live = 0
             for root in self.roots:
                 sym = self.symbols.get(root)
                 if not sym:
@@ -395,6 +426,8 @@ class BasketEngine:
                         px = self.feats[root].last()["c"]
                     except Exception:
                         px = None
+                else:
+                    n_live += 1
                 if px is not None:
                     out[root] = {"symbol": sym, "px": px, "src": src,
                                  "ts": dt.datetime.utcnow().isoformat() + "Z"}
@@ -402,6 +435,11 @@ class BasketEngine:
                 PRICES_PATH.write_text(json.dumps(out))
             except Exception:
                 pass
+            if n_live == 0 and time.time() - last_warn > 600:
+                last_warn = time.time()
+                logger.warning(f"[basket] polygon REST returned no prices "
+                               f"(symbols={list(self.symbols.values())}); "
+                               f"display falls back to bar closes")
             time.sleep(5)
 
     # ---------------- dashboard status ----------------

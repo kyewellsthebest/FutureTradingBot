@@ -5432,8 +5432,18 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
         for s in status.get("sleeves", []):
             census[s.get("state")] = census.get(s.get("state"), 0) + 1
         out["sleeve_census"] = census
+        # symbols must be resolved or the engine is idle (no bars, no
+        # prices, no trades) — the exact failure the 05:38 bundle caught
+        if not status.get("symbols"):
+            _chk("ERROR", "no_symbols",
+                 "status.symbols is empty — engine has no contracts to "
+                 "trade (idle). Restart bug or contract resolver failure.")
 
     # -- price feed health --
+    if isinstance(prices, dict) and not prices and status is not None:
+        _chk("WARN", "prices_empty",
+             "basket_prices.json is {} — price thread runs but EVERY "
+             "source fails (polygon errors + no bars yet)")
     if prices and isinstance(prices, dict):
         srcs = {}
         stale_px = []
@@ -5451,7 +5461,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                  "(check POLYGON_API on the host)")
         if stale_px:
             _chk("WARN", "prices_stale", "stale prices: " + ", ".join(stale_px))
-    elif status is not None:
+    elif prices is None and status is not None:
         _chk("WARN", "no_prices", "basket_prices.json missing — price thread not running")
 
     # -- gates sanity --
