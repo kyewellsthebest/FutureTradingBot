@@ -76,13 +76,27 @@
         <div class="card kpi">
           <div class="kpi-top">
             <div>
-              <div class="kpi-label">Position</div>
+              <div class="kpi-label">Open&nbsp;Trades</div>
               <div class="kpi-value skel" id="kpi-pos">&nbsp;</div>
             </div>
             <div class="kpi-ico" id="kpi-pos-ico">▣</div>
           </div>
           <div class="kpi-sub" id="kpi-pos-sub">&nbsp;</div>
         </div>
+      </div>
+
+      <!-- The Operation: every market the basket trades, live -->
+      <div class="card" id="ops-card">
+        <div class="card-head">
+          <h3>The Operation</h3>
+          <span class="muted small" id="ops-sub">&nbsp;</span>
+        </div>
+        <div class="ops-banner" id="ops-banner" hidden></div>
+        <div id="ops-list">
+          <div class="trade-skel"></div><div class="trade-skel"></div>
+          <div class="trade-skel"></div>
+        </div>
+        <div class="muted small" id="ops-foot" style="margin-top:8px">&nbsp;</div>
       </div>
 
       <!-- Equity chart -->

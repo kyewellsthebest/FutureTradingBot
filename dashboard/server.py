@@ -337,6 +337,50 @@ def _broker_pnl_usd(pts: float, qty: int, side: str,
     return float(pts) * float(qty) * dollars_per_point * sign
 
 
+# ---- multi-instrument contract math (SNAP-BACK BASKET, 2026-07-24) -------
+# The account now trades 7 products at once, so every $-conversion must be
+# per-contract. Root = longest symbol prefix match ("MESU6" -> "MES").
+CONTRACT_PV = {"MNQ": 2.0, "MES": 5.0, "M2K": 5.0, "MYM": 0.5,
+               "MGC": 10.0, "MCL": 100.0, "ZB": 1000.0, "NQ": 20.0,
+               "ES": 50.0, "RTY": 50.0, "YM": 5.0, "GC": 100.0, "CL": 1000.0}
+CONTRACT_COMM_RT = {"MNQ": float(os.environ.get("BROKER_COMM_PER_RT", "0.74")),
+                    "MES": 1.34, "M2K": 1.34, "MYM": 1.34,
+                    "MGC": 1.54, "MCL": 1.54, "ZB": 2.60}
+
+
+def _root_of(symbol: str) -> str:
+    s = str(symbol or "").upper()
+    best = ""
+    for r in CONTRACT_PV:
+        if s.startswith(r) and len(r) > len(best):
+            best = r
+    return best or "MNQ"
+
+
+_contract_name_cache: dict = {}
+
+
+def _contract_symbol(sess, cid) -> str:
+    """contractId -> contract name ("MESU6"), cached. Empty string if
+    unresolvable (caller should treat as legacy MNQ)."""
+    if cid is None:
+        return ""
+    cid = int(cid)
+    if cid in _contract_name_cache:
+        return _contract_name_cache[cid]
+    name = ""
+    try:
+        c_status, contract = sess._rest("GET", "/contract/item",
+                                        params={"id": cid})
+        if c_status == 200 and isinstance(contract, dict):
+            name = contract.get("name") or ""
+    except Exception:
+        name = ""
+    if name:
+        _contract_name_cache[cid] = name
+    return name
+
+
 def _collect_broker_trades(sess, acct_id: int,
                             limit: int = 1000) -> list:
     """Build the paper-shape trade list from broker data.
@@ -388,6 +432,7 @@ def _collect_broker_trades(sess, acct_id: int,
             "price": float(f.get("price") or 0),
             "order_id": f.get("orderId"),
             "fill_id": f.get("id"),
+            "cid": f.get("contractId"),
             "raw": f,
         })
     # DETERMINISTIC TIE-BREAK: when two fills have the same millisecond
@@ -408,16 +453,11 @@ def _collect_broker_trades(sess, acct_id: int,
         x["fill_id"] if x["fill_id"] is not None else 0,
     ))
 
-    # Walk: track signed position. Open new cycle when position was 0.
-    # Emit a trade when position returns to 0 (or flips through 0).
+    # Walk: track signed position PER CONTRACT (the basket trades 7
+    # products on one account — netting fills across contracts would pair
+    # a gold buy with an oil sell). Open new cycle when that contract's
+    # position was 0; emit a trade when it returns to 0 (or flips).
     rows = []
-    pos_qty = 0          # signed: + = LONG, - = SHORT
-    cycle_entry_total = 0.0
-    cycle_entry_qty = 0
-    cycle_entry_ts = None
-    cycle_side = None
-    cycle_entry_order_id = None
-    comm_rt = float(os.environ.get("BROKER_COMM_PER_RT", "0.74"))
 
     def _exit_reason_for_order(oid):
         o = order_by_id.get(int(oid)) if oid is not None else None
@@ -432,38 +472,46 @@ def _collect_broker_trades(sess, acct_id: int,
             return "manual"
         return "broker"
 
-    def _emit_trade(exit_fill, close_qty):
-        if cycle_entry_qty <= 0:
+    class _Cyc:
+        __slots__ = ("pos", "tot", "qty", "ts", "side", "oid")
+        def __init__(self):
+            self.pos = 0; self.tot = 0.0; self.qty = 0
+            self.ts = None; self.side = None; self.oid = None
+
+    cycles: dict = {}          # contractId -> _Cyc
+
+    def _emit_trade(cy, exit_fill, close_qty, symbol, pv, comm_rt):
+        if cy.qty <= 0:
             return None
-        entry_avg = cycle_entry_total / cycle_entry_qty
+        entry_avg = cy.tot / cy.qty
         exit_px = exit_fill["price"]
-        if cycle_side == "LONG":
+        if cy.side == "LONG":
             pts_diff = exit_px - entry_avg
         else:
             pts_diff = entry_avg - exit_px
-        pnl_usd = (pts_diff * close_qty * 2.0) - (comm_rt * close_qty)
-        # Setup_ref tag pulled from the entry order if available
-        ent_order = (order_by_id.get(int(cycle_entry_order_id))
-                       if cycle_entry_order_id else None)
+        pnl_usd = (pts_diff * close_qty * pv) - (comm_rt * close_qty)
+        ent_order = order_by_id.get(int(cy.oid)) if cy.oid else None
         setup_ref = ent_order.get("text") if isinstance(ent_order, dict) else None
         return {
             "ts": exit_fill["ts"].isoformat(),
-            "entry_ts": cycle_entry_ts.isoformat(),
-            "entry_time": cycle_entry_ts.isoformat(),
+            "entry_ts": cy.ts.isoformat(),
+            "entry_time": cy.ts.isoformat(),
             "exit_time": exit_fill["ts"].isoformat(),
-            "side": cycle_side,
+            "side": cy.side,
             "qty": close_qty,
             "n_mnq": close_qty,
+            "symbol": symbol or "MNQ",
+            "instr": _root_of(symbol) if symbol else "MNQ",
             "entry_px": round(entry_avg, 4),
             "exit_px": round(exit_px, 4),
             "pnl_usd": round(pnl_usd, 2),
             "pnl": round(pnl_usd, 2),
             "pnl_pts": round(pts_diff, 4),
             "exit_reason": _exit_reason_for_order(exit_fill["order_id"]),
-            "hold_s": (exit_fill["ts"] - cycle_entry_ts).total_seconds(),
+            "hold_s": (exit_fill["ts"] - cy.ts).total_seconds(),
             "commission": round(comm_rt * close_qty, 2),
             "source": "broker_fill_walk",
-            "entry_order_id": cycle_entry_order_id,
+            "entry_order_id": cy.oid,
             "exit_order_id": exit_fill["order_id"],
             "setup_ref": setup_ref,
         }
@@ -471,49 +519,49 @@ def _collect_broker_trades(sess, acct_id: int,
     for f in fills_clean:
         action = (f["action"] or "").lower()
         signed = f["qty"] if action == "buy" else -f["qty"]
-        if pos_qty == 0:
-            # Starting a new position
-            pos_qty = signed
-            cycle_entry_total = f["price"] * f["qty"]
-            cycle_entry_qty = f["qty"]
-            cycle_entry_ts = f["ts"]
-            cycle_side = "LONG" if signed > 0 else "SHORT"
-            cycle_entry_order_id = f["order_id"]
+        cy = cycles.setdefault(f["cid"], _Cyc())
+        symbol = _contract_symbol(sess, f["cid"])
+        root = _root_of(symbol) if symbol else "MNQ"
+        pv = CONTRACT_PV.get(root, 2.0)
+        comm_rt = CONTRACT_COMM_RT.get(
+            root, float(os.environ.get("BROKER_COMM_PER_RT", "0.74")))
+        if cy.pos == 0:
+            # Starting a new position on this contract
+            cy.pos = signed
+            cy.tot = f["price"] * f["qty"]
+            cy.qty = f["qty"]
+            cy.ts = f["ts"]
+            cy.side = "LONG" if signed > 0 else "SHORT"
+            cy.oid = f["order_id"]
             continue
-        same_dir = (pos_qty > 0 and signed > 0) or (pos_qty < 0 and signed < 0)
+        same_dir = (cy.pos > 0 and signed > 0) or (cy.pos < 0 and signed < 0)
         if same_dir:
-            # Stacking onto the same direction position
-            cycle_entry_total += f["price"] * f["qty"]
-            cycle_entry_qty += f["qty"]
-            pos_qty += signed
+            cy.tot += f["price"] * f["qty"]
+            cy.qty += f["qty"]
+            cy.pos += signed
             continue
         # Closing or reducing
-        close_qty = min(f["qty"], abs(pos_qty))
-        emitted = _emit_trade(f, close_qty)
+        close_qty = min(f["qty"], abs(cy.pos))
+        emitted = _emit_trade(cy, f, close_qty, symbol, pv, comm_rt)
         if emitted:
             rows.append(emitted)
-        # Reduce remaining cycle entries proportionally so the next
-        # close uses the right quantity (avg price stays the same since
-        # we're closing pro-rata across all stacked entries).
-        if cycle_entry_qty > 0:
-            remaining_q = max(0, cycle_entry_qty - close_qty)
-            if cycle_entry_qty > 0:
-                cycle_entry_total *= remaining_q / cycle_entry_qty
-            cycle_entry_qty = remaining_q
-        pos_qty += signed
-        if pos_qty == 0:
-            cycle_entry_total = 0.0
-            cycle_entry_qty = 0
-            cycle_entry_ts = None
-            cycle_side = None
-            cycle_entry_order_id = None
-        elif (pos_qty > 0) != (cycle_side == "LONG"):
-            # Position flipped (close + new opposite-side position in one fill)
-            cycle_entry_total = f["price"] * abs(pos_qty)
-            cycle_entry_qty = abs(pos_qty)
-            cycle_entry_ts = f["ts"]
-            cycle_side = "LONG" if pos_qty > 0 else "SHORT"
-            cycle_entry_order_id = f["order_id"]
+        # Reduce remaining entries pro-rata (avg price unchanged)
+        if cy.qty > 0:
+            remaining_q = max(0, cy.qty - close_qty)
+            cy.tot *= remaining_q / cy.qty
+            cy.qty = remaining_q
+        cy.pos += signed
+        if cy.pos == 0:
+            cy.tot = 0.0; cy.qty = 0; cy.ts = None
+            cy.side = None; cy.oid = None
+        elif (cy.pos > 0) != (cy.side == "LONG"):
+            # Position flipped in one fill
+            cy.tot = f["price"] * abs(cy.pos)
+            cy.qty = abs(cy.pos)
+            cy.ts = f["ts"]
+            cy.side = "LONG" if cy.pos > 0 else "SHORT"
+            cy.oid = f["order_id"]
+    rows.sort(key=lambda r: r.get("exit_time") or "")
 
     # Persist this cycle's trades to disk for cross-session history.
     try:
@@ -1164,6 +1212,7 @@ def api_broker_position():
     # ---- /position/list ----
     p_status, positions = sess._rest("GET", "/position/list")
     open_pos = None
+    all_pos = []               # every nonzero position, with symbol (basket)
     if p_status == 200 and isinstance(positions, list):
         for p in positions:
             if not isinstance(p, dict):
@@ -1172,11 +1221,19 @@ def api_broker_position():
                 continue
             if not p.get("netPos"):
                 continue
-            open_pos = p
-            break
+            if open_pos is None:
+                open_pos = p
+            sym = _contract_symbol(sess, p.get("contractId"))
+            all_pos.append({
+                "symbol": sym or "?",
+                "instr": _root_of(sym) if sym else "?",
+                "netPos": p.get("netPos"),
+                "netPrice": p.get("netPrice"),
+                "openPnL": p.get("openPnL"),
+            })
     if open_pos is None:
         return jsonify({"configured": True, "account_id": acct_id,
-                         "position": None})
+                         "position": None, "positions": []})
     # ---- Enrich with bracket levels from working orders ----
     o_status, orders = sess._rest("GET", "/order/list")
     contract_id = open_pos.get("contractId")
@@ -1238,6 +1295,82 @@ def api_broker_position():
             "bracket_orders": bracket_orders,
             "raw": open_pos,
         },
+        "positions": all_pos,
+    })
+
+
+@app.route("/api/basket")
+def api_basket():
+    """SNAP-BACK BASKET operation snapshot for the dashboard.
+
+    Merges the engine's status file (sleeve states, positions, day/cum
+    P&L — written every poll cycle) with the live-price file (Polygon,
+    ~5s) and computes open P&L per sleeve and per instrument."""
+    repo = Path(__file__).resolve().parent.parent
+    def _read(p):
+        try:
+            return json.loads((repo / "data" / p).read_text())
+        except Exception:
+            return None
+    status = _read("basket_status.json")
+    prices = _read("basket_prices.json") or {}
+    if not status:
+        return jsonify({"running": False})
+    pv = status.get("pv") or {}
+    inst: dict = {}
+    open_total = 0.0
+    for s in status.get("sleeves", []):
+        r = s["instr"]
+        d = inst.setdefault(r, {"instr": r,
+                                "symbol": (status.get("symbols") or {}).get(r),
+                                "watching": 0, "gated": 0, "armed": 0,
+                                "in_trade": 0, "open_pnl": None,
+                                "positions": []})
+        st = s.get("state")
+        if st in ("long", "short"):
+            d["in_trade"] += 1
+            px = (prices.get(r) or {}).get("px")
+            op = None
+            if px is not None and s.get("entry_px") is not None:
+                sign = 1 if st == "long" else -1
+                op = (float(px) - float(s["entry_px"])) * sign * \
+                     float(pv.get(r, 0)) * int(status.get("units", 1))
+                open_total += op
+                d["open_pnl"] = (d["open_pnl"] or 0.0) + op
+            d["positions"].append({"i": s["i"], "side": st,
+                                   "entry_px": s.get("entry_px"),
+                                   "stop": s.get("stop"), "tgt": s.get("tgt"),
+                                   "bars_held": s.get("bars_held"),
+                                   "max_bars": s.get("max_bars"),
+                                   "open_pnl": None if op is None else round(op, 2)})
+        elif st == "armed":
+            d["armed"] += 1
+        elif st == "gated":
+            d["gated"] += 1
+        else:
+            d["watching"] += 1
+    for r, d in inst.items():
+        p = prices.get(r) or {}
+        d["px"] = p.get("px")
+        d["px_src"] = p.get("src")
+        d["px_ts"] = p.get("ts")
+        if d["open_pnl"] is not None:
+            d["open_pnl"] = round(d["open_pnl"], 2)
+    order = ["ES", "YM", "RTY", "GC", "CL", "ZB"]
+    return jsonify({
+        "running": True,
+        "ts": status.get("ts"),
+        "day": status.get("day"),
+        "day_pnl": status.get("day_pnl"),
+        "cum_pnl": status.get("cum_pnl"),
+        "open_pnl": round(open_total, 2),
+        "halted_today": status.get("halted_today"),
+        "killed": status.get("killed"),
+        "gates": status.get("gates"),
+        "units": status.get("units"),
+        "instruments": [inst[r] for r in order if r in inst] +
+                       [v for k, v in inst.items() if k not in order],
+        "sleeves": status.get("sleeves"),
     })
 
 

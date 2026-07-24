@@ -50,3 +50,8 @@ data/account_*/
 # Runtime supervisor artifacts (regenerated on each run)
 research/round*.err
 research/round*_supervisor.pid
+
+# basket engine runtime state (rebuilt at runtime)
+data/basket_status.json
+data/basket_prices.json
+data/basket_state.json

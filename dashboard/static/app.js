@@ -286,8 +286,153 @@ function drawDonut(wins, losses, flat, wr) {
   reveal(el);
 }
 
+/* ---------- basket: The Operation ---------- */
+const MKT = {
+  ES:  { name: "S&P",  color: "#3987e5", dp: 2 },
+  YM:  { name: "Dow",      color: "#38bdf8", dp: 0 },
+  RTY: { name: "Russell",  color: "#9085e9", dp: 1 },
+  GC:  { name: "Gold",     color: "#e9b05a", dp: 1 },
+  CL:  { name: "Oil",      color: "#2dd4bf", dp: 2 },
+  ZB:  { name: "Bonds",    color: "#f472b6", dp: 3 },
+  MNQ: { name: "Nasdaq",   color: "#9aa1b5", dp: 2 },
+  NQ:  { name: "Nasdaq",   color: "#9aa1b5", dp: 2 },
+  MES: { name: "S&P",  color: "#3987e5", dp: 2 },
+  M2K: { name: "Russell",  color: "#9085e9", dp: 1 },
+  MYM: { name: "Dow",      color: "#38bdf8", dp: 0 },
+  MGC: { name: "Gold",     color: "#e9b05a", dp: 1 },
+  MCL: { name: "Oil",      color: "#2dd4bf", dp: 2 },
+};
+const mkt = (r) => MKT[r] || { name: r, color: "#9aa1b5", dp: 2 };
+const fmtPx = (v, dp) => (v == null || isNaN(v)) ? "—" :
+  Number(v).toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+
+let basketRunning = false;
+const opsOpen = new Set();          // expanded instrument rows
+
+async function pollBasket() {
+  try {
+    const r = await fetch(af("/api/basket"));
+    const b = await r.json();
+    basketRunning = !!(b && b.running);
+    const card = $("ops-card");
+    if (!basketRunning) {
+      $("ops-list").innerHTML =
+        `<div class="muted small" style="padding:10px 4px">Basket engine not running yet.</div>`;
+      $("ops-sub").textContent = "";
+      $("ops-foot").textContent = "";
+      return;
+    }
+
+    // header line
+    const nOpen = (b.instruments || []).reduce((a, i) => a + (i.in_trade || 0), 0);
+    $("ops-sub").textContent =
+      `${(b.sleeves || []).length} bots · day ${fmtUsd(b.day_pnl, true)}` +
+      (nOpen ? ` · open ${fmtUsd2(b.open_pnl, true)}` : "");
+
+    // banner (kill / breaker / stale gates)
+    const ban = $("ops-banner");
+    if (b.killed) {
+      ban.hidden = false; ban.className = "ops-banner bad";
+      ban.textContent = "KILL-SWITCH TRIPPED — all trading halted until manually reset";
+    } else if (b.halted_today) {
+      ban.hidden = false; ban.className = "ops-banner warn";
+      ban.textContent = "Daily breaker hit (−$1,000) — flat until tomorrow's session";
+    } else if (b.gates && b.gates.fresh === false) {
+      ban.hidden = false; ban.className = "ops-banner mute";
+      ban.textContent = "Regime data stale — gated bots are safely OFF";
+    } else ban.hidden = true;
+
+    // market rows
+    const sleevesBy = {};
+    (b.sleeves || []).forEach((s) => (sleevesBy[s.instr] ||= []).push(s));
+    $("ops-list").innerHTML = (b.instruments || []).map((m) => {
+      const M = mkt(m.instr);
+      const live = m.px_src === "polygon-live";
+      let state, cls = "mute";
+      if (m.in_trade) {
+        const op = m.open_pnl;
+        const sides = (m.positions || []).map((p) => p.side === "long" ? "LONG" : "SHORT");
+        state = (m.in_trade === 1 ? sides[0] : `${m.in_trade} open`) +
+                (op != null ? ` ${fmtUsd2(op, true)}` : "");
+        cls = op > 0 ? "pos" : op < 0 ? "neg" : "on";
+      } else if (m.armed) {
+        state = "order waiting"; cls = "on";
+      } else if (m.watching) {
+        state = `${m.watching} watching`;
+      } else {
+        state = "standby";
+      }
+      const openCls = opsOpen.has(m.instr) ? "" : "hidden";
+      const detail = (sleevesBy[m.instr] || []).map((s) => {
+        const st = s.state;
+        let chip, ccls = "mute";
+        if (st === "long" || st === "short") {
+          chip = st.toUpperCase() + (s.entry_px != null ? ` @ ${fmtPx(s.entry_px, M.dp)}` : "");
+          ccls = st === "long" ? "pos" : "neg";
+        } else if (st === "armed") {
+          chip = `limit ${fmtPx(s.limit_px, M.dp)} (${s.ttl} bars)`; ccls = "on";
+        } else if (st === "gated") {
+          chip = "off — wrong regime";
+        } else chip = "watching";
+        const prox = st === "watching" ? Math.max(2, Math.min(100, s.prox || 0)) : 0;
+        return `<div class="sl-row">
+          <div class="sl-desc">${s.desc}</div>
+          <div class="sl-right">
+            ${st === "watching" ? `<div class="sl-prox"><i style="width:${prox}%"></i></div>` : ""}
+            <span class="sl-chip ${ccls}">${chip}</span>
+          </div>
+        </div>`;
+      }).join("");
+      return `<div class="mk-block">
+        <div class="mk-row" data-r="${m.instr}">
+          <span class="mk-dot" style="background:${M.color}"></span>
+          <div class="mk-name">${M.name}<span class="mk-sym">${m.symbol || ""}</span></div>
+          <div class="mk-price">${fmtPx(m.px, M.dp)}
+            <span class="mk-src ${live ? "live" : ""}" title="${live ? "Polygon live" : "last bar"}"></span>
+          </div>
+          <span class="mk-state ${cls}">${state}</span>
+          <span class="mk-arrow">${opsOpen.has(m.instr) ? "▾" : "▸"}</span>
+        </div>
+        <div class="mk-detail ${openCls}">${detail}</div>
+      </div>`;
+    }).join("");
+
+    $("ops-foot").textContent =
+      `Prices: ${(b.instruments || []).some((i) => i.px_src === "polygon-live")
+        ? "Polygon live feed" : "last 5-min bar (Polygon feed connecting…)"}` +
+      ` · total P&L since launch ${fmtUsd(b.cum_pnl, true)}`;
+
+    // Open Trades KPI (replaces single-position view when basket runs)
+    const el = $("kpi-pos"), sub = $("kpi-pos-sub"), ico = $("kpi-pos-ico");
+    if (nOpen) {
+      el.textContent = `${nOpen} open`;
+      paint(el, b.open_pnl || 0);
+      ico.textContent = (b.open_pnl || 0) >= 0 ? "▲" : "▼";
+      sub.textContent = `open P&L ${fmtUsd2(b.open_pnl, true)}`;
+    } else {
+      el.textContent = "FLAT";
+      el.classList.remove("pos-t", "neg-t");
+      ico.textContent = "▣";
+      sub.textContent = b.halted_today ? "halted today" : "no open trades";
+    }
+    reveal(el);
+  } catch (e) { /* keep last */ }
+}
+
+$("ops-list").addEventListener("click", (e) => {
+  const row = e.target.closest(".mk-row");
+  if (!row) return;
+  const r = row.dataset.r;
+  if (opsOpen.has(r)) opsOpen.delete(r); else opsOpen.add(r);
+  const det = row.parentElement.querySelector(".mk-detail");
+  if (det) det.classList.toggle("hidden");
+  const ar = row.querySelector(".mk-arrow");
+  if (ar) ar.textContent = opsOpen.has(r) ? "▾" : "▸";
+});
+
 /* ---------- position ---------- */
 async function pollPosition() {
+  if (basketRunning) return;        // Open Trades KPI is basket-driven now
   try {
     const r = await fetch(af("/api/broker/position"));
     const j = await r.json();
@@ -335,10 +480,12 @@ function renderTrades() {
     const et = t.exit_time ? new Date(t.exit_time) : null;
     const when = et ? et.toLocaleDateString(undefined, { day: "numeric", month: "short" }) +
       " " + et.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "—";
+    const root = t.instr || (t.symbol ? t.symbol.replace(/[A-Z]\d+$/, "") : "MNQ");
+    const M = mkt(root);
     return `<div class="trade-row">
       <div class="tr-side ${side}">${side}</div>
       <div class="tr-mid">
-        <div class="tr-line1">${side === "L" ? "Long" : "Short"} ${t.qty || 1} · ${Number(t.entry_px).toFixed(2)} → ${Number(t.exit_px).toFixed(2)}</div>
+        <div class="tr-line1"><span class="instr-chip" style="color:${M.color};border-color:${M.color}40;background:${M.color}18">${M.name}</span>${side === "L" ? "Long" : "Short"} ${t.qty || 1} · ${fmtPx(t.entry_px, M.dp)} → ${fmtPx(t.exit_px, M.dp)}</div>
         <div class="tr-line2">${when}</div>
       </div>
       <div class="tr-pnl ${pnl > 0 ? "pos-t" : pnl < 0 ? "neg-t" : ""}">${fmtUsd2(pnl, true)}</div>
@@ -432,8 +579,9 @@ async function pollEngine() {
 /* ---------- boot ---------- */
 waitForLW(() => {
   makeCharts();
-  pollStats(); pollPosition(); pollTrades(); pollPause(); pollEngine();
+  pollStats(); pollBasket(); pollPosition(); pollTrades(); pollPause(); pollEngine();
   setInterval(pollStats, 10000);
+  setInterval(pollBasket, 7000);
   setInterval(pollPosition, 10000);
   setInterval(pollTrades, 30000);
   setInterval(pollPause, 15000);
