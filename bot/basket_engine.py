@@ -119,11 +119,21 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         y = today.year + (today.month + delta - 1) // 12
         if m not in months:
             continue
-        # approx expiry: 3rd Friday (equity/ZB) else 20th; roll 3 days early
+        # approx expiry, rolled 3 days early:
+        #   equities/ZB: 3rd Friday of the contract month
+        #   MCL: crude expires ~20th of the month BEFORE delivery (found
+        #        live 2026-07-24: MCLQ6 was already dead, bot traded a
+        #        near-expired contract with a stale book)
+        #   MGC: gold trades until near the END of the contract month
         d = dt.date(y, m, 1)
         third_fri = 1 + ((4 - d.weekday()) % 7) + 14
-        exp = dt.date(y, m, min(third_fri, 28)) if root in ("MES","M2K","MYM","ZB") \
-              else dt.date(y, m, 20)
+        if root in ("MES", "M2K", "MYM", "ZB"):
+            exp = dt.date(y, m, min(third_fri, 28))
+        elif root == "MCL":
+            pm, py = (m - 1, y) if m > 1 else (12, y - 1)
+            exp = dt.date(py, pm, 20)
+        else:
+            exp = dt.date(y, m, 26)
         if exp - dt.timedelta(days=3) > today:
             code = (MONTH_Q if root in ("MES","M2K","MYM","ZB") else MONTH_ALL)[m]
             return f"{root}{code}{y % 10}"
@@ -237,6 +247,8 @@ class Sleeve:
         # this the live sleeve re-shorted the same move 2 min after a
         # stop and got stopped again — churn the backtest never had.
         self.cooldown = 0            # bars until this sleeve may enter again
+        self.bars_held = 0
+        self.oids = None             # (entry_id, stop_id, tgt_id) when open
 
     def signal(self, F: Features):
         """Mirror of mega_multi.evaluate entry logic on the last CLOSED bar."""
@@ -847,6 +859,12 @@ class BasketEngine:
             for r in self.roots:
                 eng = sum(sl.pos for sl in self.sleeves if sl.instr == r) * UNITS
                 snap[r] = {"engine": eng, "broker": broker[r]}
+                # in-flight resting entries make engine-vs-broker nets
+                # legitimately ambiguous — don't build a mismatch streak
+                # while an order is pending on this root (audit 2026-07-24)
+                if any(sl.pending for sl in self.sleeves if sl.instr == r):
+                    self._recon_streak[r] = 0
+                    continue
                 if eng != broker[r]:
                     self._recon_streak[r] = self._recon_streak.get(r, 0) + 1
                     if self._recon_streak[r] >= 3:
@@ -975,7 +993,26 @@ class BasketEngine:
             if sl.pending:
                 sl.pending["ttl"] -= 1
                 if sl.pending["ttl"] <= 0:
-                    self._cancel_pending(sl, "ttl expired")
+                    # FILL RACE GUARD (audit 2026-07-24): the entry may
+                    # have filled seconds ago, before _sync_orders saw it.
+                    # Canceling a filled OSO parent kills its bracket and
+                    # the engine forgets a REAL position. Check status
+                    # first; if filled, hold one more cycle for the sync.
+                    st = None
+                    try:
+                        s_, o_ = self.orders().session._rest(
+                            "GET", "/order/item",
+                            params={"id": int(sl.pending["entry_id"])})
+                        if s_ == 200 and isinstance(o_, dict):
+                            st = o_.get("ordStatus")
+                    except Exception:
+                        pass
+                    if st == "Filled":
+                        sl.pending["ttl"] = 1     # adopt on next sync
+                        logger.info(f"[basket] s{sl.idx} TTL hit but entry "
+                                    f"FILLED — deferring to fill sync")
+                    else:
+                        self._cancel_pending(sl, "ttl expired")
                 continue
             # ---- new entries ----
             if sl.cooldown > 0:
@@ -988,8 +1025,23 @@ class BasketEngine:
             if not self.gates.ok(sl.cfg.get("exo", "none")):
                 continue
             side, a = sl.signal(F)
-            if side != 0:
-                self._enter(sl, side, a)
+            if side == 0:
+                continue
+            # NETTING GUARD (audit 2026-07-24): at a netting broker an
+            # opposite-direction entry CLOSES a sibling sleeve's position
+            # and leaves both brackets orphaned — the orphan children then
+            # open positions nobody owns and the reconciler pays market
+            # prices to clean up. Same-direction stacking is safe (every
+            # bracket seller is covered by an open long, 1:1); opposite
+            # crossing is pure churn at a netting account, so skip it.
+            crossed = any(
+                o is not sl and o.instr == root and (
+                    (o.pos != 0 and o.pos != side) or
+                    (o.pending and o.pending.get("side") != side))
+                for o in self.sleeves)
+            if crossed:
+                continue
+            self._enter(sl, side, a)
 
     # ---------------- main loop ----------------
     def run(self):
