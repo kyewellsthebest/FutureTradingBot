@@ -2292,7 +2292,10 @@ class FibRuntime:
                                 if not isinstance(pos, dict): continue
                                 if pos.get("accountId") != acct_id: continue
                                 np_val = int(pos.get("netPos") or 0)
-                                if np_val != 0:
+                                if np_val != 0 and self._is_nq_contract(
+                                        sess, pos.get("contractId")):
+                                    # NQ-family only: flatten-first must
+                                    # never liquidate basket positions
                                     nonzero_positions.append({
                                         "contractId": pos.get("contractId"),
                                         "netPos": np_val,
@@ -3434,6 +3437,31 @@ class FibRuntime:
             logger.warning(f"[PRE-SUBMIT adopt] {e!r}")
             return None
 
+    def _is_nq_contract(self, sess, cid) -> bool:
+        """True only when the contract belongs to THIS strategy's market
+        (MNQ/NQ family). The SNAP-BACK BASKET trades six other products
+        on the same demo account with their own lifecycle — the orphan/
+        stack/flatten guards must NEVER touch them (2026-07-24 bundle:
+        these guards were flattening every basket entry within minutes).
+        Unresolvable contract -> False (safe: leave it alone)."""
+        if cid is None:
+            return False
+        cache = getattr(self, "_contract_root_cache", None)
+        if cache is None:
+            cache = self._contract_root_cache = {}
+        name = cache.get(int(cid))
+        if name is None:
+            try:
+                c_status, contract = sess._rest(
+                    "GET", "/contract/item", params={"id": int(cid)})
+                name = (contract.get("name") or "") if (
+                    c_status == 200 and isinstance(contract, dict)) else ""
+            except Exception:
+                name = ""
+            if name:
+                cache[int(cid)] = name
+        return bool(name) and name.upper().startswith(("MNQ", "NQ"))
+
     def _check_position_discrepancy(self) -> None:
         """If broker has more contracts open than paper expects,
         flatten the extras. Catches the position-stacking bug class:
@@ -3577,6 +3605,8 @@ class FibRuntime:
                 net = int(p.get("netPos") or 0)
                 if net == 0:
                     continue   # Broker flat -- nothing to reconcile
+                if not self._is_nq_contract(sess, p.get("contractId")):
+                    continue   # basket-owned or unknown -- not ours to police
                 # Two anomalies handled below:
                 #   A. Stacking: net > 1 contract (always wrong)
                 #   B. Orphan:   broker has 1 contract but paper expects flat
