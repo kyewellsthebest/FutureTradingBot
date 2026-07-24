@@ -5315,6 +5315,217 @@ def _build_decisions_payload():
     return out
 
 
+def _build_basket_bundle(tradovate_snap: dict) -> dict:
+    """SNAP-BACK BASKET section of the diagnostic bundle.
+
+    Everything needed to verify the multi-instrument engine from one
+    file: engine status + prices + gates (with ages), config hash,
+    broker-vs-engine position cross-check, basket-tagged fills, the
+    engine's own log lines, and a CHECKS list with an overall verdict.
+    Read `checks` first: any ERROR names the broken invariant."""
+    repo = Path(__file__).resolve().parent.parent
+    now = datetime.now(timezone.utc)
+    out: dict = {"checks": [], "verdict": "GREEN"}
+    checks = out["checks"]
+
+    def _chk(level, code, msg):
+        checks.append({"level": level, "code": code, "msg": msg})
+        if level == "ERROR":
+            out["verdict"] = "RED"
+        elif level == "WARN" and out["verdict"] == "GREEN":
+            out["verdict"] = "YELLOW"
+
+    def _read_json(name):
+        try:
+            return json.loads((repo / "data" / name).read_text())
+        except FileNotFoundError:
+            return None
+        except Exception as e:
+            return {"_read_error": repr(e)}
+
+    def _age_s(iso):
+        try:
+            t = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+            return round((now - t).total_seconds(), 1)
+        except Exception:
+            return None
+
+    enabled = (repo / "data" / "basket_enabled.flag").exists()
+    killed = (repo / "data" / "basket_killed.flag").exists()
+    out["enabled_flag"] = enabled
+    out["kill_flag"] = killed
+
+    status = _read_json("basket_status.json")
+    prices = _read_json("basket_prices.json")
+    gates = _read_json("gates_daily.json")
+    out["status"] = status
+    out["prices"] = prices
+    out["gates_file"] = gates
+
+    # -- config integrity: deployed sleeves == research file, hashed --
+    try:
+        import hashlib
+        cfg_raw = (repo / "research" / "basket_sleeves.json").read_bytes()
+        cfg = json.loads(cfg_raw)
+        out["config"] = {
+            "md5": hashlib.md5(cfg_raw).hexdigest(),
+            "n_sleeves": len(cfg.get("sleeves", [])),
+            "contracts": cfg.get("contracts"),
+            "validated": cfg.get("validated"),
+            "rails": cfg.get("rails"),
+        }
+        if len(cfg.get("sleeves", [])) != 26:
+            _chk("ERROR", "config_sleeves",
+                 f"expected 26 sleeves, config has {len(cfg.get('sleeves', []))}")
+    except Exception as e:
+        out["config"] = {"error": repr(e)}
+        _chk("ERROR", "config_missing", f"basket_sleeves.json unreadable: {e!r}")
+
+    # -- engine liveness --
+    if not enabled:
+        _chk("WARN", "not_enabled",
+             "basket_enabled.flag missing — engine will not start")
+    if status is None:
+        _chk("ERROR" if enabled else "WARN", "no_status",
+             "basket_status.json missing — engine has never completed a cycle")
+    else:
+        age = _age_s(status.get("ts"))
+        out["status_age_s"] = age
+        # weekday market hours: expect a cycle at least every ~5 min
+        market_open = now.weekday() < 5 and not (
+            now.weekday() == 4 and now.hour >= 22) and now.hour != 22
+        if age is None:
+            _chk("ERROR", "status_ts", "status file has unparseable timestamp")
+        elif enabled and market_open and age > 300:
+            _chk("ERROR", "status_stale",
+                 f"status is {age:.0f}s old — engine thread looks dead/stuck")
+        elif age > 300:
+            _chk("WARN", "status_stale_closed",
+                 f"status is {age:.0f}s old (market may be closed — OK if so)")
+        if status.get("killed") or killed:
+            _chk("ERROR", "kill_switch",
+                 "KILL-SWITCH tripped (cum P&L <= -$2,000). Human reset required.")
+        if status.get("halted_today"):
+            _chk("WARN", "daily_breaker",
+                 "daily breaker tripped (day <= -$1,000) — flat until tomorrow")
+        g = status.get("gates") or {}
+        if g.get("fresh") is False:
+            _chk("WARN", "gates_stale",
+                 "gates data stale >5 days — gated sleeves are safe-OFF")
+        # sleeve-state census for a one-line read
+        census: dict = {}
+        for s in status.get("sleeves", []):
+            census[s.get("state")] = census.get(s.get("state"), 0) + 1
+        out["sleeve_census"] = census
+
+    # -- price feed health --
+    if prices and isinstance(prices, dict):
+        srcs = {}
+        stale_px = []
+        for r, p in prices.items():
+            if not isinstance(p, dict):
+                continue
+            srcs[p.get("src")] = srcs.get(p.get("src"), 0) + 1
+            a = _age_s(p.get("ts"))
+            if a is not None and a > 120:
+                stale_px.append(f"{r}:{a:.0f}s")
+        out["price_sources"] = srcs
+        if srcs and not srcs.get("polygon-live"):
+            _chk("WARN", "polygon_down",
+                 "no polygon-live prices — all falling back to bar closes "
+                 "(check POLYGON_API on the host)")
+        if stale_px:
+            _chk("WARN", "prices_stale", "stale prices: " + ", ".join(stale_px))
+    elif status is not None:
+        _chk("WARN", "no_prices", "basket_prices.json missing — price thread not running")
+
+    # -- gates sanity --
+    if gates and isinstance(gates, dict) and "_read_error" not in gates:
+        try:
+            gage = (now.date() - datetime.fromisoformat(gates["date"]).date()).days
+            out["gates_age_days"] = gage
+            if gage > 5:
+                _chk("WARN", "gates_file_old",
+                     f"gates_daily.json is {gage} days old (gex-daily workflow "
+                     "not committing?)")
+        except Exception:
+            _chk("WARN", "gates_date", "gates_daily.json date unparseable")
+    else:
+        _chk("WARN", "no_gates", "gates_daily.json missing — gated sleeves OFF")
+
+    # -- broker cross-check: engine's open sleeves vs Tradovate positions --
+    try:
+        eng_open: dict = {}
+        for s in (status or {}).get("sleeves", []):
+            if s.get("state") in ("long", "short"):
+                r = s["instr"]
+                eng_open[r] = eng_open.get(r, 0) + (
+                    1 if s["state"] == "long" else -1)
+        brk_open: dict = {}
+        pl = (tradovate_snap or {}).get("position_list")
+        raw_pos = (pl[1] if isinstance(pl, (list, tuple)) and len(pl) == 2
+                   and isinstance(pl[1], list) else
+                   pl if isinstance(pl, list) else [])
+        if raw_pos:
+            from bot.tradovate_client import get_session as _gs2
+            sess2 = _gs2()
+            back = {"MES": "ES", "M2K": "RTY", "MYM": "YM",
+                    "MGC": "GC", "MCL": "CL", "ZB": "ZB"}
+            for p in raw_pos:
+                if not isinstance(p, dict) or not p.get("netPos"):
+                    continue
+                sym = _contract_symbol(sess2, p.get("contractId"))
+                r = back.get(_root_of(sym)) if sym else None
+                if r:
+                    brk_open[r] = brk_open.get(r, 0) + int(p["netPos"])
+        out["cross_check"] = {"engine_net_by_root": eng_open,
+                              "broker_net_by_root": brk_open}
+        # only compare when both sides are readable; engine counts units=1
+        for r in set(eng_open) | set(brk_open):
+            if eng_open.get(r, 0) != brk_open.get(r, 0):
+                _chk("ERROR", "position_mismatch",
+                     f"{r}: engine thinks net {eng_open.get(r, 0)}, broker "
+                     f"has {brk_open.get(r, 0)} — reconcile before trusting P&L")
+    except Exception as e:
+        out["cross_check"] = {"error": repr(e)}
+
+    # -- basket-tagged fills (setup_ref 'basket:...') --
+    try:
+        from bot.tradovate_client import get_session as _gs
+        sess = _gs()
+        if sess.is_configured:
+            rows = _collect_broker_trades(sess, sess.get_account_id(), limit=500)
+            brows = [r for r in rows
+                     if str(r.get("setup_ref") or "").startswith("basket:")
+                     or (r.get("instr") and r.get("instr") != "MNQ")]
+            out["basket_trades"] = brows[-40:]
+            out["basket_trades_count"] = len(brows)
+        else:
+            out["basket_trades"] = "broker not configured"
+    except Exception as e:
+        out["basket_trades_error"] = repr(e)
+
+    # -- engine log lines (orders, errors, breaker events) --
+    try:
+        tail = _read_log_tail(400_000)
+        lines = (tail.get("tail") or tail.get("text") or "")
+        if isinstance(lines, str):
+            bl = [ln for ln in lines.splitlines() if "[basket]" in ln]
+            out["log_lines"] = bl[-120:]
+            n_err = sum(1 for ln in bl if " ERROR " in ln or "error" in ln.lower())
+            if n_err:
+                _chk("WARN", "log_errors",
+                     f"{n_err} basket error lines in recent log — read log_lines")
+    except Exception as e:
+        out["log_lines_error"] = repr(e)
+
+    if not checks:
+        _chk("OK", "all_clear", "all basket invariants hold")
+    return out
+
+
 @app.route("/api/download/<kind>")
 def api_download(kind: str):
     """Unified download endpoint. Returns the requested kind with a
@@ -5362,6 +5573,13 @@ def api_download(kind: str):
         # screenshotting 6 different URLs every time something looks off.
         tradovate_snap = _collect_tradovate_snapshot()
         payload["tradovate"] = tradovate_snap
+        # SNAP-BACK BASKET verification: engine status, prices, gates,
+        # config hash, broker cross-check, basket fills, engine log +
+        # a GREEN/YELLOW/RED verdict. Read basket.checks first.
+        try:
+            payload["basket"] = _build_basket_bundle(tradovate_snap)
+        except Exception as e:
+            payload["basket_error"] = repr(e)
         # THE most important diagnostic: explicit detection of every
         # mechanism that causes paper-vs-broker divergence. Stale
         # fills, missed entries, bracket rejections, latency, target
