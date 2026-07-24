@@ -590,6 +590,17 @@ def _collect_broker_trades(sess, acct_id: int,
         except Exception as e:
             logger.debug(f"audit_log_synth_trades: {e!r}")
 
+    # HIDE PRE-BASKET HISTORY (user order 2026-07-24): the ~141 trades
+    # from the retired FADESZ era (<= 17 Jul 2026) stay in Tradovate's
+    # records and on disk, but every dashboard surface built from this
+    # walk (Trades tab, stats, equity, daily, bundle) starts fresh from
+    # the cutoff. Override with BROKER_TRADES_HIDE_BEFORE=ISO or "" to
+    # show everything again.
+    cutoff = os.environ.get("BROKER_TRADES_HIDE_BEFORE", "2026-07-18")
+    if cutoff:
+        rows = [r for r in rows
+                if str(r.get("exit_time") or r.get("ts") or "") >= cutoff]
+
     rows.sort(key=lambda r: r.get("ts") or "")
     return rows[-limit:]
 
