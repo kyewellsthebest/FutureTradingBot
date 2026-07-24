@@ -230,6 +230,12 @@ class Sleeve:
         self.tgt = None
         self.stop = None
         self.pending = None          # dict(limit px, side, ttl bars) for limit sleeves
+        # BACKTEST NON-OVERLAP (missing in v1, found live 2026-07-24):
+        # the research engine spaces a sleeve's entries at least H bars
+        # apart (`last = idx + H`), even after an early stop-out. Without
+        # this the live sleeve re-shorted the same move 2 min after a
+        # stop and got stopped again — churn the backtest never had.
+        self.cooldown = 0            # bars until this sleeve may enter again
 
     def signal(self, F: Features):
         """Mirror of mega_multi.evaluate entry logic on the last CLOSED bar."""
@@ -710,6 +716,7 @@ class BasketEngine:
             return
         self.market(sl.instr, "Buy" if side > 0 else "Sell", UNITS, f"s{sl.idx}-entry")
         sl.pos = side
+        sl.cooldown = sl.cfg["H"]               # backtest non-overlap spacing
         sl.entry_px = c + tick * side           # conservative book-keeping (1 tick slip)
         sl.entry_bar_ts = self.feats[sl.instr].last()["ts"]
         sl.tgt = sl.entry_px + sl.cfg["tgtA"] * a * side if sl.cfg.get("tgtA") else None
@@ -736,6 +743,8 @@ class BasketEngine:
         for sl in self.sleeves:
             if sl.instr != root:
                 continue
+            if sl.cooldown > 0:
+                sl.cooldown -= 1     # one closed bar elapsed
             # ---- manage open position ----
             if sl.pos != 0:
                 sl.bars_held += 1
@@ -759,6 +768,7 @@ class BasketEngine:
                     self.market(root, "Buy" if p["side"] > 0 else "Sell", UNITS,
                                 f"s{sl.idx}-limfill")
                     sl.pos = p["side"]; sl.entry_px = p["px"]
+                    sl.cooldown = sl.cfg["H"]   # backtest non-overlap spacing
                     sl.entry_bar_ts = bar["ts"]; sl.bars_held = 0
                     a = p["atr"]
                     sl.tgt = sl.entry_px + sl.cfg["tgtA"]*a*sl.pos if sl.cfg.get("tgtA") else None
@@ -770,6 +780,8 @@ class BasketEngine:
                         sl.pending = None
                 continue
             # ---- new entries ----
+            if sl.cooldown > 0:
+                continue             # backtest spacing: one entry per H window
             if self.halted_today or KILL_FLAG.exists() or now_h >= EOD_UTC - 0.5:
                 continue
             lo, hi = SESS[sl.cfg.get("sess", "us")]
