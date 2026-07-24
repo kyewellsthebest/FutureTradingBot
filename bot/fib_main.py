@@ -651,18 +651,21 @@ class FibRuntime:
         # SNAP-BACK BASKET (2026-07-24, user: "deploy this on the demo"):
         # 26 validated fade-family sleeves on MES/M2K/MYM/MGC/MCL/ZB,
         # demo-only (engine refuses non-demo sessions). Runs in its own
-        # thread, independent of the NQ paths above. Enable/disable via
-        # data/basket_enabled.flag; kill-switch writes basket_killed.flag.
+        # thread, independent of the NQ paths above. Default ON — a
+        # git-shipped enable flag can't reach the Railway volume, so the
+        # off-switches are BASKET_ENABLED=0 or basket_disabled.flag in
+        # the data dir; the kill-switch (basket_killed.flag) still halts
+        # trading inside the engine without stopping the status feed.
         try:
-            from pathlib import Path as _P
-            _flag = _P(__file__).resolve().parent.parent / "data" / "basket_enabled.flag"
-            if _flag.exists():
-                from bot.basket_engine import start_in_thread as _basket_start
+            from bot.basket_engine import basket_enabled, start_in_thread as _basket_start
+            if basket_enabled():
                 self.basket_thread = _basket_start()
                 logger.warning("[basket] SNAP-BACK BASKET engine started "
                                "(26 sleeves, DEMO-only, thread)")
             else:
                 self.basket_thread = None
+                logger.warning("[basket] disabled (BASKET_ENABLED=0 or "
+                               "basket_disabled.flag)")
         except Exception as e:
             self.basket_thread = None
             logger.error(f"[basket] init failed: {e!r}")

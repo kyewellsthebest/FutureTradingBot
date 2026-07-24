@@ -30,12 +30,67 @@ from pathlib import Path
 
 logger = logging.getLogger("basket")
 ROOT = Path(__file__).resolve().parent.parent
-CFG_PATH = ROOT / "research" / "basket_sleeves.json"
-GATES_PATH = ROOT / "data" / "gates_daily.json"
-STATE_PATH = ROOT / "data" / "basket_state.json"
-KILL_FLAG = ROOT / "data" / "basket_killed.flag"
-STATUS_PATH = ROOT / "data" / "basket_status.json"
-PRICES_PATH = ROOT / "data" / "basket_prices.json"
+CFG_PATH = ROOT / "research" / "basket_sleeves.json"      # code, ships in git
+# Runtime state lives in the bot's REAL data dir: on Railway that is the
+# persistent volume (BOT_DATA_DIR), NOT the repo checkout's data/ folder —
+# files committed to git under data/ never reach the host (learned from
+# the 2026-07-24 bundle: enabled flag + gates were invisible on the host).
+DATA = Path(os.environ.get("BOT_DATA_DIR") or (ROOT / "data"))
+try:
+    DATA.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+GATES_PATH = DATA / "gates_daily.json"
+STATE_PATH = DATA / "basket_state.json"
+KILL_FLAG = DATA / "basket_killed.flag"
+DISABLED_FLAG = DATA / "basket_disabled.flag"
+STATUS_PATH = DATA / "basket_status.json"
+PRICES_PATH = DATA / "basket_prices.json"
+
+# Frozen research constants for the exogenous gates. vix_med is the
+# median the sleeves were validated against; AAII/NAAIM are the latest
+# known readings (they move slowly — weekly surveys). VIX itself is
+# fetched LIVE daily; sentiment values carry until refreshed.
+GATE_DEFAULTS = {"vix_med": 17.93, "aaii_bb": 0.116279,
+                 "naaim": 80.61, "naaim_med": 71.2857143}
+
+
+def basket_enabled() -> bool:
+    """Default ON (user order 2026-07-24: 'get the bot working and
+    trading properly'). Off only via BASKET_ENABLED=0 or the disabled
+    flag file. The kill-switch is separate and handled inside run()."""
+    if os.environ.get("BASKET_ENABLED", "1").strip() == "0":
+        return False
+    return not DISABLED_FLAG.exists()
+
+
+def _fetch_vix():
+    """Live VIX close: Yahoo chart API, then Stooq. Returns (px, src)
+    or (None, None) — caller decides the safe fallback."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(
+            "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX"
+            "?range=5d&interval=1d",
+            headers={"User-Agent": "Mozilla/5.0"})
+        j = json.loads(urllib.request.urlopen(req, timeout=8).read().decode())
+        cl = [x for x in j["chart"]["result"][0]["indicators"]["quote"][0]
+              ["close"] if x]
+        if cl:
+            return float(cl[-1]), "yahoo"
+    except Exception:
+        pass
+    try:
+        req = urllib.request.Request(
+            "https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcv&h&e=csv",
+            headers={"User-Agent": "Mozilla/5.0"})
+        txt = urllib.request.urlopen(req, timeout=8).read().decode()
+        px = float(txt.splitlines()[1].split(",")[6])
+        if px > 0:
+            return px, "stooq"
+    except Exception:
+        pass
+    return None, None
 
 UNITS = 1
 POLL_S = 40
@@ -403,6 +458,47 @@ class BasketEngine:
         except Exception:
             return None
 
+    # ---------------- gates (self-updating, no committed files) --------
+    def _update_gates_daily(self):
+        """Write today's gates_daily.json from a LIVE VIX fetch plus
+        carried sentiment values. Runs on the host, so no git-shipped
+        data file is needed. If the VIX fetch fails and the carried
+        value is >3 days old, the vix keys are omitted — Gates.ok()
+        then returns False for vix-gated sleeves (per-signal safe-OFF)
+        while sentiment-gated sleeves keep working."""
+        today = dt.date.today().isoformat()
+        prev = _load_json(GATES_PATH, {})
+        if prev.get("date") == today:
+            return
+        rec = {"date": today,
+               "vix_med": prev.get("vix_med", GATE_DEFAULTS["vix_med"]),
+               "aaii_bb": prev.get("aaii_bb", GATE_DEFAULTS["aaii_bb"]),
+               "naaim": prev.get("naaim", GATE_DEFAULTS["naaim"]),
+               "naaim_med": prev.get("naaim_med", GATE_DEFAULTS["naaim_med"])}
+        vix, src = _fetch_vix()
+        if vix is not None:
+            rec["vix"] = vix
+            rec["vix_src"] = src
+        else:
+            try:
+                age = (dt.date.today()
+                       - dt.date.fromisoformat(prev["date"])).days
+                if "vix" in prev and age <= 3:
+                    rec["vix"] = prev["vix"]
+                    rec["vix_src"] = f"carry({prev.get('vix_src')})"
+            except Exception:
+                pass
+            if "vix" not in rec:
+                logger.warning("[basket] VIX fetch failed, no recent carry "
+                               "— vix-gated sleeves OFF today (safe)")
+        try:
+            GATES_PATH.write_text(json.dumps(rec, indent=1))
+            logger.info(f"[basket] gates for {today}: "
+                        f"vix={rec.get('vix')}({rec.get('vix_src')}) "
+                        f"aaii={rec['aaii_bb']} naaim={rec['naaim']}")
+        except Exception as e:
+            logger.error(f"[basket] gates write failed: {e!r}")
+
     # ---------------- risk rails ----------------
     def _roll_day(self):
         today = dt.date.today().isoformat()
@@ -410,6 +506,7 @@ class BasketEngine:
             self.state["day"] = today
             self.state["day_pnl"] = 0.0
             self.halted_today = False
+            self._update_gates_daily()
             self.gates.load()
             cmap = self.cfg.get("contracts", {})
             self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
@@ -524,8 +621,10 @@ class BasketEngine:
     def run(self):
         self._ensure_demo()
         logger.info(f"[basket] starting: {len(self.sleeves)} sleeves on {self.roots} "
-                    f"UNITS={UNITS} (DEMO)")
+                    f"UNITS={UNITS} (DEMO) data_dir={DATA}")
+        self._update_gates_daily()
         self._roll_day()
+        self.gates.load()
         threading.Thread(target=self._price_loop, name="basket-prices",
                          daemon=True).start()
         while True:
