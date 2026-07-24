@@ -34,6 +34,8 @@ CFG_PATH = ROOT / "research" / "basket_sleeves.json"
 GATES_PATH = ROOT / "data" / "gates_daily.json"
 STATE_PATH = ROOT / "data" / "basket_state.json"
 KILL_FLAG = ROOT / "data" / "basket_killed.flag"
+STATUS_PATH = ROOT / "data" / "basket_status.json"
+PRICES_PATH = ROOT / "data" / "basket_prices.json"
 
 UNITS = 1
 POLL_S = 40
@@ -202,6 +204,47 @@ class Sleeve:
             return 0, a
         return 0, a
 
+    def describe(self) -> str:
+        """One-line human description of what this mini-bot looks for."""
+        c = self.cfg; fam = c["fam"]
+        sess = {"us": "US hours", "eu": "EU hours", "asia": "Asia hours",
+                "all": "24h"}.get(c.get("sess", "us"), c.get("sess"))
+        if fam == "fade":
+            d = f"fades {c['lb']}-bar moves > {c['k']}x ATR"
+        elif fam == "momo":
+            d = f"rides {c['lb']}-bar moves > {c['k']}x ATR"
+        elif fam == "breakout":
+            d = f"buys/sells {c['rn']}-bar range breaks"
+        elif fam == "pullback":
+            d = f"buys dips above the {c['man']}-bar average"
+        else:
+            d = f"trades volume spikes > {c['k']} sigma"
+        return f"{d}, {sess}"
+
+    def proximity(self, F: Features):
+        """0..100 = how close the setup is to firing (rough, for display)."""
+        try:
+            cfg = self.cfg; fam = cfg["fam"]
+            a = F.atr(14)
+            if not a or a <= 0:
+                return 0
+            c = F.last()["c"]
+            if fam in ("fade", "momo"):
+                return int(min(100, abs(F.mom(cfg["lb"])) / (cfg["k"] * a) * 100))
+            if fam == "breakout":
+                rmx, rmn = F.rmax(cfg["rn"]), F.rmin(cfg["rn"])
+                up = max(0.0, 1 - (rmx - c) / a); dn = max(0.0, 1 - (c - rmn) / a)
+                return int(min(100, max(up, dn) * 100))
+            if fam == "pullback":
+                ma = F.ma(cfg["man"]); m = F.mom(cfg["lb"])
+                live = (c > ma and m < 0) or (c < ma and m > 0)
+                return 100 if live else 25
+            if fam == "volspike":
+                return int(min(100, max(0.0, F.volz() / cfg["k"]) * 100))
+        except Exception:
+            pass
+        return 0
+
 
 class BasketEngine:
     def __init__(self):
@@ -255,6 +298,110 @@ class BasketEngine:
         logger.info(f"[basket] ORDER {api_side} {qty} {sym} ({why})")
         return self.orders().submit_market(side=api_side, qty=int(qty),
                                            symbol=sym, setup_ref=f"basket:{why}")
+
+    # ---------------- live prices (Polygon REST, Tradovate fallback) ----
+    def _poll_price_polygon(self, sym: str):
+        """Latest trade price from Polygon (the user's live-price feed).
+        Falls back to the latest 1-min aggregate close."""
+        key = os.environ.get("POLYGON_API") or os.environ.get("POLYGON_API_KEY")
+        if not key:
+            return None
+        import urllib.request
+        for url, pick in (
+            (f"https://api.polygon.io/futures/v1/trades/{sym}?limit=1&sort=timestamp.desc&apiKey={key}",
+             lambda j: (j.get("results") or [{}])[0].get("price")),
+            (f"https://api.polygon.io/futures/v1/aggs/{sym}?resolution=1min&limit=1&sort=window_start.desc&apiKey={key}",
+             lambda j: (j.get("results") or [{}])[0].get("close")),
+        ):
+            try:
+                with urllib.request.urlopen(url, timeout=4) as r:
+                    px = pick(json.loads(r.read().decode()))
+                if px:
+                    return float(px)
+            except Exception:
+                continue
+        return None
+
+    def _price_loop(self):
+        """Every ~5s: refresh live prices for all traded contracts and write
+        basket_prices.json for the dashboard. Polygon = live (user pays for
+        it); last closed 5-min bar = fallback, tagged so the UI is honest."""
+        while True:
+            out = {}
+            for root in self.roots:
+                sym = self.symbols.get(root)
+                if not sym:
+                    continue
+                px = self._poll_price_polygon(sym)
+                src = "polygon-live"
+                if px is None:
+                    src = "bar-close"
+                    try:
+                        px = self.feats[root].last()["c"]
+                    except Exception:
+                        px = None
+                if px is not None:
+                    out[root] = {"symbol": sym, "px": px, "src": src,
+                                 "ts": dt.datetime.utcnow().isoformat() + "Z"}
+            try:
+                PRICES_PATH.write_text(json.dumps(out))
+            except Exception:
+                pass
+            time.sleep(5)
+
+    # ---------------- dashboard status ----------------
+    def _write_status(self):
+        try:
+            gates_fresh = self.gates.fresh()
+            sleeves = []
+            for sl in self.sleeves:
+                F = self.feats[sl.instr]
+                exo = sl.cfg.get("exo", "none")
+                gate_open = self.gates.ok(exo)
+                if sl.pos != 0:
+                    state = "long" if sl.pos > 0 else "short"
+                elif sl.pending:
+                    state = "armed"
+                elif not gate_open:
+                    state = "gated"
+                else:
+                    state = "watching"
+                d = {"i": sl.idx, "instr": sl.instr, "fam": sl.cfg["fam"],
+                     "desc": sl.describe(), "exo": exo, "gate_open": gate_open,
+                     "state": state,
+                     "prox": sl.proximity(F) if F.ready() else 0}
+                if sl.pos != 0:
+                    d.update(entry_px=sl.entry_px, stop=sl.stop, tgt=sl.tgt,
+                             bars_held=getattr(sl, "bars_held", 0),
+                             max_bars=sl.cfg["H"])
+                if sl.pending:
+                    d.update(limit_px=sl.pending["px"],
+                             limit_side="long" if sl.pending["side"] > 0 else "short",
+                             ttl=sl.pending["ttl"])
+                sleeves.append(d)
+            status = {
+                "ts": dt.datetime.utcnow().isoformat() + "Z",
+                "units": UNITS,
+                "day": self.state.get("day"),
+                "day_pnl": round(self.state.get("day_pnl", 0.0), 2),
+                "cum_pnl": round(self.state.get("cum_pnl", 0.0), 2),
+                "halted_today": self.halted_today,
+                "killed": KILL_FLAG.exists(),
+                "gates": {"fresh": gates_fresh, **{k: self.d_gate(k) for k in
+                          ("vix", "vix_med", "aaii_bb", "naaim", "naaim_med")}},
+                "symbols": self.symbols,
+                "pv": PV,
+                "sleeves": sleeves,
+            }
+            STATUS_PATH.write_text(json.dumps(status))
+        except Exception as e:
+            logger.debug(f"[basket] status write: {e!r}")
+
+    def d_gate(self, k):
+        try:
+            return self.gates.d.get(k)
+        except Exception:
+            return None
 
     # ---------------- risk rails ----------------
     def _roll_day(self):
@@ -379,10 +526,13 @@ class BasketEngine:
         logger.info(f"[basket] starting: {len(self.sleeves)} sleeves on {self.roots} "
                     f"UNITS={UNITS} (DEMO)")
         self._roll_day()
+        threading.Thread(target=self._price_loop, name="basket-prices",
+                         daemon=True).start()
         while True:
             try:
                 self._roll_day()
                 if KILL_FLAG.exists():
+                    self._write_status()
                     time.sleep(300); continue
                 for root in self.roots:
                     try:
@@ -390,6 +540,7 @@ class BasketEngine:
                             self.on_new_bar(root)
                     except Exception as e:
                         logger.warning(f"[basket] {root} poll error: {e}")
+                self._write_status()
             except Exception as e:
                 logger.error(f"[basket] loop error: {e}")
             time.sleep(POLL_S)

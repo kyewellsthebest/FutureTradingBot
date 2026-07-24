@@ -58,3 +58,8 @@ data/xasset/
 data/tick/nq_bars_1m_vol.parquet
 data/tick/minute_volfeat.parquet
 data/tick/quotes_1s.npz
+
+# basket engine runtime state (rebuilt at runtime)
+data/basket_status.json
+data/basket_prices.json
+data/basket_state.json
