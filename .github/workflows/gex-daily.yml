@@ -31,6 +31,9 @@ jobs:
           python3 tools/fetch_options_chain.py "$POLYGON_API_KEY"
           python3 bot/gex_daily.py
           echo "--- latest regime record ---"; tail -1 data/gex_daily_log.jsonl
+          # basket gates (VIX/AAII/NAAIM): stale file = gated sleeves safe-OFF
+          pip install yfinance >/dev/null 2>&1
+          python3 tools/update_gates.py && echo "gates updated" || echo "gates update FAILED (engine stays safe-OFF)"
           # archive raw snapshot (best-effort)
           gh release view options-gex >/dev/null 2>&1 \
             || gh release create options-gex -t "options-gex" -n "daily QQQ chain snapshots" || true
@@ -39,6 +42,6 @@ jobs:
         run: |
           git config user.name "gex-bot"
           git config user.email "gex-bot@users.noreply.github.com"
-          git add data/gex_daily_log.jsonl || true
-          git commit -m "gex-daily: append regime record [skip ci]" || echo "no change"
+          git add data/gex_daily_log.jsonl data/gates_daily.json || true
+          git commit -m "gex-daily: append regime record + basket gates [skip ci]" || echo "no change"
           for i in 1 2 3 4; do git push && break || sleep $((2**i)); done

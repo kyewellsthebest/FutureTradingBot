@@ -1,0 +1,408 @@
+"""SNAP-BACK BASKET engine (middle dial, v1) — DEMO ONLY.
+
+Runs the 26 validated sleeves from research/basket_sleeves.json across
+MES/M2K/MYM/MGC/MCL/ZB on 5-minute bars pulled through the existing
+Tradovate stack (bot.tradovate_bars / bot.tradovate_orders).
+
+Faithful to the validated backtest (bot mirrors mega_multi.evaluate):
+  entries on CLOSED 5-min bars only; fade/momo/pullback/breakout/volspike
+  triggers with ATR thresholds; limit sleeves rest 0.5*ATR away with a
+  3-bar TTL; exits = ATR target / ATR stop / H-bar time-out; EVERYTHING
+  flat by session end. 1 contract per sleeve (units=1 in v1).
+
+Hard rails (non-negotiable):
+  * refuses to start unless the Tradovate session is DEMO
+  * daily circuit-breaker: realized day P&L <= -$1,000 x units -> flatten
+    all, halt until next session
+  * kill-switch: cumulative P&L <= -$2,000 -> flatten, halt permanently
+    (writes data/basket_killed.flag; human must delete it to restart)
+  * exogenous gates (VIX/AAII/NAAIM) come from data/gates_daily.json;
+    if the file is missing or stale, gated sleeves simply DON'T trade
+    (safe state) while ungated sleeves continue.
+
+Run standalone:  python -m bot.basket_engine
+or via fib_main hook when data/basket_enabled.flag exists.
+"""
+from __future__ import annotations
+import json, math, os, threading, time, logging
+import datetime as dt
+from pathlib import Path
+
+logger = logging.getLogger("basket")
+ROOT = Path(__file__).resolve().parent.parent
+CFG_PATH = ROOT / "research" / "basket_sleeves.json"
+GATES_PATH = ROOT / "data" / "gates_daily.json"
+STATE_PATH = ROOT / "data" / "basket_state.json"
+KILL_FLAG = ROOT / "data" / "basket_killed.flag"
+
+UNITS = 1
+POLL_S = 40
+BAR_S = 300
+SESS = {"us": (13.5, 20.0), "eu": (7.0, 13.5), "asia": (0.0, 7.0), "all": (0.0, 24.0)}
+EOD_UTC = 20.9                      # flatten everything by 20:54 UTC
+# keyed by RESEARCH ROOT (sleeve.instr), values for the traded micro contract
+TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32}
+PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0}
+MONTH_Q = {3: "H", 6: "M", 9: "U", 12: "Z"}
+MONTH_ALL = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",7:"N",8:"Q",9:"U",10:"V",11:"X",12:"Z"}
+
+
+def front_symbol(root: str, today: dt.date | None = None) -> str:
+    """Front-month contract with a 3-day pre-expiry roll buffer."""
+    today = today or dt.date.today()
+    if root in ("MES", "M2K", "MYM", "ZB"):
+        months = sorted(MONTH_Q)
+    elif root == "MGC":
+        months = [2, 4, 6, 8, 10, 12]
+    else:                              # MCL: monthly
+        months = list(range(1, 13))
+    for delta in range(0, 15):
+        m = (today.month + delta - 1) % 12 + 1
+        y = today.year + (today.month + delta - 1) // 12
+        if m not in months:
+            continue
+        # approx expiry: 3rd Friday (equity/ZB) else 20th; roll 3 days early
+        d = dt.date(y, m, 1)
+        third_fri = 1 + ((4 - d.weekday()) % 7) + 14
+        exp = dt.date(y, m, min(third_fri, 28)) if root in ("MES","M2K","MYM","ZB") \
+              else dt.date(y, m, 20)
+        if exp - dt.timedelta(days=3) > today:
+            code = (MONTH_Q if root in ("MES","M2K","MYM","ZB") else MONTH_ALL)[m]
+            return f"{root}{code}{y % 10}"
+    return f"{root}{MONTH_Q[12]}{today.year % 10}"
+
+
+def _load_json(p: Path, default):
+    try:
+        return json.loads(p.read_text())
+    except Exception:
+        return default
+
+
+class Gates:
+    def __init__(self):
+        self.d = {}
+        self.load()
+
+    def load(self):
+        self.d = _load_json(GATES_PATH, {})
+
+    def fresh(self) -> bool:
+        try:
+            age = (dt.date.today() - dt.date.fromisoformat(self.d["date"])).days
+            return age <= 5
+        except Exception:
+            return False
+
+    def ok(self, gate: str) -> bool:
+        """True if this sleeve's exogenous gate is open. Missing data -> gated
+        sleeves stay OFF (safe), 'none' sleeves always on."""
+        if gate == "none":
+            return True
+        if not self.fresh():
+            return False
+        g = self.d
+        try:
+            if gate == "vix_lt":   return g["vix"] < g["vix_med"]
+            if gate == "vix_gt":   return g["vix"] > g["vix_med"]
+            if gate == "aaii_bull": return g["aaii_bb"] > 0
+            if gate == "aaii_bear": return g["aaii_bb"] < 0
+            if gate == "naaim_lt": return g["naaim"] < g["naaim_med"]
+            if gate == "naaim_gt": return g["naaim"] > g["naaim_med"]
+        except Exception:
+            return False
+        return False
+
+
+class Features:
+    """Rolling 5-min OHLCV features for one instrument (mirrors backtest)."""
+    def __init__(self):
+        self.bars = []          # list of dicts o,h,l,c,v,ts (closed bars only)
+
+    def update(self, bars: list) -> bool:
+        """Returns True if a NEW closed bar arrived."""
+        if not bars:
+            return False
+        prev = self.bars[-1]["ts"] if self.bars else None
+        clean = [b for b in bars if b.get("c") is not None]
+        if not clean:
+            return False
+        self.bars = clean[-300:]
+        return prev is None or self.bars[-1]["ts"] != prev
+
+    def _col(self, k):
+        return [b[k] for b in self.bars]
+
+    def ready(self) -> bool:
+        return len(self.bars) >= 60
+
+    def atr(self, n=14):
+        h, l, c = self._col("h"), self._col("l"), self._col("c")
+        trs = [max(h[i]-l[i], abs(c[i]-c[i-1])) for i in range(1, len(c))]
+        return sum(trs[-n:]) / n
+
+    def mom(self, lb):
+        c = self._col("c"); return c[-1] - c[-1-lb]
+
+    def ma(self, n):
+        c = self._col("c"); return sum(c[-n:]) / n
+
+    def rmax(self, n):
+        return max(self._col("h")[-n:])
+
+    def rmin(self, n):
+        return min(self._col("l")[-n:])
+
+    def volz(self, n=48):
+        v = self._col("v")[-n:]
+        mu = sum(v)/len(v); sd = (sum((x-mu)**2 for x in v)/len(v)) ** 0.5
+        return (v[-1]-mu)/(sd+1e-9)
+
+    def last(self):
+        return self.bars[-1]
+
+
+class Sleeve:
+    def __init__(self, idx, spec):
+        self.idx = idx
+        self.instr = spec["instr"]
+        self.cfg = spec["cfg"]
+        self.pos = 0                 # -1/0/+1
+        self.entry_px = None
+        self.entry_bar_ts = None
+        self.tgt = None
+        self.stop = None
+        self.pending = None          # dict(limit px, side, ttl bars) for limit sleeves
+
+    def signal(self, F: Features):
+        """Mirror of mega_multi.evaluate entry logic on the last CLOSED bar."""
+        cfg = self.cfg; c = F.last()["c"]; o = F.last()["o"]
+        a = F.atr(14)
+        if not a or a <= 0:
+            return 0, a
+        fam = cfg["fam"]
+        if fam in ("fade", "momo"):
+            m = F.mom(cfg["lb"])
+            if abs(m) <= cfg["k"] * a:
+                return 0, a
+            s = (1 if m < 0 else -1) if fam == "fade" else (1 if m > 0 else -1)
+            return s, a
+        if fam == "breakout":
+            if c >= F.rmax(cfg["rn"]) - 1e-9:  return 1, a
+            if c <= F.rmin(cfg["rn"]) + 1e-9:  return -1, a
+            return 0, a
+        if fam == "pullback":
+            ma = F.ma(cfg["man"]); m = F.mom(cfg["lb"])
+            if c > ma and m < 0:  return 1, a
+            if c < ma and m > 0:  return -1, a
+            return 0, a
+        if fam == "volspike":
+            if F.volz() > cfg["k"]:
+                return (1 if c > o else -1), a
+            return 0, a
+        return 0, a
+
+
+class BasketEngine:
+    def __init__(self):
+        self.cfg = _load_json(CFG_PATH, None)
+        if not self.cfg:
+            raise RuntimeError("basket_sleeves.json missing")
+        self.sleeves = [Sleeve(i, s) for i, s in enumerate(self.cfg["sleeves"])]
+        self.roots = sorted({s.instr for s in self.sleeves})
+        self.symbols = {}
+        self.feats = {r: Features() for r in self.roots}
+        self.gates = Gates()
+        self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
+        self.halted_today = False
+        self._orders = None
+
+    # ---------------- broker glue ----------------
+    def _ensure_demo(self):
+        from bot.tradovate_client import _is_demo
+        if not _is_demo():
+            raise RuntimeError("REFUSING TO START: session is not DEMO. "
+                               "Basket engine is demo-only until explicitly authorized.")
+
+    def orders(self):
+        if self._orders is None:
+            from bot.tradovate_client import get_session
+            from bot.tradovate_orders import TradovateOrders
+            self._orders = TradovateOrders(get_session())
+        return self._orders
+
+    def bars_for(self, root):
+        from bot.tradovate_bars import get_bars
+        sym = self.symbols[root]
+        df = get_bars(sym, "5m", 240)
+        if df is None or len(df) < 2:
+            return []
+        out = []
+        for ts, row in df.iterrows():
+            try:
+                out.append(dict(ts=str(ts), o=float(row["open"]), h=float(row["high"]),
+                                l=float(row["low"]), c=float(row["close"]),
+                                v=float(row.get("volume", 0) or 0)))
+            except Exception:
+                continue
+        return out[:-1]                          # drop the forming bar: CLOSED only
+
+    def market(self, root, side, qty=1, why=""):
+        """side: +1/-1 or 'Buy'/'Sell' -> TradovateOrders LONG/SHORT."""
+        sym = self.symbols[root]
+        s = side if isinstance(side, str) else ("Buy" if side > 0 else "Sell")
+        api_side = "LONG" if s == "Buy" else "SHORT"
+        logger.info(f"[basket] ORDER {api_side} {qty} {sym} ({why})")
+        return self.orders().submit_market(side=api_side, qty=int(qty),
+                                           symbol=sym, setup_ref=f"basket:{why}")
+
+    # ---------------- risk rails ----------------
+    def _roll_day(self):
+        today = dt.date.today().isoformat()
+        if self.state.get("day") != today:
+            self.state["day"] = today
+            self.state["day_pnl"] = 0.0
+            self.halted_today = False
+            self.gates.load()
+            cmap = self.cfg.get("contracts", {})
+            self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
+            logger.info(f"[basket] new day {today} symbols={self.symbols}")
+        self._save()
+
+    def _save(self):
+        try:
+            STATE_PATH.write_text(json.dumps(self.state))
+        except Exception:
+            pass
+
+    def record_fill_pnl(self, pnl):
+        self.state["day_pnl"] += pnl
+        self.state["cum_pnl"] += pnl
+        self._save()
+        if self.state["cum_pnl"] <= -2000 * UNITS:
+            KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
+            self.flatten_all("KILL-SWITCH")
+            logger.error("[basket] KILL-SWITCH tripped: cumulative <= -$2000. HALTED.")
+        elif self.state["day_pnl"] <= -1000 * UNITS:
+            self.flatten_all("DAILY-BREAKER")
+            self.halted_today = True
+            logger.warning("[basket] daily breaker tripped: day <= -$1000. Halted for today.")
+
+    def flatten_all(self, why):
+        for sl in self.sleeves:
+            if sl.pos != 0:
+                self._exit(sl, px=None, why=why)
+
+    # ---------------- trade mechanics ----------------
+    def _enter(self, sl: Sleeve, side: int, a: float):
+        c = self.feats[sl.instr].last()["c"]
+        tick = TICKS[sl.instr]
+        if sl.cfg.get("limit"):
+            sl.pending = dict(px=c - 0.5 * a * side, side=side, ttl=3, atr=a)
+            return
+        self.market(sl.instr, "Buy" if side > 0 else "Sell", UNITS, f"s{sl.idx}-entry")
+        sl.pos = side
+        sl.entry_px = c + tick * side           # conservative book-keeping (1 tick slip)
+        sl.entry_bar_ts = self.feats[sl.instr].last()["ts"]
+        sl.tgt = sl.entry_px + sl.cfg["tgtA"] * a * side if sl.cfg.get("tgtA") else None
+        sl.stop = sl.entry_px - sl.cfg["stopA"] * a * side if sl.cfg.get("stopA") else None
+        sl.bars_held = 0
+
+    def _exit(self, sl: Sleeve, px, why):
+        side = "Sell" if sl.pos > 0 else "Buy"
+        self.market(sl.instr, side, UNITS, f"s{sl.idx}-{why}")
+        tick = TICKS[sl.instr]
+        c = px if px is not None else self.feats[sl.instr].last()["c"]
+        fill = c - tick * sl.pos
+        pnl = (fill - sl.entry_px) * sl.pos * PV[sl.instr] * UNITS - 1.54
+        logger.info(f"[basket] EXIT s{sl.idx} {sl.instr} {why} pnl≈{pnl:+.0f}")
+        sl.pos = 0; sl.pending = None
+        self.record_fill_pnl(pnl)
+
+    def on_new_bar(self, root):
+        F = self.feats[root]
+        if not F.ready():
+            return
+        now_h = dt.datetime.utcnow().hour + dt.datetime.utcnow().minute / 60
+        bar = F.last()
+        for sl in self.sleeves:
+            if sl.instr != root:
+                continue
+            # ---- manage open position ----
+            if sl.pos != 0:
+                sl.bars_held += 1
+                hit_stop = sl.stop is not None and (
+                    bar["l"] <= sl.stop if sl.pos > 0 else bar["h"] >= sl.stop)
+                hit_tgt = sl.tgt is not None and (
+                    bar["h"] >= sl.tgt if sl.pos > 0 else bar["l"] <= sl.tgt)
+                if hit_stop:                      # stop priority, like the backtest
+                    self._exit(sl, sl.stop, "stop")
+                elif hit_tgt:
+                    self._exit(sl, sl.tgt, "target")
+                elif sl.bars_held >= sl.cfg["H"] or now_h >= EOD_UTC:
+                    self._exit(sl, None, "time" if sl.bars_held >= sl.cfg["H"] else "eod")
+                continue
+            # ---- pending limit entries ----
+            if sl.pending:
+                p = sl.pending
+                touched_through = (bar["l"] < p["px"] if p["side"] > 0
+                                   else bar["h"] > p["px"])
+                if touched_through:
+                    self.market(root, "Buy" if p["side"] > 0 else "Sell", UNITS,
+                                f"s{sl.idx}-limfill")
+                    sl.pos = p["side"]; sl.entry_px = p["px"]
+                    sl.entry_bar_ts = bar["ts"]; sl.bars_held = 0
+                    a = p["atr"]
+                    sl.tgt = sl.entry_px + sl.cfg["tgtA"]*a*sl.pos if sl.cfg.get("tgtA") else None
+                    sl.stop = sl.entry_px - sl.cfg["stopA"]*a*sl.pos if sl.cfg.get("stopA") else None
+                    sl.pending = None
+                else:
+                    p["ttl"] -= 1
+                    if p["ttl"] <= 0:
+                        sl.pending = None
+                continue
+            # ---- new entries ----
+            if self.halted_today or KILL_FLAG.exists() or now_h >= EOD_UTC - 0.5:
+                continue
+            lo, hi = SESS[sl.cfg.get("sess", "us")]
+            if not (lo <= now_h < hi):
+                continue
+            if not self.gates.ok(sl.cfg.get("exo", "none")):
+                continue
+            side, a = sl.signal(F)
+            if side != 0:
+                self._enter(sl, side, a)
+
+    # ---------------- main loop ----------------
+    def run(self):
+        self._ensure_demo()
+        logger.info(f"[basket] starting: {len(self.sleeves)} sleeves on {self.roots} "
+                    f"UNITS={UNITS} (DEMO)")
+        self._roll_day()
+        while True:
+            try:
+                self._roll_day()
+                if KILL_FLAG.exists():
+                    time.sleep(300); continue
+                for root in self.roots:
+                    try:
+                        if self.feats[root].update(self.bars_for(root)):
+                            self.on_new_bar(root)
+                    except Exception as e:
+                        logger.warning(f"[basket] {root} poll error: {e}")
+            except Exception as e:
+                logger.error(f"[basket] loop error: {e}")
+            time.sleep(POLL_S)
+
+
+def start_in_thread():
+    eng = BasketEngine()
+    t = threading.Thread(target=eng.run, name="basket-engine", daemon=True)
+    t.start()
+    return t
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s")
+    BasketEngine().run()
