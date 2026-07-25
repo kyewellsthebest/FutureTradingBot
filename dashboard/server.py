@@ -1261,13 +1261,13 @@ def api_broker_stats():
                 curve = []
                 cumv = 0.0
                 peak2 = 0.0
-                mdd2 = 0.0
+                low2 = 0.0
                 for r in post:
                     cumv += float(r["delta"])
                     if cumv > peak2:
                         peak2 = cumv
-                    if peak2 - cumv > mdd2:
-                        mdd2 = peak2 - cumv
+                    if cumv < low2:
+                        low2 = cumv
                     if r.get("cashChangeType") == "TradePaired" or r is post[-1]:
                         curve.append({
                             "ts": r["timestamp"],
@@ -1278,7 +1278,10 @@ def api_broker_stats():
                     curve = curve[-3000:]
                 equity_curve = curve
                 total_pnl = round(cumv, 2)
-                max_dd = round(mdd2, 2)
+                # USER DEFINITION (2026-07-25): max drawdown = deepest
+                # point BELOW the starting balance ("how low has it gone
+                # all time"), not peak-to-trough.
+                max_dd = round(abs(low2), 2)
                 peak = round(peak2, 2)
                 # daily P&L from ledger deltas; keep n/wins from trades
                 dled: dict = {}
