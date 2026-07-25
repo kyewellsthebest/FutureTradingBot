@@ -1225,7 +1225,76 @@ def api_broker_stats():
                 "pnl": round(v["pnl"], 2)}
               for k, v in sorted(by_day.items())]
 
+    # ================= BROKER LEDGER OVERRIDE (2026-07-25) =================
+    # User: "don't try and calculate it yourself — it should just work."
+    # Tradovate's cashBalanceLog records the running balance to the PENNY
+    # after every trade and every individual fee. When available, the
+    # equity curve, Total P&L, max drawdown and daily P&L come straight
+    # from that ledger — by construction they equal the account balance.
+    # Trade counts / win rate stay from the paired-trade rows.
+    pnl_source = "trades_estimated"
+    try:
+        cutoff_iso = os.environ.get("BROKER_TRADES_HIDE_BEFORE", "2026-07-18")
+        ls, lrows = sess._rest("GET", "/cashBalanceLog/deps",
+                               params={"masterid": int(acct_id)})
+        if ls == 200 and isinstance(lrows, list) and lrows:
+            led = [r for r in lrows if isinstance(r, dict)
+                   and r.get("currencyId") == 1
+                   and r.get("timestamp") and r.get("amount") is not None]
+            led.sort(key=lambda r: r["timestamp"])
+            pre = [r for r in led if r["timestamp"] < cutoff_iso]
+            post = [r for r in led if r["timestamp"] >= cutoff_iso]
+            if len(post) >= 3:
+                if pre:
+                    baseline = float(pre[-1]["amount"])
+                else:
+                    baseline = float(post[0]["amount"]) - float(
+                        post[0].get("delta") or 0)
+                # equity curve: running balance minus baseline, per entry
+                curve = []
+                peak2 = 0.0
+                mdd2 = 0.0
+                for r in post:
+                    cumv = float(r["amount"]) - baseline
+                    if cumv > peak2:
+                        peak2 = cumv
+                    if peak2 - cumv > mdd2:
+                        mdd2 = peak2 - cumv
+                    if r.get("cashChangeType") == "TradePaired" or r is post[-1]:
+                        curve.append({
+                            "ts": r["timestamp"],
+                            "cum_pnl": round(cumv, 2),
+                            "trade_pnl": round(float(r.get("delta") or 0), 2),
+                        })
+                if len(curve) > 3000:
+                    curve = curve[-3000:]
+                equity_curve = curve
+                total_pnl = round(float(post[-1]["amount"]) - baseline, 2)
+                max_dd = round(mdd2, 2)
+                peak = round(peak2, 2)
+                # daily P&L from ledger deltas; keep n/wins from trades
+                dled: dict = {}
+                for r in post:
+                    td = r.get("tradeDate") or {}
+                    try:
+                        key = (f"{td['year']:04d}-{td['month']:02d}"
+                               f"-{td['day']:02d}")
+                    except Exception:
+                        key = r["timestamp"][:10]
+                    dled[key] = dled.get(key, 0.0) + float(r.get("delta") or 0)
+                trades_by_day = {d["date"]: d for d in daily}
+                daily = [{"date": k,
+                          "n": trades_by_day.get(k, {}).get("n", 0),
+                          "wins": trades_by_day.get(k, {}).get("wins", 0),
+                          "win_rate": trades_by_day.get(k, {}).get("win_rate", 0),
+                          "pnl": round(v, 2)}
+                         for k, v in sorted(dled.items())]
+                pnl_source = "broker_ledger"
+    except Exception as e:
+        logger.debug(f"ledger override: {e!r}")
+
     return jsonify({
+        "pnl_source": pnl_source,
         "configured": True,
         "account_id": acct_id,
         "balance": balance,
