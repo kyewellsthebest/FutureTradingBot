@@ -694,9 +694,17 @@ def _audit_log_synth_trades(acct_id, limit=1000):
 
 
 def _broker_history_path(acct_id):
-    """SQLite-like JSONL file in the account data dir for broker trade history."""
+    """JSONL trade-history cache in the account data dir.
+
+    v2 (2026-07-25): versioned filename. The v1 file held rows priced by
+    OLDER walker math (single-stream pairing, baked-in commissions) and
+    the merge preferred persisted rows — so every pricing fix was
+    silently overridden by stale disk rows, and re-pairings of the same
+    fills survived dedup as DOUBLE-counted trades (user-visible: stats
+    -\\$211 vs broker cash -\\$79). New filename = clean rebuild from
+    /fill/list with current math; the v1 file stays on disk untouched."""
     from bot.account_ctx import data_dir as _dd
-    p = _dd() / f"broker_trades_{acct_id}.jsonl"
+    p = _dd() / f"broker_trades_v2_{acct_id}.jsonl"
     return p
 
 
@@ -815,12 +823,16 @@ def _merge_persisted_broker_trades(acct_id, live_rows, limit=1000):
         return live_rows
     seen = set()
     merged = []
-    for r in (persisted + live_rows):
+    # LIVE ROWS FIRST: freshly-computed rows must win over disk rows on
+    # key collision, or pricing fixes can never take effect (2026-07-25:
+    # persisted-first kept old commission-priced rows forever).
+    for r in (live_rows + persisted):
         k = (r.get("exit_order_id"), r.get("exit_time"))
         if k in seen:
             continue
         seen.add(k)
         merged.append(r)
+    merged.sort(key=lambda r: str(r.get("exit_time") or r.get("ts") or ""))
     return merged[-limit:]
 
 
