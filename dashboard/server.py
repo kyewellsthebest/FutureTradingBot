@@ -343,9 +343,11 @@ def _broker_pnl_usd(pts: float, qty: int, side: str,
 CONTRACT_PV = {"MNQ": 2.0, "MES": 5.0, "M2K": 5.0, "MYM": 0.5,
                "MGC": 10.0, "MCL": 100.0, "ZB": 1000.0, "NQ": 20.0,
                "ES": 50.0, "RTY": 50.0, "YM": 5.0, "GC": 100.0, "CL": 1000.0}
-CONTRACT_COMM_RT = {"MNQ": float(os.environ.get("BROKER_COMM_PER_RT", "0.74")),
-                    "MES": 1.34, "M2K": 1.34, "MYM": 1.34,
-                    "MGC": 1.54, "MCL": 1.54, "ZB": 2.60}
+# All-in round-trip costs CALIBRATED to what the demo actually charged
+# on 2026-07-24: gross fills +\$380.75 vs cash -\$79.13 => \$459.88 fees
+# over 229 trades. Tradovate demo charges REAL commissions+exchange fees.
+CONTRACT_COMM_RT = {"MNQ": 1.80, "MES": 1.80, "M2K": 1.80, "MYM": 1.80,
+                    "MGC": 1.95, "MCL": 1.95, "ZB": 4.50}
 
 
 def _root_of(symbol: str) -> str:
@@ -512,14 +514,9 @@ def _collect_broker_trades(sess, acct_id: int,
 
     cycles: dict = {}          # contractId -> _Cyc
 
-    # DEMO REALITY (user 2026-07-25): the demo broker charges NO
-    # commissions, so subtracting live-estimate commissions made the
-    # equity curve sit ~\$130 below the real account balance and "never
-    # come back up". Displayed P&L now matches the broker penny-for-penny;
-    # the live-commission estimate rides along per-row so the stats can
-    # show "estimated live costs" honestly without distorting the curve.
-    _is_demo = os.environ.get("TRADOVATE_DEMO", "true").lower() in (
-        "true", "1", "yes")
+    # COMMISSIONS ARE REAL ON DEMO (proven 2026-07-25: cash moved exactly
+    # gross fills minus \$2.01/trade). Rows subtract the calibrated
+    # all-in cost so Total P&L tracks the actual account balance.
 
     def _emit_trade(cy, exit_fill, close_qty, symbol, pv, comm_rt):
         if cy.qty <= 0:
@@ -530,7 +527,7 @@ def _collect_broker_trades(sess, acct_id: int,
             pts_diff = exit_px - entry_avg
         else:
             pts_diff = entry_avg - exit_px
-        comm_eff = 0.0 if _is_demo else comm_rt
+        comm_eff = comm_rt
         pnl_usd = (pts_diff * close_qty * pv) - (comm_eff * close_qty)
         ent_order = order_by_id.get(int(cy.oid)) if cy.oid else None
         setup_ref = ent_order.get("text") if isinstance(ent_order, dict) else None
