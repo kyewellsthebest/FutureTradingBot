@@ -116,7 +116,7 @@ EOD_UTC = 20.9                      # flatten everything by 20:54 UTC
 # keyed by RESEARCH ROOT (sleeve.instr), values for the traded micro contract
 TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32}
 PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0}
-COMM = {"ES": 1.34, "RTY": 1.34, "YM": 1.34, "GC": 1.54, "CL": 1.54, "ZB": 2.60}
+COMM = {"ES": 1.80, "RTY": 1.80, "YM": 1.80, "GC": 1.95, "CL": 1.95, "ZB": 4.50}  # calibrated to demo charges 2026-07-25
 MONTH_Q = {3: "H", 6: "M", 9: "U", 12: "Z"}
 MONTH_ALL = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",7:"N",8:"Q",9:"U",10:"V",11:"X",12:"Z"}
 
@@ -796,6 +796,37 @@ class BasketEngine:
         except Exception as e:
             logger.error(f"[basket] gates write failed: {e!r}")
 
+    def _rebase_cum_to_cash(self):
+        """Snap the engine's cumulative P&L (drives the -\$2,000
+        kill-switch) to the ACCOUNT's truth: netLiq minus the baseline.
+        The model ledger drifted +\$586 from reality across the debug
+        eras (booked model prices while the broker paid street prices);
+        cash is the only honest scorekeeper."""
+        try:
+            baseline = float(os.environ.get("BASKET_BASELINE", "4000"))
+            sess = self.orders().session
+            if not sess.is_configured:
+                return
+            acct_id = sess.get_account_id()
+            if acct_id is None:
+                return
+            st, cb = sess._rest("POST", "/cashBalance/getCashBalanceSnapshot",
+                                body={"accountId": int(acct_id)})
+            if st != 200 or not isinstance(cb, dict):
+                return
+            nl = cb.get("netLiq") or cb.get("totalCashValue")
+            if nl is None:
+                return
+            real = float(nl) - baseline
+            if abs(self.state.get("cum_pnl", 0.0) - real) > 150:
+                logger.warning(f"[basket] cum P&L rebased to cash truth: "
+                               f"{self.state.get('cum_pnl')} -> {real:+.2f} "
+                               f"(netLiq {nl}, baseline {baseline})")
+                self.state["cum_pnl"] = real
+                self._save()
+        except Exception as ex:
+            logger.debug(f"[basket] cum rebase: {ex!r}")
+
     def _startup_cleanup(self):
         """A restart wipes in-memory sleeve state, so broker leftovers
         (resting entries, live brackets) are unowned. Cancel every
@@ -1086,6 +1117,7 @@ class BasketEngine:
         self._roll_day()
         self.gates.load()
         self._startup_cleanup()
+        self._rebase_cum_to_cash()
         threading.Thread(target=self._price_loop, name="basket-prices",
                          daemon=True).start()
         while True:
