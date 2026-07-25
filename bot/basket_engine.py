@@ -64,6 +64,22 @@ def basket_enabled() -> bool:
     return not DISABLED_FLAG.exists()
 
 
+def market_open(now: dt.datetime | None = None) -> bool:
+    """CME globex hours: Sun 22:00 UTC -> Fri 21:00 UTC, with a daily
+    21:00-22:00 UTC maintenance break. Weekend bug 2026-07-25: without
+    this guard the engine re-fired stale Friday signals into the closed
+    book all night (98 rejected orders)."""
+    now = now or dt.datetime.utcnow()
+    wd, h = now.weekday(), now.hour
+    if wd == 5:                                  # Saturday
+        return False
+    if wd == 6:                                  # Sunday: opens 22:00
+        return h >= 22
+    if wd == 4:                                  # Friday: closes 21:00
+        return h < 21
+    return h != 21                               # daily 21:00-22:00 break
+
+
 def _fetch_vix():
     """Live VIX close: Yahoo chart API, then Stooq. Returns (px, src)
     or (None, None) — caller decides the safe fallback."""
@@ -335,6 +351,8 @@ class BasketEngine:
         self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
         self.feats = {r: Features() for r in self.roots}
         self.bar_src = {r: None for r in self.roots}   # polygon/tradovate/None
+        self.counters = {"signals": 0, "entries": 0, "rejects": 0,
+                         "blocked_cross": 0}   # per-day, for the bundle
         self._cid_cache = {}         # contractId -> name (for reconciler)
         self._recon_streak = {}      # root -> consecutive mismatch count
         self.recon = {}              # last reconcile snapshot (for status)
@@ -414,7 +432,13 @@ class BasketEngine:
         out = []
         for ts, row in df.iterrows():
             try:
-                out.append(dict(ts=str(ts), o=float(row["open"]), h=float(row["high"]),
+                # ts NORMALIZED to epoch-ns string — SAME format as the
+                # polygon path. 2026-07-25 bug: the two sources used
+                # different ts formats, so a source flip made update()
+                # see a "new bar" in stale data and re-fire dead signals
+                # every cycle (98 rejected weekend orders).
+                ns = int(ts.value)
+                out.append(dict(ts=str(ns), o=float(row["open"]), h=float(row["high"]),
                                 l=float(row["low"]), c=float(row["close"]),
                                 v=float(row.get("volume", 0) or 0)))
             except Exception:
@@ -477,9 +501,11 @@ class BasketEngine:
             logger.warning(f"[basket] placeoso {sym} failed: {e!r}")
             return None
         if status != 200 or not isinstance(resp, dict) or resp.get("failureReason"):
+            self.counters["rejects"] += 1
             logger.warning(f"[basket] placeoso {sym} rejected: http={status} "
                            f"resp={str(resp)[:200]}")
             return None
+        self.counters["entries"] += 1
         entry_id = resp.get("orderId")
         if entry_id is None:
             return None
@@ -715,6 +741,8 @@ class BasketEngine:
                                       if self.feats[r].bars else None)}
                          for r in self.roots},
                 "recon": self.recon,
+                "counters": self.counters,
+                "market_open": market_open(),
                 "sleeves": sleeves,
             }
             STATUS_PATH.write_text(json.dumps(status))
@@ -893,6 +921,8 @@ class BasketEngine:
             self.halted_today = False
             self._update_gates_daily()
             self.gates.load()
+            self.counters = {"signals": 0, "entries": 0, "rejects": 0,
+                             "blocked_cross": 0}
             cmap = self.cfg.get("contracts", {})
             self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
             logger.info(f"[basket] new day {today} symbols={self.symbols}")
@@ -1017,6 +1047,8 @@ class BasketEngine:
             # ---- new entries ----
             if sl.cooldown > 0:
                 continue             # backtest spacing: one entry per H window
+            if not market_open():
+                continue             # never place orders into a closed book
             if self.halted_today or KILL_FLAG.exists() or now_h >= EOD_UTC - 0.5:
                 continue
             lo, hi = SESS[sl.cfg.get("sess", "us")]
@@ -1027,6 +1059,7 @@ class BasketEngine:
             side, a = sl.signal(F)
             if side == 0:
                 continue
+            self.counters["signals"] += 1
             # NETTING GUARD (audit 2026-07-24): at a netting broker an
             # opposite-direction entry CLOSES a sibling sleeve's position
             # and leaves both brackets orphaned — the orphan children then
@@ -1040,6 +1073,7 @@ class BasketEngine:
                     (o.pending and o.pending.get("side") != side))
                 for o in self.sleeves)
             if crossed:
+                self.counters["blocked_cross"] += 1
                 continue
             self._enter(sl, side, a)
 
