@@ -104,7 +104,11 @@ def api_resume():
 
 @app.route("/")
 def index():
-    return send_from_directory(STATIC_DIR, "index.html")
+    # no-store: phones cached the shell page for hours and kept showing
+    # UI elements that were removed several deploys earlier (2026-07-25)
+    resp = send_from_directory(STATIC_DIR, "index.html")
+    resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
 
 
 @app.route("/static/<path:p>")
@@ -1238,24 +1242,28 @@ def api_broker_stats():
         ls, lrows = sess._rest("GET", "/cashBalanceLog/deps",
                                params={"masterid": int(acct_id)})
         if ls == 200 and isinstance(lrows, list) and lrows:
+            # TRADING entries only — deposits/manual adjustments (e.g. the
+            # Jul-20 account reset) must not bend the P&L curve, and the
+            # running cum is built from exact DELTAS in stable order, not
+            # from 'amount' snapshots (unordered ties inflated max-DD to
+            # -\$700 vs the true -\$339).
+            TRADE_TYPES = {"TradePaired", "Commission", "ExchangeFee",
+                           "ClearingFee", "NfaFee", "BrokerageFee",
+                           "IPFee", "Commision"}
             led = [r for r in lrows if isinstance(r, dict)
                    and r.get("currencyId") == 1
-                   and r.get("timestamp") and r.get("amount") is not None]
-            led.sort(key=lambda r: r["timestamp"])
-            pre = [r for r in led if r["timestamp"] < cutoff_iso]
+                   and r.get("timestamp")
+                   and r.get("cashChangeType") in TRADE_TYPES
+                   and r.get("delta") is not None]
+            led.sort(key=lambda r: (r["timestamp"], r.get("id") or 0))
             post = [r for r in led if r["timestamp"] >= cutoff_iso]
             if len(post) >= 3:
-                if pre:
-                    baseline = float(pre[-1]["amount"])
-                else:
-                    baseline = float(post[0]["amount"]) - float(
-                        post[0].get("delta") or 0)
-                # equity curve: running balance minus baseline, per entry
                 curve = []
+                cumv = 0.0
                 peak2 = 0.0
                 mdd2 = 0.0
                 for r in post:
-                    cumv = float(r["amount"]) - baseline
+                    cumv += float(r["delta"])
                     if cumv > peak2:
                         peak2 = cumv
                     if peak2 - cumv > mdd2:
@@ -1269,7 +1277,7 @@ def api_broker_stats():
                 if len(curve) > 3000:
                     curve = curve[-3000:]
                 equity_curve = curve
-                total_pnl = round(float(post[-1]["amount"]) - baseline, 2)
+                total_pnl = round(cumv, 2)
                 max_dd = round(mdd2, 2)
                 peak = round(peak2, 2)
                 # daily P&L from ledger deltas; keep n/wins from trades
@@ -1309,8 +1317,6 @@ def api_broker_stats():
             "losses": losses,
             "win_rate": round(win_rate, 1),
             "total_pnl": round(total_pnl, 2),
-            "est_live_costs": round(sum(
-                float(t.get("commission_est_live") or 0) for t in trades), 2),
             "gross_win": round(gross_win, 2),
             "gross_loss": round(gross_loss, 2),
             "avg_win": round(avg_win, 2),
