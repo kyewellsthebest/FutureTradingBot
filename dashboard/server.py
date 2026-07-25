@@ -398,6 +398,38 @@ def _collect_broker_trades(sess, acct_id: int,
     f_status, fills = sess._rest("GET", "/fill/list")
     if f_status != 200 or not isinstance(fills, list):
         fills = []
+    # ARCHIVE UNION (2026-07-25): Tradovate's demo /fill/list is
+    # session-bounded — the morning after, it returns 0 rows and the
+    # whole Trades tab vanished. The user-WS fill archive on disk holds
+    # every fill as it streamed (7-day retention); union it in, deduped
+    # by fill id, so trade history survives Tradovate's wipes.
+    try:
+        from datetime import datetime as _adt, timedelta as _atd, timezone as _atz
+        from bot.account_ctx import data_dir as _add
+        seen_ids = {f.get("id") for f in fills if isinstance(f, dict)}
+        _base = _add()
+        n_arch = 0
+        for dback in range(8):
+            day = (_adt.now(_atz.utc) - _atd(days=dback)).strftime("%Y%m%d")
+            fp = _base / f"fill_archive_{day}.jsonl"
+            if not fp.exists():
+                continue
+            for line in fp.read_text().splitlines():
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                fid = r.get("id")
+                if fid is None or fid in seen_ids or r.get("price") is None:
+                    continue
+                seen_ids.add(fid)
+                fills.append(r)
+                n_arch += 1
+        if n_arch:
+            logger.info(f"fill-archive union added {n_arch} fills REST no "
+                        f"longer returns")
+    except Exception as e:
+        logger.debug(f"fill archive union: {e!r}")
     # Orders (used for exit_reason inference)
     o_status, orders = sess._rest("GET", "/order/list")
     order_by_id = {}
