@@ -219,6 +219,9 @@ async function pollStats() {
     chip("st-al", fmtUsd2(sum.avg_loss), -1);
     chip("st-dd", fmtUsd(-Math.abs(sum.max_drawdown ?? 0)), -1);
     chip("st-total", fmtUsd(sum.total_pnl, true), sum.total_pnl);
+    // commissions the DEMO doesn't charge but live would — shown so the
+    // real-account curve stays exact without hiding future costs
+    chip("st-costs", sum.est_live_costs != null ? fmtUsd(-Math.abs(sum.est_live_costs)) : "—", -1);
 
     // donut
     const wins = sum.wins || 0, losses = sum.losses || 0;

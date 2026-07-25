@@ -480,6 +480,15 @@ def _collect_broker_trades(sess, acct_id: int,
 
     cycles: dict = {}          # contractId -> _Cyc
 
+    # DEMO REALITY (user 2026-07-25): the demo broker charges NO
+    # commissions, so subtracting live-estimate commissions made the
+    # equity curve sit ~\$130 below the real account balance and "never
+    # come back up". Displayed P&L now matches the broker penny-for-penny;
+    # the live-commission estimate rides along per-row so the stats can
+    # show "estimated live costs" honestly without distorting the curve.
+    _is_demo = os.environ.get("TRADOVATE_DEMO", "true").lower() in (
+        "true", "1", "yes")
+
     def _emit_trade(cy, exit_fill, close_qty, symbol, pv, comm_rt):
         if cy.qty <= 0:
             return None
@@ -489,7 +498,8 @@ def _collect_broker_trades(sess, acct_id: int,
             pts_diff = exit_px - entry_avg
         else:
             pts_diff = entry_avg - exit_px
-        pnl_usd = (pts_diff * close_qty * pv) - (comm_rt * close_qty)
+        comm_eff = 0.0 if _is_demo else comm_rt
+        pnl_usd = (pts_diff * close_qty * pv) - (comm_eff * close_qty)
         ent_order = order_by_id.get(int(cy.oid)) if cy.oid else None
         setup_ref = ent_order.get("text") if isinstance(ent_order, dict) else None
         return {
@@ -509,7 +519,8 @@ def _collect_broker_trades(sess, acct_id: int,
             "pnl_pts": round(pts_diff, 4),
             "exit_reason": _exit_reason_for_order(exit_fill["order_id"]),
             "hold_s": (exit_fill["ts"] - cy.ts).total_seconds(),
-            "commission": round(comm_rt * close_qty, 2),
+            "commission": round(comm_eff * close_qty, 2),
+            "commission_est_live": round(comm_rt * close_qty, 2),
             "source": "broker_fill_walk",
             "entry_order_id": cy.oid,
             "exit_order_id": exit_fill["order_id"],
@@ -1188,6 +1199,8 @@ def api_broker_stats():
             "losses": losses,
             "win_rate": round(win_rate, 1),
             "total_pnl": round(total_pnl, 2),
+            "est_live_costs": round(sum(
+                float(t.get("commission_est_live") or 0) for t in trades), 2),
             "gross_win": round(gross_win, 2),
             "gross_loss": round(gross_loss, 2),
             "avg_win": round(avg_win, 2),
