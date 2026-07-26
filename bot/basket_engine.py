@@ -113,6 +113,13 @@ POLL_S = 40
 BAR_S = 300
 SESS = {"us": (13.5, 20.0), "eu": (7.0, 13.5), "asia": (0.0, 7.0), "all": (0.0, 24.0)}
 EOD_UTC = 20.9                      # flatten everything by 20:54 UTC
+# End-of-day is a WINDOW [EOD_UTC, REOPEN_UTC), not "rest of the wall-clock
+# day": Globex reopens 22:00 UTC and that's the NEXT trading day. Comparing
+# now_h >= EOD_UTC alone blocked all entries (and would insta-exit any
+# position) from 22:00 to midnight UTC — the research data has 10k+ bars
+# in those two hours and the 24h sleeves entered on them in the backtest.
+# Found live 2026-07-27 09:00 AEST: zero trades in the first open hour.
+REOPEN_UTC = 22.0
 # keyed by RESEARCH ROOT (sleeve.instr), values for the traded micro contract
 TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32}
 PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0}
@@ -1094,7 +1101,8 @@ class BasketEngine:
             # orders handled server-side; only time/EOD exits are ours) ----
             if sl.pos != 0:
                 sl.bars_held += 1
-                if sl.bars_held >= sl.cfg["H"] or now_h >= EOD_UTC:
+                eod_now = EOD_UTC <= now_h < REOPEN_UTC
+                if sl.bars_held >= sl.cfg["H"] or eod_now:
                     self._exit(sl, None, "time" if sl.bars_held >= sl.cfg["H"] else "eod")
                 continue
             # ---- resting limit at the broker: only the TTL is ours ----
@@ -1127,7 +1135,8 @@ class BasketEngine:
                 continue             # backtest spacing: one entry per H window
             if not market_open():
                 continue             # never place orders into a closed book
-            if self.halted_today or KILL_FLAG.exists() or now_h >= EOD_UTC - 0.5:
+            if self.halted_today or KILL_FLAG.exists() \
+                    or (EOD_UTC - 0.5 <= now_h < REOPEN_UTC):
                 continue
             lo, hi = SESS[sl.cfg.get("sess", "us")]
             if not (lo <= now_h < hi):
