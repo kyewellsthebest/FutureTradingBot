@@ -5679,6 +5679,87 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
     except Exception as e:
         out["basket_trades_error"] = repr(e)
 
+    # -- PER-BOT TRADE JOURNAL (basket_trades.jsonl, engine-written) --
+    # One row per completed trade per mini-bot: intended limit vs real
+    # entry, bracket levels vs real exit, duration, exit reason. Ground
+    # truth for "which of the 26 bots is misbehaving". Flags are
+    # mechanical-fidelity only — a losing streak is not an anomaly, a
+    # fill off its limit price or a hold past H bars is.
+    try:
+        _TICK = {"ES": 0.25, "RTY": 0.10, "YM": 1.0,
+                 "GC": 0.10, "CL": 0.01, "ZB": 0.03125}
+        jpath = _bdata / "basket_trades.jsonl"
+        jrows = []
+        if jpath.exists():
+            for ln in jpath.read_text().splitlines()[-2000:]:
+                try:
+                    jrows.append(json.loads(ln))
+                except Exception:
+                    pass
+        out["bot_trades"] = jrows[-250:]
+        out["bot_trades_count"] = len(jrows)
+        per: dict = {}
+        for t in jrows:
+            k = f"s{t.get('sleeve')}:{t.get('instr')}"
+            b = per.setdefault(k, {
+                "desc": t.get("desc"), "fam": t.get("fam"),
+                "H": t.get("H"), "trades": 0, "wins": 0, "net": 0.0,
+                "hold_s": [], "exits": {}, "issues": []})
+            b["trades"] += 1
+            pnl = float(t.get("pnl") or 0)
+            b["net"] = round(b["net"] + pnl, 2)
+            if pnl > 0:
+                b["wins"] += 1
+            if t.get("hold_s") is not None:
+                b["hold_s"].append(t["hold_s"])
+            w = t.get("exit_reason") or "?"
+            b["exits"][w] = b["exits"].get(w, 0) + 1
+            tick = _TICK.get(t.get("instr"), 0.25)
+            try:
+                if (t.get("entry_px") is not None
+                        and t.get("limit_px") is not None
+                        and abs(t["entry_px"] - t["limit_px"]) > tick + 1e-9):
+                    b["issues"].append(
+                        f"entry {t['entry_px']} vs limit {t['limit_px']}")
+            except Exception:
+                pass
+            try:
+                ref = t.get("stop_px") if w == "stop" else (
+                    t.get("tgt_px") if w == "target" else None)
+                if (ref is not None and t.get("exit_px") is not None
+                        and abs(t["exit_px"] - ref) > 2 * tick + 1e-9):
+                    b["issues"].append(
+                        f"{w} exit {t['exit_px']} vs bracket {ref}")
+            except Exception:
+                pass
+            try:
+                H = int(t.get("H") or 0)
+                if (H and t.get("bars_held") is not None
+                        and int(t["bars_held"]) > H + 1):
+                    b["issues"].append(
+                        f"held {t['bars_held']} bars vs H={H}")
+            except Exception:
+                pass
+        for k, b in per.items():
+            hs = b.pop("hold_s")
+            b["avg_hold_s"] = round(sum(hs) / len(hs), 1) if hs else None
+            b["win_rate"] = (round(b["wins"] / b["trades"], 2)
+                             if b["trades"] else None)
+            b["issue_count"] = len(b["issues"])
+            b["issues"] = b["issues"][-5:]   # keep the bundle readable
+        out["per_bot"] = per
+        bad = {k: b for k, b in per.items() if b["issue_count"]}
+        if bad:
+            _chk("WARN", "bot_anomalies",
+                 "mechanical anomalies in: " + ", ".join(
+                     f"{k} ({b['issue_count']}x, e.g. {b['issues'][-1]})"
+                     for k, b in sorted(bad.items())))
+        if not jrows and status is not None:
+            out["bot_trades_note"] = ("journal empty — populates from the "
+                                      "first completed trade after this deploy")
+    except Exception as e:
+        out["bot_trades_error"] = repr(e)
+
     # -- engine log lines (orders, errors, breaker events) --
     try:
         tail = _read_log_tail(400_000)

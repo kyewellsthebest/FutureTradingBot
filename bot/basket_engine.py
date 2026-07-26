@@ -541,9 +541,11 @@ class BasketEngine:
                         continue
                     px = float(f.get("price") or 0)
                     q = abs(int(f.get("qty") or 1))
-                    tot, n = acc.get(int(oid), (0.0, 0))
-                    acc[int(oid)] = (tot + px * q, n + q)
-                fmap = {k: t / n for k, (t, n) in acc.items() if n}
+                    ts_ = str(f.get("timestamp") or "")
+                    tot, n, lt = acc.get(int(oid), (0.0, 0, ""))
+                    acc[int(oid)] = (tot + px * q, n + q, max(lt, ts_))
+                fmap = {k: {"px": t / n, "ts": lt}
+                        for k, (t, n, lt) in acc.items() if n}
             os_, olist = sess._rest("GET", "/order/list")
             if os_ == 200 and isinstance(olist, list):
                 for o in olist:
@@ -578,7 +580,9 @@ class BasketEngine:
                 eid = p["entry_id"]
                 if eid in fmap:
                     sl.pos = p["side"]
-                    sl.entry_px = fmap[eid]         # REAL fill price
+                    sl.entry_px = fmap[eid]["px"]   # REAL fill price
+                    sl.entry_ts = fmap[eid]["ts"]
+                    sl.limit_px = p["px"]
                     sl.entry_bar_ts = None
                     sl.bars_held = 0
                     sl.cooldown = sl.cfg["H"]       # backtest spacing on fill
@@ -601,11 +605,13 @@ class BasketEngine:
                 elif tgt_id and tgt_id in fmap:
                     hit = ("target", fmap[tgt_id])
                 if hit:
-                    why, px = hit
+                    why, fx = hit
+                    px = fx["px"]
                     pnl = (px - sl.entry_px) * sl.pos * PV[sl.instr] * UNITS \
                         - COMM.get(sl.instr, 1.54)
                     logger.info(f"[basket] EXIT s{sl.idx} {sl.instr} {why} "
                                 f"@{px} pnl={pnl:+.2f} (real fills)")
+                    self._journal_trade(sl, px, fx.get("ts"), why, pnl)
                     sl.pos = 0
                     sl.oids = None
                     self.record_fill_pnl(pnl)
@@ -1021,10 +1027,51 @@ class BasketEngine:
         pnl = (fill - sl.entry_px) * sl.pos * PV[sl.instr] * UNITS \
             - COMM.get(sl.instr, 1.54)
         logger.info(f"[basket] EXIT s{sl.idx} {sl.instr} {why} pnl≈{pnl:+.0f}")
+        self._journal_trade(sl, fill, dt.datetime.utcnow().isoformat() + "Z",
+                            why, pnl)
         sl.pos = 0
         sl.oids = None
         sl.pending = None
         self.record_fill_pnl(pnl)
+
+    def _journal_trade(self, sl, exit_px, exit_ts, why, pnl):
+        """One JSONL row per completed trade, PER BOT — everything needed
+        to audit each mini-bot individually from the bundle: intended
+        limit, real entry/exit, bracket levels, duration, reason."""
+        try:
+            ets = getattr(sl, "entry_ts", None)
+            hold_s = None
+            try:
+                if ets and exit_ts:
+                    t0 = dt.datetime.fromisoformat(str(ets).replace("Z", "+00:00"))
+                    t1 = dt.datetime.fromisoformat(str(exit_ts).replace("Z", "+00:00"))
+                    hold_s = round((t1 - t0).total_seconds(), 1)
+            except Exception:
+                pass
+            rec = {
+                "sleeve": sl.idx,
+                "instr": sl.instr,
+                "symbol": self.symbols.get(sl.instr),
+                "fam": sl.cfg.get("fam"),
+                "desc": sl.describe(),
+                "side": "long" if sl.pos > 0 else "short",
+                "entry_ts": ets,
+                "entry_px": sl.entry_px,
+                "limit_px": getattr(sl, "limit_px", None),
+                "stop_px": sl.stop,
+                "tgt_px": sl.tgt,
+                "exit_ts": exit_ts,
+                "exit_px": exit_px,
+                "exit_reason": why,
+                "hold_s": hold_s,
+                "bars_held": getattr(sl, "bars_held", None),
+                "H": sl.cfg.get("H"),
+                "pnl": round(pnl, 2),
+            }
+            with open(DATA / "basket_trades.jsonl", "a") as f:
+                f.write(json.dumps(rec) + "\n")
+        except Exception as e:
+            logger.debug(f"[basket] journal: {e!r}")
 
     def _cancel_pending(self, sl: Sleeve, why=""):
         if sl.pending:
