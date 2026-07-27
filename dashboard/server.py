@@ -5715,21 +5715,35 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
             w = t.get("exit_reason") or "?"
             b["exits"][w] = b["exits"].get(w, 0) + 1
             tick = _TICK.get(t.get("instr"), 0.25)
+            # DIRECTIONAL fills only (2026-07-27: v1 used abs() and
+            # flagged s18's short sold 0.5 ABOVE its limit — that is
+            # price improvement, normal and good). worse>0 = paid more
+            # than the limit allows / received less: impossible for a
+            # real limit order, so it means a bookkeeping bug.
+            sgn = 1 if t.get("side") == "long" else -1
             try:
                 if (t.get("entry_px") is not None
                         and t.get("limit_px") is not None
-                        and abs(t["entry_px"] - t["limit_px"]) > tick + 1e-9):
+                        and (t["entry_px"] - t["limit_px"]) * sgn > tick + 1e-9):
                     b["issues"].append(
-                        f"entry {t['entry_px']} vs limit {t['limit_px']}")
+                        f"entry {t['entry_px']} worse than limit {t['limit_px']}")
             except Exception:
                 pass
             try:
-                ref = t.get("stop_px") if w == "stop" else (
-                    t.get("tgt_px") if w == "target" else None)
-                if (ref is not None and t.get("exit_px") is not None
-                        and abs(t["exit_px"] - ref) > 2 * tick + 1e-9):
+                if (w == "target" and t.get("tgt_px") is not None
+                        and t.get("exit_px") is not None
+                        and (t["tgt_px"] - t["exit_px"]) * sgn > tick + 1e-9):
                     b["issues"].append(
-                        f"{w} exit {t['exit_px']} vs bracket {ref}")
+                        f"target exit {t['exit_px']} worse than {t['tgt_px']}")
+                # stops fill at market once triggered: allow real
+                # slippage, flag only excess (>4 ticks) or a fill on the
+                # WRONG side of the trigger (better by >2 ticks).
+                if (w == "stop" and t.get("stop_px") is not None
+                        and t.get("exit_px") is not None):
+                    worse = (t["stop_px"] - t["exit_px"]) * sgn
+                    if worse > 4 * tick + 1e-9 or worse < -(2 * tick + 1e-9):
+                        b["issues"].append(
+                            f"stop exit {t['exit_px']} vs trigger {t['stop_px']}")
             except Exception:
                 pass
             try:
