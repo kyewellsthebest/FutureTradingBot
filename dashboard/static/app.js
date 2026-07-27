@@ -82,7 +82,7 @@ const CHART_OPTS = {
 
 let LW = null;
 let eqChart = null, eqSeries = null, eqData = [];
-let dlChart = null, dlSeries = null, dlMap = {};
+let dlChart = null, dlSeries = null, dlMap = {}, lastDlLen = -1;
 let spChart = null, spSeries = null;
 let equityRange = "week";
 
@@ -107,7 +107,8 @@ function makeCharts() {
     }
     const v = p.seriesData.get(eqSeries).value;
     const pt = eqData.find((d) => d.time === p.time);
-    out.innerHTML = `<b>${fmtWhen(p.time)}</b> · P&amp;L <b>${fmtUsd2(v, true)}</b>` +
+    out.innerHTML = `<b>${fmtWhen(p.time)}</b> · balance <b>${fmtUsd(v)}</b>` +
+      (pt && pt.cum !== undefined ? ` · P&amp;L ${fmtUsd2(pt.cum, true)}` : "") +
       (pt && pt.trade !== undefined ? ` · trade ${fmtUsd2(pt.trade, true)}` : "");
   });
 
@@ -169,6 +170,7 @@ $("equity-range").addEventListener("click", (e) => {
   renderEquity();
 });
 
+let lastEqKey = "";
 function renderEquity() {
   if (!eqSeries || !eqData.length) return;
   const now = Date.now() / 1000 + TZOFF;   // eqData times are TZ-shifted
@@ -177,7 +179,10 @@ function renderEquity() {
   let pts = eqData.filter((d) => d.time >= cut);
   if (pts.length < 2) pts = eqData.slice(-Math.min(eqData.length, 50));
   eqSeries.setData(pts.map((d) => ({ time: d.time, value: d.value })));
-  eqChart.timeScale().fitContent();
+  // refit only when the range or point count changes — refitting every
+  // poll fought the user's own pan/zoom
+  const key = equityRange + ":" + pts.length;
+  if (key !== lastEqKey) { eqChart.timeScale().fitContent(); lastEqKey = key; }
 }
 
 /* ---------- stats / KPIs ---------- */
@@ -228,13 +233,15 @@ async function pollStats() {
     $("lg-losses").textContent = losses;
     $("lg-flat").textContent = flat;
 
-    // equity curve
+    // equity curve — ABSOLUTE BALANCE when the server provides it
+    // (p.bal, anchored to the broker's cash balance), P&L otherwise
     const seen = new Set();
     eqData = (s.equity_curve || []).map((p) => {
       let ts = Math.floor(new Date(p.ts).getTime() / 1000) + TZOFF;
       while (seen.has(ts)) ts += 1;          // strictly increasing
       seen.add(ts);
-      return { time: ts, value: p.cum_pnl, trade: p.trade_pnl };
+      return { time: ts, value: p.bal ?? p.cum_pnl, cum: p.cum_pnl,
+               trade: p.trade_pnl };
     });
     if (eqData.length) { renderEquity(); $("equity-skel").classList.add("done"); }
     else if (firstStats) {
@@ -242,15 +249,14 @@ async function pollStats() {
       $("equity-skel").classList.add("done");
     }
 
-    // sparkline: balance path = starting + cum
+    // sparkline: the curve IS balance now
     if (spSeries && eqData.length) {
-      const last = eqData[eqData.length - 1].value;
-      const base = (typeof s.starting === "number" ? s.starting : (bal - last)) ;
-      spSeries.setData(eqData.slice(-40).map((d) => ({ time: d.time, value: base + d.value })));
+      spSeries.setData(eqData.slice(-40).map((d) => ({ time: d.time, value: d.value })));
       spChart.timeScale().fitContent();
     }
 
-    // daily histogram
+    // daily histogram — refit only when a new day appears so the user
+    // can scroll back to earlier days without the poll snapping back
     dlMap = {};
     const bars = (s.daily || []).map((d) => {
       dlMap[d.date] = d;
@@ -259,7 +265,10 @@ async function pollStats() {
     });
     if (dlSeries && bars.length) {
       dlSeries.setData(bars);
-      dlChart.timeScale().fitContent();
+      if (bars.length !== lastDlLen) {
+        dlChart.timeScale().fitContent();
+        lastDlLen = bars.length;
+      }
       $("daily-skel").classList.add("done");
     } else if (firstStats) $("daily-skel").classList.add("done");
 
