@@ -367,6 +367,7 @@ class BasketEngine:
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
         self.halted_today = False
         self._orders = None
+        self._restore_sleeves()      # re-adopt open trades after a deploy
 
     # ---------------- broker glue ----------------
     def _ensure_demo(self):
@@ -861,10 +862,11 @@ class BasketEngine:
             logger.debug(f"[basket] cum rebase: {ex!r}")
 
     def _startup_cleanup(self):
-        """A restart wipes in-memory sleeve state, so broker leftovers
-        (resting entries, live brackets) are unowned. Cancel every
-        working order on a basket contract; the reconciler flattens any
-        stray positions within ~2 minutes. Never touches MNQ orders."""
+        """Cancel working basket orders that NO sleeve owns (true
+        orphans). Sleeve state is restored from disk before this runs,
+        so live brackets protecting a re-adopted position are spared —
+        v1 canceled everything and the reconciler then paid market to
+        flatten healthy trades on every deploy. Never touches MNQ."""
         try:
             sess = self.orders().session
             if not sess.is_configured:
@@ -875,6 +877,15 @@ class BasketEngine:
             st, olist = sess._rest("GET", "/order/list")
             if st != 200 or not isinstance(olist, list):
                 return
+            keep = set()
+            for sl in self.sleeves:
+                if sl.oids:
+                    keep.update(int(x) for x in sl.oids if x)
+                if sl.pending:
+                    for kk in ("entry_id", "stop_id", "tgt_id"):
+                        v = sl.pending.get(kk)
+                        if v:
+                            keep.add(int(v))
             mysyms = set(self.symbols.values())
             n = 0
             for o in olist:
@@ -894,7 +905,7 @@ class BasketEngine:
                         name = ""
                     if name:
                         self._cid_cache[cid] = name
-                if name in mysyms:
+                if name in mysyms and o.get("id") not in keep:
                     self._cancel_quiet(o.get("id"))
                     n += 1
             if n:
@@ -994,9 +1005,78 @@ class BasketEngine:
 
     def _save(self):
         try:
+            # Persist per-sleeve trading state too (2026-07-27): every
+            # deploy restarts the process mid-session, and an engine that
+            # forgets its open positions cancels their brackets at
+            # startup and pays market to flatten healthy trades. Runs
+            # every cycle via _roll_day, so this is always current.
+            self.state["saved_at"] = dt.datetime.utcnow().isoformat()
+            self.state["sleeves"] = {
+                str(sl.idx): {
+                    "pos": sl.pos,
+                    "entry_px": sl.entry_px,
+                    "entry_ts": getattr(sl, "entry_ts", None),
+                    "limit_px": getattr(sl, "limit_px", None),
+                    "stop": sl.stop,
+                    "tgt": sl.tgt,
+                    "bars_held": sl.bars_held,
+                    "cooldown": sl.cooldown,
+                    "oids": list(sl.oids) if sl.oids else None,
+                    "pending": sl.pending,
+                }
+                for sl in self.sleeves
+                if sl.pos or sl.pending or sl.cooldown}
             STATE_PATH.write_text(json.dumps(self.state))
         except Exception:
             pass
+
+    def _restore_sleeves(self):
+        """Re-adopt open positions/pendings after a restart. Refused
+        when the snapshot is >4h old or the daily 21:00 UTC close lies
+        between save and now — EOD flattens everything by 20:54, so no
+        position can legitimately cross that line, and the broker wipes
+        its fill list at the day roll (a stale restore would make the
+        reconciler RE-OPEN a closed trade to 'realign')."""
+        d = self.state.get("sleeves") or {}
+        if not d:
+            return
+        ok = False
+        t0 = self.state.get("saved_at")
+        try:
+            t = dt.datetime.fromisoformat(str(t0))
+            now = dt.datetime.utcnow()
+            nxt = t.replace(hour=21, minute=0, second=0, microsecond=0)
+            if nxt <= t:
+                nxt += dt.timedelta(days=1)
+            ok = (now - t).total_seconds() < 4 * 3600 and nxt > now
+        except Exception:
+            ok = False
+        if not ok:
+            logger.info(f"[basket] sleeve state stale (saved_at={t0}) — "
+                        "not restored")
+            return
+        n = 0
+        for k, s in d.items():
+            try:
+                sl = self.sleeves[int(k)]
+            except Exception:
+                continue
+            sl.pos = int(s.get("pos") or 0)
+            sl.entry_px = s.get("entry_px")
+            sl.entry_ts = s.get("entry_ts")
+            sl.limit_px = s.get("limit_px")
+            sl.stop = s.get("stop")
+            sl.tgt = s.get("tgt")
+            sl.bars_held = int(s.get("bars_held") or 0)
+            sl.cooldown = int(s.get("cooldown") or 0)
+            oids = s.get("oids")
+            sl.oids = tuple(oids) if oids else None
+            sl.pending = s.get("pending")
+            if sl.pos or sl.pending:
+                n += 1
+        if n:
+            logger.info(f"[basket] restored {n} open sleeve(s) from state "
+                        "— their broker brackets stay untouched")
 
     def record_fill_pnl(self, pnl):
         self.state["day_pnl"] += pnl
