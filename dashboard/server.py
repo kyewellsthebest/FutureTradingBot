@@ -1255,8 +1255,68 @@ def api_broker_stats():
                    and r.get("timestamp")
                    and r.get("cashChangeType") in TRADE_TYPES
                    and r.get("delta") is not None]
+            # ---- LEDGER ARCHIVE (2026-07-27) ----
+            # The demo wipes cashBalanceLog the same way it wipes
+            # /fill/list: Monday morning the ledger held ONLY today, so
+            # the Week/Month equity charts lost Friday entirely. Persist
+            # every trading row to disk (keyed by ledger id) and build
+            # the curve from the UNION of archive + live.
+            try:
+                from bot.account_ctx import data_dir as _ldir
+                apath = _ldir() / "ledger_archive.jsonl"
+                arch: dict = {}
+                try:
+                    for ln in apath.read_text().splitlines():
+                        try:
+                            r = json.loads(ln)
+                            if r.get("id") is not None:
+                                arch[r["id"]] = r
+                        except Exception:
+                            pass
+                except FileNotFoundError:
+                    pass
+                fresh = [r for r in led if r.get("id") is not None
+                         and r["id"] not in arch]
+                if fresh:
+                    with open(apath, "a") as f:
+                        for r in fresh:
+                            f.write(json.dumps(
+                                {k: r.get(k) for k in
+                                 ("id", "timestamp", "delta",
+                                  "cashChangeType", "tradeDate",
+                                  "currencyId")}) + "\n")
+                by_id = dict(arch)
+                for r in led:
+                    if r.get("id") is not None:
+                        by_id[r["id"]] = r
+                led = list(by_id.values()) + [
+                    r for r in led if r.get("id") is None]
+            except Exception as e:
+                logger.debug(f"ledger archive: {e!r}")
             led.sort(key=lambda r: (r["timestamp"], r.get("id") or 0))
             post = [r for r in led if r["timestamp"] >= cutoff_iso]
+            # ---- BACKFILL the pre-archive gap from the fill archive ----
+            # Rows older than both the live ledger and the disk archive
+            # (e.g. Friday, wiped before archiving existed) are rebuilt
+            # from the broker trade rows, whose net P&L reconciled to the
+            # cash move penny-for-penny on 2026-07-25.
+            first_ts = post[0]["timestamp"] if post else None
+            if first_ts:
+                pre = []
+                for t in trades:
+                    et = str(t.get("exit_time") or t.get("ts") or "")
+                    if et and cutoff_iso <= et < first_ts:
+                        pre.append({"timestamp": et,
+                                    "delta": float(t.get("pnl_usd") or 0),
+                                    "cashChangeType": "TradePaired"})
+                if pre:
+                    pre.sort(key=lambda r: r["timestamp"])
+                    post = pre + post
+                    pnl_source_suffix = "+trades_backfill"
+                else:
+                    pnl_source_suffix = ""
+            else:
+                pnl_source_suffix = ""
             if len(post) >= 3:
                 curve = []
                 cumv = 0.0
@@ -1300,9 +1360,22 @@ def api_broker_stats():
                           "win_rate": trades_by_day.get(k, {}).get("win_rate", 0),
                           "pnl": round(v, 2)}
                          for k, v in sorted(dled.items())]
-                pnl_source = "broker_ledger"
+                pnl_source = "broker_ledger" + pnl_source_suffix
     except Exception as e:
         logger.debug(f"ledger override: {e!r}")
+
+    # ---- absolute BALANCE per curve point (2026-07-27 user request:
+    # "the side should show the actual account balance ... BE point as
+    # 3921"). Anchor the last point to the broker's cash balance so the
+    # curve ends at EXACTLY the real number; earlier points are balance
+    # minus the P&L that came after them.
+    if equity_curve:
+        end_cum = float(equity_curve[-1].get("cum_pnl") or 0)
+        anchor = balance if isinstance(balance, (int, float)) else None
+        for p in equity_curve:
+            c = float(p.get("cum_pnl") or 0)
+            p["bal"] = round((anchor - (end_cum - c)) if anchor is not None
+                             else 4000.0 + c, 2)
 
     return jsonify({
         "pnl_source": pnl_source,
