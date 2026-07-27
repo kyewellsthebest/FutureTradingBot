@@ -415,8 +415,28 @@ class BasketEngine:
         if not rows:
             return None
         rows.sort()
+        # RESAMPLE to true 5-min buckets. 2026-07-27 journal caught the
+        # endpoint returning 1-MINUTE bars despite resolution=5_minute
+        # (s18 "held 6 bars" in 333s; bar starts on :01/:02/... marks).
+        # Every lookback/ATR/H/cooldown then ran 5x too fast vs the
+        # validated 5-min research — Friday's 193-trade night. Aggregate
+        # client-side so the engine is immune to whatever granularity
+        # comes back (true 5-min input makes this a no-op).
+        W = 300 * 1_000_000_000
+        buckets: dict = {}
+        for t, o, h, l, c, v in rows:
+            b0 = t - (t % W)
+            b = buckets.get(b0)
+            if b is None:
+                buckets[b0] = [o, h, l, c, v]
+            else:
+                b[1] = max(b[1], h)
+                b[2] = min(b[2], l)
+                b[3] = c
+                b[4] += v
+        rows = [(t, *vals) for t, vals in sorted(buckets.items())]
         # CLOSED bars only: drop the still-forming 5-min window
-        if rows[-1][0] > now_ns - 300 * 1_000_000_000:
+        if rows[-1][0] > now_ns - W:
             rows = rows[:-1]
         return [dict(ts=str(t), o=o, h=h, l=l, c=c, v=v)
                 for t, o, h, l, c, v in rows[-n:]]
