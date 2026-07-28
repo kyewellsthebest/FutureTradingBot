@@ -99,6 +99,15 @@ PRODUCT_CYCLES = {
     "HO": (list(range(1, 13)), 25),
 }
 
+# Single-digit year codes are AMBIGUOUS across decades on Polygon:
+# "GCQ6" resolved to August 2016 gold (dead), which is why the GC file
+# came back sparse and starting in 2018 (found 2026-07-28). The MICRO
+# roots launched post-2019, so their 1-digit tickers are unambiguous —
+# and they are the contracts the live engine actually trades and
+# already fetches from Polygon successfully every day. CSV filenames
+# keep the classic root; only the request ticker is aliased.
+TICKER_ALIAS = {"GC": "MGC", "CL": "MCL"}
+
 
 def quarterly_tickers(product: str) -> list[tuple[str, date]]:
     """Every contract (ticker, roll-date) whose roll falls inside the
@@ -118,7 +127,8 @@ def quarterly_tickers(product: str) -> list[tuple[str, date]]:
                 ry, rm = (year, m - 1) if m > 1 else (year - 1, 12)
                 exp = date(ry, rm, roll_day)
                 if start <= exp <= end:
-                    out.append((f"{product}{ALL_MONTH_CODE[m]}{year % 10}", exp))
+                    tk = TICKER_ALIAS.get(product, product)
+                    out.append((f"{tk}{ALL_MONTH_CODE[m]}{year % 10}", exp))
         out.sort(key=lambda t: t[1])
         return out
     monthly = product in MONTHLY_PRODUCTS
@@ -128,7 +138,8 @@ def quarterly_tickers(product: str) -> list[tuple[str, date]]:
             exp = (_last_friday(year, month) if monthly
                    else _third_friday(year, month))
             if start <= exp <= end:
-                out.append((f"{product}{code}{year % 10}", exp))
+                tk = TICKER_ALIAS.get(product, product)
+                out.append((f"{tk}{code}{year % 10}", exp))
     out.sort(key=lambda t: t[1])
     return out
 
