@@ -43,6 +43,11 @@ STATIC_DIR = ROOT / "static"
 LIVE_BARS_PATH = DATA_DIR / "live_bars.json"
 SIGNAL_EVENT_TTL_SECONDS = 20 * 60
 
+# FULL RESET 2026-07-28 (user request, zb_duo_v1 go-live): all trade
+# history, stats, charts and the per-bot journal start from this
+# moment; the account balance is manually reset to $4,000 alongside.
+BASKET_RESET_TS = "2026-07-28T05:50:00Z"
+
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
 CORS(app)
 
@@ -640,7 +645,7 @@ def _collect_broker_trades(sess, acct_id: int,
     # walk (Trades tab, stats, equity, daily, bundle) starts fresh from
     # the cutoff. Override with BROKER_TRADES_HIDE_BEFORE=ISO or "" to
     # show everything again.
-    cutoff = os.environ.get("BROKER_TRADES_HIDE_BEFORE", "2026-07-18")
+    cutoff = os.environ.get("BROKER_TRADES_HIDE_BEFORE", BASKET_RESET_TS)
     if cutoff:
         rows = [r for r in rows
                 if str(r.get("exit_time") or r.get("ts") or "") >= cutoff]
@@ -1238,7 +1243,7 @@ def api_broker_stats():
     # Trade counts / win rate stay from the paired-trade rows.
     pnl_source = "trades_estimated"
     try:
-        cutoff_iso = os.environ.get("BROKER_TRADES_HIDE_BEFORE", "2026-07-18")
+        cutoff_iso = os.environ.get("BROKER_TRADES_HIDE_BEFORE", BASKET_RESET_TS)
         ls, lrows = sess._rest("GET", "/cashBalanceLog/deps",
                                params={"masterid": int(acct_id)})
         if ls == 200 and isinstance(lrows, list) and lrows:
@@ -5768,7 +5773,11 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
         if jpath.exists():
             for ln in jpath.read_text().splitlines()[-2000:]:
                 try:
-                    jrows.append(json.loads(ln))
+                    r = json.loads(ln)
+                    # journal survives on the volume across basket swaps —
+                    # show only the current era (full reset 2026-07-28)
+                    if str(r.get("entry_ts") or "") >= BASKET_RESET_TS:
+                        jrows.append(r)
                 except Exception:
                     pass
         out["bot_trades"] = jrows[-250:]
