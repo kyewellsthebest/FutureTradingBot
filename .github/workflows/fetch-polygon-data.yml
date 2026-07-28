@@ -43,6 +43,19 @@ jobs:
           POLYGON_API: ${{ secrets.POLYGON_API }}
         run: python -m research.fetch_polygon_history
 
+      - name: Daily VIX history (for gate-aware backtests)
+        run: |
+          pip install yfinance >/dev/null 2>&1
+          python - <<'PY' || echo "VIX fetch failed (non-fatal)"
+          import yfinance as yf
+          df = yf.download("^VIX", period="1y", interval="1d", progress=False)
+          df = df[["Close"]].dropna()
+          df.columns = ["vix"]
+          df.index.name = "date"
+          df.to_csv("data/polygon/vix_daily.csv")
+          print("vix_daily.csv:", len(df), "rows")
+          PY
+
       - name: Commit the CSVs
         run: |
           git config user.name  "github-actions[bot]"
