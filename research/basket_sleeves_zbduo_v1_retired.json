@@ -1,0 +1,70 @@
+{
+ "name": "zb_duo_v1",
+ "built_from": "multi_survivors reservoir, re-selected 2026-07-28: only configs positive in EVERY window (full 3.5y, each calendar year, last 10 unseen weeks, last 3 weeks) on clean quarterly-contract data. Predecessor snapback_basket_middle_v1 retired (see basket_sleeves_snapback26_retired.json) after the metals/energy contract-cycle data defect invalidated its GC/CL evidence and clean-window replays showed its ES/RTY/YM sleeves near flat.",
+ "n_sleeves": 2,
+ "validated": {
+  "posweeks": 0.81,
+  "perwk": 1066.0,
+  "worst_day": -3442.0,
+  "windows_perwk": {
+   "full_3p5y": 1066,
+   "y2024": 1127,
+   "y2025": 1068,
+   "y2026": 1236,
+   "last10w_oos": 1103,
+   "last3w": 1416
+  },
+  "note": "worst_day is pre-rails; live daily breaker caps realized day at -1000"
+ },
+ "rails": {
+  "daily_breaker_per_unit": -1000,
+  "kill_switch_total": -2000,
+  "eod_flat": true,
+  "max_contracts_per_sleeve": 1
+ },
+ "contracts": {
+  "ZB": "ZB"
+ },
+ "sleeves": [
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fade",
+    "H": 24,
+    "stopA": 0.0,
+    "tgtA": 1.0,
+    "sess": "all",
+    "exo": "none",
+    "lb": 6,
+    "k": 1.8,
+    "limit": true
+   },
+   "stats": {
+    "wk": 636.0,
+    "posw": 0.81,
+    "wk_last10": 691.0,
+    "worst_day": -2942.0
+   }
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "pullback",
+    "H": 48,
+    "stopA": 0.0,
+    "tgtA": 1.0,
+    "sess": "all",
+    "exo": "none",
+    "man": 24,
+    "lb": 3,
+    "limit": true
+   },
+   "stats": {
+    "wk": 445.0,
+    "posw": 0.82,
+    "wk_last10": 412.0,
+    "worst_day": -3442.0
+   }
+  }
+ ]
+}
