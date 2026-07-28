@@ -5799,6 +5799,21 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
             w = t.get("exit_reason") or "?"
             b["exits"][w] = b["exits"].get(w, 0) + 1
             tick = _TICK.get(t.get("instr"), 0.25)
+            # per-trade verdict (2026-07-29 user request: "show every
+            # trade the bot takes is correct"): each row carries its own
+            # ok/issues, and per_bot aggregates them as before
+            t.setdefault("qty", 1)
+            t["issues"] = []
+            try:
+                scfg = (cfg.get("sleeves") or [])[t.get("sleeve", -1)]["cfg"]
+                lo_s, hi_s = {"us": (13.5, 20.0), "eu": (7.0, 13.5),
+                              "asia": (0.0, 7.0), "all": (0.0, 24.0)}[
+                    scfg.get("sess", "us")]
+                eh = int(str(t.get("entry_ts"))[11:13]) +                     int(str(t.get("entry_ts"))[14:16]) / 60
+                if not (lo_s - 0.2 <= eh <= hi_s + 0.4):
+                    t["issues"].append(f"entry outside {scfg.get('sess')} session")
+            except Exception:
+                pass
             # DIRECTIONAL fills only (2026-07-27: v1 used abs() and
             # flagged s18's short sold 0.5 ABOVE its limit — that is
             # price improvement, normal and good). worse>0 = paid more
@@ -5809,7 +5824,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                 if (t.get("entry_px") is not None
                         and t.get("limit_px") is not None
                         and (t["entry_px"] - t["limit_px"]) * sgn > tick + 1e-9):
-                    b["issues"].append(
+                    t["issues"].append(
                         f"entry {t['entry_px']} worse than limit {t['limit_px']}")
             except Exception:
                 pass
@@ -5817,7 +5832,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                 if (w == "target" and t.get("tgt_px") is not None
                         and t.get("exit_px") is not None
                         and (t["tgt_px"] - t["exit_px"]) * sgn > tick + 1e-9):
-                    b["issues"].append(
+                    t["issues"].append(
                         f"target exit {t['exit_px']} worse than {t['tgt_px']}")
                 # stops fill at market once triggered: allow real
                 # slippage, flag only excess (>4 ticks) or a fill on the
@@ -5826,7 +5841,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                         and t.get("exit_px") is not None):
                     worse = (t["stop_px"] - t["exit_px"]) * sgn
                     if worse > 4 * tick + 1e-9 or worse < -(2 * tick + 1e-9):
-                        b["issues"].append(
+                        t["issues"].append(
                             f"stop exit {t['exit_px']} vs trigger {t['stop_px']}")
             except Exception:
                 pass
@@ -5834,10 +5849,12 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                 H = int(t.get("H") or 0)
                 if (H and t.get("bars_held") is not None
                         and int(t["bars_held"]) > H + 1):
-                    b["issues"].append(
+                    t["issues"].append(
                         f"held {t['bars_held']} bars vs H={H}")
             except Exception:
                 pass
+            t["ok"] = not t["issues"]
+            b["issues"].extend(t["issues"])
         for k, b in per.items():
             hs = b.pop("hold_s")
             b["avg_hold_s"] = round(sum(hs) / len(hs), 1) if hs else None

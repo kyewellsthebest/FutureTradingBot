@@ -1237,6 +1237,7 @@ class BasketEngine:
                 "hold_s": hold_s,
                 "bars_held": getattr(sl, "bars_held", None),
                 "H": sl.cfg.get("H"),
+                "qty": UNITS,
                 "pnl": round(pnl, 2),
             }
             with open(DATA / "basket_trades.jsonl", "a") as f:
