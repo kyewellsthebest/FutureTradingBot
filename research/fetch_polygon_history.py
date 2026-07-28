@@ -203,30 +203,65 @@ def fetch_contract_bars(ticker: str, resolution: str = "5_minute"
     return df[~df.index.duplicated(keep="last")]
 
 
+# minimum average bars/day for a segment to be believable for a liquid
+# 24h future (a real front month prints ~270 five-min bars/day; the
+# decade-collision junk prints a handful)
+MIN_BARS_PER_DAY = 100
+
+
+def _two_digit(ticker: str) -> str:
+    """GCQ6 -> GCQ26 style: expand the 1-digit year to 2 digits assuming
+    the 2020s. Polygon's futures aggs accepts both forms; the 2-digit
+    form is decade-unambiguous."""
+    root, yd = ticker[:-1], ticker[-1]
+    return f"{root}2{yd}"
+
+
 def build_continuous(product: str, resolution: str = "5_minute"
                       ) -> pd.DataFrame | None:
-    """Stitch a continuous front-month series. Each quarterly contract
-    contributes the bars between the prior contract's expiry and its own."""
+    """Stitch a continuous front-month series. Each contract contributes
+    the bars between the prior contract's roll and its own.
+
+    DATA-INTEGRITY RULES (2026-07-28 — decade-ambiguous tickers):
+    Polygon resolved 'ZBM6' to June 2016 bonds and 'GCQ6' to August 2016
+    gold, silently poisoning whole segments with near-empty junk that
+    fakes momentum in backtests. Every segment is now fetched under BOTH
+    ticker forms (1-digit and 2-digit year) and the denser one wins; a
+    segment below MIN_BARS_PER_DAY average is DROPPED and logged loudly —
+    a visible gap is safer than plausible-looking garbage."""
     tickers = quarterly_tickers(product)
-    log.info(f"{product} ({resolution}): {len(tickers)} quarterly contracts "
+    log.info(f"{product} ({resolution}): {len(tickers)} contracts "
              f"constructed ({tickers[0][0]} … {tickers[-1][0]})")
     segments = []
     prev_exp = None
     for ticker, exp in tickers:
-        bars = fetch_contract_bars(ticker, resolution=resolution)
-        time.sleep(0.3)                  # gentle on rate limits
         exp_ts = pd.Timestamp(exp, tz="UTC")
-        if bars is None or bars.empty:
-            prev_exp = exp_ts
-            continue
-        seg = bars[bars.index <= exp_ts]
-        if prev_exp is not None:
-            seg = seg[seg.index > prev_exp]
-        if not seg.empty:
-            segments.append(seg)
-            log.info(f"  {ticker}: {len(seg)} bars "
-                     f"({seg.index[0].date()} → {seg.index[-1].date()})")
+        best = None
+        best_tk = None
+        for tk in (ticker, _two_digit(ticker)):
+            bars = fetch_contract_bars(tk, resolution=resolution)
+            time.sleep(0.3)              # gentle on rate limits
+            if bars is None or bars.empty:
+                continue
+            seg = bars[bars.index <= exp_ts]
+            if prev_exp is not None:
+                seg = seg[seg.index > prev_exp]
+            if not seg.empty and (best is None or len(seg) > len(best)):
+                best, best_tk = seg, tk
         prev_exp = exp_ts
+        if best is None:
+            log.warning(f"  {ticker}: NO DATA under either ticker form")
+            continue
+        days = max(1, (best.index[-1] - best.index[0]).days)
+        bpd = len(best) / days
+        if bpd < MIN_BARS_PER_DAY:
+            log.warning(f"  {ticker}: SEGMENT DROPPED — {len(best)} bars "
+                        f"over {days}d ({bpd:.0f}/day) looks like a "
+                        f"decade-collision ghost (via {best_tk})")
+            continue
+        segments.append(best)
+        log.info(f"  {best_tk}: {len(best)} bars ({bpd:.0f}/day, "
+                 f"{best.index[0].date()} → {best.index[-1].date()})")
     if not segments:
         return None
     cont = pd.concat(segments).sort_index()
