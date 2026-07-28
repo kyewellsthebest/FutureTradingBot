@@ -1,20 +1,20 @@
 {
- "name": "zb_duo_v1",
- "built_from": "multi_survivors reservoir, re-selected 2026-07-28: only configs positive in EVERY window (full 3.5y, each calendar year, last 10 unseen weeks, last 3 weeks) on clean quarterly-contract data. Predecessor snapback_basket_middle_v1 retired (see basket_sleeves_snapback26_retired.json) after the metals/energy contract-cycle data defect invalidated its GC/CL evidence and clean-window replays showed its ES/RTY/YM sleeves near flat.",
- "n_sleeves": 2,
+ "name": "book6_v1",
+ "built_from": "mega-hunt 2026-07-28/29 (1.85M+ configs, every-window gauntlet on clean micro-contract data): live zb_duo kept as s0/s1; added the finest survivors per market \u2014 ZB fast fade (stop-protected variant), GC fast fade (positive under BOTH touch-fill and through-fill models), SI fast fade (top blind performer, fill-sensitivity flagged), CL fast fade. Touch-fill model validated live: 87/87 entry fills at exact limits, 47/47 targets exact (Jul 25-28). Sim combined (common window Dec-2023->Jul-2026): $7,010/wk, 99% pos weeks; realistic underwriting $2-4k/wk pending live fill verification at high frequency.",
+ "n_sleeves": 6,
  "validated": {
-  "posweeks": 0.81,
-  "perwk": 1066.0,
-  "worst_day": -3442.0,
+  "posweeks": 0.99,
+  "perwk": 7010.0,
+  "worst_day": -1940.0,
   "windows_perwk": {
-   "full_3p5y": 1066,
-   "y2024": 1127,
-   "y2025": 1068,
-   "y2026": 1236,
-   "last10w_oos": 1103,
-   "last3w": 1416
+   "full_common": 7010,
+   "y2024": 4051,
+   "y2025": 5246,
+   "y2026": 14978,
+   "last10w": 9676,
+   "last3w": 8563
   },
-  "note": "worst_day is pre-rails; live daily breaker caps realized day at -1000"
+  "note": "sim touch-fill; pre-rails; underwrite $2-4k/wk until journal verifies fills"
  },
  "rails": {
   "daily_breaker_per_unit": -1000,
@@ -23,7 +23,10 @@
   "max_contracts_per_sleeve": 1
  },
  "contracts": {
-  "ZB": "ZB"
+  "ZB": "ZB",
+  "GC": "MGC",
+  "CL": "MCL",
+  "SI": "SIL"
  },
  "sleeves": [
   {
@@ -40,10 +43,9 @@
     "limit": true
    },
    "stats": {
-    "wk": 636.0,
-    "posw": 0.81,
-    "wk_last10": 691.0,
-    "worst_day": -2942.0
+    "wk": 692.0,
+    "posw": 0.84,
+    "live_since": "2026-07-28"
    }
   },
   {
@@ -62,8 +64,83 @@
    "stats": {
     "wk": 445.0,
     "posw": 0.82,
-    "wk_last10": 412.0,
-    "worst_day": -3442.0
+    "live_since": "2026-07-28"
+   }
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 1.5,
+    "tgtA": 1.0,
+    "sess": "us",
+    "exo": "none",
+    "lb": 16,
+    "k": 1.0,
+    "limit": true
+   },
+   "stats": {
+    "wk": 1205.0,
+    "posw": 0.9,
+    "worst_wk": -688.0
+   }
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 12,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 979.0,
+    "posw": 0.88,
+    "stress_wk": 525.0
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 64,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3460.0,
+    "posw": 0.98,
+    "fill_sensitivity": "3 ticks/trade"
+   }
+  },
+  {
+   "instr": "CL",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 16,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 252.0,
+    "posw": 0.75,
+    "oos10_wk": 780.0
    }
   }
  ]

@@ -303,6 +303,8 @@ const MKT = {
   GC:  { name: "Gold",     color: "#e9b05a", dp: 1 },
   CL:  { name: "Oil",      color: "#2dd4bf", dp: 2 },
   ZB:  { name: "Bonds",    color: "#f472b6", dp: 3 },
+  SI:  { name: "Silver",   color: "#a3b3c9", dp: 3 },
+  SIL: { name: "Silver",   color: "#a3b3c9", dp: 3 },
   MNQ: { name: "Nasdaq",   color: "#9aa1b5", dp: 2 },
   NQ:  { name: "Nasdaq",   color: "#9aa1b5", dp: 2 },
   MES: { name: "S&P",  color: "#3987e5", dp: 2 },

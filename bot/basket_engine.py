@@ -121,9 +121,10 @@ EOD_UTC = 20.9                      # flatten everything by 20:54 UTC
 # Found live 2026-07-27 09:00 AEST: zero trades in the first open hour.
 REOPEN_UTC = 22.0
 # keyed by RESEARCH ROOT (sleeve.instr), values for the traded micro contract
-TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32}
-PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0}
-COMM = {"ES": 1.80, "RTY": 1.80, "YM": 1.80, "GC": 1.95, "CL": 1.95, "ZB": 4.50}  # calibrated to demo charges 2026-07-25
+TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32, "SI": 0.005}
+PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0, "SI": 1000.0}
+COMM = {"ES": 1.80, "RTY": 1.80, "YM": 1.80, "GC": 1.95, "CL": 1.95, "ZB": 4.50,
+        "SI": 2.20}  # calibrated to demo charges 2026-07-25; SI provisional until ledger-calibrated
 MONTH_Q = {3: "H", 6: "M", 9: "U", 12: "Z"}
 MONTH_ALL = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",7:"N",8:"Q",9:"U",10:"V",11:"X",12:"Z"}
 
@@ -135,6 +136,8 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         months = sorted(MONTH_Q)
     elif root == "MGC":
         months = [2, 4, 6, 8, 10, 12]
+    elif root == "SIL":                # micro silver: Mar/May/Jul/Sep/Dec
+        months = [3, 5, 7, 9, 12]
     else:                              # MCL: monthly
         months = list(range(1, 13))
     for delta in range(0, 15):
@@ -155,6 +158,9 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         elif root == "MCL":
             pm, py = (m - 1, y) if m > 1 else (12, y - 1)
             exp = dt.date(py, pm, 20)
+        elif root == "SIL":            # roll ~25th of month before delivery
+            pm, py = (m - 1, y) if m > 1 else (12, y - 1)
+            exp = dt.date(py, pm, 25)
         else:
             exp = dt.date(y, m, 26)
         if exp - dt.timedelta(days=3) > today:
@@ -911,7 +917,7 @@ class BasketEngine:
                 # orders and positions would live on unmanaged.
                 legacy = name and any(name.startswith(p) for p in
                                       ("MES", "M2K", "MYM", "MGC", "MCL",
-                                       "ZB", "ZN"))
+                                       "SIL", "ZB", "ZN"))
                 if (name in mysyms or legacy) and o.get("id") not in keep:
                     self._cancel_quiet(o.get("id"))
                     n += 1
@@ -941,7 +947,7 @@ class BasketEngine:
                     if not name or name in mysyms:
                         continue
                     if any(name.startswith(pfx) for pfx in
-                           ("MES", "M2K", "MYM", "MGC", "MCL", "ZB", "ZN")):
+                           ("MES", "M2K", "MYM", "MGC", "MCL", "SIL", "ZB", "ZN")):
                         logger.warning(f"[basket] startup: flattening retired"
                                        f"-universe position {name} net {np_}")
                         try:
