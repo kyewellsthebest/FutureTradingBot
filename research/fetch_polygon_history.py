@@ -83,23 +83,63 @@ def _last_friday(year: int, month: int) -> date:
     return d
 
 
+# Metals/energy do NOT trade the quarterly H/M/U/Z cycle. Building gold
+# from March/September contracts left the "continuous" series on a
+# near-dead contract for half of every year (June 2026: 213 bars where
+# ~1,600 belong — found 2026-07-28 when phantom gaps faked fade signals
+# in a replay). Cycle = liquid delivery months; roll = day of the month
+# BEFORE delivery (mirrors the live engine's front_symbol rules).
+PRODUCT_CYCLES = {
+    "GC": ([2, 4, 6, 8, 10, 12], 25),
+    "SI": ([3, 5, 7, 9, 12], 25),
+    "HG": ([3, 5, 7, 9, 12], 25),
+    "CL": (list(range(1, 13)), 18),
+    "NG": (list(range(1, 13)), 25),
+    "RB": (list(range(1, 13)), 25),
+    "HO": (list(range(1, 13)), 25),
+}
+
+# Single-digit year codes are AMBIGUOUS across decades on Polygon:
+# "GCQ6" resolved to August 2016 gold (dead), which is why the GC file
+# came back sparse and starting in 2018 (found 2026-07-28). The MICRO
+# roots launched post-2019, so their 1-digit tickers are unambiguous —
+# and they are the contracts the live engine actually trades and
+# already fetches from Polygon successfully every day. CSV filenames
+# keep the classic root; only the request ticker is aliased.
+TICKER_ALIAS = {"GC": "MGC", "CL": "MCL"}
+
+
 def quarterly_tickers(product: str) -> list[tuple[str, date]]:
-    """Every contract (ticker, expiry) whose expiry falls inside the
+    """Every contract (ticker, roll-date) whose roll falls inside the
     history window — constructed from the calendar, no API call.
-    Quarterly (H/M/U/Z, 3rd-Friday) for index/rate/metal/energy products;
-    MONTHLY (all 12 codes, LAST-Friday) for CME crypto (MBT etc.)."""
+    Quarterly (H/M/U/Z, 3rd-Friday) for index/rate products; per-product
+    liquid-month cycles for metals/energy (PRODUCT_CYCLES); MONTHLY
+    (all 12 codes, LAST-Friday) for CME crypto (MBT etc.)."""
     today = date.today()
     start = today - timedelta(days=HISTORY_DAYS + 120)
     end = today + timedelta(days=120)
+    out: list[tuple[str, date]] = []
+    if product in PRODUCT_CYCLES:
+        months, roll_day = PRODUCT_CYCLES[product]
+        for year in range(start.year, end.year + 2):
+            for m in months:
+                # roll happens in the month BEFORE delivery
+                ry, rm = (year, m - 1) if m > 1 else (year - 1, 12)
+                exp = date(ry, rm, roll_day)
+                if start <= exp <= end:
+                    tk = TICKER_ALIAS.get(product, product)
+                    out.append((f"{tk}{ALL_MONTH_CODE[m]}{year % 10}", exp))
+        out.sort(key=lambda t: t[1])
+        return out
     monthly = product in MONTHLY_PRODUCTS
     codes = ALL_MONTH_CODE if monthly else MONTH_CODE
-    out: list[tuple[str, date]] = []
     for year in range(start.year, end.year + 1):
         for month, code in codes.items():
             exp = (_last_friday(year, month) if monthly
                    else _third_friday(year, month))
             if start <= exp <= end:
-                out.append((f"{product}{code}{year % 10}", exp))
+                tk = TICKER_ALIAS.get(product, product)
+                out.append((f"{tk}{code}{year % 10}", exp))
     out.sort(key=lambda t: t[1])
     return out
 
