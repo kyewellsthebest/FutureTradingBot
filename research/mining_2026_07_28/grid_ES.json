@@ -1,0 +1,28 @@
+{
+ "root": "ES",
+ "n_grid": 4008,
+ "n_pass": 1,
+ "passers": [
+  {
+   "cfg": {
+    "fam": "fade",
+    "lb": 6,
+    "k": 0.8,
+    "H": 6,
+    "sess": "all",
+    "stopA": 0.0,
+    "tgtA": 1.0,
+    "limit": true
+   },
+   "train_wk": 157,
+   "train_poswk": 70,
+   "train_worst_wk": -400,
+   "train_worst_day": -622,
+   "n_train_wks": 127,
+   "oos10_wk": 298,
+   "oos10_pos": 82,
+   "oos3_net": 1482,
+   "tr_wk": 143.4
+  }
+ ]
+}
