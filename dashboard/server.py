@@ -5594,9 +5594,11 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
             "validated": cfg.get("validated"),
             "rails": cfg.get("rails"),
         }
-        if len(cfg.get("sleeves", [])) != 26:
+        n_exp = cfg.get("n_sleeves") or len(cfg.get("sleeves", []))
+        if len(cfg.get("sleeves", [])) != n_exp or not cfg.get("sleeves"):
             _chk("ERROR", "config_sleeves",
-                 f"expected 26 sleeves, config has {len(cfg.get('sleeves', []))}")
+                 f"expected {n_exp} sleeves, config has "
+                 f"{len(cfg.get('sleeves', []))}")
     except Exception as e:
         out["config"] = {"error": repr(e)}
         _chk("ERROR", "config_missing", f"basket_sleeves.json unreadable: {e!r}")

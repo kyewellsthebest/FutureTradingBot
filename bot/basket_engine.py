@@ -905,12 +905,53 @@ class BasketEngine:
                         name = ""
                     if name:
                         self._cid_cache[cid] = name
-                if name in mysyms and o.get("id") not in keep:
+                # LEGACY prefixes cover every product any basket version
+                # has traded — a config swap (26 -> zb_duo, 2026-07-28)
+                # must sweep the RETIRED universe too, or its resting
+                # orders and positions would live on unmanaged.
+                legacy = name and any(name.startswith(p) for p in
+                                      ("MES", "M2K", "MYM", "MGC", "MCL",
+                                       "ZB", "ZN"))
+                if (name in mysyms or legacy) and o.get("id") not in keep:
                     self._cancel_quiet(o.get("id"))
                     n += 1
             if n:
                 logger.warning(f"[basket] startup: canceled {n} orphaned "
                                f"working basket orders")
+            # flatten POSITIONS on retired-universe contracts (current
+            # universe is the reconciler's job; MNQ never touched)
+            ps, plist = sess._rest("GET", "/position/list")
+            if ps == 200 and isinstance(plist, list):
+                for p in plist:
+                    if not isinstance(p, dict) or p.get("accountId") != acct_id:
+                        continue
+                    np_ = int(p.get("netPos") or 0)
+                    if not np_:
+                        continue
+                    cid = p.get("contractId")
+                    name = self._cid_cache.get(cid)
+                    if name is None and cid is not None:
+                        try:
+                            cs, c = sess._rest("GET", "/contract/item",
+                                               params={"id": int(cid)})
+                            name = (c.get("name") or "") if (
+                                cs == 200 and isinstance(c, dict)) else ""
+                        except Exception:
+                            name = ""
+                    if not name or name in mysyms:
+                        continue
+                    if any(name.startswith(pfx) for pfx in
+                           ("MES", "M2K", "MYM", "MGC", "MCL", "ZB", "ZN")):
+                        logger.warning(f"[basket] startup: flattening retired"
+                                       f"-universe position {name} net {np_}")
+                        try:
+                            self.orders().submit_market(
+                                side="SHORT" if np_ > 0 else "LONG",
+                                qty=abs(np_), symbol=name,
+                                setup_ref="basket:retired-universe-flatten")
+                        except Exception as ex:
+                            logger.warning(f"[basket] retired flatten "
+                                           f"{name}: {ex!r}")
         except Exception as e:
             logger.debug(f"[basket] startup cleanup: {e!r}")
 
@@ -1003,6 +1044,13 @@ class BasketEngine:
             logger.info(f"[basket] new day {today} symbols={self.symbols}")
         self._save()
 
+    def _cfg_md5(self):
+        try:
+            import hashlib
+            return hashlib.md5(CFG_PATH.read_bytes()).hexdigest()
+        except Exception:
+            return None
+
     def _save(self):
         try:
             # Persist per-sleeve trading state too (2026-07-27): every
@@ -1011,6 +1059,7 @@ class BasketEngine:
             # startup and pays market to flatten healthy trades. Runs
             # every cycle via _roll_day, so this is always current.
             self.state["saved_at"] = dt.datetime.utcnow().isoformat()
+            self.state["cfg_md5"] = self._cfg_md5()
             self.state["sleeves"] = {
                 str(sl.idx): {
                     "pos": sl.pos,
@@ -1039,6 +1088,15 @@ class BasketEngine:
         reconciler RE-OPEN a closed trade to 'realign')."""
         d = self.state.get("sleeves") or {}
         if not d:
+            return
+        # BASKET SWAP GUARD (2026-07-28, 26 -> zb_duo): a snapshot from a
+        # DIFFERENT sleeve config must never be restored — old index 0
+        # (an ES fade) would be poured into new index 0 (a ZB fade) and
+        # the reconciler would trade to make the confusion real.
+        if self.state.get("cfg_md5") != self._cfg_md5():
+            logger.info("[basket] sleeve state from a different config — "
+                        "discarded (basket swap)")
+            self.state["sleeves"] = {}
             return
         ok = False
         t0 = self.state.get("saved_at")
