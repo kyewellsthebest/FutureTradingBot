@@ -1081,6 +1081,7 @@ class BasketEngine:
         if self.state.get("day") != today:
             self.state["day"] = today
             self.state["day_pnl"] = 0.0
+            self.state["day_peak"] = 0.0
             self.halted_today = False
             self._update_gates_daily()
             self.gates.load()
@@ -1188,15 +1189,23 @@ class BasketEngine:
     def record_fill_pnl(self, pnl):
         self.state["day_pnl"] += pnl
         self.state["cum_pnl"] += pnl
+        # TRAILING BREAKER (user 2026-07-30): the old day-NET check let a
+        # +$780 morning bankroll a -$2,300 afternoon before firing. Track
+        # the intraday PEAK; the day may never give back more than $1,000
+        # from its high-water mark, profits included.
+        self.state["day_peak"] = max(self.state.get("day_peak", 0.0),
+                                     self.state["day_pnl"])
         self._save()
         if self.state["cum_pnl"] <= -2000 * UNITS:
             KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
             self.flatten_all("KILL-SWITCH")
             logger.error("[basket] KILL-SWITCH tripped: cumulative <= -$2000. HALTED.")
-        elif self.state["day_pnl"] <= -1000 * UNITS:
+        elif self.state["day_pnl"] - self.state.get("day_peak", 0.0) \
+                <= -1000 * UNITS:
             self.flatten_all("DAILY-BREAKER")
             self.halted_today = True
-            logger.warning("[basket] daily breaker tripped: day <= -$1000. Halted for today.")
+            logger.warning("[basket] daily breaker tripped: -$1000 from "
+                           "intraday peak. Halted for today.")
 
     def flatten_all(self, why):
         for sl in self.sleeves:
@@ -1226,14 +1235,18 @@ class BasketEngine:
         if self.halted_today or KILL_FLAG.exists():
             return
         mark = self._open_mark()
+        marked_day = self.state["day_pnl"] + mark
+        self.state["day_peak"] = max(self.state.get("day_peak", 0.0),
+                                     marked_day)
         if self.state["cum_pnl"] + mark <= -2000 * UNITS:
             KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
             self.flatten_all("KILL-SWITCH")
             logger.error("[basket] KILL-SWITCH (marked): cum+open <= -$2000. HALTED.")
-        elif self.state["day_pnl"] + mark <= -1000 * UNITS:
+        elif marked_day - self.state.get("day_peak", 0.0) <= -1000 * UNITS:
             self.flatten_all("DAILY-BREAKER")
             self.halted_today = True
-            logger.warning("[basket] daily breaker (marked): day+open <= -$1000. Halted for today.")
+            logger.warning("[basket] daily breaker (marked): -$1000 from "
+                           "intraday peak incl. open P&L. Halted for today.")
 
     # ---------------- trade mechanics ----------------
     def _enter(self, sl: Sleeve, side: int, a: float):
@@ -1430,6 +1443,22 @@ class BasketEngine:
     # ---------------- main loop ----------------
     def run(self):
         self._ensure_demo()
+        # ACCOUNT RESET (user 2026-07-30): full history wipe + balance
+        # back to $4,000. A kill flag written before the reset moment is
+        # from the retired era — clear it once so the bot re-arms.
+        KILL_RESET_BEFORE = "2026-07-29T22:00:00"
+        try:
+            if KILL_FLAG.exists() and \
+                    KILL_FLAG.read_text().strip()[:19] < KILL_RESET_BEFORE:
+                KILL_FLAG.unlink()
+                self.state["cum_pnl"] = 0.0
+                self.state["day_pnl"] = 0.0
+                self.state["day_peak"] = 0.0
+                self._save()
+                logger.warning("[basket] kill flag from before the "
+                               "2026-07-30 account reset cleared — re-armed")
+        except Exception as e:
+            logger.warning(f"[basket] kill-flag reset check: {e!r}")
         logger.info(f"[basket] starting: {len(self.sleeves)} sleeves on {self.roots} "
                     f"UNITS={UNITS} (DEMO) data_dir={DATA}")
         self._update_gates_daily()
