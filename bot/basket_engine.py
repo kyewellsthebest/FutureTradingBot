@@ -1205,6 +1205,36 @@ class BasketEngine:
             if sl.pos != 0:
                 self._exit(sl, px=None, why=why)
 
+    def _open_mark(self):
+        """Unrealized P&L of all open sleeves at last bar closes."""
+        tot = 0.0
+        for sl in self.sleeves:
+            if sl.pos and sl.entry_px is not None:
+                try:
+                    c = self.feats[sl.instr].last()["c"]
+                    tot += (c - sl.entry_px) * sl.pos * PV[sl.instr] * UNITS
+                except Exception:
+                    pass
+        return tot
+
+    def _risk_check_marked(self):
+        """LIVE RULES (2026-07-29): the rails used to count REALIZED
+        P&L only, so on the gold trend day the -$1,000 breaker fired
+        with 8 open positions whose flatten realized another -$461
+        (day ended -$1,556). Mark open P&L to the last closes every
+        cycle so the line IS the line."""
+        if self.halted_today or KILL_FLAG.exists():
+            return
+        mark = self._open_mark()
+        if self.state["cum_pnl"] + mark <= -2000 * UNITS:
+            KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
+            self.flatten_all("KILL-SWITCH")
+            logger.error("[basket] KILL-SWITCH (marked): cum+open <= -$2000. HALTED.")
+        elif self.state["day_pnl"] + mark <= -1000 * UNITS:
+            self.flatten_all("DAILY-BREAKER")
+            self.halted_today = True
+            logger.warning("[basket] daily breaker (marked): day+open <= -$1000. Halted for today.")
+
     # ---------------- trade mechanics ----------------
     def _enter(self, sl: Sleeve, side: int, a: float):
         """Place the REAL resting limit + bracket. All 26 validated
@@ -1416,6 +1446,7 @@ class BasketEngine:
                     self._write_status()
                     time.sleep(300); continue
                 self._sync_orders()          # real fills/exits first
+                self._risk_check_marked()    # rails on marked (open) P&L
                 for root in self.roots:
                     try:
                         if self.feats[root].update(self.bars_for(root)):
