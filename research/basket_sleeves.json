@@ -1,20 +1,23 @@
 {
- "name": "book6_v1",
- "built_from": "mega-hunt 2026-07-28/29 (1.85M+ configs, every-window gauntlet on clean micro-contract data): live zb_duo kept as s0/s1; added the finest survivors per market \u2014 ZB fast fade (stop-protected variant), GC fast fade (positive under BOTH touch-fill and through-fill models), SI fast fade (top blind performer, fill-sensitivity flagged), CL fast fade. Touch-fill model validated live: 87/87 entry fills at exact limits, 47/47 targets exact (Jul 25-28). Sim combined (common window Dec-2023->Jul-2026): $7,010/wk, 99% pos weeks; realistic underwriting $2-4k/wk pending live fill verification at high frequency.",
- "n_sleeves": 6,
+ "name": "book17_v1",
+ "built_from": "book6_v1 core (live ZB duo + ZB/GC/SI/CL fast fades) + 11 additions from the completed 1.85M-config mega-hunt (2026-07-28/29). Additions gauntlet: OOS-10wk >=95% positive weeks AND >=$950/wk each, train pos-weeks >=80%, low worst week, cushion>=2 ticks, >=3 robust grid neighbors, lookback-diversity enforced, per-market cap (SI4/GC4/ES3/ZB1). Combined sim (touch-fill, validated live 87/87 exact entries): $26,250/wk, 99% pos weeks, worst wk -$130, ~2,373 tr/wk. Underwrite well below sim until fill quality at ~400 tr/day is journal-verified.",
+ "n_sleeves": 17,
  "validated": {
   "posweeks": 0.99,
-  "perwk": 7010.0,
-  "worst_day": -1940.0,
+  "perwk": 26250.0,
+  "worst_wk": -130.0,
+  "worst_day": -7568.0,
+  "tr_wk": 2373.0,
   "windows_perwk": {
-   "full_common": 7010,
-   "y2024": 4051,
-   "y2025": 5246,
-   "y2026": 14978,
-   "last10w": 9676,
-   "last3w": 8563
+   "full_common": 26250,
+   "y2024": 12017,
+   "y2025": 19595,
+   "y2026": 61740,
+   "last10w": 39065,
+   "last3w": 41000
   },
-  "note": "sim touch-fill; pre-rails; underwrite $2-4k/wk until journal verifies fills"
+  "max_concurrent_positions": 16,
+  "note": "sim touch-fill, pre-rails; daily breaker caps live worst day; margin stress possible at max stack"
  },
  "rails": {
   "daily_breaker_per_unit": -1000,
@@ -26,7 +29,8 @@
   "ZB": "ZB",
   "GC": "MGC",
   "CL": "MCL",
-  "SI": "SIL"
+  "SI": "SIL",
+  "ES": "MES"
  },
  "sleeves": [
   {
@@ -141,6 +145,248 @@
     "wk": 252.0,
     "posw": 0.75,
     "oos10_wk": 780.0
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 64,
+    "k": 1.0,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3380.0,
+    "posw": 0.98,
+    "oos10_wk": 4716.0,
+    "oos10_pos": 100,
+    "worst_wk": -326.0,
+    "tr_wk": 211.6
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 32,
+    "k": 0.8,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3324.0,
+    "posw": 0.98,
+    "oos10_wk": 5145.0,
+    "oos10_pos": 100,
+    "worst_wk": -261.0,
+    "tr_wk": 210.6
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 8,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3157.0,
+    "posw": 0.98,
+    "oos10_wk": 5637.0,
+    "oos10_pos": 100,
+    "worst_wk": -426.0,
+    "tr_wk": 204.5
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 16,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3103.0,
+    "posw": 0.98,
+    "oos10_wk": 4935.0,
+    "oos10_pos": 100,
+    "worst_wk": -348.0,
+    "tr_wk": 210.6
+   }
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 16,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 946.0,
+    "posw": 0.86,
+    "oos10_wk": 1947.0,
+    "oos10_pos": 100,
+    "worst_wk": -1196.0,
+    "tr_wk": 206.6
+   }
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 48,
+    "k": 1.0,
+    "limit": true
+   },
+   "stats": {
+    "wk": 913.0,
+    "posw": 0.83,
+    "oos10_wk": 1950.0,
+    "oos10_pos": 100,
+    "worst_wk": -850.0,
+    "tr_wk": 204.2
+   }
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 32,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 890.0,
+    "posw": 0.82,
+    "oos10_wk": 2068.0,
+    "oos10_pos": 100,
+    "worst_wk": -789.0,
+    "tr_wk": 212.7
+   }
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 6,
+    "k": 0.8,
+    "limit": true
+   },
+   "stats": {
+    "wk": 879.0,
+    "posw": 0.87,
+    "oos10_wk": 1758.0,
+    "oos10_pos": 100,
+    "worst_wk": -798.0,
+    "tr_wk": 178.3
+   }
+  },
+  {
+   "instr": "ES",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 48,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 678.0,
+    "posw": 0.98,
+    "oos10_wk": 991.0,
+    "oos10_pos": 100,
+    "worst_wk": -161.0,
+    "tr_wk": 219.7
+   }
+  },
+  {
+   "instr": "ES",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 64,
+    "k": 1.0,
+    "limit": true
+   },
+   "stats": {
+    "wk": 624.0,
+    "posw": 0.96,
+    "oos10_wk": 1008.0,
+    "oos10_pos": 100,
+    "worst_wk": -234.0,
+    "tr_wk": 211.1
+   }
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "us",
+    "exo": "none",
+    "lb": 64,
+    "k": 2.5,
+    "limit": true
+   },
+   "stats": {
+    "wk": 1502.0,
+    "posw": 0.94,
+    "oos10_wk": 1159.0,
+    "oos10_pos": 100,
+    "worst_wk": -1304.0,
+    "tr_wk": 50.4
    }
   }
  ]
