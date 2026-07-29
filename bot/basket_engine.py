@@ -153,12 +153,17 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         #   MGC: gold trades until near the END of the contract month
         d = dt.date(y, m, 1)
         third_fri = 1 + ((4 - d.weekday()) % 7) + 14
-        if root in ("MES", "M2K", "MYM", "ZB"):
+        if root in ("MES", "M2K", "MYM"):
             exp = dt.date(y, m, min(third_fri, 28))
         elif root == "MCL":
             pm, py = (m - 1, y) if m > 1 else (12, y - 1)
             exp = dt.date(py, pm, 20)
-        elif root == "SIL":            # roll ~25th of month before delivery
+        elif root in ("SIL", "MGC", "ZB"):
+            # PHYSICAL DELIVERY (found live 2026-07-29): Tradovate
+            # rejected all 620 MGCQ6 orders — brokers refuse NEW orders
+            # in delivery-month metals/bonds days before first notice.
+            # Roll on the 25th of the PRIOR month, same as the research
+            # fetcher's continuous series (PRODUCT_CYCLES).
             pm, py = (m - 1, y) if m > 1 else (12, y - 1)
             exp = dt.date(py, pm, 25)
         else:
