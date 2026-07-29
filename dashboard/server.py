@@ -721,6 +721,11 @@ def _collect_broker_trades(sess, acct_id: int,
         rows = [r for r in rows
                 if str(r.get("exit_time") or r.get("ts") or "") >= cutoff]
 
+    # HIDDEN INSTRUMENTS (2026-07-29): silver is erased from every
+    # surface — filter at the source so ALL consumers of this walk
+    # (/api/broker/trades, stats, all_trades, bundle) agree.
+    rows = [r for r in rows if not _is_hidden_instr(r)]
+
     rows.sort(key=lambda r: r.get("ts") or "")
     return rows[-limit:]
 
