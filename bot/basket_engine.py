@@ -109,6 +109,10 @@ def _fetch_vix():
     return None, None
 
 UNITS = 1
+# Hard ceiling on simultaneous open positions + resting entries across
+# the whole basket; 0 disables. Sim (last 10 wks): cap 8 skipped 5 of
+# 15,342 trades, P&L unchanged. Override with BASKET_MAX_OPEN.
+MAX_OPEN = int(os.environ.get("BASKET_MAX_OPEN", "8"))
 POLL_S = 40
 BAR_S = 300
 SESS = {"us": (13.5, 20.0), "eu": (7.0, 13.5), "asia": (0.0, 7.0), "all": (0.0, 24.0)}
@@ -1332,6 +1336,17 @@ class BasketEngine:
             if crossed:
                 self.counters["blocked_cross"] += 1
                 continue
+            # MAX-OPEN CAP (user 2026-07-29): no new entries while
+            # MAX_OPEN positions/pendings are live — frees up as trades
+            # close. Cap 8 skipped only 5 of 15,342 trades in the last
+            # 10 sim weeks (net-negative ones), so fidelity cost ~zero.
+            if MAX_OPEN > 0:
+                n_live = sum(1 for o in self.sleeves
+                             if o.pos != 0 or o.pending)
+                if n_live >= MAX_OPEN:
+                    self.counters["blocked_maxopen"] = \
+                        self.counters.get("blocked_maxopen", 0) + 1
+                    continue
             self._enter(sl, side, a)
 
     # ---------------- main loop ----------------
