@@ -1,18 +1,23 @@
 {
- "name": "book12_v1",
- "built_from": "book17_v1 minus all 5 silver sleeves (2026-07-29): SIL margin ~$6k/contract makes silver the NQ of metals \u2014 permanently excluded alongside NQ. 12 bots: 4 ZB, 5 GC, 2 ES, 1 CL. Sim (touch-fill, 2.5y): $9,318/wk, 97% pos weeks, worst wk -$2,086, ~1,460 tr/wk; last-10wk $15,144/wk 100% pos.",
- "n_sleeves": 12,
+ "name": "book17_v1",
+ "built_from": "book6_v1 core (live ZB duo + ZB/GC/SI/CL fast fades) + 11 additions from the completed 1.85M-config mega-hunt (2026-07-28/29). Additions gauntlet: OOS-10wk >=95% positive weeks AND >=$950/wk each, train pos-weeks >=80%, low worst week, cushion>=2 ticks, >=3 robust grid neighbors, lookback-diversity enforced, per-market cap (SI4/GC4/ES3/ZB1). Combined sim (touch-fill, validated live 87/87 exact entries): $26,250/wk, 99% pos weeks, worst wk -$130, ~2,373 tr/wk. Underwrite well below sim until fill quality at ~400 tr/day is journal-verified.",
+ "n_sleeves": 17,
  "validated": {
-  "posweeks": 0.97,
-  "perwk": 9318.0,
-  "worst_wk": -2086.0,
-  "worst_day": -4410.0,
-  "tr_wk": 1460.0,
+  "posweeks": 0.99,
+  "perwk": 26250.0,
+  "worst_wk": -130.0,
+  "worst_day": -7568.0,
+  "tr_wk": 2373.0,
   "windows_perwk": {
-   "last10w": 15144
+   "full_common": 26250,
+   "y2024": 12017,
+   "y2025": 19595,
+   "y2026": 61740,
+   "last10w": 39065,
+   "last3w": 41000
   },
-  "max_concurrent_positions": 11,
-  "note": "sim touch-fill pre-rails; SI & NQ permanently excluded"
+  "max_concurrent_positions": 16,
+  "note": "sim touch-fill, pre-rails; daily breaker caps live worst day; margin stress possible at max stack"
  },
  "rails": {
   "daily_breaker_per_unit": -1000,
@@ -24,6 +29,7 @@
   "ZB": "ZB",
   "GC": "MGC",
   "CL": "MCL",
+  "SI": "SIL",
   "ES": "MES"
  },
  "sleeves": [
@@ -104,6 +110,25 @@
    }
   },
   {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 64,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3460.0,
+    "posw": 0.98,
+    "fill_sensitivity": "3 ticks/trade"
+   }
+  },
+  {
    "instr": "CL",
    "cfg": {
     "fam": "fade",
@@ -120,6 +145,94 @@
     "wk": 252.0,
     "posw": 0.75,
     "oos10_wk": 780.0
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 64,
+    "k": 1.0,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3380.0,
+    "posw": 0.98,
+    "oos10_wk": 4716.0,
+    "oos10_pos": 100,
+    "worst_wk": -326.0,
+    "tr_wk": 211.6
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 32,
+    "k": 0.8,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3324.0,
+    "posw": 0.98,
+    "oos10_wk": 5145.0,
+    "oos10_pos": 100,
+    "worst_wk": -261.0,
+    "tr_wk": 210.6
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 8,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3157.0,
+    "posw": 0.98,
+    "oos10_wk": 5637.0,
+    "oos10_pos": 100,
+    "worst_wk": -426.0,
+    "tr_wk": 204.5
+   }
+  },
+  {
+   "instr": "SI",
+   "cfg": {
+    "fam": "fade",
+    "H": 4,
+    "stopA": 0.0,
+    "tgtA": 0.75,
+    "sess": "all",
+    "exo": "none",
+    "lb": 16,
+    "k": 0.6,
+    "limit": true
+   },
+   "stats": {
+    "wk": 3103.0,
+    "posw": 0.98,
+    "oos10_wk": 4935.0,
+    "oos10_pos": 100,
+    "worst_wk": -348.0,
+    "tr_wk": 210.6
    }
   },
   {
