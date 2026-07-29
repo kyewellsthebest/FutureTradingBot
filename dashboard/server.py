@@ -46,7 +46,24 @@ SIGNAL_EVENT_TTL_SECONDS = 20 * 60
 # FULL RESET 2026-07-28 (user request, zb_duo_v1 go-live): all trade
 # history, stats, charts and the per-bot journal start from this
 # moment; the account balance is manually reset to $4,000 alongside.
-BASKET_RESET_TS = "2026-07-28T05:50:00Z"
+BASKET_RESET_TS = "2026-07-29T05:50:00Z"
+
+# Instruments permanently hidden from every stats/trades view: silver was
+# cut from the basket 2026-07-29 (margin ~$6k/micro) and the user reset
+# the account balance to a no-silver baseline, so any straggler SIL rows
+# (e.g. the retirement flatten) must never resurface in the dashboard.
+HIDDEN_ROOTS = ("SIL", "SI")
+
+
+def _is_hidden_instr(r) -> bool:
+    for key in ("symbol", "contract", "instr", "root"):
+        v = r.get(key)
+        if not v:
+            continue
+        v = str(v).upper()
+        if v in HIDDEN_ROOTS or v.startswith("SIL"):
+            return True
+    return False
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
 CORS(app)
@@ -3224,6 +3241,7 @@ def _filter_trades_since_reset(rows, cutoff=None):
     to call with cutoff=None (returns rows unchanged)."""
     if cutoff is None:
         cutoff = _reset_cutoff_ts()
+    rows = [r for r in rows if not _is_hidden_instr(r)]
     if cutoff is None:
         return rows
     out = []
@@ -5776,7 +5794,8 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
                     r = json.loads(ln)
                     # journal survives on the volume across basket swaps —
                     # show only the current era (full reset 2026-07-28)
-                    if str(r.get("entry_ts") or "") >= BASKET_RESET_TS:
+                    if (str(r.get("entry_ts") or "") >= BASKET_RESET_TS
+                            and not _is_hidden_instr(r)):
                         jrows.append(r)
                 except Exception:
                     pass
