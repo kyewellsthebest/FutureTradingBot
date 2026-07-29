@@ -1082,6 +1082,7 @@ class BasketEngine:
             self.state["day"] = today
             self.state["day_pnl"] = 0.0
             self.state["day_peak"] = 0.0
+            self.state["halt_until"] = None
             self.halted_today = False
             self._update_gates_daily()
             self.gates.load()
@@ -1202,10 +1203,44 @@ class BasketEngine:
             logger.error("[basket] KILL-SWITCH tripped: cumulative <= -$2000. HALTED.")
         elif self.state["day_pnl"] - self.state.get("day_peak", 0.0) \
                 <= -1000 * UNITS:
-            self.flatten_all("DAILY-BREAKER")
+            self._trip_breaker("realized")
+
+    def _halted_now(self):
+        """True while trading is paused. Handles the 2h breaker pause:
+        when it expires, re-arm with a FRESH -$1k window from here."""
+        if self.halted_today:
+            return True
+        hu = self.state.get("halt_until")
+        if hu:
+            if dt.datetime.utcnow().isoformat() < str(hu):
+                return True
+            self.state["halt_until"] = None
+            self.state["day_peak"] = self.state.get("day_pnl", 0.0)
+            self._save()
+            logger.info("[basket] breaker re-armed after 2h pause — "
+                        "fresh -$1k window from current day P&L")
+        return False
+
+    def _trip_breaker(self, src):
+        """BACKTESTED RE-ARM POLICY (2026-07-30, 2.5y sweep): flatten,
+        pause 2h, re-arm with a fresh -$1k trailing window. Rest-of-day
+        lockout lost $1.3k/wk AND worsened worst-week (post-trip hours
+        usually revert to profitable chop). Absolute backstop: day
+        <= -$2,500 ends the day (never hit in sim — spiral insurance)."""
+        if self.halted_today or self.state.get("halt_until"):
+            return
+        self.flatten_all("DAILY-BREAKER")
+        day = self.state.get("day_pnl", 0.0)
+        if day <= -2500 * UNITS:
             self.halted_today = True
-            logger.warning("[basket] daily breaker tripped: -$1000 from "
-                           "intraday peak. Halted for today.")
+            logger.warning(f"[basket] daily backstop ({src}): day "
+                           f"{day:.0f} <= -$2,500 — done for the day")
+        else:
+            self.state["halt_until"] = (dt.datetime.utcnow()
+                                        + dt.timedelta(hours=2)).isoformat()
+            self._save()
+            logger.warning(f"[basket] daily breaker ({src}): -$1,000 from "
+                           "peak — flattened, paused 2h, then re-arm")
 
     def flatten_all(self, why):
         for sl in self.sleeves:
@@ -1232,7 +1267,7 @@ class BasketEngine:
         with 8 open positions whose flatten realized another -$461
         (day ended -$1,556). Mark open P&L to the last closes every
         cycle so the line IS the line."""
-        if self.halted_today or KILL_FLAG.exists():
+        if self._halted_now() or KILL_FLAG.exists():
             return
         mark = self._open_mark()
         marked_day = self.state["day_pnl"] + mark
@@ -1243,10 +1278,7 @@ class BasketEngine:
             self.flatten_all("KILL-SWITCH")
             logger.error("[basket] KILL-SWITCH (marked): cum+open <= -$2000. HALTED.")
         elif marked_day - self.state.get("day_peak", 0.0) <= -1000 * UNITS:
-            self.flatten_all("DAILY-BREAKER")
-            self.halted_today = True
-            logger.warning("[basket] daily breaker (marked): -$1000 from "
-                           "intraday peak incl. open P&L. Halted for today.")
+            self._trip_breaker("marked")
 
     # ---------------- trade mechanics ----------------
     def _enter(self, sl: Sleeve, side: int, a: float):
@@ -1386,7 +1418,7 @@ class BasketEngine:
                 continue             # backtest spacing: one entry per H window
             if not market_open():
                 continue             # never place orders into a closed book
-            if self.halted_today or KILL_FLAG.exists() \
+            if self._halted_now() or KILL_FLAG.exists() \
                     or (EOD_UTC - 0.5 <= now_h < REOPEN_UTC):
                 continue
             lo, hi = SESS[sl.cfg.get("sess", "us")]
