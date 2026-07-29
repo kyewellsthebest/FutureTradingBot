@@ -1417,20 +1417,31 @@ class BasketEngine:
             # MAX_OPEN positions/pendings are live — frees up as trades
             # close. Cap 8 skipped only 5 of 15,342 trades in the last
             # 10 sim weeks (net-negative ones), so fidelity cost ~zero.
-            if MAX_OPEN > 0:
+            # SOFT-START GLIDEPATH (user 2026-07-30, "I need to survive
+            # the first week"): trade at half exposure until the book has
+            # earned its own cushion, then scale up. Sim: fresh-start
+            # kill odds 1.37% -> 0.57%, cushion arrives day ~4 vs 2.
+            cushion = self.state.get("cum_pnl", 0.0)
+            if cushion < 1000 * UNITS:
+                eff_open, eff_margin = 4, 1250.0
+            elif cushion < 2000 * UNITS:
+                eff_open, eff_margin = 6, 1900.0
+            else:
+                eff_open, eff_margin = MAX_OPEN, MAX_DAY_MARGIN
+            if eff_open > 0:
                 n_live = sum(1 for o in self.sleeves
                              if o.pos != 0 or o.pending)
-                if n_live >= MAX_OPEN:
+                if n_live >= eff_open:
                     self.counters["blocked_maxopen"] = \
                         self.counters.get("blocked_maxopen", 0) + 1
                     continue
             # MARGIN-DOLLAR CAP (live rules): count vs estimated intraday
             # margin so 4 bonds can't pass a count check that 4 golds set.
-            if MAX_DAY_MARGIN > 0:
+            if eff_margin > 0:
                 used = sum(DAY_MARGIN_EST.get(o.instr, 500.0) * UNITS
                            for o in self.sleeves if o.pos != 0 or o.pending)
                 if used + DAY_MARGIN_EST.get(root, 500.0) * UNITS \
-                        > MAX_DAY_MARGIN:
+                        > eff_margin:
                     self.counters["blocked_margin"] = \
                         self.counters.get("blocked_margin", 0) + 1
                     continue
