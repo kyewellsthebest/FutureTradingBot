@@ -113,10 +113,23 @@ UNITS = 1
 # the whole basket; 0 disables. Sim (last 10 wks): cap 8 skipped 5 of
 # 15,342 trades, P&L unchanged. Override with BASKET_MAX_OPEN.
 MAX_OPEN = int(os.environ.get("BASKET_MAX_OPEN", "8"))
+# LIVE RULES (2026-07-29): margin-dollar cap. Estimated intraday margin
+# per contract; new entries are skipped while the live estimate would
+# exceed MAX_DAY_MARGIN. $2,500 skipped 0.6% of the last 10 sim weeks'
+# trades (net losers) — fidelity cost zero, and the worst live stack
+# (4 ZB + 4 GC ~= $5k) can no longer outgrow a ~$4k account.
+DAY_MARGIN_EST = {"ZB": 1000.0, "GC": 250.0, "CL": 250.0, "ES": 50.0,
+                  "SI": 1500.0, "RTY": 50.0, "YM": 50.0, "NQ": 100.0}
+MAX_DAY_MARGIN = float(os.environ.get("BASKET_MAX_MARGIN", "2500"))
 POLL_S = 40
 BAR_S = 300
 SESS = {"us": (13.5, 20.0), "eu": (7.0, 13.5), "asia": (0.0, 7.0), "all": (0.0, 24.0)}
-EOD_UTC = 20.9                      # flatten everything by 20:54 UTC
+# LIVE RULES (2026-07-29): Tradovate swaps to FULL initial margins at
+# 4:45pm ET. In summer (EDT) the old 20.9 flatten (4:54pm ET) sat 9 min
+# inside that window — live, one open ZB there is an instant margin
+# breach. 20.7 flattens by 4:42pm EDT, always before the switchover.
+# Sim cost of the earlier cutoff: +$19/wk (the killed entries lost money).
+EOD_UTC = 20.7                      # flatten everything by 20:42 UTC
 # End-of-day is a WINDOW [EOD_UTC, REOPEN_UTC), not "rest of the wall-clock
 # day": Globex reopens 22:00 UTC and that's the NEXT trading day. Comparing
 # now_h >= EOD_UTC alone blocked all entries (and would insta-exit any
@@ -377,6 +390,8 @@ class BasketEngine:
                          "blocked_cross": 0}   # per-day, for the bundle
         self._cid_cache = {}         # contractId -> name (for reconciler)
         self._recon_streak = {}      # root -> consecutive mismatch count
+        self.root_rejects = {}       # root -> consecutive entry rejections
+        self.root_halted = set()     # roots halted for the day (reject storm)
         self.recon = {}              # last reconcile snapshot (for status)
         self.gates = Gates()
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
@@ -633,10 +648,26 @@ class BasketEngine:
                     sl.tgt = p.get("tgt_px")
                     sl.oids = (eid, p.get("stop_id"), p.get("tgt_id"))
                     sl.pending = None
+                    self.root_rejects[sl.instr] = 0
                     logger.info(f"[basket] FILL s{sl.idx} {sl.instr} "
                                 f"@{sl.entry_px} (resting limit)")
                 elif smap.get(eid) in ("Canceled", "Rejected", "Expired"):
                     logger.info(f"[basket] entry s{sl.idx} {smap.get(eid)}")
+                    # REJECT CIRCUIT BREAKER (live rules 2026-07-29):
+                    # Tradovate accepts placeoso then kills the order
+                    # async — 620 silent MGCQ6 rejects while the dead
+                    # August contract was quoted. 5 consecutive rejects
+                    # on a root = something structural (delivery block,
+                    # margin, bad increment): halt that root until the
+                    # day roll and say so, instead of looping silently.
+                    if smap.get(eid) == "Rejected":
+                        n = self.root_rejects.get(sl.instr, 0) + 1
+                        self.root_rejects[sl.instr] = n
+                        if n >= 5 and sl.instr not in self.root_halted:
+                            self.root_halted.add(sl.instr)
+                            logger.warning(
+                                f"[basket] {sl.instr} HALTED for the day: "
+                                f"{n} consecutive entry rejections")
                     sl.pending = None
                 continue
             # ---- open position: did a bracket child fill? ----
@@ -791,6 +822,7 @@ class BasketEngine:
                          for r in self.roots},
                 "recon": self.recon,
                 "counters": self.counters,
+                "root_halted": sorted(self.root_halted),
                 "market_open": market_open(),
                 "sleeves": sleeves,
             }
@@ -1054,6 +1086,8 @@ class BasketEngine:
             self.gates.load()
             self.counters = {"signals": 0, "entries": 0, "rejects": 0,
                              "blocked_cross": 0}
+            self.root_rejects = {}
+            self.root_halted = set()
             cmap = self.cfg.get("contracts", {})
             self.symbols = {r: front_symbol(cmap.get(r, r)) for r in self.roots}
             logger.info(f"[basket] new day {today} symbols={self.symbols}")
@@ -1347,6 +1381,20 @@ class BasketEngine:
                     self.counters["blocked_maxopen"] = \
                         self.counters.get("blocked_maxopen", 0) + 1
                     continue
+            # MARGIN-DOLLAR CAP (live rules): count vs estimated intraday
+            # margin so 4 bonds can't pass a count check that 4 golds set.
+            if MAX_DAY_MARGIN > 0:
+                used = sum(DAY_MARGIN_EST.get(o.instr, 500.0) * UNITS
+                           for o in self.sleeves if o.pos != 0 or o.pending)
+                if used + DAY_MARGIN_EST.get(root, 500.0) * UNITS \
+                        > MAX_DAY_MARGIN:
+                    self.counters["blocked_margin"] = \
+                        self.counters.get("blocked_margin", 0) + 1
+                    continue
+            if root in self.root_halted:
+                self.counters["blocked_roothalt"] = \
+                    self.counters.get("blocked_roothalt", 0) + 1
+                continue
             self._enter(sl, side, a)
 
     # ---------------- main loop ----------------
