@@ -46,7 +46,7 @@ SIGNAL_EVENT_TTL_SECONDS = 20 * 60
 # FULL RESET 2026-07-28 (user request, zb_duo_v1 go-live): all trade
 # history, stats, charts and the per-bot journal start from this
 # moment; the account balance is manually reset to $4,000 alongside.
-BASKET_RESET_TS = "2026-07-29T05:50:00Z"
+BASKET_RESET_TS = "2026-07-28T05:50:00Z"
 
 # Instruments permanently hidden from every stats/trades view: silver was
 # cut from the basket 2026-07-29 (margin ~$6k/micro) and the user reset
@@ -64,6 +64,60 @@ def _is_hidden_instr(r) -> bool:
         if v in HIDDEN_ROOTS or v.startswith("SIL"):
             return True
     return False
+
+
+def _hidden_ledger_ids(sess, lrows) -> set:
+    """Ledger row ids that belong to hidden instruments (silver).
+
+    cashBalanceLog rows never name the contract — only their fillId /
+    fillPairId do, and the demo wipes /fill/list nightly. So resolve
+    what we can see NOW and persist every discovered id to disk; after
+    the wipe the exclusion keeps working from the persisted set."""
+    from bot.account_ctx import data_dir as _hdir
+    path = _hdir() / "hidden_ledger_ids.json"
+    known: set = set()
+    try:
+        known = set(json.loads(path.read_text()))
+    except Exception:
+        pass
+    try:
+        hid_fids: set = set()
+        fs, fills = sess._rest("GET", "/fill/list")
+        if fs == 200 and isinstance(fills, list):
+            for f in fills:
+                if not isinstance(f, dict):
+                    continue
+                nm = _contract_symbol(sess, f.get("contractId"))
+                if nm and _is_hidden_instr({"symbol": nm}):
+                    hid_fids.add(f.get("id"))
+        hid_pids: set = set()
+        if hid_fids:
+            ps, prs = sess._rest("GET", "/fillPair/list")
+            if ps == 200 and isinstance(prs, list):
+                for p in prs:
+                    if not isinstance(p, dict):
+                        continue
+                    if (p.get("buyFillId") in hid_fids
+                            or p.get("sellFillId") in hid_fids):
+                        hid_pids.add(p.get("id"))
+        fresh = set()
+        for r in lrows:
+            if not isinstance(r, dict) or r.get("id") is None:
+                continue
+            if (r.get("fillId") in hid_fids
+                    or r.get("fillPairId") in hid_pids):
+                fresh.add(r["id"])
+        if fresh - known:
+            known |= fresh
+            try:
+                path.write_text(json.dumps(sorted(known)))
+            except Exception:
+                pass
+        else:
+            known |= fresh
+    except Exception as e:
+        logger.debug(f"hidden ledger ids: {e!r}")
+    return known
 
 app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
 CORS(app)
@@ -1315,6 +1369,16 @@ def api_broker_stats():
                     r for r in led if r.get("id") is None]
             except Exception as e:
                 logger.debug(f"ledger archive: {e!r}")
+            # ---- HIDDEN INSTRUMENTS (2026-07-29) ---- silver was cut
+            # from the basket and the user re-based the balance to a
+            # no-silver number, so silver-linked ledger rows must not
+            # bend the equity curve / daily P&L either.
+            try:
+                _hid = _hidden_ledger_ids(sess, lrows)
+                if _hid:
+                    led = [r for r in led if r.get("id") not in _hid]
+            except Exception as e:
+                logger.debug(f"hidden ledger filter: {e!r}")
             led.sort(key=lambda r: (r["timestamp"], r.get("id") or 0))
             post = [r for r in led if r["timestamp"] >= cutoff_iso]
             # ---- BACKFILL the pre-archive gap from the fill archive ----
