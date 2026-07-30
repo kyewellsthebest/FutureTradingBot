@@ -1,18 +1,17 @@
 {
- "name": "book12_v1",
- "built_from": "book17_v1 minus all 5 silver sleeves (2026-07-29): SIL margin ~$6k/contract makes silver the NQ of metals \u2014 permanently excluded alongside NQ. 12 bots: 4 ZB, 5 GC, 2 ES, 1 CL. Sim (touch-fill, 2.5y): $9,318/wk, 97% pos weeks, worst wk -$2,086, ~1,460 tr/wk; last-10wk $15,144/wk 100% pos.",
+ "name": "calm12_v1",
+ "built_from": "fib-pullback hunt 2026-07-30 (98k configs, hard stop on every trade): 12 risk-first survivors, 3 per market ZB/ES/GC/CL. Combined 2.5y sim: $4,188/wk, 100% pos weeks, worst week +$91, worst day -$150, max drawdown -$198, zero days <= -$500. Underwrite ~$2-2.5k/wk live, tails several x.",
  "n_sleeves": 12,
  "validated": {
-  "posweeks": 0.97,
-  "perwk": 9318.0,
-  "worst_wk": -2086.0,
-  "worst_day": -4410.0,
-  "tr_wk": 1460.0,
+  "posweeks": 1.0,
+  "perwk": 4188.0,
+  "worst_wk": 91.0,
+  "worst_day": -150.0,
+  "max_dd": -198.0,
   "windows_perwk": {
-   "last10w": 15144
+   "last10w": 4755
   },
-  "max_concurrent_positions": 11,
-  "note": "sim touch-fill pre-rails; SI & NQ permanently excluded"
+  "note": "sim touch-fill; selection-flattered tails \u2014 expect deeper live"
  },
  "rails": {
   "daily_breaker_per_unit": -1000,
@@ -28,253 +27,220 @@
  },
  "sleeves": [
   {
-   "instr": "ZB",
+   "instr": "CL",
    "cfg": {
-    "fam": "fade",
-    "H": 24,
-    "stopA": 0.0,
+    "fam": "fib",
+    "lb": 24,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 1.0,
+    "rr": 1.0,
     "tgtA": 1.0,
+    "ttl": 3,
+    "H": 12,
     "sess": "all",
-    "exo": "none",
-    "lb": 6,
-    "k": 1.8,
-    "limit": true
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 692.0,
-    "posw": 0.84,
-    "live_since": "2026-07-28"
-   }
-  },
-  {
-   "instr": "ZB",
-   "cfg": {
-    "fam": "pullback",
-    "H": 48,
-    "stopA": 0.0,
-    "tgtA": 1.0,
-    "sess": "all",
-    "exo": "none",
-    "man": 24,
-    "lb": 3,
-    "limit": true
-   },
-   "stats": {
-    "wk": 445.0,
-    "posw": 0.82,
-    "live_since": "2026-07-28"
-   }
-  },
-  {
-   "instr": "ZB",
-   "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 1.5,
-    "tgtA": 1.0,
-    "sess": "us",
-    "exo": "none",
-    "lb": 16,
-    "k": 1.0,
-    "limit": true
-   },
-   "stats": {
-    "wk": 1205.0,
-    "posw": 0.9,
-    "worst_wk": -688.0
-   }
-  },
-  {
-   "instr": "GC",
-   "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
-    "sess": "all",
-    "exo": "none",
-    "lb": 12,
-    "k": 0.6,
-    "limit": true
-   },
-   "stats": {
-    "wk": 979.0,
-    "posw": 0.88,
-    "stress_wk": 525.0
-   }
+   "stats": {}
   },
   {
    "instr": "CL",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
+    "fam": "fib",
+    "lb": 12,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.0,
     "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
     "sess": "all",
-    "exo": "none",
-    "lb": 16,
-    "k": 0.6,
-    "limit": true
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 252.0,
-    "posw": 0.75,
-    "oos10_wk": 780.0
-   }
+   "stats": {}
   },
   {
-   "instr": "GC",
+   "instr": "CL",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
     "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
     "sess": "all",
-    "exo": "none",
-    "lb": 16,
-    "k": 0.6,
-    "limit": true
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 946.0,
-    "posw": 0.86,
-    "oos10_wk": 1947.0,
-    "oos10_pos": 100,
-    "worst_wk": -1196.0,
-    "tr_wk": 206.6
-   }
+   "stats": {}
   },
   {
-   "instr": "GC",
+   "instr": "ES",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
-    "sess": "all",
-    "exo": "none",
-    "lb": 48,
-    "k": 1.0,
-    "limit": true
-   },
-   "stats": {
-    "wk": 913.0,
-    "posw": 0.83,
-    "oos10_wk": 1950.0,
-    "oos10_pos": 100,
-    "worst_wk": -850.0,
-    "tr_wk": 204.2
-   }
-  },
-  {
-   "instr": "GC",
-   "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
-    "sess": "all",
-    "exo": "none",
-    "lb": 32,
-    "k": 0.6,
-    "limit": true
-   },
-   "stats": {
-    "wk": 890.0,
-    "posw": 0.82,
-    "oos10_wk": 2068.0,
-    "oos10_pos": 100,
-    "worst_wk": -789.0,
-    "tr_wk": 212.7
-   }
-  },
-  {
-   "instr": "GC",
-   "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
-    "sess": "all",
-    "exo": "none",
+    "fam": "fib",
     "lb": 6,
-    "k": 0.8,
-    "limit": true
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 879.0,
-    "posw": 0.87,
-    "oos10_wk": 1758.0,
-    "oos10_pos": 100,
-    "worst_wk": -798.0,
-    "tr_wk": 178.3
-   }
+   "stats": {}
   },
   {
    "instr": "ES",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
     "tgtA": 0.75,
+    "ttl": 12,
+    "H": 12,
     "sess": "all",
-    "exo": "none",
-    "lb": 48,
-    "k": 0.6,
-    "limit": true
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 678.0,
-    "posw": 0.98,
-    "oos10_wk": 991.0,
-    "oos10_pos": 100,
-    "worst_wk": -161.0,
-    "tr_wk": 219.7
-   }
+   "stats": {}
   },
   {
    "instr": "ES",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
+    "fam": "fib",
+    "lb": 6,
+    "k": 1.5,
+    "pb": 0.618,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 12,
+    "H": 12,
     "sess": "all",
-    "exo": "none",
-    "lb": 64,
-    "k": 1.0,
-    "limit": true
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 624.0,
-    "posw": 0.96,
-    "oos10_wk": 1008.0,
-    "oos10_pos": 100,
-    "worst_wk": -234.0,
-    "tr_wk": 211.1
-   }
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 12,
+    "H": 24,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.618,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
   },
   {
    "instr": "ZB",
    "cfg": {
-    "fam": "fade",
-    "H": 4,
-    "stopA": 0.0,
-    "tgtA": 0.75,
-    "sess": "us",
-    "exo": "none",
-    "lb": 64,
-    "k": 2.5,
-    "limit": true
+    "fam": "fib",
+    "lb": 48,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
    },
-   "stats": {
-    "wk": 1502.0,
-    "posw": 0.94,
-    "oos10_wk": 1159.0,
-    "oos10_pos": 100,
-    "worst_wk": -1304.0,
-    "tr_wk": 50.4
-   }
+   "stats": {}
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.5,
+    "tgtA": 1.125,
+    "ttl": 3,
+    "H": 24,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
   }
  ]
 }

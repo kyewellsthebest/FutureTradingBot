@@ -206,14 +206,8 @@ async function pollStats() {
     t.textContent = fmtUsd(today, true); paint(t, today); reveal(t);
     $("kpi-today-ico").textContent = today >= 0 ? "↗" : "↘";
 
-    const wk = s.week_realized ?? 0;
-    const w = $("kpi-week");
-    w.textContent = fmtUsd(wk, true); paint(w, wk); reveal(w);
-
     const sum = s.summary || {};
     $("kpi-today-n").textContent = `${sum.n_trades ?? 0} trades total`;
-    $("kpi-week-sub").textContent =
-      sum.win_rate !== undefined ? `${sum.win_rate}% win rate` : "";
 
     // stat chips
     const chip = (id, txt, v) => { const el = $(id); el.textContent = txt;

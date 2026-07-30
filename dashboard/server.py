@@ -46,7 +46,7 @@ SIGNAL_EVENT_TTL_SECONDS = 20 * 60
 # FULL RESET 2026-07-28 (user request, zb_duo_v1 go-live): all trade
 # history, stats, charts and the per-bot journal start from this
 # moment; the account balance is manually reset to $4,000 alongside.
-BASKET_RESET_TS = "2026-07-29T22:00:00Z"
+BASKET_RESET_TS = "2026-07-30T04:15:00Z"
 
 # Instruments permanently hidden from every stats/trades view: silver was
 # cut from the basket 2026-07-29 (margin ~$6k/micro) and the user reset
