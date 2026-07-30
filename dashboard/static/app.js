@@ -296,6 +296,7 @@ const MKT = {
   RTY: { name: "Russell",  color: "#9085e9", dp: 1 },
   GC:  { name: "Gold",     color: "#e9b05a", dp: 1 },
   CL:  { name: "Oil",      color: "#2dd4bf", dp: 2 },
+  ZN:  { name: "Notes", color: "#e58bc8", dp: 3 },
   ZB:  { name: "Bonds",    color: "#f472b6", dp: 3 },
   SI:  { name: "Silver",   color: "#a3b3c9", dp: 3 },
   SIL: { name: "Silver",   color: "#a3b3c9", dp: 3 },

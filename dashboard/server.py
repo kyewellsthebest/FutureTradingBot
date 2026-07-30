@@ -422,12 +422,12 @@ def _broker_pnl_usd(pts: float, qty: int, side: str,
 # per-contract. Root = longest symbol prefix match ("MESU6" -> "MES").
 CONTRACT_PV = {"MNQ": 2.0, "MES": 5.0, "M2K": 5.0, "MYM": 0.5, "SIL": 1000.0,
                "MGC": 10.0, "MCL": 100.0, "ZB": 1000.0, "NQ": 20.0,
-               "ES": 50.0, "RTY": 50.0, "YM": 5.0, "GC": 100.0, "CL": 1000.0}
+               "ES": 50.0, "RTY": 50.0, "YM": 5.0, "GC": 100.0, "CL": 1000.0, "ZN": 1000.0}
 # All-in round-trip costs CALIBRATED to what the demo actually charged
 # on 2026-07-24: gross fills +\$380.75 vs cash -\$79.13 => \$459.88 fees
 # over 229 trades. Tradovate demo charges REAL commissions+exchange fees.
 CONTRACT_COMM_RT = {"MNQ": 1.80, "MES": 1.80, "M2K": 1.80, "MYM": 1.80, "SIL": 2.20,
-                    "MGC": 1.95, "MCL": 1.95, "ZB": 4.50}
+                    "MGC": 1.95, "MCL": 1.95, "ZB": 4.50, "ZN": 4.50}
 
 
 def _root_of(symbol: str) -> str:
@@ -5854,7 +5854,7 @@ def _build_basket_bundle(tradovate_snap: dict) -> dict:
     # fill off its limit price or a hold past H bars is.
     try:
         _TICK = {"ES": 0.25, "RTY": 0.10, "YM": 1.0,
-                 "GC": 0.10, "CL": 0.01, "ZB": 0.03125, "SI": 0.005}
+                 "GC": 0.10, "CL": 0.01, "ZB": 0.03125, "ZN": 0.015625, "SI": 0.005}
         jpath = _bdata / "basket_trades.jsonl"
         jrows = []
         if jpath.exists():

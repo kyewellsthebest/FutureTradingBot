@@ -118,7 +118,7 @@ MAX_OPEN = int(os.environ.get("BASKET_MAX_OPEN", "8"))
 # exceed MAX_DAY_MARGIN. $2,500 skipped 0.6% of the last 10 sim weeks'
 # trades (net losers) — fidelity cost zero, and the worst live stack
 # (4 ZB + 4 GC ~= $5k) can no longer outgrow a ~$4k account.
-DAY_MARGIN_EST = {"ZB": 1000.0, "GC": 250.0, "CL": 250.0, "ES": 50.0,
+DAY_MARGIN_EST = {"ZB": 1000.0, "ZN": 900.0, "GC": 250.0, "CL": 250.0, "ES": 50.0,
                   "SI": 1500.0, "RTY": 50.0, "YM": 50.0, "NQ": 100.0}
 MAX_DAY_MARGIN = float(os.environ.get("BASKET_MAX_MARGIN", "2500"))
 POLL_S = 40
@@ -138,9 +138,9 @@ EOD_UTC = 20.7                      # flatten everything by 20:42 UTC
 # Found live 2026-07-27 09:00 AEST: zero trades in the first open hour.
 REOPEN_UTC = 22.0
 # keyed by RESEARCH ROOT (sleeve.instr), values for the traded micro contract
-TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32, "SI": 0.005}
-PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0, "SI": 1000.0}
-COMM = {"ES": 1.80, "RTY": 1.80, "YM": 1.80, "GC": 1.95, "CL": 1.95, "ZB": 4.50,
+TICKS = {"ES": 0.25, "RTY": 0.1, "YM": 1.0, "GC": 0.1, "CL": 0.01, "ZB": 1 / 32, "ZN": 1 / 64, "SI": 0.005}
+PV = {"ES": 5.0, "RTY": 5.0, "YM": 0.5, "GC": 10.0, "CL": 100.0, "ZB": 1000.0, "ZN": 1000.0, "SI": 1000.0}
+COMM = {"ES": 1.80, "RTY": 1.80, "YM": 1.80, "GC": 1.95, "CL": 1.95, "ZB": 4.50, "ZN": 4.50,
         "SI": 2.20}  # calibrated to demo charges 2026-07-25; SI provisional until ledger-calibrated
 MONTH_Q = {3: "H", 6: "M", 9: "U", 12: "Z"}
 MONTH_ALL = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",7:"N",8:"Q",9:"U",10:"V",11:"X",12:"Z"}
@@ -149,7 +149,7 @@ MONTH_ALL = {1:"F",2:"G",3:"H",4:"J",5:"K",6:"M",7:"N",8:"Q",9:"U",10:"V",11:"X"
 def front_symbol(root: str, today: dt.date | None = None) -> str:
     """Front-month contract with a 3-day pre-expiry roll buffer."""
     today = today or dt.date.today()
-    if root in ("MES", "M2K", "MYM", "ZB"):
+    if root in ("MES", "M2K", "MYM", "ZB", "ZN"):
         months = sorted(MONTH_Q)
     elif root == "MGC":
         months = [2, 4, 6, 8, 10, 12]
@@ -175,7 +175,7 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         elif root == "MCL":
             pm, py = (m - 1, y) if m > 1 else (12, y - 1)
             exp = dt.date(py, pm, 20)
-        elif root in ("SIL", "MGC", "ZB"):
+        elif root in ("SIL", "MGC", "ZB", "ZN"):
             # PHYSICAL DELIVERY (found live 2026-07-29): Tradovate
             # rejected all 620 MGCQ6 orders — brokers refuse NEW orders
             # in delivery-month metals/bonds days before first notice.
@@ -186,7 +186,7 @@ def front_symbol(root: str, today: dt.date | None = None) -> str:
         else:
             exp = dt.date(y, m, 26)
         if exp - dt.timedelta(days=3) > today:
-            code = (MONTH_Q if root in ("MES","M2K","MYM","ZB") else MONTH_ALL)[m]
+            code = (MONTH_Q if root in ("MES","M2K","MYM","ZB","ZN") else MONTH_ALL)[m]
             return f"{root}{code}{y % 10}"
     return f"{root}{MONTH_Q[12]}{today.year % 10}"
 
