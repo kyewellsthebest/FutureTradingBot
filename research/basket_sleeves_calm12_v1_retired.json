@@ -1,0 +1,249 @@
+{
+ "name": "calm12_v1",
+ "built_from": "fib-pullback hunt 2026-07-30 (98k configs, hard stop on every trade): 12 risk-first survivors, 3 per market ZB/ES/GC/CL. Combined 2.5y sim: $4,188/wk, 100% pos weeks, worst week +$91, worst day -$150, max drawdown -$198, zero days <= -$500. Underwrite ~$2-2.5k/wk live, tails several x.",
+ "n_sleeves": 12,
+ "validated": {
+  "posweeks": 1.0,
+  "perwk": 4188.0,
+  "worst_wk": 91.0,
+  "worst_day": -150.0,
+  "max_dd": -198.0,
+  "windows_perwk": {
+   "last10w": 4755
+  },
+  "note": "sim touch-fill; selection-flattered tails \u2014 expect deeper live"
+ },
+ "rails": {
+  "daily_breaker_per_unit": -1000,
+  "kill_switch_total": -2000,
+  "eod_flat": true,
+  "max_contracts_per_sleeve": 1
+ },
+ "contracts": {
+  "ZB": "ZB",
+  "GC": "MGC",
+  "CL": "MCL",
+  "ES": "MES"
+ },
+ "sleeves": [
+  {
+   "instr": "CL",
+   "cfg": {
+    "fam": "fib",
+    "lb": 24,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "CL",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "CL",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ES",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ES",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ES",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 1.5,
+    "pb": 0.618,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 12,
+    "H": 24,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "GC",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 1.5,
+    "pb": 0.618,
+    "stopA": 0.75,
+    "rr": 1.0,
+    "tgtA": 0.75,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 48,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 12,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 0.75,
+    "rr": 1.5,
+    "tgtA": 1.125,
+    "ttl": 3,
+    "H": 24,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 6,
+    "k": 2.0,
+    "pb": 0.5,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  }
+ ],
+ "soft_start": false,
+ "max_open": 12,
+ "max_margin": 3500.0
+}
