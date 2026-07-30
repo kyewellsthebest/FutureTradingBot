@@ -308,11 +308,14 @@ class Sleeve:
         if not a or a <= 0:
             return 0, a
         fam = cfg["fam"]
-        if fam in ("fade", "momo"):
+        if fam in ("fade", "momo", "fib"):
             m = F.mom(cfg["lb"])
             if abs(m) <= cfg["k"] * a:
                 return 0, a
-            s = (1 if m < 0 else -1) if fam == "fade" else (1 if m > 0 else -1)
+            if fam == "fade":
+                s = 1 if m < 0 else -1
+            else:                      # momo and fib trade WITH the move
+                s = 1 if m > 0 else -1
             return s, a
         if fam == "breakout":
             if c >= F.rmax(cfg["rn"]) - 1e-9:  return 1, a
@@ -334,7 +337,10 @@ class Sleeve:
         c = self.cfg; fam = c["fam"]
         sess = {"us": "US hours", "eu": "EU hours", "asia": "Asia hours",
                 "all": "24h"}.get(c.get("sess", "us"), c.get("sess"))
-        if fam == "fade":
+        if fam == "fib":
+            d = (f"buys the {int(c['pb']*1000)/10}% pullback of "
+                 f"{c['lb']}-bar impulses > {c['k']}x ATR, stop {c['stopA']}x")
+        elif fam == "fade":
             d = f"fades {c['lb']}-bar moves > {c['k']}x ATR"
         elif fam == "momo":
             d = f"rides {c['lb']}-bar moves > {c['k']}x ATR"
@@ -354,7 +360,7 @@ class Sleeve:
             if not a or a <= 0:
                 return 0
             c = F.last()["c"]
-            if fam in ("fade", "momo"):
+            if fam in ("fade", "momo", "fib"):
                 return int(min(100, abs(F.mom(cfg["lb"])) / (cfg["k"] * a) * 100))
             if fam == "breakout":
                 rmx, rmn = F.rmax(cfg["rn"]), F.rmin(cfg["rn"])
@@ -1286,7 +1292,13 @@ class BasketEngine:
         sleeves are limit-entry; non-limit configs enter with a
         marketable limit at the current close (same bracket)."""
         c = self.feats[sl.instr].last()["c"]
-        off = 0.5 * a * side if sl.cfg.get("limit") else 0.0
+        if sl.cfg.get("fam") == "fib":
+            # FIB PULLBACK (calm12, 2026-07-30): rest the limit at the
+            # pb retrace of the impulse itself, not an ATR offset.
+            m = self.feats[sl.instr].mom(sl.cfg["lb"])
+            off = sl.cfg["pb"] * m
+        else:
+            off = 0.5 * a * side if sl.cfg.get("limit") else 0.0
         limit_px = self._round_px(sl.instr, c - off)
         stop_px = (self._round_px(sl.instr, limit_px - sl.cfg["stopA"] * a * side)
                    if sl.cfg.get("stopA") else None)
@@ -1295,7 +1307,8 @@ class BasketEngine:
         ids = self._place_bracket(sl, side, limit_px, stop_px, tgt_px)
         if not ids:
             return
-        sl.pending = dict(px=limit_px, side=side, ttl=3, atr=a,
+        sl.pending = dict(px=limit_px, side=side,
+                          ttl=int(sl.cfg.get("ttl", 3)), atr=a,
                           entry_id=ids[0], stop_id=ids[1], tgt_id=ids[2],
                           stop_px=stop_px, tgt_px=tgt_px)
 
