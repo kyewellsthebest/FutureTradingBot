@@ -244,5 +244,6 @@
   }
  ],
  "soft_start": false,
- "max_open": 12
+ "max_open": 12,
+ "max_margin": 3500.0
 }

@@ -1480,7 +1480,8 @@ class BasketEngine:
                     eff_open, eff_margin = MAX_OPEN, MAX_DAY_MARGIN
             else:
                 eff_open = int(self.cfg.get("max_open", MAX_OPEN))
-                eff_margin = MAX_DAY_MARGIN
+                eff_margin = float(self.cfg.get("max_margin",
+                                                MAX_DAY_MARGIN))
             if eff_open > 0:
                 # FILLED positions only — a resting limit is not a
                 # position; counting pendings let 3 same-impulse oil
