@@ -1466,16 +1466,26 @@ class BasketEngine:
             # the first week"): trade at half exposure until the book has
             # earned its own cushion, then scale up. Sim: fresh-start
             # kill odds 1.37% -> 0.57%, cushion arrives day ~4 vs 2.
-            cushion = self.state.get("cum_pnl", 0.0)
-            if cushion < 1000 * UNITS:
-                eff_open, eff_margin = 4, 1250.0
-            elif cushion < 2000 * UNITS:
-                eff_open, eff_margin = 6, 1900.0
+            # Soft-start glidepath is config-gated: calm12's worst sim
+            # day is -$150 at FULL size, so halving it protects nothing
+            # and starved the book (bundle 05:45: 21 blocked entries,
+            # 4 slots camped by UNFILLED resting orders).
+            if self.cfg.get("soft_start", True):
+                cushion = self.state.get("cum_pnl", 0.0)
+                if cushion < 1000 * UNITS:
+                    eff_open, eff_margin = 4, 1250.0
+                elif cushion < 2000 * UNITS:
+                    eff_open, eff_margin = 6, 1900.0
+                else:
+                    eff_open, eff_margin = MAX_OPEN, MAX_DAY_MARGIN
             else:
-                eff_open, eff_margin = MAX_OPEN, MAX_DAY_MARGIN
+                eff_open = int(self.cfg.get("max_open", MAX_OPEN))
+                eff_margin = MAX_DAY_MARGIN
             if eff_open > 0:
-                n_live = sum(1 for o in self.sleeves
-                             if o.pos != 0 or o.pending)
+                # FILLED positions only — a resting limit is not a
+                # position; counting pendings let 3 same-impulse oil
+                # orders lock out every other market's signals.
+                n_live = sum(1 for o in self.sleeves if o.pos != 0)
                 if n_live >= eff_open:
                     self.counters["blocked_maxopen"] = \
                         self.counters.get("blocked_maxopen", 0) + 1

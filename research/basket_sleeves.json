@@ -242,5 +242,7 @@
    },
    "stats": {}
   }
- ]
+ ],
+ "soft_start": false,
+ "max_open": 12
 }
