@@ -1,0 +1,8 @@
+{
+ "root": "HG",
+ "tf": 15,
+ "engine": "pessimistic",
+ "n_grid": 8676,
+ "n_pass": 0,
+ "passers": []
+}
