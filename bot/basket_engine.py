@@ -118,7 +118,7 @@ MAX_OPEN = int(os.environ.get("BASKET_MAX_OPEN", "8"))
 # exceed MAX_DAY_MARGIN. $2,500 skipped 0.6% of the last 10 sim weeks'
 # trades (net losers) — fidelity cost zero, and the worst live stack
 # (4 ZB + 4 GC ~= $5k) can no longer outgrow a ~$4k account.
-DAY_MARGIN_EST = {"ZB": 1000.0, "ZN": 900.0, "GC": 250.0, "CL": 250.0, "ES": 50.0,
+DAY_MARGIN_EST = {"ZB": 800.0, "ZN": 700.0, "GC": 250.0, "CL": 250.0, "ES": 50.0,
                   "SI": 1500.0, "RTY": 50.0, "YM": 50.0, "NQ": 100.0}
 MAX_DAY_MARGIN = float(os.environ.get("BASKET_MAX_MARGIN", "2500"))
 POLL_S = 40
@@ -398,6 +398,10 @@ class BasketEngine:
         self._recon_streak = {}      # root -> consecutive mismatch count
         self.root_rejects = {}       # root -> consecutive entry rejections
         self.root_halted = set()     # roots halted for the day (reject storm)
+        # rails are config-driven per book (active6: 600/1000/1500)
+        self.day_trail = float(self.cfg.get("day_trail", 1000))
+        self.day_floor = float(self.cfg.get("day_floor", 2500))
+        self.week_trail = float(self.cfg.get("week_trail", 0))  # 0 = off
         self.recon = {}              # last reconcile snapshot (for status)
         self.gates = Gates()
         self.state = _load_json(STATE_PATH, {"cum_pnl": 0.0, "day": None, "day_pnl": 0.0})
@@ -1090,6 +1094,14 @@ class BasketEngine:
             self.state["day_peak"] = 0.0
             self.state["halt_until"] = None
             self.halted_today = False
+            wk = dt.date.today().isocalendar()
+            wkkey = f"{wk[0]}-W{wk[1]:02d}"
+            if self.state.get("week") != wkkey:
+                self.state["week"] = wkkey
+                self.state["wk_pnl"] = 0.0
+                self.state["wk_peak"] = 0.0
+                self.state["halted_week"] = False
+                logger.info(f"[basket] new week {wkkey} — weekly rail reset")
             self._update_gates_daily()
             self.gates.load()
             self.counters = {"signals": 0, "entries": 0, "rejects": 0,
@@ -1202,19 +1214,30 @@ class BasketEngine:
         # from its high-water mark, profits included.
         self.state["day_peak"] = max(self.state.get("day_peak", 0.0),
                                      self.state["day_pnl"])
+        self.state["wk_pnl"] = self.state.get("wk_pnl", 0.0) + pnl
+        self.state["wk_peak"] = max(self.state.get("wk_peak", 0.0),
+                                    self.state["wk_pnl"])
         self._save()
         if self.state["cum_pnl"] <= -2000 * UNITS:
             KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
             self.flatten_all("KILL-SWITCH")
             logger.error("[basket] KILL-SWITCH tripped: cumulative <= -$2000. HALTED.")
+        elif self.week_trail > 0 and not self.state.get("halted_week") and \
+                self.state["wk_pnl"] - self.state.get("wk_peak", 0.0) \
+                <= -self.week_trail * UNITS:
+            self.flatten_all("WEEKLY-BREAKER")
+            self.state["halted_week"] = True
+            self._save()
+            logger.warning(f"[basket] WEEKLY breaker: -${self.week_trail:.0f} "
+                           "from week peak — flat until Monday")
         elif self.state["day_pnl"] - self.state.get("day_peak", 0.0) \
-                <= -1000 * UNITS:
+                <= -self.day_trail * UNITS:
             self._trip_breaker("realized")
 
     def _halted_now(self):
         """True while trading is paused. Handles the 2h breaker pause:
         when it expires, re-arm with a FRESH -$1k window from here."""
-        if self.halted_today:
+        if self.halted_today or self.state.get("halted_week"):
             return True
         hu = self.state.get("halt_until")
         if hu:
@@ -1237,10 +1260,10 @@ class BasketEngine:
             return
         self.flatten_all("DAILY-BREAKER")
         day = self.state.get("day_pnl", 0.0)
-        if day <= -2500 * UNITS:
+        if day <= -self.day_floor * UNITS:
             self.halted_today = True
             logger.warning(f"[basket] daily backstop ({src}): day "
-                           f"{day:.0f} <= -$2,500 — done for the day")
+                           f"{day:.0f} <= -${self.day_floor:.0f} — done for the day")
         else:
             self.state["halt_until"] = (dt.datetime.utcnow()
                                         + dt.timedelta(hours=2)).isoformat()
@@ -1283,7 +1306,15 @@ class BasketEngine:
             KILL_FLAG.write_text(dt.datetime.utcnow().isoformat())
             self.flatten_all("KILL-SWITCH")
             logger.error("[basket] KILL-SWITCH (marked): cum+open <= -$2000. HALTED.")
-        elif marked_day - self.state.get("day_peak", 0.0) <= -1000 * UNITS:
+        elif self.week_trail > 0 and not self.state.get("halted_week") and \
+                self.state.get("wk_pnl", 0.0) + mark \
+                - self.state.get("wk_peak", 0.0) <= -self.week_trail * UNITS:
+            self.flatten_all("WEEKLY-BREAKER")
+            self.state["halted_week"] = True
+            self._save()
+            logger.warning("[basket] WEEKLY breaker (marked) — flat until Monday")
+        elif marked_day - self.state.get("day_peak", 0.0) \
+                <= -self.day_trail * UNITS:
             self._trip_breaker("marked")
 
     # ---------------- trade mechanics ----------------
@@ -1510,10 +1541,20 @@ class BasketEngine:
     # ---------------- main loop ----------------
     def run(self):
         self._ensure_demo()
+        # FULL ACCOUNT RESET (user 2026-07-31): wipe engine P&L state once.
+        RESET_MARK = "2026-07-31T04:30:00"
+        if self.state.get("reset_done") != RESET_MARK:
+            for k in ("cum_pnl", "day_pnl", "day_peak", "wk_pnl", "wk_peak"):
+                self.state[k] = 0.0
+            self.state["halt_until"] = None
+            self.state["halted_week"] = False
+            self.state["reset_done"] = RESET_MARK
+            self._save()
+            logger.warning("[basket] FULL RESET applied — all P&L counters zeroed")
         # ACCOUNT RESET (user 2026-07-30): full history wipe + balance
         # back to $4,000. A kill flag written before the reset moment is
         # from the retired era — clear it once so the bot re-arms.
-        KILL_RESET_BEFORE = "2026-07-29T22:00:00"
+        KILL_RESET_BEFORE = "2026-07-31T04:30:00"
         try:
             if KILL_FLAG.exists() and \
                     KILL_FLAG.read_text().strip()[:19] < KILL_RESET_BEFORE:

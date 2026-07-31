@@ -1,15 +1,15 @@
 {
- "name": "ratescalm5_v1",
- "built_from": "HONEST ENGINE ONLY. Safety-frontier pick (kill-odds-0% combo): $626/wk, 75% pos wks, worst wk -$962, worst day -$706, maxDD -$1,757, fresh-start kill odds 0.0% over 2.5y. Every trade hard-stopped, all-session US rates (3 ZB + 2 ZN).",
- "n_sleeves": 5,
+ "name": "ratesactive6_v1",
+ "built_from": "HONEST ENGINE. High-frequency balanced rates book (3 ZB + 3 ZN fib, all stopped) with 21-variation rail sweep winner: day trail -$600/2h re-arm, day floor -$1,000, WEEKLY trail -$1,500. Railed 2.5y: $1,879/wk, 79% pos wks, worst wk -$1,616, worst day -$1,127, maxDD -$4,451, kill odds 4.6%. Fresh 4-day OOS: +$2,836 railed (+$3,233 raw). Cushion race: 90% reach +$2k before -$1k, median 5 days.",
+ "n_sleeves": 6,
  "validated": {
-  "posweeks": 0.75,
-  "perwk": 626.0,
-  "worst_wk": -962.0,
-  "worst_day": -706.0,
-  "max_dd": -1757.0,
+  "posweeks": 0.79,
+  "perwk": 1879.0,
+  "worst_wk": -1616.0,
+  "worst_day": -1127.0,
+  "max_dd": -4451.0,
   "engine": "pessimistic_no_samebar_target",
-  "note": "underwrite ~$450-550/wk live"
+  "note": "underwrite ~$1.3-1.6k/wk live"
  },
  "rails": {
   "daily_breaker_per_unit": -1000,
@@ -26,15 +26,15 @@
    "instr": "ZB",
    "cfg": {
     "fam": "fib",
-    "lb": 24,
-    "k": 2.5,
-    "pb": 0.618,
-    "stopA": 0.75,
-    "rr": 2.0,
-    "ttl": 3,
-    "H": 24,
-    "sess": "all",
+    "lb": 12,
+    "k": 2.0,
+    "pb": 0.382,
+    "stopA": 1.5,
+    "rr": 1.0,
     "tgtA": 1.5,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
     "limit": true,
     "exo": "none"
    },
@@ -45,14 +45,14 @@
    "cfg": {
     "fam": "fib",
     "lb": 24,
-    "k": 3.5,
+    "k": 1.5,
     "pb": 0.382,
-    "stopA": 0.75,
-    "rr": 2.0,
-    "ttl": 3,
-    "H": 48,
-    "sess": "all",
+    "stopA": 1.5,
+    "rr": 1.0,
     "tgtA": 1.5,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
     "limit": true,
     "exo": "none"
    },
@@ -60,17 +60,53 @@
   },
   {
    "instr": "ZB",
+   "cfg": {
+    "fam": "fib",
+    "lb": 24,
+    "k": 1.5,
+    "pb": 0.5,
+    "stopA": 1.5,
+    "rr": 1.0,
+    "tgtA": 1.5,
+    "ttl": 12,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZN",
+   "cfg": {
+    "fam": "fib",
+    "lb": 24,
+    "k": 1.5,
+    "pb": 0.382,
+    "stopA": 1.5,
+    "rr": 1.0,
+    "tgtA": 1.5,
+    "ttl": 3,
+    "H": 12,
+    "sess": "all",
+    "limit": true,
+    "exo": "none"
+   },
+   "stats": {}
+  },
+  {
+   "instr": "ZN",
    "cfg": {
     "fam": "fib",
     "lb": 12,
-    "k": 2.5,
-    "pb": 0.618,
-    "stopA": 0.75,
-    "rr": 2.0,
-    "ttl": 12,
-    "H": 24,
+    "k": 1.5,
+    "pb": 0.382,
+    "stopA": 1.0,
+    "rr": 1.0,
+    "tgtA": 1.0,
+    "ttl": 3,
+    "H": 12,
     "sess": "all",
-    "tgtA": 1.5,
     "limit": true,
     "exo": "none"
    },
@@ -81,31 +117,13 @@
    "cfg": {
     "fam": "fib",
     "lb": 48,
-    "k": 1.5,
+    "k": 2.0,
     "pb": 0.382,
-    "stopA": 1.0,
+    "stopA": 1.5,
     "rr": 1.0,
-    "tgtA": 1.0,
-    "ttl": 12,
-    "H": 24,
-    "sess": "all",
-    "limit": true,
-    "exo": "none"
-   },
-   "stats": {}
-  },
-  {
-   "instr": "ZN",
-   "cfg": {
-    "fam": "fib",
-    "lb": 12,
-    "k": 1.5,
-    "pb": 0.5,
-    "stopA": 1.0,
-    "rr": 1.0,
-    "tgtA": 1.0,
+    "tgtA": 1.5,
     "ttl": 3,
-    "H": 24,
+    "H": 12,
     "sess": "all",
     "limit": true,
     "exo": "none"
@@ -114,6 +132,9 @@
   }
  ],
  "soft_start": false,
- "max_open": 5,
- "max_margin": 3500.0
+ "max_open": 6,
+ "max_margin": 3500.0,
+ "day_trail": 600.0,
+ "day_floor": 1000.0,
+ "week_trail": 1500.0
 }
