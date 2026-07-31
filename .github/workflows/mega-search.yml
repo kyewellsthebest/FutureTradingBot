@@ -79,7 +79,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: deep-${{ matrix.market }}-${{ strategy.job-index }}
-          path: \n            ${{ env.M2DIR }}/s1dsh*_${{ matrix.market }}*.json.gz\n            ${{ env.M2DIR }}/s1dsh*base_${{ matrix.market }}.npz
+          path: |
+            ${{ env.M2DIR }}/s1dsh*_${{ matrix.market }}.json.gz
+            ${{ env.M2DIR }}/s1dsh*base_${{ matrix.market }}.npz
 
   collect:
     needs: [wide, deep]
