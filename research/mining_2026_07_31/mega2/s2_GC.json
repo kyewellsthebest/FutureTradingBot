@@ -1,0 +1,13 @@
+{
+ "root": "GC",
+ "traded_as": "MGC",
+ "afford": true,
+ "margin": 250.0,
+ "n_stage1_cfg": 4982472,
+ "n_stage1_gated": 2,
+ "n_selected": 2,
+ "n_survivors": 0,
+ "elapsed_s": 3,
+ "engine": "exact-sequential-pessimistic",
+ "survivors": []
+}

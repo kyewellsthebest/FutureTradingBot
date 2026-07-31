@@ -1,0 +1,13 @@
+{
+ "root": "ES",
+ "traded_as": "MES",
+ "afford": true,
+ "margin": 50.0,
+ "n_stage1_cfg": 4982472,
+ "n_stage1_gated": 14,
+ "n_selected": 14,
+ "n_survivors": 0,
+ "elapsed_s": 3,
+ "engine": "exact-sequential-pessimistic",
+ "survivors": []
+}

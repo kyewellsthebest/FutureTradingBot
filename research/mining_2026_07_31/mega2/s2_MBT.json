@@ -1,0 +1,13 @@
+{
+ "root": "MBT",
+ "traded_as": "MBT",
+ "afford": true,
+ "margin": 900.0,
+ "n_stage1_cfg": 4964976,
+ "n_stage1_gated": 10,
+ "n_selected": 10,
+ "n_survivors": 0,
+ "elapsed_s": 1,
+ "engine": "exact-sequential-pessimistic",
+ "survivors": []
+}

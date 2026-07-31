@@ -1,0 +1,13 @@
+{
+ "root": "RB",
+ "traded_as": "RB",
+ "afford": false,
+ "margin": 7500.0,
+ "n_stage1_cfg": 4964976,
+ "n_stage1_gated": 23,
+ "n_selected": 23,
+ "n_survivors": 0,
+ "elapsed_s": 3,
+ "engine": "exact-sequential-pessimistic",
+ "survivors": []
+}

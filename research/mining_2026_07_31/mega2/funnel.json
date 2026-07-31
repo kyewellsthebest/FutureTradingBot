@@ -1,0 +1,191 @@
+{
+ "campaign": "mega2 2026-07-31",
+ "engine": "pessimistic honest fills",
+ "total_cfg": 106761240,
+ "families": [
+  "fib",
+  "fade",
+  "mapull",
+  "breakout",
+  "failed-breakout",
+  "opening-range",
+  "vwap-reversion",
+  "vwap-trend",
+  "vol-squeeze",
+  "time-of-day",
+  "gap"
+ ],
+ "filters": [
+  "session x4",
+  "trend-regime x3",
+  "vol-regime x3",
+  "vix x3"
+ ],
+ "excluded_by_rule": [
+  "NQ",
+  "SI"
+ ],
+ "not_testable_no_data": [
+  "COT",
+  "gamma regime",
+  "order-flow/imbalance (proxied by failed-breakout)",
+  "market profile",
+  "AAII/NAAIM history"
+ ],
+ "funnel": {
+  "6A": {
+   "traded_as": "M6A",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 138
+  },
+  "6B": {
+   "traded_as": "M6B",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 138
+  },
+  "6E": {
+   "traded_as": "M6E",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 138
+  },
+  "6J": {
+   "traded_as": "6J",
+   "afford": false,
+   "n_cfg": 4964976,
+   "n_gated": 76,
+   "n_weeks": 138
+  },
+  "CL": {
+   "traded_as": "MCL",
+   "afford": true,
+   "n_cfg": 4982472,
+   "n_gated": 0,
+   "n_weeks": 146
+  },
+  "ES": {
+   "traded_as": "MES",
+   "afford": true,
+   "n_cfg": 4982472,
+   "n_gated": 14,
+   "n_weeks": 138
+  },
+  "ETH": {
+   "traded_as": "MET",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 85
+  },
+  "GC": {
+   "traded_as": "MGC",
+   "afford": true,
+   "n_cfg": 4982472,
+   "n_gated": 2,
+   "n_weeks": 149
+  },
+  "HG": {
+   "traded_as": "MHG",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 141
+  },
+  "HO": {
+   "traded_as": "HO",
+   "afford": false,
+   "n_cfg": 4964976,
+   "n_gated": 247,
+   "n_weeks": 149
+  },
+  "MBT": {
+   "traded_as": "MBT",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 10,
+   "n_weeks": 85
+  },
+  "NG": {
+   "traded_as": "MNG",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 217
+  },
+  "RB": {
+   "traded_as": "RB",
+   "afford": false,
+   "n_cfg": 4964976,
+   "n_gated": 23,
+   "n_weeks": 149
+  },
+  "RTY": {
+   "traded_as": "M2K",
+   "afford": true,
+   "n_cfg": 4982472,
+   "n_gated": 0,
+   "n_weeks": 138
+  },
+  "YM": {
+   "traded_as": "MYM",
+   "afford": true,
+   "n_cfg": 4982472,
+   "n_gated": 0,
+   "n_weeks": 138
+  },
+  "ZB": {
+   "traded_as": "ZB",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 30727,
+   "n_weeks": 138
+  },
+  "ZC": {
+   "traded_as": "ZC",
+   "afford": true,
+   "n_cfg": 4569696,
+   "n_gated": 0,
+   "n_weeks": 162
+  },
+  "ZF": {
+   "traded_as": "ZF",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 162
+  },
+  "ZN": {
+   "traded_as": "ZN",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 18634,
+   "n_weeks": 167
+  },
+  "ZS": {
+   "traded_as": "ZS",
+   "afford": false,
+   "n_cfg": 3584088,
+   "n_gated": 0,
+   "n_weeks": 72
+  },
+  "ZT": {
+   "traded_as": "ZT",
+   "afford": true,
+   "n_cfg": 4964976,
+   "n_gated": 0,
+   "n_weeks": 165
+  },
+  "ZW": {
+   "traded_as": "ZW",
+   "afford": true,
+   "n_cfg": 4185432,
+   "n_gated": 0,
+   "n_weeks": 98
+  }
+ }
+}
