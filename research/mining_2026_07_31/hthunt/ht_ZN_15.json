@@ -1,0 +1,32 @@
+{
+ "root": "ZN",
+ "tf": 15,
+ "engine": "pessimistic",
+ "n_grid": 8676,
+ "n_pass": 1,
+ "passers": [
+  {
+   "cfg": {
+    "fam": "fade",
+    "lb": 8,
+    "k": 0.8,
+    "stopA": 2.0,
+    "tgtA": 1.5,
+    "ttl": 2,
+    "H": 16,
+    "sess": "all"
+   },
+   "tf": 15,
+   "train_wk": 134,
+   "train_poswk": 63,
+   "train_worst_wk": -686,
+   "train_worst_day": -1127,
+   "win_rate": 62,
+   "n_train_wks": 149,
+   "oos10_wk": 225,
+   "oos10_pos": 60,
+   "oos3_net": 1318,
+   "tr_wk": 20.8
+  }
+ ]
+}
