@@ -300,6 +300,8 @@ class Sleeve:
         self.cooldown = 0            # bars until this sleeve may enter again
         self.bars_held = 0
         self.oids = None             # (entry_id, stop_id, tgt_id) when open
+        self.entry_atr = None        # ATR at signal (trail distance base)
+        self.trail_ext = None        # best price since fill (trail anchor)
 
     def signal(self, F: Features):
         """Mirror of mega_multi.evaluate entry logic on the last CLOSED bar."""
@@ -657,6 +659,8 @@ class BasketEngine:
                     sl.stop = p.get("stop_px")
                     sl.tgt = p.get("tgt_px")
                     sl.oids = (eid, p.get("stop_id"), p.get("tgt_id"))
+                    sl.entry_atr = p.get("atr")
+                    sl.trail_ext = sl.entry_px
                     sl.pending = None
                     self.root_rejects[sl.instr] = 0
                     logger.info(f"[basket] FILL s{sl.idx} {sl.instr} "
@@ -1137,6 +1141,8 @@ class BasketEngine:
                     "limit_px": getattr(sl, "limit_px", None),
                     "stop": sl.stop,
                     "tgt": sl.tgt,
+                    "entry_atr": sl.entry_atr,
+                    "trail_ext": sl.trail_ext,
                     "bars_held": sl.bars_held,
                     "cooldown": sl.cooldown,
                     "oids": list(sl.oids) if sl.oids else None,
@@ -1194,6 +1200,8 @@ class BasketEngine:
             sl.limit_px = s.get("limit_px")
             sl.stop = s.get("stop")
             sl.tgt = s.get("tgt")
+            sl.entry_atr = s.get("entry_atr")
+            sl.trail_ext = s.get("trail_ext")
             sl.bars_held = int(s.get("bars_held") or 0)
             sl.cooldown = int(s.get("cooldown") or 0)
             oids = s.get("oids")
@@ -1413,10 +1421,55 @@ class BasketEngine:
             sl.pending = None
             logger.info(f"[basket] canceled resting s{sl.idx} {why}")
 
+    def _trail_update(self, sl, bar):
+        """Trailing stop (steady7, 2026-08-01): ratchet the REAL resting
+        stop order toward price as the trade works. Mirrors research:
+        line = extreme-since-fill minus trailA x ATR(at signal), never
+        loosens, floor = original stop. Modify only on >= 1 tick
+        improvement so we don't spam the broker."""
+        trail = sl.cfg.get("trailA")
+        if not trail or not sl.oids or sl.entry_atr in (None, 0):
+            return
+        stop_id = sl.oids[1]
+        if not stop_id or sl.stop is None:
+            return
+        side = sl.pos
+        ext = sl.trail_ext if sl.trail_ext is not None else sl.entry_px
+        ext = max(ext, bar["h"]) if side > 0 else min(ext, bar["l"])
+        sl.trail_ext = ext
+        line = self._round_px(sl.instr, ext - trail * sl.entry_atr * side)
+        tick = TICKS.get(sl.instr, 0.01)
+        if (line - sl.stop) * side < tick - 1e-9:
+            return                       # not >= 1 tick better
+        try:
+            sess = self.orders().session
+            body = {"orderId": int(stop_id), "orderQty": int(UNITS),
+                    "orderType": "Stop", "stopPrice": line,
+                    "isAutomated": True}
+            st, resp = sess._rest("POST", "/order/modifyorder", body=body)
+            if st == 200 and isinstance(resp, dict) and not resp.get("failureReason"):
+                logger.info(f"[basket] TRAIL s{sl.idx} {sl.instr} stop "
+                            f"{sl.stop} -> {line}")
+                sl.stop = line
+            else:
+                logger.warning(f"[basket] trail modify s{sl.idx} rejected: "
+                               f"http={st} {str(resp)[:120]}")
+        except Exception as e:
+            logger.warning(f"[basket] trail modify s{sl.idx} failed: {e!r}")
+
+    ATR_EMA_ALPHA = 2.0 / 8281.0        # ~1-month EMA of 5-min ATR14
+
     def on_new_bar(self, root):
         F = self.feats[root]
         if not F.ready():
             return
+        # calm/storm volatility regime (steady7): 1-month ATR baseline,
+        # EMA so it survives restarts without a month of bars in RAM
+        _a = F.atr(14)
+        if _a and _a > 0:
+            k = f"atrema_{root}"
+            prev = self.state.get(k)
+            self.state[k] = _a if not prev else prev + self.ATR_EMA_ALPHA * (_a - prev)
         now_h = dt.datetime.utcnow().hour + dt.datetime.utcnow().minute / 60
         bar = F.last()
         for sl in self.sleeves:
@@ -1428,6 +1481,7 @@ class BasketEngine:
             # orders handled server-side; only time/EOD exits are ours) ----
             if sl.pos != 0:
                 sl.bars_held += 1
+                self._trail_update(sl, bar)
                 eod_now = EOD_UTC <= now_h < REOPEN_UTC
                 if sl.bars_held >= sl.cfg["H"] or eod_now:
                     self._exit(sl, None, "time" if sl.bars_held >= sl.cfg["H"] else "eod")
@@ -1473,6 +1527,12 @@ class BasketEngine:
             side, a = sl.signal(F)
             if side == 0:
                 continue
+            vf = sl.cfg.get("volf")
+            if vf:
+                ema = self.state.get(f"atrema_{root}")
+                if not ema or (vf == "lo" and not a < ema) or \
+                        (vf == "hi" and not a > ema):
+                    continue
             self.counters["signals"] += 1
             # NETTING GUARD (audit 2026-07-24): at a netting broker an
             # opposite-direction entry CLOSES a sibling sleeve's position
