@@ -1,0 +1,42 @@
+{
+ "campaign": "MEGA3 2026-08-01",
+ "total_cfg": 4108451544,
+ "families_tested": 34,
+ "new_families": [
+  "rsirev",
+  "bollrev",
+  "bollbrk",
+  "keltrev",
+  "macdx",
+  "stochx",
+  "cciext",
+  "engulf",
+  "hammer",
+  "insidebrk",
+  "outsidefade",
+  "pdhfade",
+  "pdhbrk",
+  "pivfade",
+  "dayopenrev",
+  "onbias",
+  "firsthr",
+  "clvper",
+  "wickfade",
+  "volclimax",
+  "htfalign",
+  "momcont",
+  "exhaust"
+ ],
+ "new_exit_axes": [
+  "break-even move (be)",
+  "adaptive rolling-MFE targets"
+ ],
+ "new_filter_axis": "daily bias (972 filter combos over 128 context cells)",
+ "verdict": {
+  "new_families": "ZERO top-ranked survivors in any market \u2014 classic indicator toolbox has no honest post-cost edge on 5-min futures",
+  "adaptive_targets": "tested, ranked nowhere \u2014 fixed targets dominate",
+  "breakeven_stops": "real (49% of ZB top configs chose be=1.0) but REDUNDANT with 2.5x ATR trails: STEADY-7 +BE identical to STEADY-7",
+  "markets": "ZB 774k / ZN 512k gated vs GC 125, ES 83, MBT 61, YM 15, ZF 2, CL 1, rest 0 \u2014 third campaign, same answer",
+  "conclusion": "config-space exhausted at 7B total honest configs across 3 campaigns; STEADY-7 remains the deployable optimum; remaining alpha is in execution quality, not signals"
+ }
+}
