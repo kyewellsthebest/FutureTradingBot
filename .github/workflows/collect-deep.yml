@@ -1,0 +1,31 @@
+name: Collect Deep Results
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/mining_2026_07_31/mega2/.collect_trigger"]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/hello-vc2ivo
+      - uses: actions/download-artifact@v4
+        with:
+          path: research/mining_2026_07_31/mega2/actions_results
+          merge-multiple: true
+          run-id: "30674081015"
+          github-token: ${{ github.token }}
+      - run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research/mining_2026_07_31/mega2/actions_results
+          if git diff --staged --quiet; then echo "nothing new"; else
+            git commit -m "Deep-pass results from run 30674081015"
+            git pull --rebase -X theirs origin claude/hello-vc2ivo || true
+            git push origin claude/hello-vc2ivo
+          fi
