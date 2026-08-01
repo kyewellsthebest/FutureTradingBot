@@ -1,0 +1,79 @@
+name: MEGA3 Strategy Search
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/mining_2026_07_31/mega2/.mega3_trigger"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  M2DIR: research/mining_2026_07_31/mega2
+jobs:
+  wide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [ES, 6E, 6B, 6A, GC, CL, RTY, NG, HG, MBT, YM, ZF]
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - name: MEGA3 ${{ matrix.market }}
+        env: { M2_DEPTH: "2", M2_REPO: "${{ github.workspace }}" }
+        run: cd $M2DIR && python stage1c.py ${{ matrix.market }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m3-${{ matrix.market }}
+          path: |
+            ${{ env.M2DIR }}/s1cb_${{ matrix.market }}.json.gz
+            ${{ env.M2DIR }}/s1cbbase_${{ matrix.market }}.npz
+  rates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        market: [ZB, ZN]
+        shard: ["0/3", "1/3", "2/3"]
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - name: MEGA3 ${{ matrix.market }} ${{ matrix.shard }}
+        env:
+          M2_DEPTH: "2"
+          M2_SHARD: ${{ matrix.shard }}
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python stage1c.py ${{ matrix.market }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m3r-${{ matrix.market }}-${{ strategy.job-index }}
+          path: |
+            ${{ env.M2DIR }}/s1cbsh*_${{ matrix.market }}.json.gz
+            ${{ env.M2DIR }}/s1cbsh*base_${{ matrix.market }}.npz
+  collect:
+    needs: [wide, rates]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/download-artifact@v4
+        with:
+          path: research/mining_2026_07_31/mega2/mega3_results
+          merge-multiple: true
+      - run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research/mining_2026_07_31/mega2/mega3_results
+          if git diff --staged --quiet; then echo "nothing"; else
+            git commit -m "MEGA3 search results"
+            git pull --rebase -X theirs origin claude/hello-vc2ivo || true
+            git push origin claude/hello-vc2ivo
+          fi

@@ -291,25 +291,26 @@ def main() -> None:
                                        f"{df.index[0].date()}→{df.index[-1].date()}")
         log.info(f"{product} 5-min: wrote {len(df):,} bars → {out.name}")
 
-    # 1-min for NQ only (live trading + 1-min strategy backtest). 1-min
-    # for all 8 products would be ~560MB committed; we only need it for
-    # the one product we actually trade. Skipped when PRODUCTS override
-    # excludes NQ (e.g. an MBT-only fetch).
-    if "NQ" in PRODUCTS:
-        log.info("=== NQ 1-min ===")
+    # 1-min: NQ by default (live bot); extend via MINUTE_PRODUCTS env
+    # (e.g. "ZB,ZN,ES" for microstructure research).
+    min_products = [p.strip().upper() for p in
+                    os.environ.get("MINUTE_PRODUCTS", "NQ").split(",")
+                    if p.strip() and p.strip().upper() in PRODUCTS + ["NQ"]]
+    for product in min_products:
+        log.info(f"=== {product} 1-min ===")
         try:
-            df1 = build_continuous("NQ", resolution="1_minute")
+            df1 = build_continuous(product, resolution="1_minute")
         except Exception as e:
-            log.warning(f"NQ 1-min crashed: {e}")
+            log.warning(f"{product} 1-min crashed: {e}")
             df1 = None
         if df1 is None or df1.empty:
-            summary["NQ_1min"] = "FAILED"
+            summary[f"{product}_1min"] = "FAILED"
         else:
-            out = OUT_DIR / "NQ_1min.csv"
+            out = OUT_DIR / f"{product}_1min.csv"
             df1.to_csv(out)
-            summary["NQ_1min"] = (f"{len(df1)} bars "
+            summary[f"{product}_1min"] = (f"{len(df1)} bars "
                                    f"{df1.index[0].date()}→{df1.index[-1].date()}")
-            log.info(f"NQ 1-min: wrote {len(df1):,} bars → {out.name}")
+            log.info(f"{product} 1-min: wrote {len(df1):,} bars → {out.name}")
 
     log.info("=" * 50)
     log.info("SUMMARY")

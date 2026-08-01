@@ -41,6 +41,7 @@ jobs:
       - name: Download Polygon futures history
         env:
           POLYGON_API: ${{ secrets.POLYGON_API }}
+          MINUTE_PRODUCTS: "ZB,ZN,ES,6E,GC,CL"
         run: python -m research.fetch_polygon_history
 
       - name: Daily VIX history (for gate-aware backtests)
