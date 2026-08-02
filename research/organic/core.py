@@ -45,7 +45,8 @@ DATA = os.path.join(REPO, "data", "polygon")
 # --------------------------------------------------------------- economics
 # (pv, tick, commission_round_turn, tradable_as, intraday_margin, affordable)
 ECON = {
-    "ES":  (5.0,       0.25,      1.80, "MES",  50.0,  True),
+    "NQ":  (2.0,       0.25,      1.42, "MNQ", 100.0,  True),
+    "ES":  (5.0,       0.25,      1.42, "MES",  50.0,  True),
     "RTY": (5.0,       0.10,      1.80, "M2K",  50.0,  True),
     "YM":  (0.5,       1.0,       1.80, "MYM",  50.0,  True),
     "GC":  (10.0,      0.10,      2.20, "MGC",  250.0, True),
@@ -68,7 +69,7 @@ ECON = {
     "HO":  (42000.0,   0.0001,    3.50, "HO",  7000.0, False),
     "RB":  (42000.0,   0.0001,    3.50, "RB",  7500.0, False),
 }
-EXCLUDED = {"NQ", "SI", "MNQ", "SIL"}   # standing user directive
+EXCLUDED = {"SI", "SIL"}   # silver only; NQ re-admitted 2026-08-02
 
 # ------------------------------------------------------------------ splits
 # Chronological, purged. Committed here so mining code cannot drift them.

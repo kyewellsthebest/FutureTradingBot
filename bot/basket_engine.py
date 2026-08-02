@@ -130,6 +130,14 @@ SESS = {"us": (13.5, 20.0), "eu": (7.0, 13.5), "asia": (0.0, 7.0), "all": (0.0, 
 # breach. 20.7 flattens by 4:42pm EDT, always before the switchover.
 # Sim cost of the earlier cutoff: +$19/wk (the killed entries lost money).
 EOD_UTC = 20.7                      # flatten everything by 20:42 UTC
+
+# STOP-LIMIT EXITS (2026-08-02): a triggered stop-MARKET pays the full spread
+# plus whatever the book has moved; on MNQ that measured ~1.5 ticks vs ~0.3 for
+# a stop-limit. Config `stop_limit_ticks` = how far BEYOND the stop the limit
+# sits (0 disables and keeps plain stop-market). A stop-limit can be skipped by
+# a gap, so _sync_orders market-flattens any position whose stop triggered but
+# did not fill within STOP_LIMIT_RESCUE_BARS.
+STOP_LIMIT_RESCUE_BARS = 1
 # End-of-day is a WINDOW [EOD_UTC, REOPEN_UTC), not "rest of the wall-clock
 # day": Globex reopens 22:00 UTC and that's the NEXT trading day. Comparing
 # now_h >= EOD_UTC alone blocked all entries (and would insta-exit any
@@ -558,7 +566,15 @@ class BasketEngine:
             "isAutomated": True,
             "text": f"basket:s{sl.idx}",
         }
-        if stop_px is not None:
+        slt = float(sl.cfg.get("stop_limit_ticks", 0) or 0)
+        if stop_px is not None and slt > 0:
+            # limit sits `slt` ticks BEYOND the stop (worse for us) so it still
+            # fills in normal conditions but caps how bad the fill can get.
+            lim_px = self._round_px(root, stop_px - slt * TICKS.get(root, 0.01) * side)
+            body["bracket1"] = {"action": opp, "orderType": "StopLimit",
+                                "stopPrice": stop_px, "price": lim_px,
+                                "isAutomated": True}
+        elif stop_px is not None:
             body["bracket1"] = {"action": opp, "orderType": "Stop",
                                 "stopPrice": stop_px, "isAutomated": True}
         if tgt_px is not None:
@@ -684,6 +700,20 @@ class BasketEngine:
                                 f"{n} consecutive entry rejections")
                     sl.pending = None
                 continue
+            # ---- STOP-LIMIT GAP RESCUE ----
+            # A stop-limit that is skipped by a gap leaves the position naked.
+            # If the stop order is no longer working and nothing filled, exit
+            # at market immediately rather than riding an unprotected loss.
+            if sl.pos != 0 and getattr(sl, "oids", None) \
+                    and float(sl.cfg.get("stop_limit_ticks", 0) or 0) > 0:
+                _sid = sl.oids[1]
+                if _sid and _sid not in fmap:
+                    st_ = smap.get(_sid)
+                    if st_ in ("Canceled", "Rejected", "Expired"):
+                        logger.warning(f"[basket] s{sl.idx} stop-limit {st_} while "
+                                       f"in position — MARKET flatten (gap rescue)")
+                        self._exit(sl, None, "gap-rescue")
+                        continue
             # ---- open position: did a bracket child fill? ----
             if sl.pos != 0 and getattr(sl, "oids", None):
                 _, stop_id, tgt_id = sl.oids
@@ -1443,9 +1473,14 @@ class BasketEngine:
             return                       # not >= 1 tick better
         try:
             sess = self.orders().session
+            slt = float(sl.cfg.get("stop_limit_ticks", 0) or 0)
             body = {"orderId": int(stop_id), "orderQty": int(UNITS),
                     "orderType": "Stop", "stopPrice": line,
                     "isAutomated": True}
+            if slt > 0:
+                body["orderType"] = "StopLimit"
+                body["price"] = self._round_px(
+                    sl.instr, line - slt * TICKS.get(sl.instr, 0.01) * side)
             st, resp = sess._rest("POST", "/order/modifyorder", body=body)
             if st == 200 and isinstance(resp, dict) and not resp.get("failureReason"):
                 logger.info(f"[basket] TRAIL s{sl.idx} {sl.instr} stop "

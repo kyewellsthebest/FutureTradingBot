@@ -6,6 +6,10 @@ afford = tradable on a $4k account without dominating margin."""
 
 # root: (pv, tick, comm_rt, traded_as, margin_est, afford)
 ECON = {
+    # Nasdaq re-admitted 2026-08-02 by user directive. MNQ has the best
+    # volatility-to-cost ratio of anything tradable here: tick $0.50 against a
+    # ~$19.66 average 5-min move = 10.2x, vs 3.7x for MES and 0.9x for ZB.
+    "NQ":  (2.0,      0.25,       1.42, "MNQ",  100.0,  True),
     "ES":  (5.0,      0.25,       1.80, "MES",  50.0,   True),
     "RTY": (5.0,      0.10,       1.80, "M2K",  50.0,   True),
     "YM":  (0.5,      1.0,        1.80, "MYM",  50.0,   True),
@@ -29,7 +33,7 @@ ECON = {
     "HO":  (42000.0,  0.0001,     3.50, "HO",   7000.0, False),
     "RB":  (42000.0,  0.0001,     3.50, "RB",   7500.0, False),
 }
-# NQ/MNQ and SI/SIL are permanently excluded by user directive.
+# SI/SIL remain excluded (margin). NQ re-admitted 2026-08-02.
 
 TRAIN_END = "2026-05-22T00:00:00Z"   # same split every campaign this session
 OOS10     = "2026-05-18T00:00:00Z"
