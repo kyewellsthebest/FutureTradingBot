@@ -27,6 +27,7 @@ from econ import ECON, TRAIN_END, OOS10, OOS3
 ROOT = sys.argv[1]
 DEPTH = int(os.environ.get("M2_DEPTH", "2"))
 SHARD = os.environ.get("M2_SHARD", "")          # e.g. "0/3"
+TF = os.environ.get("M2_TF", "5")               # 1,5 native; 15,30,60 resampled
 SH_K, SH_N = (int(SHARD.split("/")[0]), int(SHARD.split("/")[1])) if SHARD else (0, 1)   # 2=wide sweep, 3=deep (promising markets)
 D = os.path.dirname(os.path.abspath(__file__))
 PV, TICK, COMM, TRADED_AS, MARGIN, AFFORD = ECON[ROOT]
@@ -39,9 +40,18 @@ BIG = 10 ** 6
 t0 = time.time()
 
 # ---------------------------------------------------------------- data prep
-df = pd.read_csv(f"{REPO}/data/polygon/{ROOT}_5min.csv")
+_src = "1min" if TF == "1" else "5min"
+df = pd.read_csv(f"{REPO}/data/polygon/{ROOT}_{_src}.csv")
 df["ts"] = pd.to_datetime(df.ts, utc=True)
 df = df.sort_values("ts").reset_index(drop=True)
+if TF not in ("1", "5"):
+    # resample UP from 5-min, preserving OHLCV integrity
+    df = (df.set_index("ts")
+            .resample(f"{TF}min", label="left", closed="left")
+            .agg(open=("open","first"), high=("high","max"), low=("low","min"),
+                 close=("close","last"), volume=("volume","sum"))
+            .dropna(subset=["close"]).reset_index())
+BAR_MIN = int(TF)
 n = len(df)
 ts = df.ts
 O = df.open.values.astype(np.float64); H_ = df.high.values.astype(np.float64)
@@ -51,7 +61,7 @@ V_ = df.volume.values.astype(np.float64)
 tr = np.maximum(df.high - df.low, (df.close - df.close.shift(1)).abs())
 ATR = tr.rolling(14).mean().values
 
-cdt = (ts + pd.Timedelta(minutes=5)).dt.tz_convert(None)
+cdt = (ts + pd.Timedelta(minutes=BAR_MIN)).dt.tz_convert(None)
 nh = (cdt.dt.hour + (cdt.dt.minute + 0.75) / 60).values
 mkt = np.array([be.market_open(d.to_pydatetime() + pd.Timedelta(seconds=45)) for d in cdt])
 eod_x = (nh >= be.EOD_UTC) & (nh < be.REOPEN_UTC)
@@ -563,7 +573,7 @@ out = dict(root=ROOT, traded_as=TRADED_AS, pv=PV, tick=TICK, comm=COMM,
            n_bars=int(n), n_weeks=int(W), n_streams=int(n_streams),
            n_base=len(base_rows), n_cfg=int(n_cfg_total), n_gated=int(n_gated),
            elapsed_s=round(elapsed), top=top)
-SUF = ("d" if DEPTH == 3 else "b") + (f"sh{SH_K}" if SHARD else "")
+SUF = ("d" if DEPTH == 3 else "b") + (f"tf{TF}" if TF != "5" else "") + (f"sh{SH_K}" if SHARD else "")
 with gzip.open(f"{D}/s1{SUF}_{ROOT}.json.gz", "wt") as f:
     json.dump(out, f)
 bd = pd.DataFrame(base_rows)

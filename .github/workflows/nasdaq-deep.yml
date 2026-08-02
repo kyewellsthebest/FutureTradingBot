@@ -1,0 +1,69 @@
+name: Nasdaq Deep Search
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/mining_2026_07_31/mega2/.nq_trigger"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  M2DIR: research/mining_2026_07_31/mega2
+jobs:
+  deep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {tf: "5",  shard: "0/3"}
+          - {tf: "5",  shard: "1/3"}
+          - {tf: "5",  shard: "2/3"}
+          - {tf: "1",  shard: "0/4"}
+          - {tf: "1",  shard: "1/4"}
+          - {tf: "1",  shard: "2/4"}
+          - {tf: "1",  shard: "3/4"}
+          - {tf: "15", shard: "0/2"}
+          - {tf: "15", shard: "1/2"}
+          - {tf: "30", shard: "0/2"}
+          - {tf: "30", shard: "1/2"}
+          - {tf: "60", shard: "0/1"}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - name: NQ deep tf=${{ matrix.tf }} shard=${{ matrix.shard }}
+        env:
+          M2_DEPTH: "3"
+          M2_TF: ${{ matrix.tf }}
+          M2_SHARD: ${{ matrix.shard }}
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python stage1b.py NQ
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nq-tf${{ matrix.tf }}-${{ strategy.job-index }}
+          path: |
+            ${{ env.M2DIR }}/s1d*_NQ.json.gz
+            ${{ env.M2DIR }}/s1d*base_NQ.npz
+  collect:
+    needs: [deep]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/download-artifact@v4
+        with:
+          path: research/mining_2026_07_31/mega2/nq_results
+          merge-multiple: true
+      - run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research/mining_2026_07_31/mega2/nq_results
+          if git diff --staged --quiet; then echo "nothing"; else
+            git commit -m "Nasdaq deep search results"
+            git pull --rebase -X theirs origin claude/hello-vc2ivo || true
+            git push origin claude/hello-vc2ivo
+          fi
