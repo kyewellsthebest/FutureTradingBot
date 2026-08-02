@@ -1,0 +1,13 @@
+{
+ "root": "NQ",
+ "traded_as": "MNQ",
+ "afford": true,
+ "margin": 100.0,
+ "n_stage1_cfg": 778813380,
+ "n_stage1_gated": 31387,
+ "n_selected": 135,
+ "n_survivors": 0,
+ "elapsed_s": 144,
+ "engine": "exact-sequential-pessimistic",
+ "survivors": []
+}
