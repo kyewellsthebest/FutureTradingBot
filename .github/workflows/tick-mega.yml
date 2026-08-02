@@ -1,0 +1,116 @@
+name: Tick MEGA Search
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.tick_trigger"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  M2DIR: research/mining_2026_07_31/mega2
+jobs:
+  # ------------------------------------------------------------------ bars
+  # 280M trades -> 15 event-bar series. Sampling by activity rather than by the
+  # clock, and carrying order flow (signed volume, cumulative delta, big-trade
+  # share) plus the size that actually printed at each bar's high and low.
+  bars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas pyarrow
+      - name: Build event bars from the trade tape
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          M2_REPO: ${{ github.workspace }}
+        run: python -m research.tickbars build
+      # Shard count is measured from the bars that actually got built: search
+      # cost per config scales with bar density, so a fixed count would idle
+      # the coarse series and time out the fine ones.
+      - id: plan
+        env: { M2_REPO: "${{ github.workspace }}" }
+        run: python -m research.tickbars plan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tick-bars
+          path: data/tick/bars/*.parquet
+          retention-days: 7
+
+  # ---------------------------------------------------------------- search
+  search:
+    needs: [bars]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.bars.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas pyarrow
+      - uses: actions/download-artifact@v4
+        with: { name: tick-bars, path: data/tick/bars }
+      - name: Search ${{ matrix.series }} shard ${{ matrix.shard }}
+        env:
+          M2_DEPTH: "3"
+          M2_SERIES: ${{ matrix.series }}
+          M2_SHARD: ${{ matrix.shard }}
+          # every limit config is searched at all three fill requirements so we
+          # can measure what the fill assumption is worth instead of assuming it
+          M2_MINFILL: "0,5,25"
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python stage1t.py NQ
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tk-${{ matrix.tag }}
+          path: |
+            ${{ env.M2DIR }}/tk*_NQ.json.gz
+            ${{ env.M2DIR }}/tk*base_NQ.npz
+          if-no-files-found: warn
+
+  # --------------------------------------------------------------- collect
+  collect:
+    needs: [search]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas pyarrow
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.M2DIR }}/tick_raw
+          pattern: tk-*
+          merge-multiple: true
+      - name: Merge shards into one ranked book
+        run: cd $M2DIR && python tick_merge.py tick_raw
+      - name: Commit the digest, not the shards
+        run: |
+          set -e
+          mkdir -p $M2DIR/tick_results
+          mv $M2DIR/tick_raw/TICK_MEGA.md \
+             $M2DIR/tick_raw/TICK_MEGA.json.gz $M2DIR/tick_results/ 2>/dev/null || true
+          mv $M2DIR/tick_raw/fill_decomposition.csv.gz $M2DIR/tick_results/ 2>/dev/null || true
+          rm -rf $M2DIR/tick_raw
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $M2DIR/tick_results
+          if git diff --staged --quiet; then echo "nothing to commit"; else
+            git commit -m "Tick MEGA: event-bar search results over the NQ trade tape"
+            for i in 1 2 3 4; do
+              git pull --rebase -X theirs origin claude/hello-vc2ivo && \
+              git push origin claude/hello-vc2ivo && break || sleep $((2**i))
+            done
+          fi
+      - name: Report
+        run: cat $M2DIR/tick_results/TICK_MEGA.md || true
