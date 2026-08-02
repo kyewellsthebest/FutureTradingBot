@@ -1,0 +1,57 @@
+{
+ "name": "MNQ15_fib_v1",
+ "found": "2026-08-02",
+ "spec": {
+  "market": "MNQ",
+  "timeframe": "15-min",
+  "family": "fib pullback",
+  "lookback_bars": 144,
+  "lookback_hours": 36.0,
+  "impulse_threshold_atr": 3.0,
+  "pullback_pct": 0.5,
+  "entry": "resting LIMIT at the pullback level",
+  "ttl_bars": 12,
+  "stop_atr": 2.5,
+  "target_rr": 1.5,
+  "trail": 2.5,
+  "max_hold_bars": 6,
+  "max_hold_hours": 1.5,
+  "session": "all",
+  "filters": "none"
+ },
+ "train": {
+  "per_week": 64.7,
+  "trades_per_week": 5.6,
+  "n": 707,
+  "ev": 11.53,
+  "win_rate": 0.491,
+  "profit_factor": 1.349,
+  "sharpe": 0.268,
+  "smoothness_r2": 0.952,
+  "maxdd": -935,
+  "worst_week": -490
+ },
+ "oos": {
+  "per_week": 197.8,
+  "n": 66,
+  "pos_weeks": 0.545
+ },
+ "robustness": {
+  "neighbours_profitable": 0.67,
+  "mc_annual_p5": 486,
+  "walk_forward": [
+   579,
+   3902,
+   1382,
+   2287
+  ],
+  "all_years_positive": true,
+  "roll13_positive": 0.798
+ },
+ "fill_realism": {
+  "touch_fill_per_week": 58,
+  "trade_through_per_week": 56,
+  "degradation_pct": 3,
+  "note": "SURVIVES the trade-through test. First strategy in the project to do so. Edge is ~23 ticks/trade so the 1-tick fill convention is noise next to it, unlike the ZB/ZN books whose entire 0.4-tick edge WAS the convention."
+ }
+}
