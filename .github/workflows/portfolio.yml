@@ -1,0 +1,96 @@
+name: Portfolio Search
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.pf_trigger"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  M2DIR: research/mining_2026_07_31/mega2
+jobs:
+  # Target is ~200 trades/week at ~$1,000/week. No single config gets there --
+  # the best NQ survivors earn $6-10 a trade but fire 8-17 times a week. Total
+  # is (per trade) x (trades) x (streams), so this searches every affordable
+  # market and lets the assembler stack streams that are genuinely different.
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        # SI/SIL excluded by standing instruction; 6J/ZS/HO/RB dropped as
+        # unaffordable margin on a ~$4k account.
+        market: [NQ, ES, RTY, YM, GC, CL, NG, HG, ZB, ZN, ZF, ZT,
+                 6E, 6B, 6A, MBT, ETH, ZC, ZW]
+        tf: ["5", "15"]
+        shard: ["0/6", "1/6", "2/6", "3/6", "4/6", "5/6"]
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - name: Search ${{ matrix.market }} tf${{ matrix.tf }} ${{ matrix.shard }}
+        env:
+          M2_DEPTH: "3"
+          M2_TF: ${{ matrix.tf }}
+          M2_SHARD: ${{ matrix.shard }}
+          # 0 = old bare-touch convention, 1 = price must trade a full tick
+          # through the limit. Sweeping both measures how much of any edge is
+          # the fill assumption rather than the market.
+          M2_MINFILL: "0,1"
+          M2_EVFLOOR: "1.50"
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python stage1p.py ${{ matrix.market }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pf-${{ matrix.market }}-${{ matrix.tf }}-${{ strategy.job-index }}
+          path: |
+            ${{ env.M2DIR }}/pf*_${{ matrix.market }}.json.gz
+            ${{ env.M2DIR }}/pf*wk_${{ matrix.market }}.npz
+          if-no-files-found: warn
+
+  assemble:
+    needs: [search]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.M2DIR }}/pf_raw
+          pattern: pf-*
+          merge-multiple: true
+      # Several trade budgets, because the honest answer to "can it do 200 a
+      # week" may be that the book runs out of uncorrelated streams first.
+      - name: Assemble books at several trade budgets
+        run: |
+          cd $M2DIR
+          for T in 100 150 200 300; do
+            python portfolio.py pf_raw --trades $T --maxcorr 0.35 || true
+            mkdir -p pf_results
+            [ -f pf_raw/PORTFOLIO.md ] && mv pf_raw/PORTFOLIO.md pf_results/PORTFOLIO_$T.md
+            [ -f pf_raw/PORTFOLIO.json.gz ] && mv pf_raw/PORTFOLIO.json.gz pf_results/PORTFOLIO_$T.json.gz
+          done
+      - name: Commit the books
+        run: |
+          set -e
+          rm -rf $M2DIR/pf_raw
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $M2DIR/pf_results
+          if git diff --staged --quiet; then echo "nothing to commit"; else
+            git commit -m "Portfolio search: multi-market books"
+            for i in 1 2 3 4; do
+              git pull --rebase -X theirs origin claude/hello-vc2ivo && \
+              git push origin claude/hello-vc2ivo && break || sleep $((2**i))
+            done
+          fi
+      - name: Report
+        run: cat $M2DIR/pf_results/PORTFOLIO_200.md || true
