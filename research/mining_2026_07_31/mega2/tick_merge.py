@@ -96,6 +96,21 @@ def main():
 
     piv, fill_summary = fill_decomposition(df)
 
+    # THE ONE TEST THAT IS NOT MINED. Configs are selected on train only, so
+    # whether they hold up out of sample is a free observation. Under the null
+    # that the search found nothing, about half of them should be OOS-positive
+    # by chance. A rate near 50% means billions of configs bought us noise; a
+    # rate well above it is the first real evidence of edge in this project.
+    oos = {}
+    if "o10" in df.columns and len(df) > 30:
+        k = int((df.o10 > 0).sum())
+        nn = int(df.o10.notna().sum())
+        p_hat = k / max(nn, 1)
+        # normal approximation to a binomial test against p = 0.5
+        z = (k - 0.5 * nn) / max(np.sqrt(0.25 * nn), 1e-9)
+        oos = {"n": nn, "positive": k, "rate": round(p_hat, 4), "z": round(float(z), 2),
+               "rate_3wk": round(float((df.o3 > 0).mean()), 4) if "o3" in df else None}
+
     # ---- the honest shortlist -------------------------------------------
     hold_min = df.get("H_min", pd.Series(np.nan, index=df.index))
     strict = df[
@@ -118,6 +133,7 @@ def main():
         ranked_rows=len(df),
         shortlist=len(strict),
         fill=fill_summary,
+        oos_holdout=oos,
     )
 
     with gzip.open(os.path.join(out_dir, "TICK_MEGA.json.gz"), "wt") as f:
@@ -160,6 +176,22 @@ def main():
                      f"limit configs look profitable on a bare touch; "
                      f"{fill_summary['frac_surviving_minfill_25']*100:.1f}% still "
                      f"do once real size is required at the price.\n")
+
+    if oos:
+        L.append("## Out-of-sample holdout (never used to select)\n")
+        L.append(f"Configs were ranked on training weeks only, so this is a free "
+                 f"observation rather than a filter. Under the null that the "
+                 f"search found nothing, roughly half should be positive.\n")
+        L.append(f"- OOS-positive: **{oos['positive']:,} / {oos['n']:,} "
+                 f"({oos['rate']*100:.1f}%)**, z = {oos['z']:+.2f} against 50%")
+        if oos.get("rate_3wk") is not None:
+            L.append(f"- positive in the final 3 weeks: {oos['rate_3wk']*100:.1f}%")
+        verdict = ("consistent with chance — billions of configs bought noise"
+                   if abs(oos["z"]) < 3 else
+                   "materially above chance — worth exact replay"
+                   if oos["z"] >= 3 else
+                   "materially BELOW chance — the train fit is anti-predictive")
+        L.append(f"- reading: **{verdict}**\n")
 
     L.append("## Series coverage\n")
     L.append("| series | bars | bars/day | min/bar | configs | gated |")

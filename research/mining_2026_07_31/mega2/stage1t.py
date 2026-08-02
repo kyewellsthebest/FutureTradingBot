@@ -106,7 +106,10 @@ day_codes, day_uniq = pd.factorize(ts.dt.date)
 ND = len(day_uniq)
 wk_first_ts = ts.groupby(wk_codes).first()
 wk_train = (wk_first_ts < pd.Timestamp(TRAIN_END)).values
-wk_o10 = (wk_first_ts >= pd.Timestamp(OOS10)).values
+# OOS10 sits 4 days before TRAIN_END in econ.py, so one week counts as both
+# train and out-of-sample. Harmless when OOS was a gate; not harmless now that
+# it is the diagnostic everything rests on.
+wk_o10 = (wk_first_ts >= max(pd.Timestamp(OOS10), pd.Timestamp(TRAIN_END))).values
 wk_o3 = (wk_first_ts >= pd.Timestamp(OOS3)).values
 wk_year = wk_first_ts.dt.year.values
 yr_counts = pd.Series(wk_year[wk_train]).value_counts()
@@ -653,8 +656,15 @@ for fam, pdict, etype, idx, side, px in streams():
                                       trail=float(trail),
                                       wk=float(wk_mean[0]), ev=float(ev[0]),
                                       n=int(nt[0])))
+                # TRAIN-ONLY GATE. o10/o3 are deliberately absent here.
+                # Gating on "also positive out of sample" across billions of
+                # configs manufactures the validation it appears to provide:
+                # the OOS window is the last ~11 weeks of a 2.9-year tape,
+                # roughly 3% of the data and a few dozen trades, so with enough
+                # candidates something always clears it. Left out of the gate,
+                # o10/o3 stay an unmined diagnostic worth reading.
                 gate = (nt >= 150) & (wk_mean >= 25.0) & (poswk >= 0.55) & \
-                       yr_ok & (o10 > 0) & (ev > 0)
+                       yr_ok & (ev > 0)
                 if not gate.any():
                     continue
                 # expensive tensors only for gated combos
