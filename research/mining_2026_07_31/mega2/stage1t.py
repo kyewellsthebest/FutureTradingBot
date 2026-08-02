@@ -105,16 +105,31 @@ W = len(wk_uniq)
 day_codes, day_uniq = pd.factorize(ts.dt.date)
 ND = len(day_uniq)
 wk_first_ts = ts.groupby(wk_codes).first()
-wk_train = (wk_first_ts < pd.Timestamp(TRAIN_END)).values
+# SPLIT FROM THE DATA, NOT FROM A CALENDAR CONSTANT. econ.py's dates were set
+# for the 5-minute files, which run to 30 July 2026. The tick tape ends when
+# NQM6 rolls in mid-June, so those constants leave a 4-week holdout and an OOS3
+# window containing no weeks at all -- every config scores exactly zero there
+# and any filter on it is unsatisfiable. Taking the last 20% of weeks gives a
+# holdout of real length whatever the tape happens to cover.
+_HOLD_FRAC = 0.20
+_split_i = int(round(W * (1.0 - _HOLD_FRAC)))
+_split_ts = wk_first_ts.iloc[_split_i]
+wk_train = (wk_first_ts < _split_ts).values
 # OOS10 sits 4 days before TRAIN_END in econ.py, so one week counts as both
 # train and out-of-sample. Harmless when OOS was a gate; not harmless now that
 # it is the diagnostic everything rests on.
-wk_o10 = (wk_first_ts >= max(pd.Timestamp(OOS10), pd.Timestamp(TRAIN_END))).values
-wk_o3 = (wk_first_ts >= pd.Timestamp(OOS3)).values
+wk_o10 = (wk_first_ts >= _split_ts).values                       # full holdout
+wk_o3 = (wk_first_ts >= wk_first_ts.iloc[int(round(W * 0.93))]).values  # final ~7%
+print(f"split: {int(wk_train.sum())} train weeks, {int(wk_o10.sum())} holdout "
+      f"({_split_ts.date()} onward), {int(wk_o3.sum())} final-stretch weeks", flush=True)
 wk_year = wk_first_ts.dt.year.values
 yr_counts = pd.Series(wk_year[wk_train]).value_counts()
 years = sorted([y for y, c in yr_counts.items() if c >= 8])
-Ymat = np.stack([(wk_year == y) & wk_train for y in years]).astype(np.float64)  # (Y,W)
+# np.stack on an empty list raises; with a short tape no year clears 8 weeks.
+# Fall back to a single all-train row so the every-year-positive check degrades
+# to "positive overall" rather than crashing the shard.
+Ymat = (np.stack([(wk_year == y) & wk_train for y in years]) if years
+        else wk_train[None, :]).astype(np.float64)                       # (Y,W)
 
 # filter cells: sess(4) x trendwith(2) x volhi(2) x vixhi(2) = 32
 sess_cat = np.full(n, 3, dtype=np.int64)          # other

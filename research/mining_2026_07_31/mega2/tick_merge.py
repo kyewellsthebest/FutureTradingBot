@@ -112,19 +112,38 @@ def main():
                "rate_3wk": round(float((df.o3 > 0).mean()), 4) if "o3" in df else None}
 
     # ---- the honest shortlist -------------------------------------------
+    # A window that lies entirely past the end of the data sums to exactly zero
+    # for every config, so requiring it to be positive is unsatisfiable and
+    # silently empties the shortlist. The NQ tick tape ends when NQM6 rolls in
+    # mid-June 2026, while econ.OOS3 starts 6 July, so o3 is identically zero.
+    # Never let a degenerate window act as a filter -- drop it and say so.
+    degenerate = [c for c in ("o10", "o3")
+                  if c in df.columns and bool((df[c].fillna(0) == 0).all())]
+    for c in degenerate:
+        print(f"  WARNING: {c} is identically zero -- window lies outside the "
+              f"data. Dropping it from the filter.")
     hold_min = df.get("H_min", pd.Series(np.nan, index=df.index))
+    oos_clause = pd.Series(True, index=df.index)
+    for c in ("o10", "o3"):
+        if c in df.columns and c not in degenerate:
+            oos_clause &= df[c] > 0
     strict = df[
         (df.wk > 0) & (df.ev > 0)
         & (df.n_tr >= MIN_TRADES)
         & (hold_min >= MIN_HOLD_MIN)
-        & (df.o10 > 0) & (df.o3 > 0)
+        & oos_clause
         & (df.poswk >= 0.55)
         & (df.pf >= 1.10)
         # limit entries must clear the conservative fill bar; market and stop
         # entries carry mf = -1 because the requirement does not apply to them
         & ((df.etype != "L") | (df.mf >= 25.0))
     ].copy().sort_values(["score", "wk"], ascending=False)
-    print(f"shortlist: {len(strict):,} configs survive the strict filter")
+    ident = [c for c in ("series", "fam", "lb", "k", "pb", "dep", "man", "N",
+                         "buf", "m", "g", "zt", "bt", "it", "et", "r", "ttl",
+                         "sp", "rr", "trail", "f_sess", "f_trend", "f_vol",
+                         "f_vix", "f_htf") if c in strict.columns]
+    distinct = strict.sort_values("wk", ascending=False).drop_duplicates(subset=ident)
+    print(f"shortlist: {len(strict):,} rows -> {len(distinct):,} distinct strategies")
 
     tot = dict(
         shards=len(meta),
@@ -132,6 +151,8 @@ def main():
         gated=int(meta.n_gated.sum()) if len(meta) else 0,
         ranked_rows=len(df),
         shortlist=len(strict),
+        distinct=len(distinct),
+        degenerate_windows=degenerate,
         fill=fill_summary,
         oos_holdout=oos,
     )
@@ -139,8 +160,11 @@ def main():
     with gzip.open(os.path.join(out_dir, "TICK_MEGA.json.gz"), "wt") as f:
         json.dump({"totals": tot,
                    "series": meta.to_dict("records"),
-                   "shortlist": strict.head(300).to_dict("records"),
-                   "top_overall": df.head(600).to_dict("records")}, f)
+                   "shortlist": strict.head(500).to_dict("records"),
+                   "distinct": distinct.head(200).to_dict("records"),
+                   # keep enough of the ranked book to re-analyse without
+                   # re-running the whole search
+                   "top_overall": df.head(20000).to_dict("records")}, f)
     if len(piv):
         piv.head(20000).to_csv(os.path.join(out_dir, "fill_decomposition.csv.gz"),
                                index=False, compression="gzip")
@@ -154,7 +178,11 @@ def main():
     L.append(f"- survive the strict filter (>={MIN_TRADES} trades, "
              f">={MIN_HOLD_MIN:.0f}min hold, positive OOS, and for limit "
              f"entries a fill requiring 25 contracts at the price): "
-             f"**{tot['shortlist']:,}**\n")
+             f"**{tot['shortlist']:,}** rows, "
+             f"**{tot['distinct']:,}** distinct strategies\n")
+    if degenerate:
+        L.append(f"> Windows dropped from the filter as degenerate (identically "
+                 f"zero — they lie outside the data): `{'`, `'.join(degenerate)}`\n")
 
     if fill_summary:
         L.append("## What the fill assumption was worth\n")
@@ -206,7 +234,8 @@ def main():
 
     cols = ["series", "fam", "etype", "mf", "H_min", "n_tr", "wk", "ev", "pf",
             "poswk", "sharpe", "maxdd", "o10", "o3", "f_sess"]
-    for title, sub in (("Shortlist — survives every honest filter", strict),
+    for title, sub in (("Distinct survivors (deduplicated)", distinct),
+                       ("Shortlist — survives every honest filter", strict),
                        ("Top ranked overall (before the strict filter)", df)):
         L.append(f"\n## {title}\n")
         if not len(sub):
