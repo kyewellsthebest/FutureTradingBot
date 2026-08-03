@@ -68,9 +68,14 @@ t0 = time.time()
 
 # ---------------------------------------------------------------- data prep
 SERIES = "tf" + TF
-df = pd.read_csv(f"{REPO}/data/polygon/{ROOT}_5min.csv")
+# 1,000 trades a week does not fit in 1,380 five-minute bars. At one minute
+# there are 6,900 a week and the same trade count is 14% of them instead of
+# 72%, so the finest source available is loaded directly rather than
+# resampled up from five.
+_src = "1min" if TF == "1" else "5min"
+df = pd.read_csv(f"{REPO}/data/polygon/{ROOT}_{_src}.csv")
 df["ts"] = pd.to_datetime(df.ts, utc=True)
-if TF != "5":
+if TF not in ("5", "1"):
     df = (df.set_index("ts").resample(f"{TF}min", label="left", closed="left")
             .agg(open=("open","first"), high=("high","max"), low=("low","min"),
                  close=("close","last"), volume=("volume","sum"))

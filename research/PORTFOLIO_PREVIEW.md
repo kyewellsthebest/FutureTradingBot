@@ -225,3 +225,38 @@ trades a week that is roughly $0.50 a trade, which would move the break-even
 from $0.83 to about $0.33 — below the exchange floor, where no purchase helps.
 **This single modelling gap can invalidate the whole table**, so it is the next
 thing to fix, before any money is spent on plans.
+
+## 1,000 trades a week: an arithmetic wall, and where it moves
+
+A five-minute session holds about 1,380 bars a week. A thousand trades means
+entering on 72% of them, which is not a strategy, it is a coin landing on its
+edge. At one minute there are 6,900 bars a week and the same thousand trades
+is 14% of them. **The bar interval, not the signal, is what makes the target
+impossible or possible**, and no amount of searching five-minute data fixes it.
+
+Economics of the target, for reference:
+
+| round turn | gross needed per trade | in MNQ ticks |
+|---|---|---|
+| $1.42 today | $2.42 | 4.8 |
+| ~$0.90 Lifetime | $1.90 | 3.8 |
+
+An average one-minute MNQ bar spans roughly four to six ticks, so 3.8 ticks is
+a large share of one bar's range -- but the hold does not have to be one
+minute. Bar interval governs how often you can ENTER, nothing else. A signal
+found on a one-minute bar can be held forty minutes.
+
+Margin, which is the constraint that actually bites on a $4k account:
+
+| average hold | positions open | peak | margin at peak |
+|---|---|---|---|
+| 10 min | 1.4 | ~4 | ~$435 |
+| 20 min | 2.9 | ~9 | ~$870 |
+| 30 min | 4.3 | ~13 | ~$1,300 |
+| 60 min | 8.7 | ~26 | ~$2,600 |
+
+Anything up to a thirty-minute average hold is affordable. An hour is not.
+
+Note the one-minute series is shorter than the five-minute one -- 94 weeks
+against 138 -- so its holdout is 19 weeks rather than 30, and results from it
+carry correspondingly less weight.
