@@ -63,3 +63,11 @@ data/tick/quotes_1s.npz
 data/basket_status.json
 data/basket_prices.json
 data/basket_state.json
+
+# search scratch: written into the repo dir by local runs, shipped as
+# workflow artifacts in CI. Never belongs in git.
+research/mining_2026_07_31/mega2/pf*_*.npz
+research/mining_2026_07_31/mega2/pf*_*.json.gz
+research/mining_2026_07_31/mega2/tk*_*.npz
+research/mining_2026_07_31/mega2/tk*_*.json.gz
+!research/mining_2026_07_31/mega2/*_results/*

@@ -171,6 +171,11 @@ def main():
     ap.add_argument("--maxcorr", type=float, default=0.35)
     ap.add_argument("--per-market", type=int, default=10)
     ap.add_argument("--per-family", type=int, default=5)
+    # When the goal is a trade budget, a stream that fires four times a week
+    # cannot help you reach five hundred however good its Sharpe is. Screening
+    # the pool on frequency first spends the limited supply of uncorrelated
+    # streams on the ones that actually carry trades.
+    ap.add_argument("--min-tpw", type=float, default=0.0)
     a = ap.parse_args()
 
     df, M, meta, train, hold = load(a.dir)
@@ -195,6 +200,10 @@ def main():
               f"(dropped bare-touch limit entries)")
         if not len(df):
             print("  nothing survives the honest fill requirement")
+    if a.min_tpw > 0 and "tpw" in df.columns:
+        n0 = len(df)
+        df = df[df.tpw >= a.min_tpw].reset_index(drop=True)
+        print(f"  frequency screen >={a.min_tpw:g} trades/wk: {n0:,} -> {len(df):,}")
     ident = [c for c in IDENT if c in df.columns]
     keep = df.sort_values("ev", ascending=False).drop_duplicates(subset=ident).index
     df2 = df.loc[sorted(keep)].reset_index(drop=True)
