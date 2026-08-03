@@ -31,6 +31,11 @@ TF = os.environ.get("M2_TF", "5")               # 1,5 native; 15,30,60 resampled
 SH_K, SH_N = (int(SHARD.split("/")[0]), int(SHARD.split("/")[1])) if SHARD else (0, 1)   # 2=wide sweep, 3=deep (promising markets)
 D = os.path.dirname(os.path.abspath(__file__))
 PV, TICK, COMM, TRADED_AS, MARGIN, AFFORD = ECON[ROOT]
+# Commission is the binding constraint on frequency, not the signal. A market
+# order fills every signal but pays a tick on top of commission; a limit keeps
+# the tick but only fills sometimes. Which side of that trade is worth taking
+# depends entirely on what a round turn costs, so make it a variable.
+COMM = float(os.environ.get("M2_COMM", COMM))
 # Grids below are expressed in 5-MINUTE-EQUIVALENT UNITS ("u"), never raw bars.
 # sb() converts a unit count to actual bars for the series being searched, so
 # H=48 means "4 hours" whether a bar is 13 seconds or 15 minutes. Without this
