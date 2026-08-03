@@ -134,3 +134,48 @@ Caveat found in the same table: at 15-minute bars, `sb()` collapses lookbacks
 of 1, 3 and 5 units onto a single bar, so the shortest lookbacks are simply
 not expressible there. The 5-minute sweep is where that corner actually opens
 up, and it is running.
+
+## Commission is the frequency ceiling — but not for the reason predicted
+
+The previous commit predicted that below some round turn the market-entry
+variants would stop being unprofitable, since a market order fills every
+signal and only loses a tick. **That prediction is wrong and the data is
+unambiguous: zero market-entry configs survive at $1.42, zero at $0.90, zero
+at $0.62.** Market entries are not a cost problem. They have no edge.
+
+Cheaper commission does raise the ceiling, by a different route entirely —
+fill rate.
+
+| round turn | best trades/week | on-spec configs >= 90/wk |
+|---|---|---|
+| $1.42 | 65 | 0 |
+| $0.90 | 118 | 1 |
+| $0.62 | 118 | 7 |
+
+The mechanism is visible in how pullback depth trades off against fill
+frequency:
+
+| pullback | trades/week | $/trade |
+|---|---|---|
+| 0.62 | 33.2 | 2.99 |
+| 0.79 | 38.2 | 2.98 |
+| 1.27 | 12.0 | 4.90 |
+| 2.50 | 14.0 | 4.81 |
+
+A shallow pullback is hit about three times as often but captures roughly half
+as much. At $1.42 the shallow end cannot clear cost, so every survivor is a
+rare deep pullback and frequency stalls near sixty a week. At $0.90 the whole
+shallow end becomes viable and the ceiling nearly doubles. The benefit is
+saturated by $0.90 -- $0.62 buys more qualifying configs but no more speed.
+
+Best single strategy at $0.90, which meets every line of the spec:
+
+    NQ 5-min, 2.5x impulse over 12 bars, limit at 62% retracement,
+    stop 2.0 ATR, target 1.5R
+    118 trades/wk | 47.5% win rate | 1:1.5 | $2.64/trade | $311/wk
+    PF 1.36 | 84.5% of weeks profitable | worst drawdown -$395
+
+Caveat that governs the whole result: $0.90 and $0.62 are estimates of the
+broker's tiers, not verified figures. The defensible claim is that a ~35% cost
+reduction roughly doubles achievable frequency; whether a given plan delivers
+that has to be read off the actual account.

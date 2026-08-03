@@ -36,6 +36,10 @@ PV, TICK, COMM, TRADED_AS, MARGIN, AFFORD = ECON[ROOT]
 # the tick but only fills sometimes. Which side of that trade is worth taking
 # depends entirely on what a round turn costs, so make it a variable.
 COMM = float(os.environ.get("M2_COMM", COMM))
+# Each market has its own round turn, so a flat override distorts everything
+# except the one it was set for. A multiplier scales them all by the same
+# proportion, which is what a broker plan change actually does.
+COMM *= float(os.environ.get("M2_COMMMULT", "1.0"))
 # Grids below are expressed in 5-MINUTE-EQUIVALENT UNITS ("u"), never raw bars.
 # sb() converts a unit count to actual bars for the series being searched, so
 # H=48 means "4 hours" whether a bar is 13 seconds or 15 minutes. Without this
