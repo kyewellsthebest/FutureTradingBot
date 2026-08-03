@@ -1,6 +1,6 @@
 import sys,os
 sys.path.insert(0,"/home/user/FutureTradingBot/research/mining_2026_07_31/mega2")
-os.environ.update(M2_TF="5",M2_THIN="1",M2_DEPTH="2",M2_SHARD="0/1",M2_COMM="0")
+os.environ.update(M2_TF=os.environ.get("TF","5"),M2_THIN="1",M2_DEPTH="2",M2_SHARD="0/1",M2_COMM="0")
 sys.argv=["x",sys.argv[1] if len(sys.argv)>1 else "NQ"]
 src=open("stage1f.py").read()
 cut="# ------------------------------------------------------- fills and outcomes"

@@ -260,3 +260,57 @@ Anything up to a thirty-minute average hold is affordable. An hour is not.
 Note the one-minute series is shorter than the five-minute one -- 94 weeks
 against 138 -- so its holdout is 19 weeks rather than 30, and results from it
 carry correspondingly less weight.
+
+## Finer bars are the wrong lever — measured, not argued
+
+Same strategy, same clock-time parameters, only the bar interval changing:
+
+| pullback | 5-min trades/wk | 5-min gross | 1-min trades/wk | 1-min gross |
+|---|---|---|---|---|
+| 0.20 | 517 | 0.83 | 566 | 0.09 |
+| 0.30 | 459 | 1.56 | 431 | 0.22 |
+| 0.50 | 354 | 2.34 | 249 | 0.06 |
+
+Five times the bars buys nine percent more trades at 0.20 and *fewer* at 0.50,
+because de-overlapping is enforced in clock time rather than bars: two signals
+ninety seconds apart are the same trade whichever interval you view them
+through. Slicing the clock thinner re-samples existing setups, it does not
+create new ones.
+
+Worse, gross edge collapses by roughly ten times. Finer sampling catches the
+limit on brief spikes that immediately reverse, so you fill on the worst
+instances of each setup. That is adverse selection, and fine bars maximise
+exposure to it. Thirty-second bars should be expected to be worse again on
+both counts.
+
+Worth separating clearly: entering the same setup five times in ten minutes is
+one trade at five times size, not five trades. That is leverage, and it makes
+an equity curve rougher. Smoothness comes from independent trades, and the
+supply of genuinely independent setups in one market is about 500-600 a week,
+of which 300-450 carry positive edge. That is a property of the market, not of
+the search.
+
+## Frequency is uniform across markets; edge is not
+
+Same shape (12-bar lookback, 2.5x impulse, pullback 0.62, stop 2 ATR,
+target 1.5R) on each market:
+
+| market | trades/wk | gross $/trade | net/wk @ $0.62 | net/wk @ $0.90 |
+|---|---|---|---|---|
+| NQ | 304 | 3.22 | +790 | +705 |
+| GC | 292 | 1.76 | +332 | +251 |
+| ES | 299 | 0.87 | +76 | -9 |
+| RTY | 291 | 0.50 | -35 | -95 |
+| CL | 293 | 0.40 | -63 | -122 |
+
+Every market yields the same ~300 trades a week at this depth. Edge varies
+eightfold. So a thousand trades a week is three or four markets at five
+minutes, never finer bars on one -- and whether the third and fourth markets
+pay depends entirely on the round turn.
+
+NQ + GC alone is 596 trades a week and $1,122 at $0.62, or $956 at $0.90.
+Adding ES reaches 895 trades and $1,198, but only at $0.62; at $0.90 ES is
+negative.
+
+Caveat: one config shape was tested per market rather than searching each
+properly, so these are floors. And stop slippage is still uncharged.
