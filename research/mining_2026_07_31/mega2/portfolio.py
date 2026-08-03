@@ -41,7 +41,7 @@ IDENT = ["market", "tf", "fam", "lb", "k", "pb", "dep", "man", "N", "buf",
          "f_sess", "f_trend", "f_vol", "f_vix", "f_htf"]
 
 
-def load(d, cap_per_shard=1200, hold_frac=0.20):
+def load(d, cap_per_shard=4000, hold_frac=0.20):
     """Every ranked config plus its weekly P&L, aligned to a common calendar.
 
     Markets do not share a span -- NG starts in 2022, ZS in late 2023 -- so
@@ -72,8 +72,16 @@ def load(d, cap_per_shard=1200, hold_frac=0.20):
         if not top or len(W) != len(top) or W.shape[1] != len(wks):
             print(f"  SKIP {base}: {len(top)} rows / {W.shape} / {len(wks)} weeks")
             continue
-        if len(top) > cap_per_shard:                 # keep the best by $/trade
-            k = np.argsort([-(r.get("ev") or 0) for r in top])[:cap_per_shard]
+        if len(top) > cap_per_shard:
+            # Rank by WEEKLY dollars, not dollars per trade. Capping on
+            # $/trade quietly deletes the entire high-frequency end of the
+            # pool -- a config earning $1.87 across 56 trades a week is worth
+            # far more to a book than one earning $9 across three, and the
+            # $/trade cap threw away the first to keep the second. Every book
+            # built before this fix was assembled from a pool with its best
+            # frequency already removed.
+            key = [-(r.get("wk") or 0) for r in top]
+            k = np.argsort(key)[:cap_per_shard]
             top, W = [top[i] for i in k], W[k]
         shards.append((mkt, o, top, W, wks))
     if not shards:
@@ -103,7 +111,8 @@ def load(d, cap_per_shard=1200, hold_frac=0.20):
     return pd.DataFrame(rows), np.vstack(mats), pd.DataFrame(meta), train, hold
 
 
-def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family):
+def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family,
+             max_streams=0):
     """Greedy forward selection on training weeks.
 
     At each step take the candidate that most improves the book's training
@@ -119,7 +128,12 @@ def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family)
 
     chosen, cur = [], np.zeros(nw)
     mk_count, fam_count, trades = {}, {}, 0.0
-    order = np.argsort(-(Mtr[live].mean(1) / np.maximum(sd[live], 1e-9)))
+    # With a handful of slots the ranking that matters is not solo Sharpe but
+    # Sharpe weighted by how many trades the stream actually brings, since
+    # weekly Sharpe of the book rises with the square root of total trades.
+    tpw_all = df["tpw"].values if "tpw" in df.columns else np.ones(len(df))
+    solo = Mtr[live].mean(1) / np.maximum(sd[live], 1e-9)
+    order = np.argsort(-(solo * np.sqrt(np.maximum(tpw_all[live], 0.1))))
     pool = live[order][:9000]                       # best 6k by solo Sharpe
 
     # Take the best available stream each round rather than only ones that
@@ -130,6 +144,10 @@ def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family)
     # helps once the budget is filled; the correlation cap, not a Sharpe
     # ratchet, is what keeps the book from stacking the same bet.
     while trades < target_trades:
+        if max_streams and len(chosen) >= max_streams:
+            print(f"  stopped at {trades:.0f} trades/wk: reached the "
+                  f"{max_streams}-strategy ceiling")
+            break
         best, best_sh = None, -1e9
         for c in pool:
             r = df.iloc[c]
@@ -143,6 +161,13 @@ def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family)
                     continue
             cand = cur + Mtr[c]
             sh = cand.mean() / max(cand.std(), 1e-9)
+            if max_streams:
+                # Few slots, fixed trade target: the objective is the book's
+                # weekly Sharpe scaled by how many trades it carries, because
+                # weekly Sharpe rises with the square root of trade count.
+                # Ranking on Sharpe alone spends every slot on a rare,
+                # beautiful config and never reaches the trade budget.
+                sh *= np.sqrt(max(trades + float(df.iloc[c].get("tpw", 0) or 0), 0.1))
             if sh > best_sh:
                 best_sh, best = sh, c
         if best is None:
@@ -176,6 +201,10 @@ def main():
     # the pool on frequency first spends the limited supply of uncorrelated
     # streams on the ones that actually carry trades.
     ap.add_argument("--min-tpw", type=float, default=0.0)
+    # Hard ceiling on how many strategies run at once. Each one holds
+    # positions and therefore margin, so on a small account the count is a
+    # capital constraint before it is a statistical one.
+    ap.add_argument("--max-streams", type=int, default=0)
     a = ap.parse_args()
 
     df, M, meta, train, hold = load(a.dir)
@@ -211,7 +240,7 @@ def main():
     print(f"deduplicated to {len(df2):,} distinct strategies")
 
     chosen, trades = assemble(df2, M2, train, hold, a.trades, a.maxcorr,
-                              a.per_market, a.per_family)
+                              a.per_market, a.per_family, a.max_streams)
     book = df2.iloc[chosen].copy()
     B = M2[chosen]
     tr_wk, ho_wk = B.sum(0)[train], B.sum(0)[hold]

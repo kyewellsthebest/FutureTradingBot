@@ -281,19 +281,24 @@ def streams():
     retracement is a different trade from a shallow one, and nothing has
     tested it.
     """
+    # The frequency winners so far all sit at the loose-threshold,
+    # short-lookback, past-full-retracement corner: lb 8, k 1.25, pb 1.27.
+    # Every one of those is at or near the edge of the previous grid, which
+    # means the grid was still cutting the space off. Push the boundary out.
     LB  = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24]
-    K   = [0.8, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-    PB  = [0.382, 0.5, 0.618, 0.706, 0.786, 0.886, 1.0, 1.13, 1.27, 1.5]
+    K   = [0.3, 0.4, 0.5, 0.65, 0.8, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+    PB  = [0.382, 0.5, 0.618, 0.706, 0.786, 0.886, 1.0, 1.13, 1.27,
+           1.5, 1.75, 2.0, 2.5]
     if DEPTH == 2:
         LB, K, PB = LB[::2], K[::2], PB[::2]
     for lb, k, pb in itertools.product(LB, K, PB):
         m = mom(lb)
         sig = sigok & np.isfinite(m) & (np.abs(m) > k * ATR)
         idx = thin(np.where(sig)[0])
-        if len(idx) < 60: continue
+        if len(idx) < 80: continue
         side = np.sign(m[idx]).astype(np.int64)
         ok_ = side != 0
-        if ok_.sum() < 60: continue
+        if ok_.sum() < 80: continue
         i2, s2 = idx[ok_], side[ok_]
         px = rnd(C_[i2] - pb * m[i2])
         yield ("sfib", dict(lb=lb, k=k, pb=pb), "L", i2, s2, px)
