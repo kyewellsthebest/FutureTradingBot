@@ -1,8 +1,10 @@
-Portfolio search — 2026-08-02
+Portfolio search v2 — high frequency — 2026-08-03
 
-19 markets x 2 timeframes x 6 shards. Trade-through fills, train-only gating
-on a data-derived split, per-config weekly P&L vectors so the book can be
-assembled on measured correlation rather than assumed diversification.
+Retargeted at the sqrt(N) optimum: weekly Sharpe rises with the square root of
+trade count, and with a fixed cost c the gross edge maximising it is exactly
+2c (~$2.84 on MNQ, ~700 trades/week for $1,000/week).
 
-Target: 150-250 trades/week, ~$1,000/week, judged on a holdout never used to
-select.
+Changes: 30-min signal spacing instead of 2h, EV floor below the optimum
+instead of on top of it, short holds admitted, ranking on weekly Sharpe and
+frequency instead of dollars per trade. Assembler fills the trade budget and
+requires trade-through fills.

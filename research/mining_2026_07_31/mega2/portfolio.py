@@ -120,10 +120,17 @@ def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family)
     chosen, cur = [], np.zeros(nw)
     mk_count, fam_count, trades = {}, {}, 0.0
     order = np.argsort(-(Mtr[live].mean(1) / np.maximum(sd[live], 1e-9)))
-    pool = live[order][:6000]                       # best 6k by solo Sharpe
+    pool = live[order][:9000]                       # best 6k by solo Sharpe
 
+    # Take the best available stream each round rather than only ones that
+    # improve the book's Sharpe. Requiring improvement stops the book at a
+    # handful of streams and makes every trade budget produce the same answer,
+    # which is exactly what happened. Weekly Sharpe grows with the square root
+    # of trade count, so a stream that dilutes Sharpe slightly today still
+    # helps once the budget is filled; the correlation cap, not a Sharpe
+    # ratchet, is what keeps the book from stacking the same bet.
     while trades < target_trades:
-        best, best_sh = None, (cur.mean() / max(cur.std(), 1e-9)) if chosen else -1e9
+        best, best_sh = None, -1e9
         for c in pool:
             r = df.iloc[c]
             if mk_count.get(r.market, 0) >= per_market:
@@ -139,8 +146,14 @@ def assemble(df, M, train, hold, target_trades, maxcorr, per_market, per_family)
             if sh > best_sh:
                 best_sh, best = sh, c
         if best is None:
-            print(f"  stopped: no candidate improves the book "
-                  f"({trades:.0f} trades/wk reached)")
+            # Distinguish the two very different reasons for stopping: a cap
+            # we chose, versus genuinely running out of uncorrelated edge.
+            capped = [m for m, v in mk_count.items() if v >= per_market]
+            famcap = [f"{m}/{f}" for (m, f), v in fam_count.items() if v >= per_family]
+            why = ("per-market cap hit on " + ",".join(capped) if capped else "") or \
+                  ("per-family cap hit on " + ",".join(famcap[:6]) if famcap else "") or \
+                  "no remaining candidate is uncorrelated enough"
+            print(f"  stopped at {trades:.0f} trades/wk, {len(chosen)} streams: {why}")
             break
         r = df.iloc[best]
         chosen.append(best)
@@ -156,8 +169,8 @@ def main():
     ap.add_argument("dir", nargs="?", default="pf_results")
     ap.add_argument("--trades", type=float, default=200.0)
     ap.add_argument("--maxcorr", type=float, default=0.35)
-    ap.add_argument("--per-market", type=int, default=4)
-    ap.add_argument("--per-family", type=int, default=2)
+    ap.add_argument("--per-market", type=int, default=10)
+    ap.add_argument("--per-family", type=int, default=5)
     a = ap.parse_args()
 
     df, M, meta, train, hold = load(a.dir)
@@ -170,6 +183,18 @@ def main():
     print(f"loaded {len(df):,} configs across {df.market.nunique()} markets, "
           f"matrix {M.shape}, {int(train.sum())} train / {int(hold.sum())} holdout weeks")
 
+    # A resting limit that merely touches its price does not fill: the NQ tape
+    # shows a median of two contracts at a bar's low, nowhere near enough to
+    # clear a real queue. mf=1 configs required price to trade a full tick
+    # through. Every earlier book was silently built on mf=0, the optimistic
+    # convention, because this filter lived in the tick merge and never here.
+    if "mf" in df.columns and "etype" in df.columns:
+        n0 = len(df)
+        df = df[(df.etype != "L") | (df.mf >= 1.0)].reset_index(drop=True)
+        print(f"  honest-fill filter: {n0:,} -> {len(df):,} candidates "
+              f"(dropped bare-touch limit entries)")
+        if not len(df):
+            print("  nothing survives the honest fill requirement")
     ident = [c for c in IDENT if c in df.columns]
     keep = df.sort_values("ev", ascending=False).drop_duplicates(subset=ident).index
     df2 = df.loc[sorted(keep)].reset_index(drop=True)
@@ -213,6 +238,13 @@ def main():
          f"**{trades:.0f} trades/week**",
          f"- selected on {int(train.sum())} training weeks; the "
          f"{int(hold.sum())} holdout weeks below were never used to choose\n"]
+    if len(chosen):
+        # Weekly Sharpe rises with sqrt(trade count) at fixed edge quality, so
+        # report it next to frequency: that pairing is what a "clean equity
+        # curve" actually means.
+        L.append(f"- **{trades:.0f} trades/week**, holdout Sharpe "
+                 f"**{ho_s.get('sharpe', 0):.2f}**, "
+                 f"{ho_s.get('pos_weeks', 0)*100:.0f}% of holdout weeks positive\n")
     L.append("| | train | holdout |")
     L.append("|---|---|---|")
     for k in ("per_week", "median_week", "pos_weeks", "worst_week",

@@ -41,7 +41,8 @@ jobs:
           # through the limit. Sweeping both measures how much of any edge is
           # the fill assumption rather than the market.
           M2_MINFILL: "0,1"
-          M2_EVFLOOR: "1.50"
+          M2_EVFLOOR: "0.60"
+          M2_THIN: "6"
           M2_REPO: ${{ github.workspace }}
         run: cd $M2DIR && python stage1p.py ${{ matrix.market }}
       - uses: actions/upload-artifact@v4
@@ -72,7 +73,7 @@ jobs:
       - name: Assemble books at several trade budgets
         run: |
           cd $M2DIR
-          for T in 100 150 200 300; do
+          for T in 150 300 500 800; do
             python portfolio.py pf_raw --trades $T --maxcorr 0.35 || true
             mkdir -p pf_results
             [ -f pf_raw/PORTFOLIO.md ] && mv pf_raw/PORTFOLIO.md pf_results/PORTFOLIO_$T.md
@@ -93,4 +94,4 @@ jobs:
             done
           fi
       - name: Report
-        run: cat $M2DIR/pf_results/PORTFOLIO_200.md || true
+        run: cat $M2DIR/pf_results/PORTFOLIO_500.md || true

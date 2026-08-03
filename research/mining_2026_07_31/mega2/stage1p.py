@@ -39,12 +39,21 @@ PV, TICK, COMM, TRADED_AS, MARGIN, AFFORD = ECON[ROOT]
 HMAX_U = 96        # 8h max hold
 TTLMAX_U = 12      # 1h max limit time-in-force
 WARM_DAYS = 10
-THIN_U = 24        # 2h min spacing between signals per stream
+# Weekly Sharpe grows as sqrt(trades), and with a fixed cost c per trade the
+# gross edge that maximises it is exactly 2c -- about $2.84 on MNQ, or roughly
+# 700 trades a week for $1,000. Two-hour spacing caps a stream near eleven
+# signals a day and forces the search toward big, staggered trades instead.
+# Half an hour allows the high-frequency end to exist; it does mean a few
+# positions can overlap, which micros on this account can carry.
+THIN_U = int(os.environ.get("M2_THIN", "6"))
 BIG = 10 ** 6
 # Net dollars per trade a config must clear to be worth a slot. $1,000/week on
 # 200 trades needs $5.00/trade across the whole book, so components below about
 # a third of that cannot pull their weight however often they fire.
-EV_FLOOR = float(os.environ.get("M2_EVFLOOR", "1.50"))
+# The optimum net edge IS roughly one round-turn cost (~$1.42 on MNQ), so a
+# $1.50 floor sat right on top of the target and excluded the whole sweet spot
+# from below. Sit well under it and let the portfolio choose.
+EV_FLOOR = float(os.environ.get("M2_EVFLOOR", "0.60"))
 
 t0 = time.time()
 
@@ -582,18 +591,23 @@ def outcomes(wins, fb, epx, side, a, sp_mult, rr, trail, Hbars):
 
 # ------------------------------------------------------------ scoring loop
 EXITS = {
+    # H is in 5-minute-equivalent units. Small stops with small targets are
+    # what the 2x-cost optimum looks like, so the grid now reaches down to
+    # 0.25 ATR stops and 5-minute holds as well as up.
     "fib":      (dict(sp=[0.75, 1.0, 1.5, 2.0, 2.5], rr=[0.5, 0.75, 1.0, 1.5, 2.5],
-                      trail=[0.0, 2.5], ttl=[2, 3, 12], H=[12, 24, 48]) if DEPTH == 2 else
-                 dict(sp=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5], rr=[0.5, 0.618, 0.75, 1.0, 1.25, 1.5, 2.0],
-                      trail=[0.0, 2.5], ttl=[1, 2, 3, 6, 12], H=[6, 12, 24, 48])),
+                      trail=[0.0, 2.5], ttl=[2, 3, 12], H=[2, 6, 12, 24, 48]) if DEPTH == 2 else
+                 dict(sp=[0.25, 0.4, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5],
+                      rr=[0.5, 0.618, 0.75, 1.0, 1.25, 1.5, 2.0],
+                      trail=[0.0, 2.5], ttl=[1, 2, 3, 6, 12], H=[1, 2, 3, 6, 12, 24, 48])),
     "momcont":  dict(sp=[0.75, 1.0, 1.5, 2.0], rr=[0.75, 1.0, 1.5, 2.0],
                      trail=[0.0, 2.5], ttl=[1], H=[6, 12, 24]),
     "exhaust":  dict(sp=[0.75, 1.0, 1.5, 2.0], rr=[0.75, 1.0, 1.5],
                      trail=[0.0], ttl=[1], H=[6, 12, 24]),
     "fade":     (dict(sp=[0.75, 1.0, 1.5, 2.0], rr=[0.5, 0.75, 1.0, 1.5],
-                      trail=[0.0], ttl=[2, 3], H=[6, 12, 24]) if DEPTH == 2 else
-                 dict(sp=[0.5, 0.75, 1.0, 1.25, 1.5, 2.0], rr=[0.5, 0.618, 0.75, 1.0, 1.25, 1.5],
-                      trail=[0.0, 2.5], ttl=[1, 2, 3, 6], H=[6, 12, 24, 48])),
+                      trail=[0.0], ttl=[2, 3], H=[2, 6, 12, 24]) if DEPTH == 2 else
+                 dict(sp=[0.25, 0.4, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+                      rr=[0.5, 0.618, 0.75, 1.0, 1.25, 1.5],
+                      trail=[0.0, 2.5], ttl=[1, 2, 3, 6], H=[1, 2, 3, 6, 12, 24, 48])),
     "mapull":   dict(sp=[0.75, 1.0, 1.5, 2.0], rr=[0.75, 1.0, 1.5],
                      trail=[0.0], ttl=[2, 3], H=[6, 12, 24]),
     "brk":      dict(sp=[1.0, 1.5, 2.0, 3.0], rr=[1.0, 1.5, 2.0, 3.0],
@@ -773,11 +787,15 @@ if rows_all:
         return s.rank(ascending=higher_better, pct=True)
     # Weighted for a book rather than a single bet: dollars per trade and
     # frequency carry the most, because total P&L is ev x trades x streams.
-    score = (0.16 * pr(df_r.sharpe) + 0.08 * pr(df_r.ulcer, False) +
-             0.08 * pr(df_r.maxdd) + 0.06 * pr(df_r.avg_lose_day) +
-             0.08 * pr(df_r.worst_wk) + 0.06 * pr(df_r.o10) +
-             0.18 * pr(np.log1p(df_r.n_tr)) + 0.08 * pr(df_r.pf) +
-             0.18 * pr(df_r.ev) + 0.04 * pr(df_r.wk))
+    # Rewarding raw $/trade selects the staggered end of the curve: big wins,
+    # big losses, few of them. Weekly Sharpe and trade count are what a clean
+    # equity curve is made of, and $/trade only has to clear cost -- which
+    # EV_FLOOR already enforces -- so it barely features here.
+    score = (0.34 * pr(df_r.sharpe) + 0.26 * pr(np.log1p(df_r.n_tr)) +
+             0.09 * pr(df_r.ulcer, False) + 0.08 * pr(df_r.maxdd) +
+             0.07 * pr(df_r.worst_wk) + 0.06 * pr(df_r.pf) +
+             0.05 * pr(df_r.o10) + 0.03 * pr(df_r.avg_lose_day) +
+             0.02 * pr(df_r.ev))
     df_r["score"] = score.round(4)
     # Rank within each fill requirement, not across them. Bare-touch rows
     # score higher by construction, so a global top-N would truncate away the
