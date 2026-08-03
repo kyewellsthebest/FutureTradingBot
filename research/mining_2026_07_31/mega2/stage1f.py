@@ -296,8 +296,11 @@ def streams():
     # means the grid was still cutting the space off. Push the boundary out.
     LB  = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24]
     K   = [0.3, 0.4, 0.5, 0.65, 0.8, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-    PB  = [0.382, 0.5, 0.618, 0.706, 0.786, 0.886, 1.0, 1.13, 1.27,
-           1.5, 1.75, 2.0, 2.5]
+    # The shallow end has never been searched. The fill decomposition says a
+    # 20% pullback fills 83% of the time and yields 534 trades a week, but the
+    # grid started at 0.382 and so could not reach it. Frequency lives here.
+    PB  = [0.05, 0.08, 0.12, 0.16, 0.20, 0.25, 0.30, 0.382, 0.5, 0.618,
+           0.706, 0.786, 0.886, 1.0, 1.13, 1.27, 1.5, 1.75, 2.0, 2.5]
     if DEPTH == 2:
         LB, K, PB = LB[::2], K[::2], PB[::2]
     for lb, k, pb in itertools.product(LB, K, PB):
@@ -557,6 +560,9 @@ for fam, pdict, etype, idx, side, px in streams():
                         fam=fam, **pdict, etype=etype, ttl=int(ttl_u), H=int(H_u),
                         ttl_bars=int(ttl), H_bars=int(Hbars), H_min=round(H_u * 5.0, 1),
                         mf=float(mf), fill_rate=round(fill_rate, 4),
+                        # EV is net of COMM; adding it back gives the gross
+                        # edge, which IS the break-even round turn.
+                        breakeven_comm=round(float(ev[g]) + COMM, 3),
                         sp=float(sp_mult), rr=float(rr), trail=float(trail),
                         f_sess=combos[g][0], f_trend=combos[g][1],
                         f_vol=combos[g][2], f_vix=combos[g][3], f_htf=combos[g][4],

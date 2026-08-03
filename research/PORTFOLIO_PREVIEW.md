@@ -179,3 +179,49 @@ Caveat that governs the whole result: $0.90 and $0.62 are estimates of the
 broker's tiers, not verified figures. The defensible claim is that a ~35% cost
 reduction roughly doubles achievable frequency; whether a given plan delivers
 that has to be read off the actual account.
+
+## The break-even round turn — what 500 trades a week actually costs
+
+Every search until now gated on profitability at today's $1.42 round turn,
+which deletes the high-frequency strategies before they can be measured. So
+the search could never answer the only question that matters about them: what
+would they need to cost to work? Running commission at zero and reporting
+gross edge answers it directly, because gross edge IS the break-even round
+turn.
+
+NQ 5-min, 2.5x impulse over 12 bars, stop 2.0 ATR, target 1.5R. Only the
+pullback depth varies. Note the grid previously started at 0.382, so the top
+five rows had never been searched at all.
+
+| pullback | trades/wk | gross $/trade | break-even round turn | net/wk @ $1.42 | net/wk @ $0.62 |
+|---|---|---|---|---|---|
+| 0.20 | 517 | 0.83 | **0.83** | -305 | +106 |
+| 0.25 | 488 | 1.22 | **1.22** | -98 | +294 |
+| 0.30 | 459 | 1.56 | **1.56** | +64 | +433 |
+| 0.38 | 413 | 1.88 | 1.88 | +190 | +521 |
+| 0.50 | 354 | 2.34 | 2.34 | +326 | +609 |
+| 0.62 | 304 | 3.22 | 3.22 | +547 | +789 |
+
+**A 500-trades-a-week strategy needs a round turn of $0.83 or better.** That
+sits below the current $1.42 and above the ~$0.60-0.75 floor of exchange,
+clearing and NFA fees, which is the part no plan can remove. So the target is
+not blocked by the market. It is blocked by broker commission, and broker
+commission is purchasable.
+
+At the fee floor a single strategy runs 304 trades a week for $789, or 488 for
+$294. Two uncorrelated strategies clear both halves of the spec inside the
+four-strategy limit.
+
+### Two caveats that govern this
+
+The table is computed across all data, not split train and holdout. It was
+built as a mechanical cost curve rather than a validated strategy: the shape,
+frequency against break-even, is structural and trustworthy; the dollar
+figures are not yet out-of-sample.
+
+More seriously, the engine still exits stops at the stop line and charges no
+slippage. A real stop is a market order and gives up about a tick. At 500
+trades a week that is roughly $0.50 a trade, which would move the break-even
+from $0.83 to about $0.33 — below the exchange floor, where no purchase helps.
+**This single modelling gap can invalidate the whole table**, so it is the next
+thing to fix, before any money is spent on plans.
