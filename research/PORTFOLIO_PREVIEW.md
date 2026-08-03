@@ -78,3 +78,59 @@ Peak concurrent margin. Twenty-nine to fifty-four live streams on a ~$4,100
 account has not been checked, and the weekly P&L vectors cannot answer it —
 they carry no trade timestamps. Needs per-trade data from an exact replay
 before any of this is sized.
+
+---
+
+# Pivot log — 2026-08-03
+
+Standing instruction from here: when something does not work, pivot without
+waiting to be told. Record dead ends so they are not re-dug.
+
+## DEAD: cross-market signals (`stage1x.py`)
+
+Built on the theory that all 34 families collapse to one mechanism because
+they all read the same market's own price history. Four new families using
+*other* markets — beta-hedged spread reversion, lead-lag, divergence catch-up,
+and breadth — single leg only, because a spread trade pays two round turns and
+at the 2x-cost optimum the second leg eats the entire edge.
+
+13 partners loaded, 1.59M configs, 404 gated. **1.0% holdout-positive.**
+Out-of-sample losses of $1,967 to $11,249 per config. Tested both directions:
+fading a stretched spread is 0.5% positive, following it 5.6%, and the "with"
+direction mostly failed to clear the gate at all. Profit factors of 1.13-1.21
+against fib's 1.5-2.2 -- edge too thin to survive selection from 1.59M
+candidates. Closed.
+
+## LIVE: short-lookback pullbacks (`stage1f.py`)
+
+Anatomising the family that does work turned up the one lever that buys
+frequency without costing edge. Grouping fib candidates by lookback:
+
+| lookback | trades/wk | holdout $/wk | holdout-positive |
+|---|---|---|---|
+| 8 | 8.77 | 154 | 100% |
+| 12 | 3.06 | 20.65 | 97% |
+| 24 | 2.97 | 41.93 | 99% |
+| 48 | 4.02 | -1.58 | 36% |
+
+Five configs out of 3,353 sat at the 8-unit lookback; they fired 3.4x more
+often than the median and were positive in every holdout week. The grid was
+stepping over the best corner of the space.
+
+A dense sweep of that corner — lookbacks 1-24, pullbacks out to 1.5 (past a
+full retracement, which nothing had tested), stops down to 0.2 ATR, holds down
+to 5 minutes — gives 5.6M configs, 23,902 gated, **100% holdout-positive**.
+Best single config:
+
+    lb 20, k 1.25, pb 1.00, stop 2.0 ATR, target 1.5R, trail 2.5
+    19.96 trades/week | $2.90/trade | PF 1.31 | 2,196 trades | holdout +$2,751
+
+$2.90 a trade is close to the $2.84 that maximises weekly Sharpe on MNQ, and
+five times the frequency of the earlier survivors. The winner uses pb=1.00, a
+full retracement — a value outside the original grid, so the broad search
+could not have found it.
+
+Caveat found in the same table: at 15-minute bars, `sb()` collapses lookbacks
+of 1, 3 and 5 units onto a single bar, so the shortest lookbacks are simply
+not expressible there. The 5-minute sweep is where that corner actually opens
+up, and it is running.
