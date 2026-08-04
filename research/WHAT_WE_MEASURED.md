@@ -1,7 +1,7 @@
 # What we measured, and what it rules out
 
-One session, 2026-08-04. Thirteen hypothesis families tested against a proper
-null. All thirteen came back empty. This is the record of what was tested, how,
+One session, 2026-08-04. Fifteen hypothesis families tested against a proper
+null — a random-entry control, not zero. All fifteen came back empty. This is the record of what was tested, how,
 and what the negatives are worth — so nobody spends another month re-digging
 ground that has already been dug.
 
@@ -70,7 +70,11 @@ design fixes a shortfall in the raw signal.
 
 impulse-pullback · mean reversion · VWAP reversion · opening-range break ·
 range-compression break · overnight gap · volume spike · hour-of-day · weekday ·
-weekday×hour · cross-market lead-lag · calendar · random control
+weekday×hour · cross-market lead-lag · calendar · order-flow imbalance ·
+trade-level microstructure (sweeps, absorption, run length, block size)
+
+Markets, all on their own raw tape: NQ, ES, RTY, YM, CL, GC, HG — 39 contracts,
+~240 million trades. No 5-minute data in the final round.
 
 Timeframes: 5m, 15m, 60m, 240m, plus event bars (500 trades, 5,000 contracts,
 15 points of range — no clock at all).
@@ -89,6 +93,9 @@ Each looked real. Each died to a control. This is the most useful section here.
 | opening range at +$14.21/trade | the trading day was split at midnight UTC (7pm New York), so "the opening range" measured the middle of the overnight session |
 | "edge is real, fees eat it" (the $1,499 case) | same contaminated sweep. Real persistence is 19–29% vs 50% chance — there is no edge for fees to eat |
 | 60-minute VWAP reversion at +$22/trade | regime luck. Beat the control in 24 of 52 cells (p=0.76), and on RTY itself averages −$16.6 across split points. It was +$22 only at the one boundary first tried |
+| Monday drift at t=10.18 | overlapping forward returns across 15 correlated markets. One independent observation per day gives t=1.04 |
+| opening range on 500-trade bars, +$22.71 | 4 cells. At 32 cells: 4 of 9, p=0.75 |
+| HG mean reversion, p=0.035 | ~30 tests were run; ~1.5 nominal hits are expected by chance. Corrected: 0.035 × 30 = 1.05 |
 
 ## Four defects in our own code
 
@@ -137,9 +144,10 @@ one thing measured to be counterproductive.
   of book (order queue, cancellations, iceberg detection) is a genuinely
   different signal and is what the firms harvesting the ~$1/trade of available
   information actually use.
-- **Lower costs.** The measured signal is ~$1/trade against $2.30 of cost. That
-  gap closes at market-maker economics, not retail — the lifetime commission
-  plan halves the broker's slice but not enough to invert the sign.
+- ~~**Lower costs.**~~ Tested and ruled out. At $0.72 round turn — the
+  cheapest tier available — the one real signal still loses to random entry
+  (13 of 32 cells, p=0.89). See "statistical edge is not tradeable edge":
+  commission was never the binding constraint.
 - **A different question.** Longer horizons (multi-day), where the ratio of
   edge to cost is far better, are not ruled out by this study — nothing here
   tested holding periods beyond a few days.
