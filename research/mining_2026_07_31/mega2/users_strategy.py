@@ -31,6 +31,16 @@ ROOT = os.environ.get("M2_REPO", "/home/user/FutureTradingBot")
 RAW = os.path.join(ROOT, "data", "tick", "raw")
 BARSEC = int(sys.argv[1]) if len(sys.argv) > 1 else 60
 INVERT = os.environ.get("INVERT", "0") == "1"
+# Three threats to a +$0.09/trade margin, each able to erase it on its own.
+#   THROUGH  fill the limit only if price trades a full tick PAST it. Touch
+#            fills are optimistic and FILL_REALITY.md measured that as the
+#            largest single correction found anywhere in this project.
+#   SLIPTK   ticks lost on stop exits. A 6-point stop is a market exit, and
+#            one tick on MNQ is $0.50 -- five times the whole net margin.
+#   SPLIT    report train and holdout separately. Everything so far is one
+#            in-sample number over 728 days.
+THROUGH = os.environ.get("THROUGH", "0") == "1"
+SLIPTK = float(os.environ.get("SLIPTK", "0"))
 NS = 1_000_000_000
 # NQ full-size is $20/point; MNQ is $2/point. The user traded Nasdaq futures;
 # results are reported per MICRO contract, which is what a $4k account trades.
@@ -82,8 +92,9 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold, i
     # wait up to max_wait bars for price to reach the retrace level
     st = np.arange(1, max_wait + 1)
     wb = np.minimum(idx[:, None] + st[None, :], n - 1)
-    reach = np.where(fill_side[:, None] > 0, l[wb] <= entry[:, None],
-                     h[wb] >= entry[:, None])
+    tkoff = 0.25 if THROUGH else 0.0
+    reach = np.where(fill_side[:, None] > 0, l[wb] <= entry[:, None] - tkoff,
+                     h[wb] >= entry[:, None] + tkoff)
     j = np.where(reach.any(1), reach.argmax(1), 10**9)
     ok = j < 10**9
     if ok.sum() < 50: return None
@@ -111,10 +122,15 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold, i
     xj = np.where(ks, np.minimum(j1, max_hold),
                   np.where(kt, np.minimum(j2, max_hold), max_hold))
     xp = np.where(ks, sl, np.where(kt, tp, c[np.minimum(fb + max_hold, n - 1)]))
-    pts = (xp - ep) * sd
+    # stop exits are market orders and slip; targets are resting limits and
+    # do not. Charging both would be wrong in the other direction.
+    pts = (xp - ep) * sd - np.where(ks, SLIPTK * 0.25, 0.0)
     gross = pts * PT                              # $ per micro contract
     days = (a.b.max() - a.b.min()) * BARSEC / 86400.0
-    return dict(n=len(gross), gross_per_trade=float(gross.mean()),
+    half = fb < (fb.min() + 0.75 * (fb.max() - fb.min()))
+    return dict(tr_g=float(gross[half].mean()) if half.sum() > 30 else np.nan,
+                ho_g=float(gross[~half].mean()) if (~half).sum() > 30 else np.nan,
+                n=len(gross), gross_per_trade=float(gross.mean()),
                 per_day=len(gross) / max(days, 1e-9),
                 winrate=float((pts > 0).mean()),
                 total_gross=float(gross.sum()),
@@ -151,7 +167,7 @@ for sp, tg, _lbl in STOPTGT:
 
 print(f"{'stop/tgt':>9s} {'imp':>5s} {'lb':>3s} {'retr':>5s} {'trades':>8s} "
       f"{'/day':>7s} {'win%':>6s} {'need':>6s} {'GROSS$':>10s} {'+/-':>6s} "
-      f"{'net@.72':>9s}")
+      f"{'train':>8s} {'HOLDOUT':>8s}")
 best = None
 for imp, lb, rt, sp, tg, mw, mh in CFGS:
     agg = []
@@ -164,13 +180,15 @@ for imp, lb, rt, sp, tg, mw, mh in CFGS:
     pd_ = np.mean([r["per_day"] for r in agg])
     wr = np.average([r["winrate"] for r in agg], weights=[r["n"] for r in agg])
     se = np.sqrt(sum((r["se"] * r["n"]) ** 2 for r in agg)) / tot
-    row = dict(imp=imp, lb=lb, rt=rt, n=tot, per_day=pd_, wr=wr, gross=g, se=se)
+    trg = np.nanmean([r["tr_g"] for r in agg]); hog = np.nanmean([r["ho_g"] for r in agg])
+    row = dict(imp=imp, lb=lb, rt=rt, n=tot, per_day=pd_, wr=wr, gross=g, se=se,
+               tr_g=trg, ho_g=hog)
     if best is None or g > best["gross"]: best = row
     row["sp"] = sp; row["tg"] = tg
     # break-even win rate for this reward:risk, so the gap is visible directly
     be = sp / (sp + tg)
     print(f"{sp:4.1f}/{tg:<4.1f} {imp:5.0f} {lb:3d} {rt:5.2f} {tot:8,} {pd_:7.1f} "
-          f"{wr*100:5.1f}% {be*100:5.1f}% {g:10.3f} {se:6.3f} {g-0.72:9.3f}")
+          f"{wr*100:5.1f}% {be*100:5.1f}% {g:10.3f} {se:6.3f} {trg:8.3f} {hog:8.3f}")
 
 if best:
     print(f"\nbest gross: impulse {best['imp']}pt over {best['lb']} bars, "
