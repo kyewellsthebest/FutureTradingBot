@@ -128,7 +128,12 @@ def ic(g, col):
     x = g[col].values; y = g.fwd.values
     ok = np.isfinite(x) & np.isfinite(y)
     if ok.sum() < 500: return np.nan
-    return float(pd.Series(x[ok]).corr(pd.Series(y[ok]), method="spearman"))
+    # Spearman by hand: Pearson on ranks. pandas routes method="spearman"
+    # through scipy, which is not installed here, and ranking is faster anyway.
+    a = pd.Series(x[ok]).rank().values; b = pd.Series(y[ok]).rank().values
+    a = a - a.mean(); b = b - b.mean()
+    den = np.sqrt((a * a).sum() * (b * b).sum())
+    return float((a * b).sum() / den) if den > 0 else np.nan
 
 
 ALL = FEATS + PRICE + ["shuffled"]
