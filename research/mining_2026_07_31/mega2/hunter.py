@@ -35,7 +35,7 @@ COMMX = float(os.environ.get("HUNT_COMMMULT", "1.0"))  # 1.0 = today's rate
 POOL = os.environ.get("HUNT_MARKETS", "RTY,YM,CL,HG,ES,NG,6E,6B,6A,MBT,ETH,ZF,ZT").split(",")
 rng = np.random.default_rng(SEED if SEED else None)
 
-def load(root, tf):
+def load(root, tf, lead=None):
     pv, tick, comm, traded, marg, aff = ECON[root]
     d = pd.read_csv(f"{REPO}/data/polygon/{root}_5min.csv")
     d["ts"] = pd.to_datetime(d.ts, utc=True)
@@ -75,11 +75,28 @@ def load(root, tf):
     # killed the gap mechanism the moment the day boundary moved.
     fob = np.zeros(n, bool)
     fob[pd.Series(np.arange(n)[ok]).groupby(day[ok]).min().values] = True
+    # Epoch day 0 was a Thursday, so +3 puts Monday at 0. The day index is the
+    # settlement date -- a Sunday 22:00 UTC open already belongs to Monday --
+    # so weekdays must come out 0..4 with nothing else present.
+    dow = ((esec + 2 * 3600) // 86400 + 3) % 7
     dhi = pd.Series(H).groupby(day).cummax().values
     dlo = pd.Series(L).groupby(day).cummin().values
+    # Cross-market lead: another market's closes, aligned onto this market's
+    # timestamps. Forward-filled only, so a bar never sees a leader print that
+    # had not happened yet.
+    LD = None
+    if lead and lead != root:
+        try:
+            q = pd.read_csv(f"{REPO}/data/polygon/{lead}_5min.csv")
+            q["ts"] = pd.to_datetime(q.ts, utc=True)
+            q = q.set_index("ts").close.sort_index()
+            if tf != 5: q = q.resample(f"{tf}min", label="left", closed="left").last()
+            LD = q.reindex(d.ts, method="ffill").values.astype(float)
+        except Exception:
+            LD = None
     P = 300
-    return dict(root=root, tf=tf, traded=traded, dpt=pv * tick, tick=tick, comm=comm,
-                C=C, H=H, L=L, V=V, vwap=vwap, bod=bod, dhi=dhi, dlo=dlo, fob=fob,
+    return dict(root=root, tf=tf, lead=LD, traded=traded, dpt=pv * tick, tick=tick, comm=comm,
+                C=C, H=H, L=L, V=V, vwap=vwap, bod=bod, dhi=dhi, dlo=dlo, fob=fob, dow=dow,
                 Hp=np.r_[H, np.full(P, np.nan)], Lp=np.r_[L, np.full(P, np.nan)],
                 Cp=np.r_[C, np.full(P, np.nan)], ATR=a, hr=hr, OK=ok, n=n,
                 day=day, wk=pd.factorize(d.ts.dt.strftime("%G-W%V"))[0],
@@ -102,7 +119,7 @@ def REJ(w):
 # in this project asked only the first one, so "no edge" has so far only ever
 # meant "no edge in impulse-pullback". These are separate hypotheses about why
 # a price should move, not variations on one.
-MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol"]
+MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol", "cal", "xmk"]
 
 def signal(M, p):
     """mechanism -> (bar indices, direction, per-signal distance scale in ticks)"""
@@ -144,6 +161,40 @@ def signal(M, p):
         gp = np.r_[np.nan, np.diff(C)] / tick
         trig = M["fob"] & np.isfinite(gp) & (np.abs(gp) > p["k"] * ATR)
         dr = np.sign(gp); ref = np.abs(gp)
+    elif mech == "cal":
+        # Pure calendar. Buy or sell at a fixed hour, optionally only on one
+        # weekday. No reference to price at all, which is the point: every
+        # other mechanism here selects entries using price, and a limit that
+        # only fills when price comes to you is adversely selected by
+        # construction. A clock cannot be adversely selected. If nothing in
+        # this family works either, the null is about the markets rather than
+        # about our entry logic.
+        # Hour of day only. A weekday filter leaves ~135 observations, which is
+        # below the signal floor and far too thin to call either way, so
+        # day-of-week is measured in calendar_scan.py as a statistic rather
+        # than searched here as a parameter.
+        hh = int(round(p["lb"])) % 24
+        inh = (M["hr"] >= hh) & (M["hr"] < hh + 1)
+        # first bar of that hour on that day, so one entry per day at most
+        cnt = pd.Series(inh.astype(int)).groupby(day).cumsum().values
+        trig = inh & (cnt == 1)
+        dr = np.ones(n); ref = np.maximum(ATR, 1.0)
+    elif mech == "xmk":
+        # Cross-market: trade this series on the LEAD of a correlated one.
+        # The first mechanism here that uses information from outside the
+        # series being traded. If ES has already moved and this one has not,
+        # the question is whether it follows.
+        ldr = M.get("lead")
+        if ldr is None:
+            trig = np.zeros(n, bool); dr = np.ones(n); ref = np.ones(n)
+        else:
+            lm = np.r_[np.full(lb, np.nan), (ldr[lb:] - ldr[:-lb])] / np.maximum(
+                pd.Series(np.abs(np.diff(ldr, prepend=ldr[0]))).rolling(50, min_periods=20)
+                .mean().values, 1e-9)
+            own = np.r_[np.full(lb, np.nan), (C[lb:] - C[:-lb]) / tick] / np.maximum(ATR, 1e-9)
+            div = lm - own                      # leader moved, this one did not
+            trig = np.isfinite(div) & (np.abs(div) > p["k"])
+            dr = np.sign(div); ref = np.maximum(np.abs(div) * ATR, 1.0)
     else:                                   # vol: volume spike, take the bar's direction
         vm = pd.Series(M["V"]).rolling(max(lb * 10, 30), min_periods=20).mean().values
         bar = np.r_[np.nan, np.diff(C)] / tick
