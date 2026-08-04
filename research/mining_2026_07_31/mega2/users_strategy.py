@@ -89,18 +89,21 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold, i
     if ok.sum() < 50: return None
     fb = np.minimum(idx[ok] + 1 + j[ok], n - 1)
     sd = side[ok]; ep = entry[ok]
-    # a filled short must not already be past its stop, and vice versa
-    live = np.where(sd > 0, l[fb] > ep - stop_pts, h[fb] < ep + stop_pts)
-    if live.sum() < 50: return None
-    fb, sd, ep = fb[live], sd[live], ep[live]
+    # NO filter on the fill bar's own range. l[fb] and h[fb] cover the whole
+    # bar including price action AFTER the fill, so screening on them decides
+    # whether to enter using the outcome -- pure look-ahead. It cut trades from
+    # 563/day to 3/day and manufactured a 50.6% win rate at 2:1.
+    # The honest fix is below: resolve exits from the NEXT bar, so the fill
+    # bar's unknowable intrabar path is never used in either direction.
     sl = ep - sd * stop_pts
     tp = ep + sd * tgt_pts
-    hs = np.arange(0, max_hold + 1)
+    # start at +1: the fill bar's internal ordering is unknowable from OHLC,
+    # and using any of it -- for the stop or the target -- is look-ahead
+    hs = np.arange(1, max_hold + 1)
     hb = np.minimum(fb[:, None] + hs[None, :], n - 1)
     lo_h = l[hb]; hi_h = h[hb]
     hit_s = np.where(sd[:, None] > 0, lo_h <= sl[:, None], hi_h >= sl[:, None])
     hit_t = np.where(sd[:, None] > 0, hi_h >= tp[:, None], lo_h <= tp[:, None])
-    hit_t[:, 0] = False
     j1 = np.where(hit_s.any(1), hit_s.argmax(1), 10**9)
     j2 = np.where(hit_t.any(1), hit_t.argmax(1), 10**9)
     ks = j1 <= np.minimum(j2, max_hold)          # stop first when tied
