@@ -185,6 +185,45 @@ fees; it gets eaten by **discretisation**.
 Any future claim of the form "there is an edge, the costs are just too high"
 should be checked against this. Lowering costs did not help.
 
+## The live bot is running a disproven strategy
+
+`bot/pullback_strategy.py` — detect a 4-bar impulse, enter at a retracement,
+fixed stop and target — is the deployed strategy. It is impulse-pullback, the
+family measured here at:
+
+- −$2.21/trade out of sample on 5-minute bars
+- 39% holdout persistence against 50% by chance
+- 13 of 32 cells versus random entry on tick data (p=0.89)
+- losing to a random-entry control on every timeframe and all seven markets
+
+`INVERSE MODE` is not an escape. Direction was a free parameter in every
+search (`dirn = ±1`), so fading the impulse was tested alongside following it.
+Both fail; flipping a strategy with no edge yields no edge the other way while
+paying commission either way.
+
+**Do not take it live.** And do not treat a good week on the demo account as
+evidence — that is the same noise that produced the four retractions above.
+
+## The continuous-position pivot, and why it also died
+
+The best-reasoned attempt of the session. Since discretisation rather than
+commission is what destroys a 1% signal, hold a position sized to the signal
+instead of taking discrete bets — no stops, no targets, no entry timing.
+
+It looked like a find: flow signal +$29/wk holdout, picked on training alone,
+holdout above training, against a shuffled control at −$164/wk.
+
+Three checks killed it.
+
+1. **Gross, not net.** The shuffled control earned +$47/wk *gross*. Its awful
+   net was a $211/wk commission bill from churning 585 times a week. Flow's
+   real margin over noise was $59 vs $47, not $193.
+2. **Drift was not the explanation.** Worth recording because the guess was
+   wrong: both signals are z-scored and symmetric, so average position is ~0
+   and neither collects the holdout's $72.70/wk of drift.
+3. **Error bars.** flow $59/wk ±$56 (1.06σ); shuffled $47/wk ±$56 (0.83σ).
+   The uncertainty is larger than the effect. Same number.
+
 ## The one-line version
 
 The data contains roughly half the edge needed to pay its own transaction
