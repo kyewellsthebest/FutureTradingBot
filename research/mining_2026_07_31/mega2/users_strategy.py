@@ -30,6 +30,7 @@ import numpy as np, pandas as pd
 ROOT = os.environ.get("M2_REPO", "/home/user/FutureTradingBot")
 RAW = os.path.join(ROOT, "data", "tick", "raw")
 BARSEC = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+INVERT = os.environ.get("INVERT", "0") == "1"
 NS = 1_000_000_000
 # NQ full-size is $20/point; MNQ is $2/point. The user traded Nasdaq futures;
 # results are reported per MICRO contract, which is what a $4k account trades.
@@ -49,7 +50,7 @@ def bars(path):
     return a[a.v > 0].reset_index()
 
 
-def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold):
+def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold, invert=False):
     """The strategy as described. Returns per-trade GROSS dollars per micro."""
     o, h, l, c = (a.o.values, a.h.values, a.l.values, a.c.values)
     n = len(c)
@@ -70,6 +71,11 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold):
     rng = np.maximum(hi - lo, 0.25)
     # buy the dip on an up impulse, sell the rip on a down one
     entry = np.where(side > 0, c[idx] - retrace * rng, c[idx] + retrace * rng)
+    # The measurement says the retrace CONTINUES rather than bounces: after an
+    # up impulse, price at the retrace level falls another 6 points far more
+    # often than it rallies 12, at 28 sigma. Inverting takes the same entry
+    # level and trades the other way -- never tested at fixed point stops.
+    if invert: side = -side
     # wait up to max_wait bars for price to reach the retrace level
     st = np.arange(1, max_wait + 1)
     wb = np.minimum(idx[:, None] + st[None, :], n - 1)
@@ -107,8 +113,8 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold):
 
 
 files = sorted(glob.glob(os.path.join(RAW, "NQ*.parquet")))
-print(f"{len(files)} NQ contracts, {BARSEC}s bars, results per MICRO "
-      f"(${PT}/point)\n")
+print(f"{len(files)} NQ contracts, {BARSEC}s bars, per MICRO (${PT}/point)"
+      f"{'   *** INVERTED ***' if INVERT else ''}\n")
 ALL = {}
 for f in files:
     cname = os.path.basename(f).replace(".parquet", "")
@@ -140,7 +146,7 @@ best = None
 for imp, lb, rt, sp, tg, mw, mh in CFGS:
     agg = []
     for cname, a in ALL.items():
-        r = test(a, imp, lb, rt, sp, tg, mw, mh)
+        r = test(a, imp, lb, rt, sp, tg, mw, mh, invert=INVERT)
         if r: agg.append(r)
     if len(agg) < 4: continue
     tot = sum(r["n"] for r in agg)
