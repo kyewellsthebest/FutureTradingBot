@@ -69,11 +69,17 @@ def load(root, tf):
     g = pd.DataFrame({"d": day, "pv": tp * V, "v": V}).groupby("d")
     vwap = (g.pv.cumsum() / np.maximum(g.v.cumsum(), 1e-9)).values
     bod = pd.Series(np.ones(n)).groupby(day).cumsum().values.astype(np.int64) - 1
+    # The first bar of the day and the first TRADEABLE bar of the day are not
+    # the same bar. The day rolls at 22:00 UTC and the maintenance-break mask
+    # covers 21:00-22:30, so bar zero is always masked out -- which silently
+    # killed the gap mechanism the moment the day boundary moved.
+    fob = np.zeros(n, bool)
+    fob[pd.Series(np.arange(n)[ok]).groupby(day[ok]).min().values] = True
     dhi = pd.Series(H).groupby(day).cummax().values
     dlo = pd.Series(L).groupby(day).cummin().values
     P = 300
     return dict(root=root, tf=tf, traded=traded, dpt=pv * tick, tick=tick, comm=comm,
-                C=C, H=H, L=L, V=V, vwap=vwap, bod=bod, dhi=dhi, dlo=dlo,
+                C=C, H=H, L=L, V=V, vwap=vwap, bod=bod, dhi=dhi, dlo=dlo, fob=fob,
                 Hp=np.r_[H, np.full(P, np.nan)], Lp=np.r_[L, np.full(P, np.nan)],
                 Cp=np.r_[C, np.full(P, np.nan)], ATR=a, hr=hr, OK=ok, n=n,
                 day=day, wk=pd.factorize(d.ts.dt.strftime("%G-W%V"))[0],
@@ -136,7 +142,7 @@ def signal(M, p):
         dr = np.where(up, 1.0, np.where(dn, -1.0, 0.0)); ref = np.maximum(wid, 1.0)
     elif mech == "gap":                     # overnight gap, first bar of the day
         gp = np.r_[np.nan, np.diff(C)] / tick
-        trig = (M["bod"] == 0) & np.isfinite(gp) & (np.abs(gp) > p["k"] * ATR)
+        trig = M["fob"] & np.isfinite(gp) & (np.abs(gp) > p["k"] * ATR)
         dr = np.sign(gp); ref = np.abs(gp)
     else:                                   # vol: volume spike, take the bar's direction
         vm = pd.Series(M["V"]).rolling(max(lb * 10, 30), min_periods=20).mean().values

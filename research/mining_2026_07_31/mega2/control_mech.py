@@ -15,6 +15,8 @@ So: two checks, both on the engine, neither on any hypothesis.
 Usage: python control_mech.py [MARKET] [TF]
 """
 import os, sys, types
+os.environ["HUNT_COMMMULT"] = "0.0"
+os.environ["HUNT_SLIP"] = "0.0"
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +57,16 @@ fail = 0
 if ref is None:
     print("  [skip] no frozen reference at", refp)
 else:
+    # Run the comparison with costs off and the quality gates open. At real
+    # costs every one of these arbitrary vectors loses money in training, both
+    # engines bail at the same early return, and the diff compares None to
+    # None 144 times. Opening the gates is what gives the check something to
+    # actually disagree about.
+    for mod, mm in ((new, M), (ref, Mr)):
+        mod.MAXDD = 1e12; mod.MINGREEN = 0.0; mod.MAXRISK = 1e12
+        mod.SLIP = 0.0
+        mm["comm"] = 0.0
+    if hasattr(new, "COMMX"): new.COMMX = 0.0
     diffs = 0; compared = 0
     for c in CASES:
         a = new.evaluate(M, c)
