@@ -34,14 +34,18 @@ exec(compile(src, "hunter.py", "exec"), H.__dict__)
 
 SERIES = sys.argv[1] if len(sys.argv) > 1 else "vol_5000"
 NCFG = int(sys.argv[2]) if len(sys.argv) > 2 else 1500
+ROOTSYM = (sys.argv[3] if len(sys.argv) > 3 else "NQ").upper()
 SPLITS = [0.5, 0.6, 0.7, 0.8]
-# NQ micro: $2 a point, 0.25 tick -> $0.50 a tick, ~$1.74 round turn
-TICK, DPT, COMM = 0.25, 0.50, 1.74
+# Each root trades its own micro with its own tick value and commission --
+# using NQ's numbers everywhere would misprice every other market's costs.
+from econ import ECON
+_pv, TICK, COMM, TRADED, _mg, _af = ECON[ROOTSYM]
+DPT = _pv * TICK
 NS = 1_000_000_000
 
 
 def load_ev(name):
-    d = pd.read_parquet(os.path.join(EV, f"NQ_{name}.parquet"))
+    d = pd.read_parquet(os.path.join(EV, f"{ROOTSYM}_{name}.parquet"))
     d = d.sort_values("ts").reset_index(drop=True)
     C = d.close.values.astype(float); Hh = d.high.values.astype(float)
     L = d.low.values.astype(float); n = len(C)
@@ -63,7 +67,7 @@ def load_ev(name):
     fob[pd.Series(np.arange(n)[ok]).groupby(day[ok]).min().values] = True
     P = 300
     CT = d.contract.values
-    return dict(root="NQ", CT=CT, tf=0, lead=None, traded="MNQ", dpt=DPT, tick=TICK, comm=COMM,
+    return dict(root=ROOTSYM, CT=CT, tf=0, lead=None, traded=TRADED, dpt=DPT, tick=TICK, comm=COMM,
                 C=C, H=Hh, L=L, V=V, vwap=vwap, bod=bod,
                 dhi=pd.Series(Hh).groupby(day).cummax().values,
                 dlo=pd.Series(L).groupby(day).cummin().values,
@@ -130,7 +134,7 @@ def book(M, p, exact=True):
 M = load_ev(SERIES)
 n = M["n"]
 span = (M["ts"].max() - M["ts"].min()) / 86400
-print(f"{SERIES}: {n:,} bars over {span:.0f} days, "
+print(f"{ROOTSYM} {SERIES}: {n:,} bars over {span:.0f} days, "
       f"{len(np.unique(M['day']))} sessions\n", flush=True)
 
 rng = np.random.default_rng(20260804)
@@ -197,7 +201,7 @@ print(f"{'mech':>6s} {'cells':>6s} {'trades/wk':>10s} {'train $':>9s} "
 for mech, g in d.groupby("mech"):
     print(f"{mech:>6s} {len(g):6d} {g.tpw.mean():10.1f} {g.tr.mean():9.2f} "
           f"{g.ho.mean():10.2f} {g.ctl.mean():10.2f} {g.beat.mean():6.0%}")
-d.to_csv(os.path.join(HERE, f"tickrobust_{SERIES}.csv"), index=False)
+d.to_csv(os.path.join(HERE, f"tickrobust_{ROOTSYM}_{SERIES}.csv"), index=False)
 print(f"\nper contract (holdout $/trade, drift-adjusted):")
 print(d.pivot_table(index="contract", columns="mech", values="ho").round(1).to_string())
 from math import comb
