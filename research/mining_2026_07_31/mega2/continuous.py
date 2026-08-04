@@ -85,13 +85,21 @@ def run(sig, band, scale, cut_lo, cut_hi):
         if np.isfinite(s[i]) and abs(s[i] - cur) >= band:
             cur = float(np.round(s[i]))          # whole contracts only
         pos[i] = cur
-    ret = np.r_[0, np.diff(C)] / TICK * DPT      # $ per contract per bar
+    # DRIFT-ADJUSTED returns. The holdout is a rally, so any strategy whose
+    # average position is even slightly long earns money gross without
+    # predicting anything -- which is exactly why the shuffled control showed
+    # +$47/wk gross in the first version of this test. Removing the split's
+    # mean per-bar move makes a constant position worth exactly zero, so only
+    # POSITION TIMING can produce a profit.
+    raw = np.r_[0, np.diff(C)] / TICK * DPT
+    ret = raw.copy()
+    ret[cut_lo:cut_hi] -= np.nanmean(raw[cut_lo:cut_hi])
     # position held into bar i earns bar i's move
     pnl = np.r_[0, pos[:-1]][cut_lo:cut_hi] * ret[cut_lo:cut_hi]
     turn = np.abs(np.diff(np.r_[0, pos[cut_lo:cut_hi]]))
     cost = turn * (COMM / 2.0)                   # one side per contract traded
     net = pnl - cost
-    return net, turn
+    return net, turn, pnl
 
 
 print(f"{'signal':>14s} {'band':>5s} {'scale':>6s} {'train $/wk':>11s} "
@@ -102,8 +110,8 @@ BARS_PER_WK = n / ((d.ts.max() - d.ts.min()) / NS / 86400 / 7 * 5)
 for name, sg in SIGNALS.items():
     for band in (0.5, 1.0):
         for scale in (1.0, 2.0, 4.0):
-            tr, tt = run(sg, band, scale, 200, CUT)
-            ho, ht = run(sg, band, scale, CUT, n)
+            tr, tt, trg = run(sg, band, scale, 200, CUT)
+            ho, ht, hog = run(sg, band, scale, CUT, n)
             if ht.sum() < 50: continue
             wtr = (CUT - 200) / BARS_PER_WK
             who = (n - CUT) / BARS_PER_WK
@@ -112,6 +120,10 @@ for name, sg in SIGNALS.items():
             rows.append(dict(signal=name, band=band, scale=scale,
                              tr=tr.sum() / max(wtr, 1e-9),
                              ho=ho.sum() / max(who, 1e-9),
+                             # GROSS matters: if a signal only wins because it
+                             # trades less, its gross is flat and the whole gap
+                             # is the control's commission bill, not prediction
+                             ho_gross=hog.sum() / max(who, 1e-9),
                              tpw=ht.sum() / max(who, 1e-9), sharpe=shp))
             print(f"{name:>14s} {band:5.1f} {scale:6.1f} {rows[-1]['tr']:11.0f} "
                   f"{rows[-1]['ho']:13.0f} {rows[-1]['tpw']:10.1f} {shp:15.2f}")
@@ -133,4 +145,33 @@ if best.ho > sh.ho.max():
 else:
     print(f"  does NOT beat the shuffled control's ${sh.ho.max():,.0f}/wk. "
           f"No edge here.")
+# The decisive diagnostic. Gross P&L ignores commission entirely, so it cannot
+# reward a signal merely for sitting still. If the real signal's gross is
+# positive while shuffled gross is flat, the position sign genuinely predicts.
+# If both are flat, the whole result was turnover and nothing else.
+print(f"\nGROSS holdout \$/wk, commission excluded -- this is the honest test:")
+print(f"{'signal':>14s} {'gross':>9s} {'net':>9s} {'trades/wk':>10s} "
+      f"{'cost/wk':>9s}")
+for name in SIGNALS:
+    g = r[r.signal == name]
+    if not len(g): continue
+    b = g.loc[g.tr.idxmax()]
+    print(f"{name:>14s} {b.ho_gross:9.0f} {b.ho:9.0f} {b.tpw:10.1f} "
+          f"{b.ho_gross-b.ho:9.0f}")
+print("\nturnover-matched: every arm forced to about the same trades/wk")
+tgt = float(real.loc[real.tr.idxmax()].tpw)
+print(f"  target {tgt:.0f} trades/wk")
+for name, sg in SIGNALS.items():
+    best_d, best_b = None, None
+    for band in np.arange(0.05, 4.0, 0.05):
+        _, ht2, hg2 = run(sg, band, 1.0, CUT, n)
+        t2 = ht2.sum() / max((n - CUT) / BARS_PER_WK, 1e-9)
+        dd = abs(t2 - tgt)
+        if best_d is None or dd < best_d:
+            best_d, best_b = dd, (band, t2, hg2.sum() / max((n-CUT)/BARS_PER_WK, 1e-9))
+    if best_b:
+        ok = "" if abs(best_b[1] - tgt) < tgt * 0.35 else "   <- could not match"
+        print(f"  {name:>14s}: band {best_b[0]:.2f} -> {best_b[1]:6.1f} trades/wk, "
+              f"gross \${best_b[2]:8.0f}/wk{ok}")
+
 r.to_csv(os.path.join(HERE, f"continuous_{ROOTSYM}_{SERIES}.csv"), index=False)
