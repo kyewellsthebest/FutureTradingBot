@@ -71,3 +71,6 @@ research/mining_2026_07_31/mega2/pf*_*.json.gz
 research/mining_2026_07_31/mega2/tk*_*.npz
 research/mining_2026_07_31/mega2/tk*_*.json.gz
 !research/mining_2026_07_31/mega2/*_results/*
+
+hunter_board.json
+research/mining_2026_07_31/mega2/cc_*.json.gz
