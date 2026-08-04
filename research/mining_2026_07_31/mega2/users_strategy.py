@@ -120,17 +120,22 @@ print(f"built bars for {len(ALL)} contracts\n")
 
 # The user's configuration, plus a spread around it, because "20% retrace" and
 # "an impulse" are approximate descriptions of something that was tuned live.
+# "12 and 6" has two readings and they are different strategies. POINTS gives
+# a 12-point target, which is a long way on NQ and sits oddly with 200 trades
+# a day. TICKS gives 3.0 and 1.5 points -- tight, fast, and far more consistent
+# with that trade count. Both get tested; the tick reading was never covered by
+# any earlier search because every stop there was ATR-scaled.
+STOPTGT = [(6.0, 12.0, "points"), (1.5, 3.0, "ticks"), (3.0, 6.0, "half")]
 CFGS = []
-for imp in (8, 12, 20, 30):
-    for lb in (3, 5, 10):
-        for rt in (0.2, 0.35, 0.5):
-            CFGS.append((imp, lb, rt, 6.0, 12.0, 10, 60))
-# the exact description first
-CFGS.insert(0, (12, 4, 0.20, 6.0, 12.0, 10, 60))
+for sp, tg, _lbl in STOPTGT:
+    for imp in (3, 5, 8, 12, 20):
+        for lb in (3, 5, 10):
+            for rt in (0.2, 0.35, 0.5):
+                CFGS.append((imp, lb, rt, sp, tg, 10, 60))
 
-print(f"{'impulse':>8s} {'lb':>3s} {'retr':>5s} {'trades':>8s} {'per day':>8s} "
-      f"{'win%':>6s} {'GROSS $/tr':>11s} {'+/-':>6s} {'net@$1.32':>10s} "
-      f"{'net@$0.72':>10s}")
+print(f"{'stop/tgt':>9s} {'imp':>5s} {'lb':>3s} {'retr':>5s} {'trades':>8s} "
+      f"{'/day':>7s} {'win%':>6s} {'need':>6s} {'GROSS$':>10s} {'+/-':>6s} "
+      f"{'net@.72':>9s}")
 best = None
 for imp, lb, rt, sp, tg, mw, mh in CFGS:
     agg = []
@@ -145,8 +150,11 @@ for imp, lb, rt, sp, tg, mw, mh in CFGS:
     se = np.sqrt(sum((r["se"] * r["n"]) ** 2 for r in agg)) / tot
     row = dict(imp=imp, lb=lb, rt=rt, n=tot, per_day=pd_, wr=wr, gross=g, se=se)
     if best is None or g > best["gross"]: best = row
-    print(f"{imp:8.0f} {lb:3d} {rt:5.2f} {tot:8,} {pd_:8.1f} {wr*100:5.1f}% "
-          f"{g:11.3f} {se:6.3f} {g-1.32:10.3f} {g-0.72:10.3f}")
+    row["sp"] = sp; row["tg"] = tg
+    # break-even win rate for this reward:risk, so the gap is visible directly
+    be = sp / (sp + tg)
+    print(f"{sp:4.1f}/{tg:<4.1f} {imp:5.0f} {lb:3d} {rt:5.2f} {tot:8,} {pd_:7.1f} "
+          f"{wr*100:5.1f}% {be*100:5.1f}% {g:10.3f} {se:6.3f} {g-0.72:9.3f}")
 
 if best:
     print(f"\nbest gross: impulse {best['imp']}pt over {best['lb']} bars, "
