@@ -158,6 +158,23 @@ for name in SIGNALS:
     b = g.loc[g.tr.idxmax()]
     print(f"{name:>14s} {b.ho_gross:9.0f} {b.ho:9.0f} {b.tpw:10.1f} "
           f"{b.ho_gross-b.ho:9.0f}")
+# Error bars. Every figure above is a point estimate and the whole continuous
+# pivot turns on a $12/wk gap between flow and noise -- meaningless unless the
+# uncertainty is smaller than the gap. Standard error on the weekly gross is
+# the per-bar P&L standard deviation scaled by sqrt(bars) and divided by weeks.
+print("\ngross \$/wk with a standard error, at the train-picked settings:")
+who2 = (n - CUT) / BARS_PER_WK
+for name, sg in SIGNALS.items():
+    g = r[r.signal == name]
+    if not len(g): continue
+    b = g.loc[g.tr.idxmax()]
+    _, _, hg = run(sg, float(b.band), float(b.scale), CUT, n)
+    se = float(np.nanstd(hg)) * np.sqrt(len(hg)) / who2
+    mu = float(np.nansum(hg)) / who2
+    print(f"  {name:>14s}: \${mu:7.0f}/wk  +/- \${se:5.0f}   "
+          f"({abs(mu)/se if se > 0 else 0:.2f} sigma)")
+print("  a signal has to clear its own error bar before it clears the control")
+
 print("\nturnover-matched: every arm forced to about the same trades/wk")
 tgt = float(real.loc[real.tr.idxmax()].tpw)
 print(f"  target {tgt:.0f} trades/wk")
