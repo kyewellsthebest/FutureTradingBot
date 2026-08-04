@@ -55,7 +55,7 @@ fail = 0
 if ref is None:
     print("  [skip] no frozen reference at", refp)
 else:
-    diffs = 0
+    diffs = 0; compared = 0
     for c in CASES:
         a = new.evaluate(M, c)
         b = ref.evaluate(Mr, {k: v for k, v in c.items() if k != "mech"})
@@ -63,13 +63,23 @@ else:
             diffs += 1; print("  MISMATCH none-ness:", c); continue
         if a is None:
             continue
+        compared += 1
         for k in ("tpw", "wr", "wkly", "maxdd", "risk", "n", "tr", "ho"):
             if a[k] != b[k]:
                 diffs += 1
                 print(f"  MISMATCH {k}: new={a[k]} ref={b[k]}  {c}")
                 break
-    print(f"  1. regression: {len(CASES)} vectors, {diffs} mismatches -> "
-          + ("PASS" if diffs == 0 else "FAIL"))
+    # A regression check where every case was rejected in both versions has
+    # zero mismatches and has tested nothing. That is how a bug that squeezed
+    # the whole history into two days sailed through this check.
+    MINCMP = len(CASES) // 4
+    print(f"  1. regression: {len(CASES)} vectors, {compared} produced results, "
+          f"{diffs} mismatches -> "
+          + ("PASS" if diffs == 0 and compared >= MINCMP else "FAIL"))
+    if compared < MINCMP:
+        print(f"     ^^ VACUOUS: only {compared} of {len(CASES)} vectors returned "
+              f"anything to compare (need {MINCMP}). Nothing was actually tested.")
+        fail += 1
     fail += diffs
 
 # Liveness. Sweep each mechanism over a coarse spread and report what it did.

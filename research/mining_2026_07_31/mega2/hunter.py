@@ -57,7 +57,11 @@ def load(root, tf):
     # range" mean the middle of the overnight. Two hours forward rolls the day
     # at the real session open. (Winter shifts it to 23:00 UTC; a fixed roll is
     # an hour off for those months, which beats being six hours off always.)
-    esec = (d.ts.astype("int64") // 10**9).values
+    # Via numpy, NOT `astype("int64") // 10**9`. Pandas 3 stores these as
+    # microseconds, so that idiom divides by a thousand too much and silently
+    # squeezes two and a half years into two days. Asking numpy for seconds
+    # explicitly is correct whatever unit the column happens to carry.
+    esec = d.ts.values.astype("datetime64[s]").astype("int64")
     day = pd.factorize((esec + 2 * 3600) // 86400)[0]
     # Session-anchored running VWAP and bar-of-day index. Both reset each day,
     # which is what makes the opening-range and VWAP mechanisms mean anything.
