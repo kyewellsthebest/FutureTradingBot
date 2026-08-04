@@ -52,7 +52,13 @@ def load(root, tf):
     hr = (d.ts.dt.hour + d.ts.dt.minute / 60.0).values
     gapc = pd.Series((d.ts.diff() > pd.Timedelta("3h")).values).rolling(60, min_periods=1).max().fillna(0).values.astype(bool)
     ok = np.isfinite(a) & (a > 0) & ~gapc & ~((hr >= 21.0) & (hr < 22.5))
-    day = pd.factorize(d.ts.dt.date)[0]
+    # The CME trading day opens 18:00 New York, which is 22:00 UTC. Splitting
+    # at midnight UTC would cut every session in half and make "the opening
+    # range" mean the middle of the overnight. Two hours forward rolls the day
+    # at the real session open. (Winter shifts it to 23:00 UTC; a fixed roll is
+    # an hour off for those months, which beats being six hours off always.)
+    esec = (d.ts.astype("int64") // 10**9).values
+    day = pd.factorize((esec + 2 * 3600) // 86400)[0]
     # Session-anchored running VWAP and bar-of-day index. Both reset each day,
     # which is what makes the opening-range and VWAP mechanisms mean anything.
     tp = (H + L + C) / 3.0
@@ -67,7 +73,10 @@ def load(root, tf):
                 Hp=np.r_[H, np.full(P, np.nan)], Lp=np.r_[L, np.full(P, np.nan)],
                 Cp=np.r_[C, np.full(P, np.nan)], ATR=a, hr=hr, OK=ok, n=n,
                 day=day, wk=pd.factorize(d.ts.dt.strftime("%G-W%V"))[0],
-                wks=d.ts.dt.date.nunique() / 5.0, cut=int(n * 0.75))
+                wks=len(np.unique(day)) / 5.0, cut=int(n * 0.75),
+                # wall-clock epoch seconds: the only way to merge books from
+                # markets whose bar indices mean different moments in time
+                ts=esec)
 
 REJC={}
 CUR=["imp"]
