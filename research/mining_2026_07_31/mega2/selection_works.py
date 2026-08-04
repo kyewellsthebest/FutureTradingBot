@@ -125,16 +125,34 @@ for lbl, tc, hc in (("raw", "tr_wk", "ho_wk"), ("drift-adjusted", "tr_adj", "ho_
     print(f"    net long by decile: " +
           " ".join(f"{r.net_long:+.2f}" for _, r in g.iterrows()))
 
+# The verdict must be read off the TOP decile, not off the pooled correlation.
+# A first version of this concluded "drift" because random entries also
+# correlate -- but drift adjustment leaves the number unchanged, so that was
+# wrong. The correlation is real and lives in the junk: configs losing $300 a
+# week in training reliably lose $280 in the holdout, which produces a strong
+# rank correlation while saying nothing about whether the best configs hold up.
+d["dec"] = pd.qcut(d.tr_adj, 10, labels=False, duplicates="drop")
+top = d[d.dec == d.dec.max()]
+t_tr, t_ho = float(top.tr_adj.mean()), float(top.ho_adj.mean())
 rr = spearman(rnd.tr_wk.values, rnd.ho_wk.values) if len(rnd) > 50 else np.nan
+print(f"\ntop decile, drift-adjusted: train ${t_tr:+,.0f}/wk -> "
+      f"holdout ${t_ho:+,.0f}/wk")
+if np.isfinite(rr):
+    print(f"random entries reach {rr:+.3f} on the same pooled test, so a large "
+          f"part of\n  the correlation needs no information at all.")
 print()
-if np.isfinite(rr) and rr > 0.3:
-    print(f"VERDICT: random entries show {rr:+.3f} on the same test. The "
-          f"correlation is\n  the market trending in both periods, not "
-          f"selection detecting skill.")
-elif np.isfinite(alla) and alla > 0.3:
-    print("VERDICT: the correlation survives drift adjustment and random "
-          "entries do not\n  reproduce it. Selection is doing real work.")
+if t_ho > 0 and t_ho > 0.5 * t_tr:
+    print("VERDICT: the configs selection actually picks do hold up. "
+          "Selection works.")
+elif t_ho > 0:
+    print("VERDICT: selected configs stay positive but give most of it back. "
+          "Selection\n  works weakly; size any expectation off the holdout "
+          "figure, never the training one.")
 else:
-    print("VERDICT: the correlation does not survive drift adjustment. "
-          "Whatever the\n  original measured, it was not selection skill.")
+    print("VERDICT: selection does NOT work where it matters. The pooled "
+          f"correlation of\n  {alla:+.3f} is produced by consistently bad "
+          "configs staying bad. The top\n  decile -- the only one anybody "
+          f"would trade -- goes from ${t_tr:+,.0f} to ${t_ho:+,.0f}\n  a week. "
+          "A high train/holdout correlation is not evidence that picking\n"
+          "  winners works, and it was read that way.")
 d.to_csv(os.path.join(HERE, f"selection_{TF}.csv"), index=False)

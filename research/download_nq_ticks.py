@@ -24,7 +24,11 @@ OUT = ROOT / "data" / "tick" / "nq_ticks_2p5y.parquet"
 
 HISTORY_DAYS = 1010                      # ~2.75 years
 MONTH_CODE = {3: "H", 6: "M", 9: "U", 12: "Z"}
-PRODUCT = "NQ"
+# Root symbol. Derived from TICKER when one is given, so the same script
+# serves any product -- the contract-window logic is identical across roots.
+PRODUCT = (os.environ.get("PRODUCT")
+           or (os.environ.get("TICKER", "NQ")[:-2] if os.environ.get("TICKER")
+               else "NQ")).upper()
 LIMIT = 50000
 NS = 1_000_000_000
 CHECKPOINT_PAGES = 40                    # save partial progress this often

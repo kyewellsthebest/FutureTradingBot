@@ -1,0 +1,79 @@
+name: Download Multi-Market Ticks
+
+# Every test in this project outside NQ has run on 5-minute aggregates, which
+# hide the path inside the bar and impose a clock the market does not have.
+# This pulls the raw trade tape for the other liquid, account-affordable
+# markets so they can be searched the same way NQ now is.
+#
+# Manual trigger. Needs repo secret POLYGON_API.
+on:
+  workflow_dispatch:
+    inputs:
+      roots:
+        description: "comma-separated roots (blank = the default set)"
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tickers: ${{ steps.plan.outputs.tickers }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view multi-ticks-raw \
+            || gh release create multi-ticks-raw -t "Multi-market ticks (per-contract)" \
+                 -n "Polygon futures trades, one parquet per contract, several roots"
+      # Contract codes are generated rather than hardcoded so the set can be
+      # changed from the dispatch input without editing the workflow.
+      - id: plan
+        env:
+          ROOTS: ${{ github.event.inputs.roots }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          roots = [r.strip().upper() for r in
+                   (os.environ.get("ROOTS") or "ES,RTY,YM,CL,GC,HG").split(",") if r.strip()]
+          # quarterly cycle, the contracts covering roughly the last two years
+          codes = ["U4", "Z4", "H5", "M5", "U5", "Z5", "H6", "M6"]
+          out = [f"{r}{c}" for r in roots for c in codes]
+          print("tickers=" + json.dumps(out))
+          PY
+
+  download:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        ticker: ${{ fromJson(needs.prepare.outputs.tickers) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install pandas pyarrow
+      - name: Download ${{ matrix.ticker }}
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+          TICKER: ${{ matrix.ticker }}
+        run: python -m research.download_nq_ticks
+      # A contract with no trades is normal -- not every code in the grid was
+      # ever listed or liquid -- so a missing file must not fail the run.
+      - name: Upload ${{ matrix.ticker }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          f=data/tick/raw/${{ matrix.ticker }}.parquet
+          if [ -s "$f" ]; then
+            gh release upload multi-ticks-raw "$f" --clobber
+          else
+            echo "no data for ${{ matrix.ticker }} -- skipping"
+          fi
