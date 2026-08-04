@@ -29,6 +29,7 @@ ACCT = 4100.0
 MAXRISK = float(os.environ.get("M2_MAXRISK", "30"))
 MAXDD = float(os.environ.get("M2_MAXDD", "800"))
 MINGREEN = float(os.environ.get("M2_MINGREEN", "0.60"))
+SLIP = float(os.environ.get("HUNT_SLIP", "1.0"))   # ticks charged on stop/time exits
 # every market whose 2xATR stop fits the account, cheapest risk first
 POOL = os.environ.get("HUNT_MARKETS", "RTY,YM,CL,HG,ES,NG,6E,6B,6A,MBT,ETH,ZF,ZT").split(",")
 rng = np.random.default_rng(SEED if SEED else None)
@@ -95,11 +96,11 @@ def evaluate(M, p):
     j1 = np.where(hs.any(1), hs.argmax(1), 10**9); j2 = np.where(ht.any(1), ht.argmax(1), 10**9)
     ks_ = j1 <= np.minimum(j2, hold); kt = (~ks_) & (j2 <= hold)
     xj = np.where(ks_, np.minimum(j1, hold), np.where(kt, np.minimum(j2, hold), hold))
-    xp = np.where(ks_, (sl - tick) * sd, np.where(kt, tp * sd,
-                  cw[ar, np.minimum(xj, hold)] - tick * sd))
+    xp = np.where(ks_, (sl - SLIP*tick) * sd, np.where(kt, tp * sd,
+                  cw[ar, np.minimum(xj, hold)] - SLIP*tick * sd))
     gd = np.isfinite(xp)
     if gd.sum() < 200: return REJ('fills')
-    pl = (xp[gd] - ep[gd]) * sd[gd] * (1 / tick) * dpt - M["comm"]
+    pl = (xp[gd] - ep[gd]) * sd[gd] * (1 / tick) * dpt - M["comm"]*float(os.environ.get("HUNT_COMMMULT","1.0"))
     F = fb[gd]; X = fb[gd] + xj[gd]
     o = np.argsort(F); pl, F, X = pl[o], F[o], X[o]
     mp = int(round(p["maxpos"]))
