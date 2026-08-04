@@ -130,6 +130,24 @@ for col in FEATS + ["shuffled"]:
 
 sh = [o for o in out if o[0] == "shuffled"][0]
 print(f"\nshuffled control: {sh[1]:+.4f} train, {sh[2]:+.4f} holdout")
+# Cost is FIXED per trade; payoff grows with how far the trade travels. So an
+# IC that cannot pay $1.74 on a $70 trade may pay it easily on a $300 one.
+# Scan horizons for the best feature and report where, if anywhere, it crosses.
+print("\nhorizon scan -- cost is fixed per trade, payoff is not:")
+print(f"{'fwd trades':>11s} {'holdout IC':>11s} {'move ($)':>9s} "
+      f"{'gross $/tr':>11s} {'net vs $1.74':>13s}")
+base = D[D.contract.isin(ho_c)]
+for mult in (1, 2, 5, 10, 25, 50, 100):
+    step = max(FWD * mult // W, 1)
+    f2 = base.groupby("contract", group_keys=False).apply(
+        lambda g: (g.close.shift(-step) - g.close), include_groups=False)
+    v = ic(base["delta"].values, f2.values)
+    # typical absolute move over the horizon, in dollars on MNQ ($2/point)
+    move = float(np.nanmedian(np.abs(f2.values))) * 2.0
+    gross = abs(v) * move if np.isfinite(v) else 0.0
+    print(f"{FWD*mult:11,} {v:+11.4f} {move:9.0f} {gross:11.2f} "
+          f"{gross-1.74:+13.2f}")
+
 best = max((o for o in out if o[0] != "shuffled"), key=lambda o: abs(o[2]))
 # NQ micro: a 1.8 reward-to-risk trade on ~$25 of risk spans roughly $70
 worth = abs(best[2]) * 70

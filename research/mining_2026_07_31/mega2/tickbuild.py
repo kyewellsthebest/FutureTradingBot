@@ -26,9 +26,24 @@ import numpy as np, pandas as pd
 
 ROOT = os.environ.get("M2_REPO", "/home/user/FutureTradingBot")
 RAW = os.path.join(ROOT, "data", "tick", "raw")
+MULTI = os.path.join(ROOT, "data", "tick", "multi")
 OUT = os.path.join(ROOT, "data", "tick", "ev")
+# Which root to build. Everything outside NQ lives in the multi directory,
+# pulled from the multi-ticks-raw release.
+ROOTSYM = os.environ.get("TB_ROOT", "NQ").upper()
 NS = 1_000_000_000
 BIG = 10
+
+# Thresholds are per-root: 500 NQ trades and 500 copper trades are not
+# comparable events, so each root gets thresholds scaled to its own activity.
+SCALE = {"NQ": 1.0, "ES": 1.0, "RTY": 0.35, "YM": 0.30,
+         "CL": 0.45, "GC": 0.45, "HG": 0.15}.get(ROOTSYM, 0.5)
+# Range thresholds are quoted in TICKS, not points. 15 points is 60 ticks on
+# NQ and 1,500 on crude -- the same number of points is a completely different
+# event from one market to the next, whereas a tick is the market's own unit.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from econ import ECON
+TICKSZ = ECON[ROOTSYM][1]
 
 # (name, kind, threshold). No clock in any of them.
 SERIES = [
@@ -36,8 +51,8 @@ SERIES = [
     ("tick_2000",  "tick",      2000),
     ("vol_5000",   "volume",    5000),
     ("vol_20000",  "volume",    20000),
-    ("range_15",   "range",     15.0),
-    ("range_40",   "range",     40.0),
+    ("range_60t",  "range",     60),      # ticks
+    ("range_160t", "range",     160),     # ticks
     ("imb_2000",   "imbalance", 2000),
 ]
 
@@ -102,10 +117,17 @@ def build(path, kind, thr):
 
 want = sys.argv[1:] or [s[0] for s in SERIES]
 os.makedirs(OUT, exist_ok=True)
-files = sorted(glob.glob(os.path.join(RAW, "*.parquet")))
-print(f"{len(files)} contracts -> {len(want)} event-bar series\n", flush=True)
+src = RAW if ROOTSYM == "NQ" else MULTI
+files = sorted(f for f in glob.glob(os.path.join(src, "*.parquet"))
+               if os.path.basename(f).startswith(ROOTSYM))
+print(f"{ROOTSYM}: {len(files)} contracts -> {len(want)} series "
+      f"(activity scale {SCALE})\n", flush=True)
 for name, kind, thr in SERIES:
     if name not in want: continue
+    # activity thresholds scale with the market's trade rate; range
+    # thresholds convert ticks -> points using this market's tick size
+    thr = (max(round(thr * SCALE), 1) if kind != "range"
+           else max(round(thr * SCALE), 4) * TICKSZ)
     parts = []
     for f in files:
         c = os.path.basename(f).replace(".parquet", "")
@@ -119,7 +141,7 @@ for name, kind, thr in SERIES:
         parts.append(a)
     if not parts: continue
     b = pd.concat(parts, ignore_index=True).sort_values("ts").reset_index(drop=True)
-    p = os.path.join(OUT, f"NQ_{name}.parquet")
+    p = os.path.join(OUT, f"{ROOTSYM}_{name}.parquet")
     b.to_parquet(p, compression="zstd", index=False)
     span = (b.ts.max() - b.ts.min()) / NS / 86400
     print(f"{name:>10s}: {len(b):>9,} bars over {span:.0f} days, "
