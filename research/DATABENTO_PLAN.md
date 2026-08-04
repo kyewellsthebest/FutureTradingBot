@@ -37,13 +37,26 @@ Cheaper schemas and why they are not the point:
   rule. A reasonable **cheap first step** if you want to spend $20 not $200.
 - `trades` — what we already have from Polygon. Do not buy this.
 
-**Billing:** historical data is pay-as-you-go by volume, not a subscription.
-You are charged for what you download. There is normally free trial credit on
-signup — enough for the first test below.
+**Billing (confirmed from the pricing page, 2026-08-04):** usage-based,
+**$1.80/GB** for MBO on GLBX, historical only, pay as you go. 16+ years of
+history, CME/CBOT/NYMEX/COMEX.
 
-**Expected cost:** MBO is large — roughly 1–3 GB per contract-month for NQ.
-Budget $100–400 for a meaningful historical sample. **Always call the cost
-endpoint before any download.**
+**Expected cost:** MBO carries every order add, modify and cancel — typically
+10–100x the message count of trades. One week of front-month NQ plausibly
+lands between 2 and 15 GB, so **$4–$27**. That spread is exactly why the cost
+must be calculated, not estimated.
+
+**Symbol choice:** use **NQ** (full size), not MNQ. We trade the micro, but the
+full-size contract carries the real book and the micro's price is dragged along
+behind it. For measuring signal, take the richer book. If the signal survives,
+buy MNQ separately for fill modelling.
+
+**Cheaper schemas if MBO prices out:**
+- `mbp-10` — top ten levels, aggregated. Perhaps 10x smaller. Loses order IDs
+  so no queue-position work, but keeps book imbalance, which is the main thing
+  worth measuring.
+- `tbbo` — trades plus the quote at each trade. Smallest. Would replace the
+  tick-rule guess about whether a trade hit the bid or the ask with the fact.
 
 ## Step by step
 
