@@ -144,8 +144,42 @@ one thing measured to be counterproductive.
   edge to cost is far better, are not ruled out by this study — nothing here
   tested holding periods beyond a few days.
 
+## Costs, corrected
+
+The commission figures used through most of this study were guesses, and
+several were badly overstated. Built from components -- Tradovate broker per
+side plus exchange, clearing and NFA:
+
+| plan | broker/side | NQ ES RTY YM GC | HG | CL |
+|---|---|---|---|---|
+| free | $0.39 | $1.32 | $1.52 | $1.82 |
+| $99/month | $0.29 | $1.12 | $1.32 | $1.62 |
+| $1,499 lifetime | $0.09 | **$0.72** | $0.92 | $1.22 |
+
+This changes none of the nulls: the random-entry control pays the same
+commission, so cheaper trading cannot help a mechanism beat it.
+
+## Statistical edge is not tradeable edge
+
+The most useful thing learned here. Signed volume genuinely predicts forward
+returns -- IC +0.0098, same sign in 8 of 8 contracts. Solid measurement.
+
+Traded as a mechanism at $0.72 round turn, the cheapest commission obtainable,
+it beats the random control in **13 of 32 cells (p=0.89)** and earns -$1.91 a
+trade against the control's -$0.05.
+
+Cheaper commission cannot rescue it, because commission was never the binding
+constraint. Turning a 1% correlation into a position requires choosing an
+entry price, a stop distance, a target and a time limit, and each of those
+injects variance far larger than the signal. The edge does not get eaten by
+fees; it gets eaten by **discretisation**.
+
+Any future claim of the form "there is an edge, the costs are just too high"
+should be checked against this. Lowering costs did not help.
+
 ## The one-line version
 
 The data contains roughly half the edge needed to pay its own transaction
-costs, and the search methods that appear to find more are measurably selecting
-noise.
+costs; the part that is real is too small to survive being turned into a
+trade; and the search methods that appear to find more are measurably
+selecting noise.
