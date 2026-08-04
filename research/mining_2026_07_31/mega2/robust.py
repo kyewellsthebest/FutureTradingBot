@@ -91,7 +91,10 @@ rows = []
 for mk in MKTS:
     t0 = time.time()
     try:
-        M = H.load(mk, TF)
+        # The cross-market mechanism needs a leader, and without one it
+        # silently yields no signals and no column -- which is how it went
+        # untested. ES leads the equity complex; NQ leads ES itself.
+        M = H.load(mk, TF, lead=("NQ" if mk == "ES" else "ES"))
     except Exception as e:
         print(f"  skip {mk}: {e}"); continue
     C, tick, dpt, n = M["C"], M["tick"], M["dpt"], M["n"]
@@ -148,7 +151,7 @@ print(pv2.round(1).to_string())
 
 # The single number that matters: does the best mechanism beat its control
 # in most cells, or only in the one it was discovered in?
-for mech in ("vwr", "rev", "imp"):
+for mech in ("vwr", "rev", "imp", "xmk", "cal", "sqz", "orb", "gap", "vol"):
     g = d[d.mech == mech]
     if not len(g): continue
     w = int(g.beat.sum()); k = len(g)
