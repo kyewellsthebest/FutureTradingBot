@@ -62,7 +62,8 @@ def load_ev(name):
     fob = np.zeros(n, bool)
     fob[pd.Series(np.arange(n)[ok]).groupby(day[ok]).min().values] = True
     P = 300
-    return dict(root="NQ", tf=0, lead=None, traded="MNQ", dpt=DPT, tick=TICK, comm=COMM,
+    CT = d.contract.values
+    return dict(root="NQ", CT=CT, tf=0, lead=None, traded="MNQ", dpt=DPT, tick=TICK, comm=COMM,
                 C=C, H=Hh, L=L, V=V, vwap=vwap, bod=bod,
                 dhi=pd.Series(Hh).groupby(day).cummax().values,
                 dlo=pd.Series(L).groupby(day).cummin().values,
@@ -153,29 +154,43 @@ print(f"same-bar stop AND target touched on {np.mean(ambig):.1%} of trades -- "
       f"by fiat.\n", flush=True)
 
 C = M["C"]
+CT = M["CT"]
+# Only NQ has a tape, so one market x four splits is four cells -- far too few
+# for a sign test, and the whole power of this design comes from cell count.
+# But the tape is eight separate contracts covering eight different periods,
+# and a contract is as good an out-of-sample unit as a market. 32 cells.
 rows = []
-for sp in SPLITS:
-    cut = int(n * sp)
-    recs = []
-    for mech, (pl, F, X, SD) in books:
-        m = F < cut
-        if m.sum() < 50 or (~m).sum() < 30: continue
-        dd = np.empty(len(pl))
-        for sel, a_, b_ in ((m, 0, cut), (~m, cut, n - 1)):
-            dd[sel] = (C[b_] - C[a_]) / max(b_ - a_, 1) / TICK * DPT
-        adj = pl - dd * (X - F) * SD
-        recs.append(dict(mech=mech, tr=float(adj[m].mean()), ho=float(adj[~m].mean()),
-                         tpw=len(pl) / M["wks"]))
-    if not recs: continue
-    r = pd.DataFrame(recs)
-    for mech, g in r.groupby("mech"):
-        top = g.nlargest(max(3, len(g) // 20), "tr")
-        rows.append(dict(split=sp, mech=mech, n=len(g), tr=float(top.tr.mean()),
-                         ho=float(top.ho.mean()), tpw=float(top.tpw.mean())))
+for ct in sorted(set(CT)):
+    sel_c = CT == ct
+    lo_i, hi_i = int(np.argmax(sel_c)), int(n - np.argmax(sel_c[::-1]))
+    nc = hi_i - lo_i
+    if nc < 2000: continue
+    for sp in SPLITS:
+        cut = lo_i + int(nc * sp)
+        recs = []
+        for mech, (pl, F, X, SD) in books:
+            inc = (F >= lo_i) & (F < hi_i)
+            if inc.sum() < 80: continue
+            plc, Fc, Xc, SDc = pl[inc], F[inc], X[inc], SD[inc]
+            m = Fc < cut
+            if m.sum() < 40 or (~m).sum() < 25: continue
+            dd = np.empty(len(plc))
+            for s_, a_, b_ in ((m, lo_i, cut), (~m, cut, hi_i - 1)):
+                dd[s_] = (C[b_] - C[a_]) / max(b_ - a_, 1) / TICK * DPT
+            adj = plc - dd * (Xc - Fc) * SDc
+            recs.append(dict(mech=mech, tr=float(adj[m].mean()),
+                             ho=float(adj[~m].mean()), tpw=len(plc) / M["wks"]))
+        if not recs: continue
+        r = pd.DataFrame(recs)
+        for mech, g in r.groupby("mech"):
+            top = g.nlargest(max(3, len(g) // 20), "tr")
+            rows.append(dict(contract=ct, split=sp, mech=mech, n=len(g),
+                             tr=float(top.tr.mean()), ho=float(top.ho.mean()),
+                             tpw=float(top.tpw.mean())))
 
 d = pd.DataFrame(rows)
-ctl = d[d.mech == "rnd"][["split", "ho"]].rename(columns={"ho": "ctl"})
-d = d.merge(ctl, on="split", how="left")
+ctl = d[d.mech == "rnd"][["contract", "split", "ho"]].rename(columns={"ho": "ctl"})
+d = d.merge(ctl, on=["contract", "split"], how="left")
 d["beat"] = d.ho > d.ctl
 print(f"{'mech':>6s} {'cells':>6s} {'trades/wk':>10s} {'train $':>9s} "
       f"{'holdout $':>10s} {'control $':>10s} {'beats':>7s}")
@@ -183,5 +198,15 @@ for mech, g in d.groupby("mech"):
     print(f"{mech:>6s} {len(g):6d} {g.tpw.mean():10.1f} {g.tr.mean():9.2f} "
           f"{g.ho.mean():10.2f} {g.ctl.mean():10.2f} {g.beat.mean():6.0%}")
 d.to_csv(os.path.join(HERE, f"tickrobust_{SERIES}.csv"), index=False)
-print(f"\nper split point (holdout $/trade, drift-adjusted):")
-print(d.pivot_table(index="split", columns="mech", values="ho").round(2).to_string())
+print(f"\nper contract (holdout $/trade, drift-adjusted):")
+print(d.pivot_table(index="contract", columns="mech", values="ho").round(1).to_string())
+from math import comb
+print()
+for mech in sorted(set(d.mech)):
+    if mech == "rnd": continue
+    g = d[d.mech == mech].dropna(subset=["ctl"])
+    if len(g) < 8: continue
+    w, k = int(g.beat.sum()), len(g)
+    pv = sum(comb(k, i) for i in range(w, k + 1)) / 2 ** k
+    print(f"{mech:>5s}: beats the control in {w:2d} of {k} cells, "
+          f"sign test p = {pv:.4f}")
