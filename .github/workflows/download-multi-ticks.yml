@@ -6,7 +6,12 @@ name: Download Multi-Market Ticks
 # markets so they can be searched the same way NQ now is.
 #
 # Manual trigger. Needs repo secret POLYGON_API.
+# Dispatch is blocked for the integration token (403), so a push to the
+# trigger file starts it as well -- the same pattern portfolio.yml uses.
 on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.tick_trigger"]
   workflow_dispatch:
     inputs:
       roots:

@@ -1,6 +1,1 @@
-Tick MEGA rerun — 2026-08-02
-
-Run 1 searched 30.9B configs successfully but evaluated them against calendar
-splits written for the 5-minute files, which run six weeks longer than the tick
-tape. That left a 4-week holdout and an OOS3 window containing no weeks at all.
-This run derives the split from the data: last 20% of weeks held out.
+trigger 2026-08-04T11:43:42Z  roots=ES,RTY,YM,CL,GC,HG
