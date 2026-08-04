@@ -74,11 +74,15 @@ def fetch_release():
         print(f"all {len(CONTRACTS)} contracts already local")
         return
     print(f"downloading {len(missing)} contracts from release nq-ticks-raw")
+    # curl, not the gh CLI: the cloud execution environment has no gh, and
+    # release assets are plain HTTPS downloads anyway.
+    base = ("https://github.com/kyewellsthebest/futuretradingbot"
+            "/releases/download/nq-ticks-raw")
     for c in missing:
-        subprocess.run(["gh", "release", "download", "nq-ticks-raw",
-                        "-p", f"{c}.parquet", "-D", str(RAW), "--clobber"],
-                       check=True)
-        print(f"  {c} ok", flush=True)
+        subprocess.run(["curl", "-sSLf", "-o", str(RAW / f"{c}.parquet"),
+                        f"{base}/{c}.parquet"], check=True)
+        print(f"  {c} ok ({(RAW / f'{c}.parquet').stat().st_size/1e6:.0f} MB)",
+              flush=True)
 
 
 def load_contract(c: str):
