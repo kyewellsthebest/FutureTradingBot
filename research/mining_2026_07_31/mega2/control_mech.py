@@ -67,20 +67,45 @@ else:
         mod.SLIP = 0.0
         mm["comm"] = 0.0
     if hasattr(new, "COMMX"): new.COMMX = 0.0
+    # tpw and wkly are per-week, and the two versions count weeks differently
+    # ON PURPOSE: the old one counted UTC calendar dates, which treats a Sunday
+    # evening open as its own day and inflates the denominator. The new one
+    # counts CME trading days -- 678 over this span, against a calendar
+    # expectation of ~676. So those two fields must differ by exactly the ratio
+    # of the week counts, and everything week-independent must be identical.
+    WKR = Mr["wks"] / M["wks"]
+    print(f"  weeks: new {M['wks']:.1f} (CME trading days) vs "
+          f"ref {Mr['wks']:.1f} (UTC dates), ratio {WKR:.4f}")
     diffs = 0; compared = 0
     for c in CASES:
+        for mod in (new, ref): mod.REJC.clear()
         a = new.evaluate(M, c)
         b = ref.evaluate(Mr, {k: v for k, v in c.items() if k != "mech"})
         if (a is None) != (b is None):
             diffs += 1; print("  MISMATCH none-ness:", c); continue
         if a is None:
+            # Both bailed. Comparing *why* is a real check -- the two engines
+            # must reject the same vector for the same reason -- and it is the
+            # only check available for vectors that never reach a result.
+            compared += 1
+            if set(new.REJC) != set(ref.REJC):
+                diffs += 1
+                print(f"  MISMATCH reason: new={sorted(new.REJC)} "
+                      f"ref={sorted(ref.REJC)}  {c}")
             continue
         compared += 1
-        for k in ("tpw", "wr", "wkly", "maxdd", "risk", "n", "tr", "ho"):
+        for k in ("wr", "maxdd", "risk", "n", "tr", "ho"):     # week-independent
             if a[k] != b[k]:
                 diffs += 1
                 print(f"  MISMATCH {k}: new={a[k]} ref={b[k]}  {c}")
                 break
+        else:
+            for k in ("tpw", "wkly"):                          # must scale exactly
+                if b[k] and abs(a[k] / b[k] - WKR) > 0.01:
+                    diffs += 1
+                    print(f"  MISMATCH {k} scaling: new={a[k]} ref={b[k]} "
+                          f"ratio={a[k]/b[k]:.4f} expected {WKR:.4f}  {c}")
+                    break
     # A regression check where every case was rejected in both versions has
     # zero mismatches and has tested nothing. That is how a bug that squeezed
     # the whole history into two days sailed through this check.
