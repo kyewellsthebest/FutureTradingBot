@@ -67,7 +67,9 @@ def load_ev(name):
     fob[pd.Series(np.arange(n)[ok]).groupby(day[ok]).min().values] = True
     P = 300
     CT = d.contract.values
-    return dict(root=ROOTSYM, CT=CT, tf=0, lead=None, traded=TRADED, dpt=DPT, tick=TICK, comm=COMM,
+    # signed volume per bar, normalised by the bar's own volume
+    DLT = (d.delta.values / np.maximum(d.vol.values, 1.0)).astype(float)
+    return dict(root=ROOTSYM, CT=CT, DLT=DLT, tf=0, lead=None, traded=TRADED, dpt=DPT, tick=TICK, comm=COMM,
                 C=C, H=Hh, L=L, V=V, vwap=vwap, bod=bod,
                 dhi=pd.Series(Hh).groupby(day).cummax().values,
                 dlo=pd.Series(L).groupby(day).cummin().values,

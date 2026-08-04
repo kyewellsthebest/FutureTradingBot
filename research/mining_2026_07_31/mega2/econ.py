@@ -33,6 +33,48 @@ ECON = {
     "HO":  (42000.0,  0.0001,     3.50, "HO",   7000.0, False),
     "RB":  (42000.0,  0.0001,     3.50, "RB",   7500.0, False),
 }
+
+# ---------------------------------------------------------------------------
+# COMMISSION, BUILT FROM COMPONENTS RATHER THAN GUESSED
+#
+# The comm_rt figures above were round-turn estimates and several were badly
+# overstated -- \$1.80 for MES/M2K/MYM and \$2.20 for MGC where the real number
+# is nearer \$1.32, and \$2.60 for MHG against about \$1.52.
+#
+# Tradovate's broker commission per side, per the user's plan screen:
+#     free plan      \$0.39 / micro
+#     \$99 a month    \$0.29 / micro
+#     \$1,499 lifetime \$0.09 / micro
+# On top sits exchange + clearing + NFA, which the plan does not change.
+#
+# Set COMM_PLAN=free|monthly|lifetime to price any study at that tier.
+# ---------------------------------------------------------------------------
+import os as _os
+
+BROKER_SIDE = {"free": 0.39, "monthly": 0.29, "lifetime": 0.09}
+PLAN = _os.environ.get("COMM_PLAN", "free").lower()
+_BRK = BROKER_SIDE.get(PLAN, 0.39)
+
+# exchange + clearing + NFA per side, by traded contract
+_FEES = {
+    "MNQ": 0.27, "MES": 0.27, "M2K": 0.27, "MYM": 0.27,
+    "MGC": 0.27, "MHG": 0.37, "MCL": 0.52, "MNG": 0.52,
+    "M6E": 0.26, "M6B": 0.26, "M6A": 0.26,
+    "MBT": 2.52, "MET": 0.22,
+}
+
+
+def comm_rt(traded):
+    """Round-turn cost for one contract at the configured plan."""
+    return 2.0 * (_BRK + _FEES.get(traded, 0.60))
+
+
+# Rewrite the table's comm figures from the component model, leaving
+# full-size contracts (no micro available) on their original estimates.
+ECON = {k: ((v[0], v[1], round(comm_rt(v[3]), 2), v[3], v[4], v[5])
+            if v[3] in _FEES else v)
+        for k, v in ECON.items()}
+
 # SI/SIL remain excluded (margin). NQ re-admitted 2026-08-02.
 
 TRAIN_END = "2026-05-22T00:00:00Z"   # same split every campaign this session

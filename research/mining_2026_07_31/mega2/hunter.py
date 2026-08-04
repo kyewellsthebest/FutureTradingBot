@@ -119,7 +119,7 @@ def REJ(w):
 # in this project asked only the first one, so "no edge" has so far only ever
 # meant "no edge in impulse-pullback". These are separate hypotheses about why
 # a price should move, not variations on one.
-MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol", "cal", "xmk", "rnd"]
+MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol", "cal", "xmk", "rnd", "ofl"]
 
 def signal(M, p):
     """mechanism -> (bar indices, direction, per-signal distance scale in ticks)"""
@@ -161,6 +161,20 @@ def signal(M, p):
         gp = np.r_[np.nan, np.diff(C)] / tick
         trig = M["fob"] & np.isfinite(gp) & (np.abs(gp) > p["k"] * ATR)
         dr = np.sign(gp); ref = np.abs(gp)
+    elif mech == "ofl":
+        # Order-flow imbalance: the ONE feature measured to carry real
+        # information (IC +0.0098 on NQ, same sign in 8 of 8 contracts). Only
+        # available on event bars built from the tape, which carry signed
+        # volume; on OHLC bars there is nothing to read and it yields nothing.
+        dl = M.get("DLT")
+        if dl is None:
+            trig = np.zeros(n, bool); dr = np.ones(n); ref = np.ones(n)
+        else:
+            z = pd.Series(dl).rolling(max(lb, 5), min_periods=3).mean().values
+            sd_ = pd.Series(dl).rolling(200, min_periods=50).std().values
+            zz = z / np.maximum(sd_, 1e-9)
+            trig = np.isfinite(zz) & (np.abs(zz) > p["k"])
+            dr = np.sign(zz); ref = np.maximum(np.abs(zz) * ATR, 1.0)
     elif mech == "rnd":
         # THE CONTROL MECHANISM. Enter at random times, everything else
         # identical. If a market simply drifted through the holdout period,
