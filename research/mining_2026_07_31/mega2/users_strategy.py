@@ -71,21 +71,28 @@ def test(a, imp_pts, lookback, retrace, stop_pts, tgt_pts, max_wait, max_hold, i
     rng = np.maximum(hi - lo, 0.25)
     # buy the dip on an up impulse, sell the rip on a down one
     entry = np.where(side > 0, c[idx] - retrace * rng, c[idx] + retrace * rng)
-    # The measurement says the retrace CONTINUES rather than bounces: after an
-    # up impulse, price at the retrace level falls another 6 points far more
-    # often than it rallies 12, at 28 sigma. Inverting takes the same entry
-    # level and trades the other way -- never tested at fixed point stops.
+    # Which way price must TRAVEL to reach the resting limit is fixed by where
+    # the limit sits, and is not the same thing as which way we then trade.
+    # Flipping both together fills the order the instant the setup appears,
+    # at a level the market has already passed, with the stop born breached --
+    # 0% win rate, exactly -stop every time, zero variance. That is what the
+    # first version of this did.
+    fill_side = side.copy()
     if invert: side = -side
     # wait up to max_wait bars for price to reach the retrace level
     st = np.arange(1, max_wait + 1)
     wb = np.minimum(idx[:, None] + st[None, :], n - 1)
-    reach = np.where(side[:, None] > 0, l[wb] <= entry[:, None],
+    reach = np.where(fill_side[:, None] > 0, l[wb] <= entry[:, None],
                      h[wb] >= entry[:, None])
     j = np.where(reach.any(1), reach.argmax(1), 10**9)
     ok = j < 10**9
     if ok.sum() < 50: return None
     fb = np.minimum(idx[ok] + 1 + j[ok], n - 1)
     sd = side[ok]; ep = entry[ok]
+    # a filled short must not already be past its stop, and vice versa
+    live = np.where(sd > 0, l[fb] > ep - stop_pts, h[fb] < ep + stop_pts)
+    if live.sum() < 50: return None
+    fb, sd, ep = fb[live], sd[live], ep[live]
     sl = ep - sd * stop_pts
     tp = ep + sd * tgt_pts
     hs = np.arange(0, max_hold + 1)
