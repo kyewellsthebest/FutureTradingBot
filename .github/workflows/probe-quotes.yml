@@ -1,0 +1,66 @@
+name: Probe Free Quote Sources
+
+# Before spending anything at Databento, find out what we already pay for.
+# Polygon's futures plan may include the quotes endpoint -- bid, ask and their
+# sizes. That is top-of-book depth, historical, already bought. It would answer
+# the queue-imbalance question for free.
+#
+# Push to research/.probe_trigger to run (dispatch is 403 for the integration).
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.probe_trigger"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Does this Polygon plan include futures quotes?
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          KEY = os.environ["POLYGON_API"]
+          BASE = "https://api.polygon.io/futures/vX"
+          DAY = "2026-05-15"
+
+          def get(url):
+              try:
+                  req = urllib.request.Request(url + f"&apiKey={KEY}",
+                                               headers={"User-Agent": "probe/1.0"})
+                  with urllib.request.urlopen(req, timeout=40) as r:
+                      return json.loads(r.read().decode()), None
+              except urllib.error.HTTPError as e:
+                  try: body = json.loads(e.read().decode())
+                  except Exception: body = {}
+                  return None, f"HTTP {e.code}: {body.get('message') or body.get('error')}"
+              except Exception as e:
+                  return None, f"{type(e).__name__}: {e}"
+
+          for label, url in [
+              ("QUOTES  vX", f"{BASE}/quotes/NQM6?timestamp={DAY}&limit=3"),
+              ("QUOTES  v3", f"https://api.polygon.io/v3/quotes/NQM6?timestamp={DAY}&limit=3"),
+              ("TRADES  vX", f"{BASE}/trades/NQM6?timestamp={DAY}&limit=3"),
+              ("SNAPSHOT",   f"{BASE}/snapshot?ticker=NQM6&limit=3"),
+          ]:
+              d, err = get(url)
+              if err:
+                  print(f"{label:12s} -> {err}")
+                  continue
+              res = d.get("results") or []
+              print(f"{label:12s} -> OK, {len(res)} records")
+              if res:
+                  # the fields are the whole point: is there a bid/ask AND a size?
+                  print(f"{'':12s}    fields: {sorted(res[0].keys())}")
+                  print(f"{'':12s}    sample: {json.dumps(res[0])[:300]}")
+          PY
