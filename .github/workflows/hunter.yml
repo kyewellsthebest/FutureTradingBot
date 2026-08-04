@@ -1,0 +1,118 @@
+name: Perpetual Hunter
+# Runs itself every 3 hours, forever, until you switch it off in the Actions
+# tab. Each wake-up searches fresh random parameter vectors, hill-climbs from
+# anything that survives, and appends to a leaderboard committed back to the
+# repo. Nothing else stops it.
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "search seconds per shard"
+        default: "1500"
+permissions:
+  contents: write
+env:
+  M2DIR: research/mining_2026_07_31/mega2
+
+jobs:
+  # Single-market hunt across all seven mechanisms. Wide net: this is what
+  # finds a mechanism worth promoting to the multi-market job below.
+  single:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        market: [RTY, YM, CL, HG, ES, NG, 6E, 6B, 6A, MBT, ETH, ZF, ZT]
+        tf: ["5", "15"]
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      # The engine is checked before the hypothesis. This is the discipline
+      # that three dead sub-minute engines paid for: a run that reports "no
+      # edge" is worthless unless we know the engine could have found one.
+      - name: Control
+        run: cd $M2DIR && python control_mech.py ${{ matrix.market }} ${{ matrix.tf }}
+      - name: Hunt
+        env:
+          HUNT_SECONDS: ${{ github.event.inputs.seconds || '1500' }}
+          HUNT_MARKET: ${{ matrix.market }}
+          HUNT_TF: ${{ matrix.tf }}
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python hunter.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: board-${{ matrix.market }}-${{ matrix.tf }}
+          path: ${{ env.M2DIR }}/hunter_board.json
+          if-no-files-found: warn
+
+  # One parameter vector, every market at once, position limit applied to the
+  # merged book. This is the only shape that reaches the trade count the goal
+  # needs while still counting as a single strategy.
+  multi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tf: "5"
+            mech: "orb,gap"
+            label: once-a-day
+          - tf: "5"
+            mech: "vwr,rev,vol"
+            label: intraday
+          - tf: "15"
+            mech: "orb,gap,sqz"
+            label: slow
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - name: Search ${{ matrix.label }}
+        env:
+          HUNT_MECH: ${{ matrix.mech }}
+          M2_REPO: ${{ github.workspace }}
+        run: cd $M2DIR && python multi.py 2400 ${{ matrix.tf }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multiboard-${{ matrix.label }}
+          path: ${{ env.M2DIR }}/multi_board.json
+          if-no-files-found: warn
+
+  merge:
+    needs: [single, multi]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install numpy pandas
+      - uses: actions/download-artifact@v4
+        with: { path: boards }
+      - name: Merge every shard into the standing leaderboards
+        run: cd $M2DIR && python merge_boards.py ${{ github.workspace }}/boards
+      - name: Commit
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $M2DIR/hunter_board.json $M2DIR/multi_board.json $M2DIR/LEADERBOARD.md
+          if git diff --staged --quiet; then echo "nothing new"; else
+            git commit -m "Perpetual hunter: leaderboard update"
+            for i in 1 2 3 4; do
+              git pull --rebase -X theirs origin claude/hello-vc2ivo && \
+              git push origin claude/hello-vc2ivo && break || sleep $((2**i))
+            done
+          fi
+      - run: cat $M2DIR/LEADERBOARD.md || true
