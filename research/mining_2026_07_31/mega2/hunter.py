@@ -119,7 +119,7 @@ def REJ(w):
 # in this project asked only the first one, so "no edge" has so far only ever
 # meant "no edge in impulse-pullback". These are separate hypotheses about why
 # a price should move, not variations on one.
-MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol", "cal", "xmk"]
+MECHS = ["imp", "rev", "vwr", "orb", "sqz", "gap", "vol", "cal", "xmk", "rnd"]
 
 def signal(M, p):
     """mechanism -> (bar indices, direction, per-signal distance scale in ticks)"""
@@ -161,6 +161,16 @@ def signal(M, p):
         gp = np.r_[np.nan, np.diff(C)] / tick
         trig = M["fob"] & np.isfinite(gp) & (np.abs(gp) > p["k"] * ATR)
         dr = np.sign(gp); ref = np.abs(gp)
+    elif mech == "rnd":
+        # THE CONTROL MECHANISM. Enter at random times, everything else
+        # identical. If a market simply drifted through the holdout period,
+        # random entries in the drift direction earn money too -- and any
+        # mechanism scored against zero instead of against this will look like
+        # it found something. Its holdout edge is the bar every other
+        # mechanism has to clear, not zero.
+        g = np.random.default_rng(1_000_003 + lb * 7919 + int(p["k"] * 1000))
+        trig = g.random(n) < min(0.9, max(0.002, 1.0 / max(lb, 1)))
+        dr = np.ones(n); ref = np.maximum(ATR, 1.0)
     elif mech == "cal":
         # Pure calendar. Buy or sell at a fixed hour, optionally only on one
         # weekday. No reference to price at all, which is the point: every

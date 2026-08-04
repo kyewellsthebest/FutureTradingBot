@@ -76,19 +76,34 @@ def book(p):
     gd = np.isfinite(xp)
     if gd.sum() < 100: return None
     pl = (xp[gd] - ep[gd]) * sd[gd] * (1 / tick) * dpt      # gross, no commission
-    F = fb[gd]; X = fb[gd] + xj[gd]
-    o = np.argsort(F); pl, F, X = pl[o], F[o], X[o]
+    F = fb[gd]; X = fb[gd] + xj[gd]; SD = sd[gd]
+    o = np.argsort(F); pl, F, X, SD = pl[o], F[o], X[o], SD[o]
     mp = int(round(p["maxpos"]))
     free = np.zeros(mp, dtype=np.int64); took = np.zeros(len(pl), bool)
     for i in range(len(pl)):
         s_ = int(np.argmin(free))
         if free[s_] <= F[i]: took[i] = True; free[s_] = X[i]
-    pl, F = pl[took], F[took]
+    pl, F, X, SD = pl[took], F[took], X[took], SD[took]
     if len(pl) < 100: return None
     m = F < M["cut"]
     if m.sum() < 60 or (~m).sum() < 30: return None
+    # Drift adjustment. A chronological holdout is a single directional regime
+    # -- the last quarter here is a rally of ~116 ATRs on RTY -- so a net-long
+    # book earns money without predicting anything, and "it worked out of
+    # sample" quietly becomes "it was long during a bull market". Subtract what
+    # a position of the same side and duration collects from the market's
+    # average drift, computed separately in each split so the holdout's own
+    # trend is what gets removed from holdout trades.
+    dpb = np.empty(len(pl))
+    for sel in (m, ~m):
+        lo, hi = (0, M["cut"]) if sel is m else (M["cut"], n - 1)
+        dpb[sel] = (C[hi] - C[lo]) / max(hi - lo, 1) / tick * dpt
+    drift = dpb * (X - F) * SD
     return dict(mech=p["mech"], tpw=len(pl) / M["wks"], risk=risk,
                 tr=float(pl[m].mean()), ho=float(pl[~m].mean()),
+                # what is left once drift is paid for: the mechanism's own part
+                tr_a=float((pl - drift)[m].mean()), ho_a=float((pl - drift)[~m].mean()),
+                side=float(SD.mean()), bars=float((X - F).mean()),
                 wr=float((pl > 0).mean()), n=len(pl), rr=p["rr"],
                 # trades per week counted on the holdout stretch alone, since
                 # that is the number the holdout edge has to be paid on
@@ -137,12 +152,27 @@ for b, g in d.groupby("bk", observed=True):
           f"  {top.mech.mode().iloc[0]}")
 
 print("\nby mechanism (best-of-top-5% train, its holdout edge):")
-print(f"{'mech':>6s} {'configs':>8s} {'median tpw':>11s} {'train $':>9s} "
-      f"{'holdout $':>10s} {'holdout>0 share':>16s}")
+print("  'rnd' is the control: random entries, no information at all. Its")
+print("  holdout number is the bar the others must clear, not zero.")
+print(f"{'mech':>6s} {'configs':>8s} {'med tpw':>8s} {'train $':>9s} "
+      f"{'holdout $':>10s} {'ho>0':>6s} {'train-drift':>12s} {'hold-drift':>11s} "
+      f"{'net long':>9s} {'bars held':>10s}")
 for mech, g in d.groupby("mech"):
     top = g.nlargest(max(3, len(g) // 20), "tr")
-    print(f"{mech:>6s} {len(g):8,} {g.tpw.median():11.1f} {top.tr.mean():9.2f} "
-          f"{top.ho.mean():10.2f} {float((top.ho>0).mean()):16.0%}")
+    print(f"{mech:>6s} {len(g):8,} {g.tpw.median():8.1f} {top.tr.mean():9.2f} "
+          f"{top.ho.mean():10.2f} {float((top.ho>0).mean()):6.0%} "
+          f"{top.tr_a.mean():12.2f} {top.ho_a.mean():11.2f} "
+          f"{top.side.mean():9.2f} {top.bars.mean():10.1f}")
+if "rnd" in set(d.mech):
+    r = d[d.mech == "rnd"]; rtop = r.nlargest(max(3, len(r) // 20), "tr")
+    bar = rtop.ho.mean()
+    print(f"\n  control earns ${bar:.2f}/trade in the holdout on random entries.")
+    print("  after clearing that bar:")
+    for mech, g in d.groupby("mech"):
+        if mech == "rnd": continue
+        top = g.nlargest(max(3, len(g) // 20), "tr")
+        print(f"    {mech:>5s}: {top.ho.mean() - bar:+7.2f} $/trade vs the control, "
+              f"{top.ho_a.mean():+7.2f} after drift adjustment")
 
 # The honest summary: the best weekly dollars anywhere on the curve, and
 # whether it is anywhere near the target.
