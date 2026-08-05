@@ -79,7 +79,8 @@ for ek in ("t2m", "t10m", "s2t3", "s3t2"):
     run(f"VBAR3rev_L_{ek}", sig_vb_dn & active, +1, EX[ek])
 
 # --- OPENS: second-scale opening drive ----------------------------------
-hhmmss = df.index.hour * 10000 + df.index.minute * 100 + df.index.second
+hhmmss = pd.Series(df.index.hour * 10000 + df.index.minute * 100 + df.index.second,
+                   index=df.index)
 o930 = df["open"].where(df["hhmm"] == 930).groupby(df["tday"]).transform("first")
 at_5s = (hhmmss >= 93005) & (hhmmss <= 93007)
 first_of = at_5s & ~at_5s.shift(1).fillna(False).astype(bool)
