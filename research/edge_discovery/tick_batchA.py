@@ -27,7 +27,8 @@ from tick_features import load_sec
 H.IS_END = "2025-03-01"
 H.OOS_START = "2025-03-01"
 
-df = load_sec()
+df = load_sec(columns=["n_trades", "ret", "ret_sd", "r10", "r30", "r60",
+                       "ofi10", "ofi60", "ofi300", "burst", "big_flow", "big_delta"])
 arrays = H.get_arrays(df)
 print(f"{len(df):,} second-bars loaded")
 

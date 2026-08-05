@@ -23,7 +23,8 @@ from tick_features import load_sec
 H.IS_END = "2025-03-01"
 H.OOS_START = "2025-03-01"
 
-df = load_sec()
+df = load_sec(columns=["n_trades", "volume", "ret", "ret_sd", "r60",
+                       "ofi10", "burst"])
 arrays = H.get_arrays(df)
 active = (df["n_trades"].rolling(60).sum() > 60) & df["ret_sd"].notna()
 results = {}

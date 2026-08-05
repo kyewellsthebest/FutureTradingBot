@@ -15,10 +15,16 @@ import pandas as pd
 import harness as H
 
 
-def load_sec(with_features=True) -> pd.DataFrame:
+BASE_COLS = ["open", "high", "low", "close", "atr", "hhmm", "tday", "rth"]
+
+
+def load_sec(with_features=True, columns=None) -> pd.DataFrame:
+    """columns: extra feature columns to load besides BASE_COLS (memory guard:
+    loading all ~28 columns of the 33M-row frame OOMs a 16GB box)."""
     pq = H.CACHE / "sec1_feat.parquet"
     if with_features and pq.exists():
-        return pd.read_parquet(pq)
+        cols = None if columns is None else list(dict.fromkeys(BASE_COLS + columns))
+        return pd.read_parquet(pq, columns=cols)
     df = pd.read_parquet(H.CACHE / "sec1.parquet")
     idx = pd.to_datetime(df.index, unit="s", utc=True).tz_convert("America/New_York")
     df.index = idx
