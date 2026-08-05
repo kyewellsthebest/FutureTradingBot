@@ -1,6 +1,9 @@
 # HFT Edge Discovery — Final Research Report
 
 **Date:** 2026-08-05 · **Branch:** `claude/hft-edge-discovery-h2drwe`
+**Part I:** 1-minute bars, NQ 2018–2026 (§0–§6). **Part II:** true tick data,
+NQ Sep 2023–Jun 2026 (§7–§10) — added after locating the per-contract tick
+parquets on the `nq-ticks-raw` GitHub release.
 **Mandate:** discover new, independent high-frequency statistical edges in futures that
 survive $1.40 commission + $3.00 slippage per round trip, with smooth-equity priorities.
 
@@ -211,3 +214,99 @@ events. Concretely:
 
 Reproduce: `python3 research/edge_discovery/clean.py nq es rty`, then any batch
 script, then `destroy.py`.
+
+---
+
+# Part II — Tick-level research (270M trades, Sep 2023 – Jun 2026)
+
+## 7. Tick data foundation
+
+12 per-contract Polygon trade files (NQU3→NQM6) from the `nq-ticks-raw`
+release: **270M trades / ~2.9 years**. Schema is trade-only (ns timestamp,
+price, size) — **no quotes**, so aggressor side is inferred with the tick rule;
+spread/queue-position/hidden-liquidity families remain untestable even here.
+Processing: per-contract sort + dedupe (files are checkpoint-shuffled),
+front-month roll windows, session hygiene, bad-print filter, panama seam
+adjustment → 33.4M one-second bars with per-second OHLCV, trade count, signed
+(tick-rule) volume, large-lot (≥10) counts and signed large-lot flow.
+
+Splits: **IS = Sep 2023–Feb 2025, OOS = Mar 2025–Jun 2026.** Important honesty
+note: both halves are bull-regime; there is no bear year in the tick sample.
+Every long-side candidate was therefore benchmarked against random-entry and
+direction-blind controls (which showed random ≈ –costs, so drift itself is
+negligible at second-to-minute holds — but event-conditioned drift is not, see
+BURST below).
+
+## 8. Tick-level graveyard (~190 variants)
+
+| Family | Verdict |
+|---|---|
+| OFI: tick-rule order-flow imbalance (60s/300s), momentum & reversal | Dead — no cell clears costs. |
+| OFI divergence / absorption (flow vs price) | Dead both directions. |
+| BIG25 / BIGFLOW: large-lot prints & cumulative institutional footprint, 10s–10m | **Systematically negative after costs** at 140–380 trades/wk — this flow is fully arbitraged; chasing it pays the spread for nothing. |
+| BURST: trade-rate explosion + direction, 30s–10m | The apparent edge (+$23 IS/+$36 OOS long) is exposed by the direction-blind control: long-after-ANY-burst earns +$35 OOS vs +$5 IS. It is post-volatility upward drift of 2025–26, not signal. Killed. |
+| SHK 10/30/60s return-shock fade & momentum, flow-split | Long-side dip-buying only (bull sample), shorts negative; stop/target variants strongly negative (t≈–8 to –11). Killed. |
+| QUIET: liquidity-vacuum then first move | Nothing. |
+| CASC: cascade-stall absorption reversal | IS +, OOS – → killed. |
+| VBAR: volume-bar (event-time) 3-bar momentum & reversal | Dead; reversal variants strongly negative. |
+| SWEEPT: tick-scale stop-run failure at rolling 30-min extremes | Flat zero — the "liquidity sweep" story does not pay at trade-data resolution either. |
+| ECONS: 8:30 econ print, first-3-seconds continuation | IS t=1.6, OOS t=0.3 → killed. |
+
+## 9. Tick-level survivor: OPENS — opening-auction drive continuation
+
+**Rule:** at 9:30:05, if price is ≥2 pts above the 9:30:00 open → buy at
+~9:30:06; ≥2 pts below → sell. Exit 10:00:00. No stop (max adverse excursions
+are absorbed within the 30-min window; a 20-pt disaster stop changes little).
+
+**Why it should exist:** the opening auction leaves one side short of
+inventory; 0DTE option flows and delta-hedgers amplify the initial imbalance
+for tens of minutes. The first 5 seconds reveal which side is chasing. The
+counterparty is the opening-print fader providing immediacy against the
+imbalance. This behavior existed weakly in 2018–2023 (Part I's DRIVE family,
+same story at 1-min resolution) and has strengthened sharply in the 0DTE era.
+
+| Metric (1 NQ, L+S combined, k=2, exit 10:00) | IS Sep23–Feb25 | OOS Mar25–Jun26 | Full 2.9y |
+|---|---|---|---|
+| Trades/week | 3.5 | 4.0 | 3.6 |
+| **$/week before costs** | **$490** | **$1,525** | **$795** |
+| $/week after commission only ($1.40) | $485 | $1,519 | $790 |
+| **$/week after commission+slippage ($4.40)** | **$474** | **$1,509** | **$779** |
+| Avg net per trade (long / short) | $178 / $58 | $344 / $337 | $230 blended |
+| Positive quarters | | | 11 of 13 |
+| Weekly std / % positive weeks | | | $3,734 / 61% |
+| Worst day / worst week | | | –$9,094 / –$12,837 |
+| Realized max DD / MC median / MC 5% | | | –$15.9K / –$24K / –$45K |
+
+**Destruction-test results:** positive at every threshold k∈{1,2,3,5,8} on both
+sides in both periods (20 of 20 cells at the 10:00 exit); exit-time plateau
+(9:35 weaker, 10:00–10:30 best); survives $14.40/RT costs untouched.
+**Latency stress (the critical one):** measuring the signal at +10s instead of
++5s roughly halves the edge; at +30s the in-sample long side is gone. The
+tabled numbers assume order entry ~1 second after the 9:30:05 signal —
+automated execution only. **Regime concentration:** ≈$50/trade in 2023–24 vs
+≈$370/trade in 2025–26; the behavior is 3-years consistent but the magnitude is
+recent — size accordingly and attach a kill switch (e.g. stop trading after a
+rolling-26-week net < 0).
+
+OPENS subsumes Part I's DRIVE watch-list entry (same behavior, sharper
+measurement); DRIVE at 1-min is no longer a separate sleeve.
+
+## 10. Final book (all validated sleeves, 1 contract each)
+
+| Sleeve | Data proof | Trades/wk | $/wk gross | $/wk net ($4.40) | Character |
+|---|---|---|---|---|---|
+| GAP overnight-gap-down fade (long, 9:30→15:55) | 8.1y, 7/9 yrs+ | 1.2 | $170 | $165 | Liquidity-provision premium; bleeds in bears |
+| PWR weak-day close-imbalance short (15:00→16:00) | 8.1y, 7/9 yrs+ | 1.4 | $273 | $267 | Mandated rebalancing flow; decaying, monitor |
+| OPENS opening-drive continuation (9:30:06→10:00, L+S) | 2.9y ticks, 11/13 qtrs+ | 3.6 | $795 | $779 | Auction imbalance / 0DTE era; latency-sensitive, regime-concentrated |
+
+GAP↔PWR daily correlation −0.006; OPENS trades a different window than both
+(first half-hour) — the three sleeves are structurally independent (no shared
+entry hour, no shared condition). Combined full-sample net ≈ **$1,200/week on
+1-lot NQ** (≈$120/week on MNQ after the same absolute costs), with the honest
+caveat that ~60% of that rate comes from OPENS's 2025–26 regime component.
+
+**Ranked next steps:** (1) run OPENS live-paper for 4+ weeks to verify the
+9:30:06 fill assumption against real latency; (2) quote data (MBP-10) would
+unlock the spread/queue families that trade-only data cannot test; (3) extend
+the tick history backward (Polygon has 2019+) to get a bear-regime read on
+OPENS and the tick families.
