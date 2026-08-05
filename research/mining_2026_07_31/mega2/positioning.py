@@ -28,7 +28,7 @@ FWD = int(sys.argv[1]) if len(sys.argv) > 1 else 1      # days ahead
 
 def read_cboe(path, datecol, keep):
     """CBOE files carry 1-3 rows of disclaimer above the real header."""
-    for skip in range(0, 5):
+    for skip in range(0, 8):
         try:
             d = pd.read_csv(path, skiprows=skip)
         except Exception:
@@ -67,12 +67,27 @@ if not feats:
     print("no CBOE features parsed"); sys.exit(0)
 
 # NQ daily closes from the 5-minute file
-nq = pd.read_csv(os.path.join(ROOT, "data", "polygon", "NQ_5min.csv"))
-nq["ts"] = pd.to_datetime(nq.ts, utc=True)
-day = nq.set_index("ts").close.resample("1D").last().dropna()
-px = pd.DataFrame({"date": day.index.tz_localize(None).normalize(),
-                   "close": day.values})
-px["ret"] = px.close.pct_change().shift(-FWD) * 100.0     # forward %, in %
+# QQQ where available: the CBOE archives run 2006-2019 and NQ futures data
+# only starts in December 2023, so pairing them yields no overlapping rows at
+# all. QQQ tracks NQ closely and reaches back far enough to actually meet the
+# positioning data.
+qp = os.path.join(ROOT, "data", "polygon", "QQQ_daily.csv")
+if os.path.exists(qp):
+    q = pd.read_csv(qp)
+    px = pd.DataFrame({"date": pd.to_datetime(q.date).values,
+                       "close": q.close.values.astype(float)})
+    print("using QQQ daily")
+else:
+    nq = pd.read_csv(os.path.join(ROOT, "data", "polygon", "NQ_5min.csv"))
+    nq["ts"] = pd.to_datetime(nq.ts, utc=True)
+    day = nq.set_index("ts").close.resample("1D").last().dropna()
+    px = pd.DataFrame({"date": day.index.tz_localize(None).normalize(),
+                       "close": day.values})
+    print("QQQ missing -- falling back to NQ, which will not overlap CBOE")
+# The N-day forward return, not a one-day return shifted N places. The first
+# version used pct_change().shift(-FWD) and so reported an identical median
+# move at 1, 3 and 5 days, which is what gave the bug away.
+px["ret"] = (px.close.shift(-FWD) / px.close - 1.0) * 100.0
 px["atr"] = px.close.pct_change().abs().rolling(20).mean() * 100.0
 
 D = px.dropna(subset=["ret"]).copy()
@@ -129,7 +144,8 @@ print(f"best real feature: {best[0]} at {best[2]:+.4f} holdout, "
       f"sign {'held' if best[3]=='yes' else 'FLIPPED'}")
 # A daily NQ move is worth roughly this much on one micro, so an IC converts
 # into dollars a trade -- the only comparison that decides anything.
-mv = float(np.nanmedian(np.abs(D.ret))) / 100.0 * float(D.close.median()) * 2.0
+# a 1% QQQ move is about a 1% NQ move; MNQ is $2/point at roughly 20000
+mv = float(np.nanmedian(np.abs(D.ret))) / 100.0 * 20000.0 * 2.0
 print(f"\nmedian absolute {FWD}-day move: ${mv:,.0f} on one MNQ contract")
 print(f"an IC of {abs(best[2]):.4f} on that move is about "
       f"${abs(best[2])*mv:,.2f} a trade, against $0.42 of cost")
