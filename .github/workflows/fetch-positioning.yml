@@ -24,6 +24,8 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install pandas
       - name: Pull long histories
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
         run: |
           mkdir -p data/positioning
           # CBOE publishes these free and they run to the present day
@@ -32,13 +34,44 @@ jobs:
               "https://cdn.cboe.com/api/global/us_indices/daily_prices/$f.csv" \
               -o "data/positioning/$f.csv" && echo "got $f" || echo "MISS $f"
           done
-          # index history far enough back to meet the 2006-2019 put/call archives
-          for s in qqq.us spy.us "^ndx" "^spx"; do
-            n=$(echo "$s" | tr -d '^.' | tr '[:upper:]' '[:lower:]')
-            curl -sSLf --max-time 90 -A "Mozilla/5.0" \
+          # Index prices, several sources because each fails differently:
+          # stooq answers a JavaScript challenge instead of CSV, Yahoo 403s,
+          # and Polygon's plan caps STOCKS at two years. VIX without a price
+          # series is useless, so try them all and report which landed.
+          curl -sSLf --max-time 90 -A "Mozilla/5.0" \
+            "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500" \
+            -o data/positioning/fred_sp500.csv && echo "got FRED SP500" || echo "MISS fred"
+          curl -sSLf --max-time 90 -A "Mozilla/5.0" \
+            "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NASDAQCOM" \
+            -o data/positioning/fred_nasdaq.csv && echo "got FRED NASDAQ" || echo "MISS fred_nq"
+          for s in qqq.us spy.us; do
+            curl -sSLf --max-time 90 -A "Mozilla/5.0" -H "Accept: text/csv" \
               "https://stooq.com/q/d/l/?s=$s&i=d" \
-              -o "data/positioning/$n.csv" && echo "got $s" || echo "MISS $s"
+              -o "data/positioning/${s%%.*}_stooq.csv" && echo "tried $s" || echo "MISS $s"
           done
+          # Polygon INDEX aggregates are a different entitlement from stocks
+          python - <<'PYX'
+          import json, os, urllib.request, pandas as pd
+          KEY = os.environ.get("POLYGON_API", "")
+          for sym, out in (("I:SPX", "poly_spx"), ("I:NDX", "poly_ndx")):
+              try:
+                  u = (f"https://api.polygon.io/v2/aggs/ticker/{sym}/range/1/day/"
+                       f"2004-01-01/2026-08-04?adjusted=true&sort=asc&limit=50000"
+                       f"&apiKey={KEY}")
+                  with urllib.request.urlopen(u, timeout=60) as r:
+                      d = json.loads(r.read().decode())
+                  rs = d.get("results", [])
+                  if rs:
+                      f = pd.DataFrame(rs)
+                      f["date"] = pd.to_datetime(f.t, unit="ms").dt.date
+                      f[["date", "c"]].rename(columns={"c": "close"}).to_csv(
+                          f"data/positioning/{out}.csv", index=False)
+                      print(f"got {sym}: {len(f):,} rows {f.date.min()} -> {f.date.max()}")
+                  else:
+                      print(f"MISS {sym}: empty")
+              except Exception as e:
+                  print(f"MISS {sym}: {e}")
+          PYX
           for f in data/positioning/*.csv; do
             echo "$f: $(wc -l < "$f") rows, $(head -2 "$f" | tail -1 | cut -c1-30)"
           done
