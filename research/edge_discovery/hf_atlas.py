@@ -27,7 +27,7 @@ df = load_sec(columns=["n_trades", "volume", "delta", "ret", "ret_sd",
                        "big_delta", "gap_s"])
 c = df["close"]
 fwd = {h: (c.shift(-h) - c) / TICK for h in (5, 10, 30, 60, 120)}
-is_mask = (df.index < IS_END).values
+is_mask = np.asarray(df.index < IS_END)
 rth = df["rth"].values
 act = (df["n_trades"].rolling(30).sum() > 150).values     # genuinely busy tape
 weeks_is = (IS_END - df.index[0]).days / 7
