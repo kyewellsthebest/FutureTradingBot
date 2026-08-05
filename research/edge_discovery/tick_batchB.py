@@ -62,17 +62,16 @@ for ek in ("t30s", "t2m", "t10m", "s2t3"):
 # --- VBAR: volume-bar momentum ------------------------------------------
 cumv = df["volume"].cumsum()
 V = 3000
-bar_id = (cumv // V).astype(np.int64)
-vb_close = df["close"].groupby(bar_id).last()
-vb_last_idx = df.reset_index().groupby(bar_id)["index"].last()
-vb_ret = vb_close.diff()
-mom3 = (vb_ret > 0).rolling(3).sum()
+bar_id = (cumv // V).to_numpy(np.int64)
+pos = np.flatnonzero(np.diff(bar_id) > 0)          # row where each volume bar completes
+vb_close = df["close"].to_numpy()[pos]
+vb_ret = np.diff(vb_close)                          # vb_ret[j] = bar j+1 return
+up3 = (vb_ret[2:] > 0) & (vb_ret[1:-1] > 0) & (vb_ret[:-2] > 0)
+dn3 = (vb_ret[2:] < 0) & (vb_ret[1:-1] < 0) & (vb_ret[:-2] < 0)
 sig_vb_up = pd.Series(False, index=df.index)
 sig_vb_dn = pd.Series(False, index=df.index)
-up_bars = vb_last_idx[(mom3 == 3)].values
-dn_bars = vb_last_idx[((vb_ret < 0).rolling(3).sum() == 3)].values
-sig_vb_up.loc[up_bars] = True
-sig_vb_dn.loc[dn_bars] = True
+sig_vb_up.iloc[pos[3:][up3]] = True
+sig_vb_dn.iloc[pos[3:][dn3]] = True
 for ek in ("t2m", "t10m", "s2t3", "s3t2"):
     run(f"VBAR3_L_{ek}", sig_vb_up & active, +1, EX[ek])
     run(f"VBAR3_S_{ek}", sig_vb_dn & active, -1, EX[ek])
