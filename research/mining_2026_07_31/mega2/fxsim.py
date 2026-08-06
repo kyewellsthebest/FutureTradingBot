@@ -70,20 +70,21 @@ def simulate(bid, ask, ts, rng=None):
     mid = (bid + ask) / 2.0
     lb = LOOKBACK
     mv = np.r_[np.full(lb, np.nan), (mid[lb:] - mid[:-lb])] / PIP
+    trig = np.abs(mv) >= IMP_PIPS
+    trig[:lb + 1] = False
+    trig[n - (WAIT + HOLD + 2):] = False
+    idx = np.where(trig)[0]
+    if len(idx) < 100: return None
+    # thin first, ALWAYS: one impulse must not become ten thousand signals
+    idx = idx[np.r_[True, np.diff(idx) > lb // 2]]
     if RANDOM:
-        # the control: same count, same holds, entries at random moments
-        k = int((np.abs(mv) >= IMP_PIPS).sum())
+        # the control gets the strategy's trade count, not the count before
+        # thinning -- otherwise it trades four times as often, its standard
+        # error is half the size, and the comparison is not a comparison
         idx = np.sort(rng.choice(np.arange(lb + 1, n - (WAIT + HOLD + 2)),
-                                 size=min(k, MAXSIG), replace=False))
+                                 size=min(len(idx), MAXSIG), replace=False))
         side = rng.choice([-1, 1], size=len(idx))
     else:
-        trig = np.abs(mv) >= IMP_PIPS
-        trig[:lb + 1] = False
-        trig[n - (WAIT + HOLD + 2):] = False
-        idx = np.where(trig)[0]
-        if len(idx) < 100: return None
-        keep = np.r_[True, np.diff(idx) > lb // 2]
-        idx = idx[keep]
         side = np.sign(mv[idx]).astype(int)
     if len(idx) > MAXSIG:
         sel = np.linspace(0, len(idx) - 1, MAXSIG).astype(int)
