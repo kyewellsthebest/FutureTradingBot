@@ -38,6 +38,7 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install tick-vault pandas pyarrow
       - name: Ensure release
+        continue-on-error: true   # four jobs race for one tag; losing is fine
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           gh release view fx-ticks-raw \
