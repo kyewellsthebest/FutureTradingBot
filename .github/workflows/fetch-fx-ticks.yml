@@ -1,0 +1,80 @@
+name: Fetch FX Tick Data
+
+# Dukascopy is 403 from the execution container -- same proxy block that stops
+# stooq, Yahoo, FRED and cboe.com. Runners have open internet.
+#
+# Why this data is worth the trouble: it carries BID AND ASK on every tick.
+# Every futures conclusion in this repo rested on a GUESS about fills and
+# spread, and that guess was worth 72% of the apparent edge. Here the cost is
+# in the data instead of in my assumptions.
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.fx_trigger"]
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "comma-separated (default EURUSD,XAUUSD)"
+        default: ""
+      months:
+        description: "how many months back"
+        default: "12"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [EURUSD, GBPUSD, USDJPY, XAUUSD]
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install tick-vault pandas pyarrow
+      - name: Ensure release
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          gh release view fx-ticks-raw \
+            || gh release create fx-ticks-raw -t "Dukascopy FX ticks" \
+                 -n "Bid/ask tick data, one parquet per symbol-month"
+      - name: Download ${{ matrix.symbol }}
+        env:
+          SYM: ${{ matrix.symbol }}
+          MONTHS: ${{ github.event.inputs.months || '12' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import asyncio, os, datetime as dt, subprocess
+          import pandas as pd, tick_vault as tv
+
+          SYM = os.environ["SYM"]; MONTHS = int(os.environ["MONTHS"])
+          end = dt.datetime(2026, 8, 1, tzinfo=dt.timezone.utc)
+          os.makedirs("out", exist_ok=True)
+          # A month at a time: one failed hour should not cost the whole year,
+          # and each month uploads as soon as it is decoded.
+          for m in range(MONTHS):
+              e = (end - pd.DateOffset(months=m)).to_pydatetime()
+              s = (end - pd.DateOffset(months=m + 1)).to_pydatetime()
+              tag = s.strftime("%Y%m")
+              try:
+                  asyncio.run(tv.download_range(SYM, s, e))
+                  df = tv.read_tick_data(SYM, s, e, strict=False, show_progress=False)
+              except Exception as ex:
+                  print(f"{SYM} {tag}: {type(ex).__name__} {ex}", flush=True); continue
+              if df is None or not len(df):
+                  print(f"{SYM} {tag}: empty", flush=True); continue
+              f = f"out/{SYM}_{tag}.parquet"
+              df.to_parquet(f, compression="zstd", index=False)
+              sz = os.path.getsize(f) / 1e6
+              print(f"{SYM} {tag}: {len(df):,} ticks, {sz:.0f} MB, "
+                    f"cols={list(df.columns)}", flush=True)
+              subprocess.run(["gh", "release", "upload", "fx-ticks-raw", f,
+                              "--clobber"], check=False)
+              os.remove(f)
+          PY
