@@ -1,14 +1,20 @@
 name: ITCH Order Book Study
 
 # The first LEVEL 3 data this project has ever had. NASDAQ publishes full
-# TotalView-ITCH samples free at emi.nasdaq.com -- every order add, cancel,
-# execute, with order IDs. That is the information futures trade prints do not
-# contain and the reason Databento wants hundreds of dollars for CME MBO.
+# TotalView-ITCH samples free -- every order add, cancel, replace, execute,
+# with order IDs. That is the information futures trade prints do not contain
+# and the reason Databento wants hundreds of dollars for CME MBO.
 #
-# It is equities, not futures, so it cannot produce a futures strategy. What it
-# CAN do, for nothing, is answer the prerequisite: does order book imbalance
-# predict returns at all, and does it survive queue position? If the answer is
-# no here, no amount of CME MBO would have helped.
+# It is equities, so it cannot produce a futures strategy. What it CAN do, for
+# nothing, is answer the prerequisite: does order book imbalance predict
+# returns at all? If the answer is no here, no amount of CME MBO would have
+# helped.
+#
+# The first attempt reported "success" in two and a half minutes having
+# downloaded nothing and committed nothing. Two bugs, both fixed below:
+#   - the directory scrape found no filename and the run carried on regardless
+#   - `git add A B` fails WHOLESALE when B does not exist, so the commit was
+#     silently empty and the step still exited 0
 on:
   push:
     branches: [claude/hello-vc2ivo]
@@ -26,47 +32,106 @@ jobs:
       - uses: actions/checkout@v4
         with: { ref: claude/hello-vc2ivo }
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-      - run: pip install itchfeed pandas pyarrow numpy || pip install itchfeed pandas numpy
-      - name: Find and fetch a sample
+        with: { python-version: "3.12" }
+      - run: pip install pandas pyarrow numpy
+      - name: Room to work
         run: |
-          set -x
-          mkdir -p data/itch
-          # the directory listing tells us what samples exist without guessing
-          curl -sSL --max-time 120 "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/" \
-            -o /tmp/listing.html || true
-          head -c 4000 /tmp/listing.html || true
+          df -h / /mnt || true
+          sudo mkdir -p /mnt/itch && sudo chown "$USER" /mnt/itch
+      - name: Fetch a sample
+        run: |
           python - <<'PY'
-          import re, os, urllib.request
-          base = "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/"
-          try:
-              html = open("/tmp/listing.html").read()
-          except Exception:
-              html = ""
-          names = re.findall(r'href="([^"]+\.gz)"', html)
-          if not names:
-              names = re.findall(r'>([0-9]{8}\.NASDAQ_ITCH50\.gz)<', html)
-          print("found", len(names), "files:", names[:10])
-          if not names:
-              print("NO SAMPLES FOUND -- writing marker")
-              open("data/itch/NO_SAMPLES", "w").write(html[:2000]); raise SystemExit(0)
-          # smallest-looking (earliest) sample keeps the download sane
-          pick = sorted(names)[0].split("/")[-1]
-          url = base + pick
-          print("downloading", url)
-          urllib.request.urlretrieve(url, f"data/itch/{pick}")
-          print("got", pick, os.path.getsize(f"data/itch/{pick}") / 1e6, "MB")
+          import os, re, sys, urllib.request, urllib.error
+          BASE = "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/"
+          DEST = "/mnt/itch"
+          diag = []
+
+          def get(url, timeout=120):
+              req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+              return urllib.request.urlopen(req, timeout=timeout)
+
+          names = []
+          for listing in (BASE, "https://emi.nasdaq.com/ITCH/",
+                          "https://emi.nasdaq.com/?prefix=ITCH/"):
+              try:
+                  html = get(listing).read().decode("utf-8", "ignore")
+                  found = re.findall(r"(\d{8}\.NASDAQ_ITCH50\.gz)", html)
+                  diag.append(f"{listing} -> {len(html)} bytes, {len(found)} names")
+                  names += found
+              except Exception as e:
+                  diag.append(f"{listing} -> {type(e).__name__}: {e}")
+
+          # the scrape is best effort; these are the published sample dates and
+          # the run must not depend on a directory listing rendering the way it
+          # did last year
+          names += ["01302019.NASDAQ_ITCH50.gz", "12302019.NASDAQ_ITCH50.gz",
+                    "10302019.NASDAQ_ITCH50.gz", "08302019.NASDAQ_ITCH50.gz",
+                    "07302019.NASDAQ_ITCH50.gz", "03272019.NASDAQ_ITCH50.gz"]
+          seen, order = set(), []
+          for x in names:
+              if x not in seen:
+                  seen.add(x); order.append(x)
+          print("candidates:", order)
+
+          for name in order:
+              url = BASE + name
+              try:
+                  r = get(url, timeout=60)
+                  size = int(r.headers.get("Content-Length") or 0)
+                  print(f"downloading {name} ({size/1e9:.2f} GB)", flush=True)
+                  path = os.path.join(DEST, name)
+                  done = 0
+                  with open(path, "wb") as fh:
+                      while True:
+                          b = r.read(1 << 24)
+                          if not b: break
+                          fh.write(b); done += len(b)
+                          if done % (1 << 30) < (1 << 24):
+                              print(f"  {done/1e9:.1f} GB", flush=True)
+                  print(f"got {name}: {os.path.getsize(path)/1e9:.2f} GB")
+                  sys.exit(0)
+              except Exception as e:
+                  diag.append(f"{url} -> {type(e).__name__}: {e}")
+                  print(diag[-1], flush=True)
+
+          os.makedirs("data/itch", exist_ok=True)
+          open("data/itch/NO_SAMPLES", "w").write("\n".join(diag) + "\n")
+          print("NO SAMPLE COULD BE FETCHED")
+          print("\n".join(diag))
+          sys.exit(1)          # loudly, so the run does not read as a success
           PY
-          ls -la data/itch/ || true
       - name: Measure book imbalance
-        run: |
-          python research/mining_2026_07_31/mega2/itch_study.py 2>&1 | tail -60
+        if: success()
+        env:
+          ITCH_DIR: /mnt/itch
+          MAXMSG: "60000000"
+        run: python research/mining_2026_07_31/mega2/itch_study.py 2>&1 | tail -80
       - name: Commit the result
         if: always()
         run: |
+          sudo rm -rf /mnt/itch                # never commit the raw sample
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          rm -f data/itch/*.gz          # never commit the raw sample, it is huge
-          git add research/ITCH_RESULT.md data/itch/NO_SAMPLES 2>/dev/null || true
-          git diff --staged --quiet || (git commit -m "ITCH order book study result" &&
-            for i in 1 2 3 4; do git pull --rebase -X ours origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break || sleep $((2**i)); done)
+          # one path per add: `git add A B` fails ENTIRELY if B is missing,
+          # which is how the last run committed nothing and still exited 0
+          for p in research/ITCH_RESULT.md data/itch/NO_SAMPLES; do
+            [ -e "$p" ] && git add "$p" && echo "staged $p" || true
+          done
+          git status --short
+          if git diff --staged --quiet; then
+            echo "NOTHING TO COMMIT -- the study produced no output file"
+            exit 1
+          fi
+          git commit -m "ITCH order book study result"
+          for i in 1 2 3 4; do
+            git pull --rebase -X ours origin claude/hello-vc2ivo \
+              && git push origin claude/hello-vc2ivo && break || sleep $((2**i))
+          done
+      - name: Show the result in the summary
+        if: always()
+        run: |
+          { echo '## ITCH result'; echo;
+            cat research/ITCH_RESULT.md 2>/dev/null || echo 'no result file';
+            echo; echo '## Diagnostics'; echo '```';
+            cat data/itch/NO_SAMPLES 2>/dev/null || echo 'none'; echo '```';
+          } >> "$GITHUB_STEP_SUMMARY"

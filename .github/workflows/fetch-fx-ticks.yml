@@ -1,24 +1,31 @@
 name: Fetch FX Tick Data
 
-# Dukascopy is 403 from the execution container -- same proxy block that stops
-# stooq, Yahoo, FRED and cboe.com. Runners have open internet.
+# Second attempt. The first ran 5h38m and produced nothing, and the logs say
+# precisely why -- not slowness, a deadlock:
 #
-# Why this data is worth the trouble: it carries BID AND ASK on every tick.
-# Every futures conclusion in this repo rested on a GUESS about fills and
-# spread, and that guess was worth 72% of the apparent edge. Here the cost is
-# in the data instead of in my assumptions.
+#   10:42:50  Rate limited (429) ... 00h_ticks.bi5   <- ten workers, at once
+#   10:43:49  Metadata worker timeout - assuming parent crashed
+#   16:21:36  The operation was canceled.
+#
+# tick-vault opens ten concurrent connections, Dukascopy 429'd all ten inside
+# two seconds, the workers exhausted three retries and died, and its
+# orchestrator then awaited a queue with no producers left. Sixty seconds of
+# work followed by five and a half hours of silence.
+#
+# So: our own downloader (research/mining_2026_07_31/mega2/dukas.py), four
+# connections instead of ten, real backoff on 429, a socket timeout and a
+# wall-clock budget on every stage. And one job per symbol-month rather than
+# one job for a whole year, so a job is ~730 files and finishes in minutes --
+# a failure now costs one month of one symbol instead of everything.
+#
+# Why this data at all: it carries BID AND ASK on every tick. Every futures
+# conclusion in this repo rested on a guess about fills, and that guess was
+# worth 72% of the apparent edge. Here the cost is recorded, not assumed.
 on:
   push:
     branches: [claude/hello-vc2ivo]
     paths: ["research/.fx_trigger"]
   workflow_dispatch:
-    inputs:
-      symbols:
-        description: "comma-separated (default EURUSD,XAUUSD)"
-        default: ""
-      months:
-        description: "how many months back"
-        default: "12"
 
 permissions:
   contents: write
@@ -26,56 +33,38 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 60          # a month of hours takes minutes, not hours
     strategy:
       fail-fast: false
+      max-parallel: 16
       matrix:
         symbol: [EURUSD, GBPUSD, USDJPY, XAUUSD]
+        month: ["2025-08", "2025-09", "2025-10", "2025-11", "2025-12",
+                "2026-01", "2026-02", "2026-03", "2026-04", "2026-05",
+                "2026-06", "2026-07"]
     steps:
       - uses: actions/checkout@v4
         with: { ref: claude/hello-vc2ivo }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install tick-vault pandas pyarrow
+      - run: pip install pandas pyarrow numpy
       - name: Ensure release
-        continue-on-error: true   # four jobs race for one tag; losing is fine
+        continue-on-error: true   # 48 jobs, one tag; losing the race is fine
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
         run: |
           gh release view fx-ticks-raw \
             || gh release create fx-ticks-raw -t "Dukascopy FX ticks" \
                  -n "Bid/ask tick data, one parquet per symbol-month"
-      - name: Download ${{ matrix.symbol }}
+      - name: Download ${{ matrix.symbol }} ${{ matrix.month }}
         env:
-          SYM: ${{ matrix.symbol }}
-          MONTHS: ${{ github.event.inputs.months || '12' }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DUKAS_WORKERS: "4"
+          DUKAS_BUDGET_S: "2400"
         run: |
-          python - <<'PY'
-          import asyncio, os, datetime as dt, subprocess
-          import pandas as pd, tick_vault as tv
-
-          SYM = os.environ["SYM"]; MONTHS = int(os.environ["MONTHS"])
-          end = dt.datetime(2026, 8, 1, tzinfo=dt.timezone.utc)
-          os.makedirs("out", exist_ok=True)
-          # A month at a time: one failed hour should not cost the whole year,
-          # and each month uploads as soon as it is decoded.
-          for m in range(MONTHS):
-              e = (end - pd.DateOffset(months=m)).to_pydatetime()
-              s = (end - pd.DateOffset(months=m + 1)).to_pydatetime()
-              tag = s.strftime("%Y%m")
-              try:
-                  asyncio.run(tv.download_range(SYM, s, e))
-                  df = tv.read_tick_data(SYM, s, e, strict=False, show_progress=False)
-              except Exception as ex:
-                  print(f"{SYM} {tag}: {type(ex).__name__} {ex}", flush=True); continue
-              if df is None or not len(df):
-                  print(f"{SYM} {tag}: empty", flush=True); continue
-              f = f"out/{SYM}_{tag}.parquet"
-              df.to_parquet(f, compression="zstd", index=False)
-              sz = os.path.getsize(f) / 1e6
-              print(f"{SYM} {tag}: {len(df):,} ticks, {sz:.0f} MB, "
-                    f"cols={list(df.columns)}", flush=True)
-              subprocess.run(["gh", "release", "upload", "fx-ticks-raw", f,
-                              "--clobber"], check=False)
-              os.remove(f)
-          PY
+          python research/mining_2026_07_31/mega2/dukas.py \
+            "${{ matrix.symbol }}" "${{ matrix.month }}" out.parquet
+      - name: Upload
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          M=$(echo "${{ matrix.month }}" | tr -d '-')
+          mv out.parquet "${{ matrix.symbol }}_${M}.parquet"
+          gh release upload fx-ticks-raw "${{ matrix.symbol }}_${M}.parquet" --clobber
