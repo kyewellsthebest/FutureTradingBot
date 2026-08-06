@@ -1,0 +1,72 @@
+name: ITCH Order Book Study
+
+# The first LEVEL 3 data this project has ever had. NASDAQ publishes full
+# TotalView-ITCH samples free at emi.nasdaq.com -- every order add, cancel,
+# execute, with order IDs. That is the information futures trade prints do not
+# contain and the reason Databento wants hundreds of dollars for CME MBO.
+#
+# It is equities, not futures, so it cannot produce a futures strategy. What it
+# CAN do, for nothing, is answer the prerequisite: does order book imbalance
+# predict returns at all, and does it survive queue position? If the answer is
+# no here, no amount of CME MBO would have helped.
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ["research/.itch_trigger"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: claude/hello-vc2ivo }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install itchfeed pandas pyarrow numpy || pip install itchfeed pandas numpy
+      - name: Find and fetch a sample
+        run: |
+          set -x
+          mkdir -p data/itch
+          # the directory listing tells us what samples exist without guessing
+          curl -sSL --max-time 120 "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/" \
+            -o /tmp/listing.html || true
+          head -c 4000 /tmp/listing.html || true
+          python - <<'PY'
+          import re, os, urllib.request
+          base = "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/"
+          try:
+              html = open("/tmp/listing.html").read()
+          except Exception:
+              html = ""
+          names = re.findall(r'href="([^"]+\.gz)"', html)
+          if not names:
+              names = re.findall(r'>([0-9]{8}\.NASDAQ_ITCH50\.gz)<', html)
+          print("found", len(names), "files:", names[:10])
+          if not names:
+              print("NO SAMPLES FOUND -- writing marker")
+              open("data/itch/NO_SAMPLES", "w").write(html[:2000]); raise SystemExit(0)
+          # smallest-looking (earliest) sample keeps the download sane
+          pick = sorted(names)[0].split("/")[-1]
+          url = base + pick
+          print("downloading", url)
+          urllib.request.urlretrieve(url, f"data/itch/{pick}")
+          print("got", pick, os.path.getsize(f"data/itch/{pick}") / 1e6, "MB")
+          PY
+          ls -la data/itch/ || true
+      - name: Measure book imbalance
+        run: |
+          python research/mining_2026_07_31/mega2/itch_study.py 2>&1 | tail -60
+      - name: Commit the result
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f data/itch/*.gz          # never commit the raw sample, it is huge
+          git add research/ITCH_RESULT.md data/itch/NO_SAMPLES 2>/dev/null || true
+          git diff --staged --quiet || (git commit -m "ITCH order book study result" &&
+            for i in 1 2 3 4; do git pull --rebase -X ours origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break || sleep $((2**i)); done)
