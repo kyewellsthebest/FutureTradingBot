@@ -29,7 +29,11 @@ SLIP_LEG = 1.50
 
 @njit(cache=True)
 def _scalp_core(sig_idx, direction, o, h, l, c, tday,
-                entry_off, entry_window, target, stop, max_hold):
+                entry_off, entry_window, target, stop, max_hold,
+                strict=True):
+    """strict=True: fills require price 1 tick THROUGH the limit
+    (conservative). strict=False: fills on touch (optimistic upper bound —
+    real queue fills lie between the two)."""
     n = len(o)
     m = len(sig_idx)
     e_i = np.empty(m, np.int64)
@@ -51,12 +55,13 @@ def _scalp_core(sig_idx, direction, o, h, l, c, tday,
         while j <= j_end:
             if tday[j] != tday[si + 1]:
                 break
+            thr = TICK if strict else 0.0
             if direction > 0:
-                if l[j] <= limit - TICK:
+                if l[j] <= limit - thr:
                     fill_j = j
                     break
             else:
-                if h[j] >= limit + TICK:
+                if h[j] >= limit + thr:
                     fill_j = j
                     break
             j += 1
@@ -85,7 +90,7 @@ def _scalp_core(sig_idx, direction, o, h, l, c, tday,
                         exit_px = stp
                         was_mkt = 1
                         break
-                    if h[j] >= tgt + TICK:
+                    if h[j] >= tgt + (TICK if strict else 0.0):
                         exit_j = j
                         exit_px = tgt
                         was_mkt = 0
@@ -96,7 +101,7 @@ def _scalp_core(sig_idx, direction, o, h, l, c, tday,
                         exit_px = stp
                         was_mkt = 1
                         break
-                    if l[j] <= tgt - TICK:
+                    if l[j] <= tgt - (TICK if strict else 0.0):
                         exit_j = j
                         exit_px = tgt
                         was_mkt = 0
@@ -131,12 +136,12 @@ def _scalp_core(sig_idx, direction, o, h, l, c, tday,
 
 
 def scalp(df, arrays, signal, direction, entry_off=1, entry_window=10,
-          target=2, stop=8, max_hold=120):
+          target=2, stop=8, max_hold=120, strict=True):
     sig_idx = np.flatnonzero(np.asarray(signal))
     ei, xi, epx, xpx, mkt = _scalp_core(
         sig_idx, direction, arrays["o"], arrays["h"], arrays["l"], arrays["c"],
         arrays["tday"], float(entry_off), int(entry_window),
-        float(target), float(stop), int(max_hold))
+        float(target), float(stop), int(max_hold), strict)
     t = pd.DataFrame({
         "entry_time": arrays["ts"][ei], "exit_time": arrays["ts"][xi],
         "entry_px": epx, "exit_px": xpx, "dir": direction,

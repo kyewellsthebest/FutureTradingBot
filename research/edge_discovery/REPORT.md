@@ -310,3 +310,67 @@ caveat that ~60% of that rate comes from OPENS's 2025–26 regime component.
 unlock the spread/queue families that trade-only data cannot test; (3) extend
 the tick history backward (Polygon has 2019+) to get a bear-regime read on
 OPENS and the tick families.
+
+---
+
+# Part III — The 500+ trades/week mandate (HF scalping study)
+
+**Mandate tested:** ≥500 trades/week on NQ, net ≥$500–1,000/week after $4.40/RT,
+any win-rate/R:R structure. Verdict up front: **no such strategy exists in this
+data under honest execution assumptions, and the result is provable, not a
+search failure.**
+
+## 11. The arithmetic that governs everything
+
+At 500 trades/wk, costs are $2,200/wk; netting $750 needs **+1.2 ticks/trade
+gross**. A market-order (taker) scalper also crosses the 1-tick spread twice →
+true hurdle ≈ **2.2 ticks/trade**. A limit-order (maker) scalper pays ~$1.40 →
+hurdle ≈ **0.3 ticks/trade** plus whatever adverse selection its fills carry.
+
+## 12. Signal atlas (what edge exists at all at this frequency)
+
+Conditional forward returns measured over 38 second-scale states (IS only,
+Sep 2023–Feb 2025). The strongest high-frequency effect on NQ is **5–15 second
+overshoot reversion**: after a ≥2-pt drop in 5s, E[+30s] = +0.26 ticks
+(t = 15.6), symmetric on the up side (−0.23t), stronger PM (±0.42t, t ≈ 15),
+scaling to ~+0.5t for the deepest displacements. **The best predictive signal
+available at ≥1,500 events/week is 0.3–0.5 ticks** — real, hugely significant,
+and 4–7× too small for the taker hurdle.
+
+## 13. The maker route, bracketed by two fill models
+
+~430 passive-scalp configurations (bid 1–3 ticks under the overshoot; targets
+2–6t; stops 6–40t and no-stop; holds 60–600s; stall-conditioned and flow-
+conditioned variants; both sides):
+
+| Fill model | Meaning | Gross/trade across all configs |
+|---|---|---|
+| Strict trade-through (conservative) | fill only if price trades 1 tick past the limit | **−$8 to −$13** |
+| Touch (optimistic, unattainable) | every touch of the limit fills | **−$2.20 to −$6.23** |
+
+Real queue fills lie strictly between the bounds → **gross P&L is negative
+under every attainable fill assumption, before any commission**. Even the 89%
+win-rate no-stop variants lose gross: the ~11% of fills taken while a cascade
+runs through the level carry more loss than all winners combined. This is
+adverse selection — the exact toll that makes the 0.3–0.5 tick reversion edge
+exist in the first place. It is the market maker's compensation, and
+collecting it requires queue-position management and sub-second cancels,
+which neither this dataset (no book/quote data) nor a $4.40-cost retail stack
+can provide.
+
+## 14. What would change the answer
+
+1. **MBP-10 / order-book data + maker-rebate economics + sub-ms infrastructure**
+   — the actual cost of entry to this frequency band. With queue-position
+   modeling, fills at touch *without* trade-through become partially
+   capturable, which is precisely the gap between −$2 and breakeven.
+2. **Dropping the frequency constraint** — the validated book (Part I + II:
+   GAP, PWR, OPENS) already nets ≈ $1,200/wk on 1-lot NQ at ~6 trades/wk.
+   The user's *dollar* goal is achievable today; the *frequency* goal is what
+   physics forbids at these costs.
+3. A wider-tick, wider-spread instrument where displacement reversion measured
+   in ticks is large relative to a fixed cost — worth a dedicated study only
+   with book data in hand.
+
+Scripts: `hf_atlas.py` (signal physics), `hf_sim.py` (bracketed fill models),
+`hf_grid.py` (config sweep).
