@@ -46,6 +46,14 @@ TGT_PTS = float(os.environ.get("TGT_PTS", "12"))
 WAIT_TICKS = int(os.environ.get("WAIT_TICKS", "3000"))
 HOLD_TICKS = int(os.environ.get("HOLD_TICKS", "40000"))
 QUEUES = [float(x) for x in os.environ.get("QUEUES", "0,1,3,10,25,50").split(",")]
+# TRAILING STOP -- the one exit rule never tested here. Sixteen families all
+# used a fixed stop and a fixed target, which caps every winner at 2R. A trail
+# keeps the loss capped but lets a winner run, and on a strategy sitting at
+# 34.8% wins against a 33.3% break-even that shape change could matter.
+#   TRAIL_PTS  0 = off (fixed target). Otherwise trail this far behind the
+#              best price reached, after TRAIL_TRIG points of profit.
+TRAIL_PTS = float(os.environ.get("TRAIL_PTS", "0"))
+TRAIL_TRIG = float(os.environ.get("TRAIL_TRIG", "3"))
 
 
 def simulate(px, sz, queue):
@@ -98,16 +106,27 @@ def simulate(px, sz, queue):
             nofill += 1; continue
         sl = ep - sd * STOP_PTS
         tp = ep + sd * TGT_PTS
-        hs = (e <= sl) if sd > 0 else (e >= sl)
-        ht = (e >= tp) if sd > 0 else (e <= tp)
-        js = int(np.argmax(hs)) if hs.any() else 10**9
-        jt = int(np.argmax(ht)) if ht.any() else 10**9
-        if js == 10**9 and jt == 10**9:
-            pts[k] = (e[-1] - ep) * sd          # time exit at the window end
-        elif js < jt:
-            pts[k] = -STOP_PTS
+        if TRAIL_PTS <= 0:
+            hs = (e <= sl) if sd > 0 else (e >= sl)
+            ht = (e >= tp) if sd > 0 else (e <= tp)
+            js = int(np.argmax(hs)) if hs.any() else 10**9
+            jt = int(np.argmax(ht)) if ht.any() else 10**9
+            if js == 10**9 and jt == 10**9:
+                pts[k] = (e[-1] - ep) * sd      # time exit at the window end
+            elif js < jt:
+                pts[k] = -STOP_PTS
+            else:
+                pts[k] = TGT_PTS
         else:
-            pts[k] = TGT_PTS
+            # running best price in the trade's favour, tick by tick
+            prof = (e - ep) * sd
+            best = np.maximum.accumulate(prof)
+            # the stop is the fixed one until TRAIL_TRIG of profit is reached,
+            # then it follows the best price at TRAIL_PTS behind
+            live = np.where(best >= TRAIL_TRIG, best - TRAIL_PTS, -STOP_PTS)
+            hit = prof <= live
+            j = int(np.argmax(hit)) if hit.any() else 10**9
+            pts[k] = float(live[j]) if j < 10**9 else float(prof[-1])
     good = np.isfinite(pts)
     return pts[good], int(nofill), idx[good]
 
