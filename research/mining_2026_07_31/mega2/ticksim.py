@@ -161,10 +161,16 @@ print(f"impulse {IMP_PTS}pt over {IMP_TICKS} prints, {RETRACE:.0%} retrace, "
 TAPE = {}
 for f in files:
     c = os.path.basename(f).replace(".parquet", "")
-    d = pd.read_parquet(f).sort_values("ts", kind="stable")
-    TAPE[c] = (d.price.values.astype(float), d["size"].values.astype(float),
-               d.ts.values.astype(np.int64))
+    # price stays float64 -- NQ at 20000.25 needs seven significant digits and
+    # float32 has about seven, so a tick would round away. Size is small
+    # integers and the timestamps are never read, so neither needs the room:
+    # eight contracts is 184 million prints and the difference is gigabytes.
+    d = pd.read_parquet(f, columns=["ts", "price", "size"]).sort_values(
+        "ts", kind="stable")
+    TAPE[c] = (d.price.values.astype(np.float64),
+               d["size"].values.astype(np.float32), None)
     print(f"  {c}: {len(d):,} prints", flush=True)
+    del d
 
 def arm(queue, trail, trg, rnd_seed=None):
     """One exit rule across every contract. Returns the pooled numbers."""
