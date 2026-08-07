@@ -225,8 +225,14 @@ def score_pairs(M, p, ok, cut, tallies, tags):
     b = (Sho[iu][g] / Nho[iu][g])
     ii, jj = iu[0][g], iu[1][g]
     for t in tallies:
-        t.add(a, b, tags=lambda k: f"{tags[ii[k]]} AND {tags[jj[k]]}")
-    return int(g.sum())
+        t.add(a, b, tags=lambda k: f"LONG {tags[ii[k]]} AND {tags[jj[k]]}")
+        # SHORTING the same condition is a different configuration and half the
+        # search space. It needs no second matmul: selling what you would have
+        # bought earns exactly minus what buying earned, on both splits. Without
+        # this the grid can express "buy after a fall" but never "sell after a
+        # rise", and calls that a complete search.
+        t.add(-a, -b, tags=lambda k: f"SHORT {tags[ii[k]]} AND {tags[jj[k]]}")
+    return 2 * int(g.sum())
 
 
 def score_triples(M, p, ok, cut, tallies, tags):
@@ -257,9 +263,11 @@ def score_triples(M, p, ok, cut, tallies, tags):
         a = Str[r, cidx] / Ntr[r, cidx]
         b = Sho[r, cidx] / Nho[r, cidx]
         for t in tallies:
-            t.add(a, b, tags=lambda k: (f"{tags[i2[r[k]]]} AND "
+            t.add(a, b, tags=lambda k: (f"LONG {tags[i2[r[k]]]} AND "
                                         f"{tags[j2[r[k]]]} AND {tags[cidx[k]]}"))
-        total += int(good.sum())
+            t.add(-a, -b, tags=lambda k: (f"SHORT {tags[i2[r[k]]]} AND "
+                                          f"{tags[j2[r[k]]]} AND {tags[cidx[k]]}"))
+        total += 2 * int(good.sum())
     return total
 
 
