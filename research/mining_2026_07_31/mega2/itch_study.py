@@ -52,6 +52,8 @@ ITCH = os.environ.get("ITCH_DIR") or os.path.join(ROOT, "data", "itch")
 OUT = os.path.join(ROOT, "research", "ITCH_RESULT.md")
 MAXMSG = int(os.environ.get("MAXMSG", "40000000"))
 SNAP_EVERY = int(os.environ.get("SNAP_EVERY", "1500"))
+# how many snapshots before the measurement is worth making at all
+MINSNAP = int(os.environ.get("MINSNAP", "5000"))
 
 # a fixed liquid set, so we track a few thousand orders instead of millions
 WANT = set(os.environ.get("SYMS", "AAPL MSFT AMZN TSLA NVDA META GOOGL "
@@ -181,6 +183,10 @@ with gzip.open(src, "rb") as fh:
                 lv[0 if o[1] else 1] += nsh
 
             if nmsg % SNAP_EVERY == 0:
+                # the 6-byte header timestamp is nanoseconds since midnight ET.
+                # Decoding it on every message would cost more than the parse;
+                # at snapshot time it is 40,000 calls instead of 60 million.
+                tns = int.from_bytes(m[5:11], "big")
                 for loc, lv in book.items():
                     bb = bp = 0
                     aa = 0
@@ -194,7 +200,7 @@ with gzip.open(src, "rb") as fh:
                         continue
                     if ap - bp > bp * 0.02:      # a two percent spread is junk
                         continue
-                    rows.append((nmsg, loc, bp, bb, ap, aa))
+                    rows.append((nmsg, tns, loc, bp, bb, ap, aa))
         buf = buf[pos:]
 
 log(f"Parsed **{nmsg:,} messages**, {len(rows):,} book snapshots across "
@@ -205,13 +211,29 @@ log("Message mix: " + ", ".join(
     sorted(counts.items(), key=lambda x: -x[1])[:8]))
 log()
 
-if len(rows) < 5000:
+if len(rows) < MINSNAP:
     log("**Too few snapshots to measure anything.** The book never populated, "
         "which means the parse is wrong rather than the market being quiet.")
     write_and_exit(0)
 
-d = pd.DataFrame(rows, columns=["seq", "loc", "bid", "bsz", "ask", "asz"])
+d = pd.DataFrame(rows, columns=["seq", "tns", "loc", "bid", "bsz", "ask", "asz"])
 d["sym"] = d["loc"].map(loc2sym)
+
+# REGULAR HOURS ONLY. Pre-market books are thin and their spreads are several
+# times the RTH spread, so measuring the signal across the whole session and
+# then pricing it against a session-wide median spread compares a number earned
+# mostly in the open auction against a cost paid mostly at 4am.
+RTH = (d.tns >= 34_200_000_000_000) & (d.tns < 57_600_000_000_000)
+_sp = (d.ask - d.bid) / ((d.ask + d.bid) / 2) * 10000
+_in = _sp[RTH].median() if RTH.any() else float("nan")
+_out = _sp[~RTH].median() if (~RTH).any() else float("nan")
+log(f"Session: {RTH.mean()*100:.0f}% of snapshots fall in 09:30-16:00 ET. "
+    f"Median spread {_in:.1f} bps in hours against {_out:.1f} bps outside.")
+log()
+if RTH.sum() >= MINSNAP:
+    d = d[RTH].copy()
+    log(f"Keeping the {len(d):,} in-hours snapshots and discarding the rest.")
+    log()
 d = d.sort_values(["sym", "seq"], kind="stable").reset_index(drop=True)
 d["mid"] = (d.bid + d.ask) / 2.0                      # still in 1e-4 dollars
 d["spread_bps"] = (d.ask - d.bid) / d.mid * 10000
@@ -271,29 +293,70 @@ for h in (1, 5, 20, 50):
         log(f"| {h} snapshots | {col} | {it:+.4f} | {ih:+.4f} | {held} |")
         ctrl[(h, col)] = ih
         if col == "imb" and np.isfinite(ih) and abs(ih) > abs(best[1]):
-            best = (h, ih, float(np.nanmedian(np.abs(fwd))))
+            # NOT the median absolute move. Between consecutive snapshots the
+            # mid usually does not move at all, so the median is exactly zero
+            # and IC x 0 prices a real signal at nothing -- which is what the
+            # first version of this file reported. The standard deviation is
+            # the scale an IC is defined against.
+            best = (h, ih, float(np.nanstd(fwd)), float(np.nanmean(np.abs(fwd))),
+                    float(np.nanmean(fwd != 0)))
+log()
+
+# The IC-times-sigma conversion assumes a linear relationship. This does not
+# assume anything: sort the holdout snapshots by imbalance, take the extreme
+# deciles, and read off what actually happened next. If the top decile does not
+# out-earn the bottom by more than the spread, there is no trade here whatever
+# the IC says.
+log("## What actually happened next, by imbalance decile (holdout only)")
+log()
+H = d[late].copy()
+hbest = best[0] or 1
+H["fwd"] = d.groupby("sym", group_keys=False)["mid"].apply(
+    lambda x: (x.shift(-hbest) / x - 1.0) * 10000).values[late]
+H = H[np.isfinite(H.fwd)]
+try:
+    H["dec"] = pd.qcut(H.imb, 10, labels=False, duplicates="drop")
+    g = H.groupby("dec").fwd.agg(["mean", "count", "std"])
+    log(f"| decile | mean forward move ({hbest} snaps) | n | +/- |")
+    log("|---|---|---|---|")
+    for i, r in g.iterrows():
+        log(f"| {int(i)} | {r['mean']:+.3f} bps | {int(r['count']):,} | "
+            f"{r['std']/np.sqrt(r['count']):.3f} |")
+    lo_, hi_ = g.iloc[0], g.iloc[-1]
+    spread_dec = hi_["mean"] - lo_["mean"]
+    dse = np.sqrt(lo_["std"] ** 2 / lo_["count"] + hi_["std"] ** 2 / hi_["count"])
+    log()
+    log(f"**Top decile minus bottom: {spread_dec:+.3f} bps "
+        f"+/- {dse:.3f} ({abs(spread_dec)/max(dse,1e-9):.1f} sigma).** "
+        f"Acting on one side of that captures about half of it, "
+        f"{spread_dec/2:+.3f} bps, against a half-spread of "
+        f"{float(d.spread_bps.median())/2:.2f} bps to cross.")
+except Exception as e:
+    log(f"decile table unavailable: {type(e).__name__}: {e}")
 log()
 
 if best[0]:
-    h, icv, mv = best
+    h, icv, sd, ma, nz = best
     # what the feature is worth is what it beats its own control by, not its
     # raw value -- the circular shift is as persistent as imbalance is and
     # carries no information, so anything it scores is the pipeline talking
     sh = ctrl.get((h, "shifted"), np.nan)
     edge = abs(icv) - (abs(sh) if np.isfinite(sh) else 0.0)
-    worth = max(edge, 0.0) * mv
-    raw = abs(icv) * mv
+    worth = max(edge, 0.0) * sd
     sp = float(d.spread_bps.median())
     log(f"**Best: imbalance {icv:+.4f} at {h} snapshots ahead, against a "
-        f"time-shifted control of {sh:+.4f}.** A typical move over that horizon "
-        f"is {mv:.1f} bps.")
+        f"time-shifted control of {sh:+.4f}.**")
     log()
-    log(f"- raw, before the control: {raw:.2f} bps a trade")
+    log(f"- forward move over that horizon: sigma {sd:.2f} bps, mean absolute "
+        f"{ma:.2f} bps, and the mid moves at all only {nz*100:.0f}% of the time")
+    log(f"- raw, before the control: {abs(icv)*sd:.2f} bps a trade")
     log(f"- **net of the control: {worth:.2f} bps a trade**")
     log(f"- crossing the spread costs **{sp:.1f} bps**, so a taker needs "
         f"{sp/max(worth,1e-9):.1f}x this to break even")
-    log(f"- **verdict: "
-        f"{'clears the spread -- CME MBO is worth pricing' if worth > sp else 'does NOT clear the spread'}**")
+    log(f"- a maker who never crosses pays no spread, and for them the bar is "
+        f"queue position and adverse selection, not {sp:.1f} bps")
+    log(f"- **verdict as a TAKER: "
+        f"{'clears the spread' if worth > sp else 'does NOT clear the spread'}**")
 else:
     log("**No finite holdout IC at any horizon.** Nothing was measured; do not "
         "read the train column as a result.")

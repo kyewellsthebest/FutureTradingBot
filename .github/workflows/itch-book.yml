@@ -104,7 +104,7 @@ jobs:
         if: success()
         env:
           ITCH_DIR: /mnt/itch
-          MAXMSG: "60000000"
+          MAXMSG: "200000000"
         run: python research/mining_2026_07_31/mega2/itch_study.py 2>&1 | tail -80
       - name: Commit the result
         if: always()
