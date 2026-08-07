@@ -63,9 +63,36 @@ CHUNKPAIR = int(os.environ.get("CHUNKPAIR", "8000"))
 # EURUSD. Cap it and say so, rather than let one symbol eat the whole run.
 MAXBARS = int(os.environ.get("MAXBARS", "26000"))
 
-# histogram of training score (pips) -> holdout outcome
-EDGES = np.r_[-np.inf, np.arange(-4, 12.01, 0.25), np.inf]
-NB = len(EDGES) - 1
+# Histogram of training score -> holdout outcome, on a SIGNED LOG axis.
+#
+# The previous version binned linearly and capped at +12 pips, so every
+# configuration above +12 fell in one bin -- 144 million of them, 7% of the
+# population. The tightest selection cut it could resolve was therefore 7%,
+# and it was printed in the report labelled "top 0.00001%". Training scores in
+# this search reach +950 pips on XAUUSD, so a linear axis cannot cover the
+# range and resolve the tail at the same time.
+#
+# sign(x) * log1p(|x|) does both: near zero it is linear (log1p(x) ~ x, so 0.007
+# pip resolution), and at x = 100 pips a bin is still only ~0.7 pips wide, which
+# is finer than anything the tail needs.
+NBIN = 4001
+TMAX = 7.0                                   # log1p(1096) -- beyond any score seen
+EDGES_T = np.linspace(-TMAX, TMAX, NBIN)
+NB = NBIN - 1
+
+
+def _t(x):
+    """Signed log, the axis the histogram lives on."""
+    return np.sign(x) * np.log1p(np.abs(x))
+
+
+def _t_inv(u):
+    return np.sign(u) * np.expm1(np.abs(u))
+
+# A container restart has now killed two multi-hour runs outright. State is
+# small -- three histograms and a heap -- so there is no excuse for losing it.
+CKPT = os.environ.get("CKPT", os.path.join(ROOT, "research", ".fxbillions_ckpt.npz"))
+RESUME = os.environ.get("RESUME", "1") == "1"
 
 LINES = []
 
@@ -86,7 +113,7 @@ class Tally:
         self.top = []           # heap of (train, tag, holdout)
 
     def add(self, tr, ho, tags=None):
-        b = np.digitize(tr, EDGES) - 1
+        b = np.digitize(_t(tr), EDGES_T) - 1
         np.clip(b, 0, NB - 1, out=b)
         self.n += np.bincount(b, minlength=NB)
         self.pos += np.bincount(b, weights=(ho > 0).astype(np.float64),
@@ -122,8 +149,8 @@ class Tally:
                 j = int(nz[-1]) if len(nz) else 0
             if cn[j] == 0 or (rows and rows[-1][2] == int(cn[j])):
                 continue
-            rows.append((frac, EDGES[j], int(cn[j]), cp[j] / cn[j] * 100,
-                         cs[j] / cn[j]))
+            rows.append((frac, _t_inv(EDGES_T[j]), int(cn[j]),
+                         cp[j] / cn[j] * 100, cs[j] / cn[j]))
         return rows
 
 
@@ -256,7 +283,13 @@ def score_triples(M, p, ok, cut, tallies, tags):
         Str = PA @ (p[:, None] * A.T)
         Nho = PB @ Bm.T
         Sho = PB @ (p[:, None] * Bm.T)
+        # A AND B AND C is the same rule however it is ordered. Crossing pairs
+        # (i<j) against every single k counted each triple three times -- once
+        # for each element that happened to be the "single" -- which is how
+        # "2.04 billion configurations" was really about 680 million distinct
+        # ones wearing three hats. Require k > j and each triple is counted once.
         good = (Ntr >= MINTR) & (Nho >= MINHO)
+        good &= np.arange(nm)[None, :] > j2[:, None]
         if not good.any():
             continue
         r, cidx = np.where(good)
@@ -295,6 +328,22 @@ if __name__ == "__main__":
     T = Tally()
     percell = {}
     t0 = time.time()
+    seen_cells = set()
+    if RESUME and os.path.exists(CKPT):
+        z = np.load(CKPT, allow_pickle=True)
+        T.n, T.pos, T.sho = z["n"], z["pos"], z["sho"]
+        T.total = int(z["total"])
+        T.top = [tuple(x) for x in z["top"].tolist()]
+        seen_cells = set(z["cells"].tolist())
+        log(f"Resumed from checkpoint: {T.total:,} configurations already "
+            f"scored across {len(seen_cells)} cells.")
+        log()
+
+
+    def save_ckpt():
+        np.savez(CKPT, n=T.n, pos=T.pos, sho=T.sho, total=T.total,
+                 top=np.array(T.top, dtype=object),
+                 cells=np.array(sorted(seen_cells), dtype=object))
     for sym in syms:
         r = load(sym)
         if r is None:
@@ -309,6 +358,9 @@ if __name__ == "__main__":
                 log(f"- {sym} `{kind}`: {B['n']:,} bars exceeds the "
                     f"{MAXBARS:,} cap, SKIPPED (not silently truncated)")
                 continue
+            if f"{sym}|{kind}" in seen_cells:
+                log(f"- {sym} `{kind}`: already in the checkpoint, skipped")
+                continue
             M, tags = base_masks(B, pip)
             if M is None:
                 continue
@@ -321,6 +373,8 @@ if __name__ == "__main__":
                 if TRIPLES:
                     cnt += score_triples(M, p, ok, cut, (T, cell), tags)
             percell[(sym, kind)] = cell
+            seen_cells.add(f"{sym}|{kind}")
+            save_ckpt()
             log(f"- {sym} `{kind}`: {B['n']:,} bars, {len(M)} conditions, "
                 f"**{cnt:,}** configurations [{time.time()-t0:.0f}s, "
                 f"running total {T.total:,}]")

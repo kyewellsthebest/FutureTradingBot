@@ -80,3 +80,4 @@ data/tick/multi/
 # fx-ticks-raw release, which is where large raw data belongs
 data/fx/
 data/itch/
+research/.fxbillions_ckpt.npz
