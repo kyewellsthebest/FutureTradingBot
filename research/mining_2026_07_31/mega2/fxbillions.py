@@ -34,6 +34,7 @@ and billions of configs, the conclusion is not "search harder".
 
 Usage: python fxbillions.py [--triples] [SYMBOL ...]
 """
+import gc
 import glob
 import heapq
 import os
@@ -305,20 +306,50 @@ def score_triples(M, p, ok, cut, tallies, tags):
 
 
 def load(sym):
+    """Column-at-a-time, preallocated. The concat version was killing the box.
+
+    `pd.concat([read_parquet(f) for f in twelve_files])` holds all twelve
+    frames AND the joined copy at once. XAUUSD is 44.7 million rows across
+    five columns, so that peak is several gigabytes for a symbol whose useful
+    content is two float arrays. Three container restarts, all during this
+    call. Preallocating and filling per file halves the peak and never holds
+    two copies of the same bytes.
+    """
+    import pyarrow.parquet as pq
     fs = sorted(glob.glob(os.path.join(FX, f"{sym}_*.parquet")))
     if not fs:
         return None
-    d = pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)
-    d = d.sort_values("time", kind="stable").reset_index(drop=True)
-    return d.bid.values.astype(np.float64), d.ask.values.astype(np.float64), \
-        d.time.values
+    rows = [pq.ParquetFile(f).metadata.num_rows for f in fs]
+    n = sum(rows)
+    bid = np.empty(n, np.float64)
+    ask = np.empty(n, np.float64)
+    ts = np.empty(n, "datetime64[ns]")
+    at = 0
+    for f, r in zip(fs, rows):
+        t = pq.read_table(f, columns=["time", "bid", "ask"])
+        bid[at:at + r] = t.column("bid").to_numpy(zero_copy_only=False)
+        ask[at:at + r] = t.column("ask").to_numpy(zero_copy_only=False)
+        ts[at:at + r] = t.column("time").to_numpy(zero_copy_only=False)
+        at += r
+        del t
+    # files are month-ordered so the concatenation is already chronological;
+    # verify rather than assume, and only pay for a sort if it is wrong
+    if not np.all(np.diff(ts.view(np.int64)) >= 0):
+        o = np.argsort(ts, kind="stable")
+        bid, ask, ts = bid[o], ask[o], ts[o]
+    return bid, ask, ts
 
 
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    syms = [s.upper() for s in args] or sorted(
-        {os.path.basename(f).split("_")[0]
-         for f in glob.glob(os.path.join(FX, "*.parquet"))})
+    syms = [s.upper() for s in args] or [
+        x[1] for x in sorted(
+            (sum(os.path.getsize(f) for f in
+                 glob.glob(os.path.join(FX, f"{s_}_*.parquet"))), s_)
+            for s_ in {os.path.basename(f).split("_")[0]
+                       for f in glob.glob(os.path.join(FX, "*.parquet"))})]
+    # smallest first: a crash then costs the cheapest remaining symbol, not
+    # everything after the most expensive one
     log("# FX search, at scale")
     log()
     log("Every family, crossed with every other family, on data where a buy "
@@ -349,6 +380,7 @@ if __name__ == "__main__":
         if r is None:
             continue
         bid, ask, ts = r
+        del r
         pip = PIP.get(sym, 1e-4)
         for kind in BARS:
             B = make_bars(bid, ask, ts, kind)
@@ -378,6 +410,9 @@ if __name__ == "__main__":
             log(f"- {sym} `{kind}`: {B['n']:,} bars, {len(M)} conditions, "
                 f"**{cnt:,}** configurations [{time.time()-t0:.0f}s, "
                 f"running total {T.total:,}]")
+            del B, M
+        del bid, ask, ts
+        gc.collect()
     log()
     log(f"## {T.total:,} configurations scored in {time.time()-t0:.0f} seconds")
     log()
