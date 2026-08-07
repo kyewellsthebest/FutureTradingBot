@@ -7,3 +7,4 @@
 {"date": "2026-08-03", "as_of": "2026-08-03T22:37:28.525989+00:00", "regime": "POSITIVE", "total_gex": 164398117680.92725, "n_contracts": 12446, "n_valid": 8878, "spot": 687.99, "source": "OPT_QQQ_20260803.parquet", "ok": true, "reason": "ok"}
 {"date": "2026-08-04", "as_of": "2026-08-04T22:41:01.313033+00:00", "regime": "POSITIVE", "total_gex": 411738684194.676, "n_contracts": 12632, "n_valid": 9192, "spot": 700.07, "source": "OPT_QQQ_20260804.parquet", "ok": true, "reason": "ok"}
 {"date": "2026-08-05", "as_of": "2026-08-05T22:39:25.175946+00:00", "regime": "POSITIVE", "total_gex": 181206289172.12354, "n_contracts": 12566, "n_valid": 9215, "spot": 723.85, "source": "OPT_QQQ_20260805.parquet", "ok": true, "reason": "ok"}
+{"date": "2026-08-07", "as_of": "2026-08-07T01:05:25.004575+00:00", "regime": "POSITIVE", "total_gex": 236435916247.04236, "n_contracts": 12922, "n_valid": 8784, "spot": 714.65, "source": "OPT_QQQ_20260807.parquet", "ok": true, "reason": "ok"}
