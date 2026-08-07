@@ -75,3 +75,8 @@ research/mining_2026_07_31/mega2/tk*_*.json.gz
 hunter_board.json
 research/mining_2026_07_31/mega2/cc_*.json.gz
 data/tick/multi/
+
+# Dukascopy FX ticks -- 393 MB, and they already live in the
+# fx-ticks-raw release, which is where large raw data belongs
+data/fx/
+data/itch/
