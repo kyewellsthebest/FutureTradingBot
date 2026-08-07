@@ -207,6 +207,13 @@ for tr_ in (2.0, 3.0, 4.0, 6.0):
     for tg_ in (2.0, 4.0, 8.0):
         CONFIGS.append((f"trail {tr_:.0f} after {tg_:.0f}", tr_, tg_))
 
+# loading 184 million prints costs eight minutes, so a run that dies partway
+# should not have to redo the rules it already answered
+SKIP_FIRST = int(os.environ.get("SKIP_FIRST", "0"))
+if SKIP_FIRST:
+    print(f"skipping the first {SKIP_FIRST} rules, already measured")
+    CONFIGS = CONFIGS[SKIP_FIRST:]
+
 print(f"\n{'exit rule':>18s} {'arm':>8s} {'trades':>8s} {'win%':>6s} "
       f"{'$/trade':>9s} {'+/-':>7s} {'HOLD':>8s} {'STRAT-RND':>10s}")
 for q in QUEUES:
