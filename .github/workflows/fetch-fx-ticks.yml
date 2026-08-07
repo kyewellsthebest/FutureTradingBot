@@ -18,6 +18,10 @@ name: Fetch FX Tick Data
 # one job for a whole year, so a job is ~730 files and finishes in minutes --
 # a failure now costs one month of one symbol instead of everything.
 #
+# Second batch: the majors we did not have. More symbols is not greed, it is
+# the sign test -- a real edge wins most cells, one regime's luck wins its own.
+# Four symbols is four chances to be fooled; eight is a vote.
+#
 # Why this data at all: it carries BID AND ASK on every tick. Every futures
 # conclusion in this repo rested on a guess about fills, and that guess was
 # worth 72% of the apparent edge. Here the cost is recorded, not assumed.
@@ -38,7 +42,7 @@ jobs:
       fail-fast: false
       max-parallel: 16
       matrix:
-        symbol: [EURUSD, GBPUSD, USDJPY, XAUUSD]
+        symbol: [AUDUSD, NZDUSD, USDCAD, USDCHF]
         month: ["2025-08", "2025-09", "2025-10", "2025-11", "2025-12",
                 "2026-01", "2026-02", "2026-03", "2026-04", "2026-05",
                 "2026-06", "2026-07"]
