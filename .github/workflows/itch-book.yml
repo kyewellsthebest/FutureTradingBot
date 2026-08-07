@@ -10,6 +10,13 @@ name: ITCH Order Book Study
 # returns at all? If the answer is no here, no amount of CME MBO would have
 # helped.
 #
+# Now runs TWO studies on the one 4.76 GB download, because the second is the
+# question the first only set up: imbalance predicts (holdout IC +0.15), but it
+# is worth about a seventh of the cost of crossing. So a taker cannot use it.
+# A maker does not cross -- a maker earns the spread and pays adverse selection
+# instead, and adverse selection is the one number this project has never
+# measured. Order IDs make it exact here, for nothing.
+#
 # The first attempt reported "success" in two and a half minutes having
 # downloaded nothing and committed nothing. Two bugs, both fixed below:
 #   - the directory scrape found no filename and the run carried on regardless
@@ -106,6 +113,15 @@ jobs:
           ITCH_DIR: /mnt/itch
           MAXMSG: "200000000"
         run: python research/mining_2026_07_31/mega2/itch_study.py 2>&1 | tail -80
+      - name: Measure adverse selection on resting orders
+        if: success()
+        env:
+          ITCH_DIR: /mnt/itch
+          MAXMSG: "200000000"
+          PLACE_EVERY: "5000"
+          MAXLIVE: "600"
+          HORIZONS: "100,1000,10000"
+        run: python research/mining_2026_07_31/mega2/mm_study.py 2>&1 | tail -60
       - name: Commit the result
         if: always()
         run: |
@@ -114,7 +130,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # one path per add: `git add A B` fails ENTIRELY if B is missing,
           # which is how the last run committed nothing and still exited 0
-          for p in research/ITCH_RESULT.md data/itch/NO_SAMPLES; do
+          for p in research/ITCH_RESULT.md research/MM_ADVERSE_SELECTION.md data/itch/NO_SAMPLES; do
             [ -e "$p" ] && git add "$p" && echo "staged $p" || true
           done
           git status --short
@@ -132,6 +148,8 @@ jobs:
         run: |
           { echo '## ITCH result'; echo;
             cat research/ITCH_RESULT.md 2>/dev/null || echo 'no result file';
+            echo; echo '## Adverse selection'; echo;
+            cat research/MM_ADVERSE_SELECTION.md 2>/dev/null || echo 'no mm result';
             echo; echo '## Diagnostics'; echo '```';
             cat data/itch/NO_SAMPLES 2>/dev/null || echo 'none'; echo '```';
           } >> "$GITHUB_STEP_SUMMARY"
