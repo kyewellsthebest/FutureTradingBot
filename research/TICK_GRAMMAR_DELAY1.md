@@ -2,6 +2,14 @@
 
 **ENTRY DELAYED 1 price change(s) past confirmation** -- the bid-ask bounce test. Bounce dies at the first change; behaviour survives it.
 
+  R=4 NQH5: 2,671,656 legs [25s]
+  R=4 NQH6: 2,427,366 legs [42s]
+  R=4 NQM5: 3,156,190 legs [65s]
+  R=4 NQM6: 3,096,643 legs [83s]
+  R=4 NQU4: 2,218,222 legs [97s]
+  R=4 NQU5: 1,376,299 legs [108s]
+  R=4 NQZ4: 1,545,303 legs [119s]
+  R=4 NQZ5: 2,312,309 legs [137s]
 ## R = 4 ticks -- 18,803,588 legs, 8 contracts
 
 ### horizon 50 price-changes -- population baseline train -0.01, holdout -0.01 ticks
@@ -76,6 +84,14 @@ Shuffled control: **1 cells** pass the same screen on permuted outcomes (the fal
 
 Shuffled control: **1 cells** pass the same screen on permuted outcomes (the false-positive floor).
 
+  R=8 NQH5: 899,946 legs [463s]
+  R=8 NQH6: 889,746 legs [473s]
+  R=8 NQM5: 1,277,036 legs [486s]
+  R=8 NQM6: 1,166,701 legs [498s]
+  R=8 NQU4: 759,314 legs [509s]
+  R=8 NQU5: 430,248 legs [515s]
+  R=8 NQZ4: 473,647 legs [524s]
+  R=8 NQZ5: 817,003 legs [537s]
 ## R = 8 ticks -- 6,713,241 legs, 8 contracts
 
 ### horizon 50 price-changes -- population baseline train -0.04, holdout -0.02 ticks
@@ -152,3 +168,5 @@ Shuffled control: **0 cells** pass the same screen on permuted outcomes (the fal
 
 ---
 Gates: $1.42 commission-only and $4.40 with the $3 slippage figure, against the FULL gross cell mean at $0.50/tick. 'vote' is contracts agreeing with the train sign, out of sample. Cells are judged against the event-population baseline at their horizon, never against zero.
+
+wrote /home/user/FutureTradingBot/research/TICK_GRAMMAR.md

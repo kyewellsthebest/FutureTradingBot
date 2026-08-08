@@ -26,9 +26,11 @@ grep this file.
 | 19 | selection-by-train-score as a method | everywhere | 1.38B | HARMFUL | measured negative return to searching harder |
 | 20 | FX impulse at 97% lower costs | 4 FX pairs, measured spread | full sim | NULL | all arms negative gross; "it was the costs" hypothesis retired |
 
+| 21 | **leg-grammar conditional cells** | 8 NQ contracts, 27.6M legs, 3 scales | ~750 cells/scale | **REAL, survives bounce test** | 76–97% of screened cells hold OOS vs shuffled floor 0–1; standout: large+fast+LOW-volume leg reversal continues +6.15 ticks OOS at DELAY=1, 8/8 contracts, both directions, nbhd 100%; same cell at HIGH volume flips sign. Gross $3.08: passes $1.42 gate, fails $4.40 |
+
 Open questions with machinery built and answer pending:
 - adverse selection after passive fills (mm_study.py, ITCH) — decides the maker path
-- leg-grammar conditional expectancy (grammar.py, Engine V3 Phase A) — this file gets its verdict when the run lands
+- leg-grammar DELAY=3 + entirely-held-out contracts + doubled costs — robustness phase for #21
 
 Method rules validated the hard way (bug-derived, all reproduced in tests):
 - confirmation-causal anchoring only (look-ahead entry filter once manufactured 50.6% at 2:1)
