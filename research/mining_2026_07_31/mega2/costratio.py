@@ -86,8 +86,14 @@ for mk in mt.WANT:
     if not fs:
         log(f"- {mk}: no tick data")
         continue
+    # the LARGEST file, not the middle one by name. Contract files are wildly
+    # uneven -- GCH5 holds 22,805 rows where GC totals 8.6M -- and picking a
+    # near-empty one made GC look like 161 ticks/day and the most forgiving
+    # market on the board.
+    fs = sorted(fs, key=lambda x: pq.ParquetFile(x).metadata.num_rows)
+    pick = fs[-1]
     try:
-        px, sz, sp, ts = mt.load_one(fs[len(fs) // 2], cfg)
+        px, sz, sp, ts = mt.load_one(pick, cfg)
     except Exception as e:                                  # noqa: BLE001
         log(f"- {mk}: load failed ({type(e).__name__})")
         continue
@@ -117,7 +123,8 @@ for mk in mt.WANT:
         rows.append((mk, F, cost, avg, sd, eaten,
                      cost / max(avg, 1e-9), cost / max(sd, 1e-9), dens))
     del px, sz, sp, ts, pc, pt
-    print(f"  {mk} done, {dens:,.0f} ticks/day", flush=True)
+    print(f"  {mk}: {os.path.basename(pick)}, {len(chg):,} rows, "
+          f"{dens:,.0f} ticks/day", flush=True)
 
 log("| market | ticks/day | window | all-in cost | avg abs move | "
     "**cost / avg move** | % of trades whose whole move is eaten | "

@@ -4,68 +4,68 @@ Every dead family died the same way: a real edge of $0.50-1.50 against $1.75-2.0
 
 `cost / avg move` is the share of a typical trade's raw material eaten by the toll. `% eaten` is the fraction of trades whose ENTIRE move is smaller than the cost. `edge needed` is the effect size a search has to find, in standard deviations — that is the difficulty rating.
 
-| market | horizon | all-in cost | avg abs move | **cost / avg move** | % of trades whose whole move is eaten | edge needed (sd) |
-|---|---|---|---|---|---|---|
-| GC | 50 | $3.24 | $86.40 | **4%** | 3% | 0.04 |
-| YM | 50 | $1.99 | $4.08 | **49%** | 27% | 0.58 |
-| HG | 50 | $3.87 | $7.71 | **50%** | 36% | 0.53 |
-| RTY | 50 | $1.99 | $3.96 | **50%** | 29% | 0.57 |
-| NQ | 50 | $1.99 | $3.91 | **51%** | 28% | 0.64 |
-| USDJPY | 50 | $0.80 | $1.47 | **54%** | 36% | 0.54 |
-| CL | 50 | $3.24 | $5.26 | **62%** | 40% | 0.76 |
-| EURUSD | 50 | $0.60 | $0.96 | **63%** | 40% | 0.70 |
-| ES | 50 | $3.87 | $4.43 | **87%** | 56% | 0.94 |
-| GBPUSD | 50 | $1.20 | $1.11 | **108%** | 65% | 1.06 |
-| USDCHF | 50 | $1.40 | $0.89 | **158%** | 80% | 1.80 |
-| AUDUSD | 50 | $1.60 | $0.94 | **171%** | 84% | 1.90 |
-| XAUUSD | 50 | $23.80 | $13.17 | **181%** | 85% | 1.69 |
-| NZDUSD | 50 | $1.80 | $0.82 | **219%** | 91% | 2.44 |
-| USDCAD | 50 | $2.20 | $0.96 | **229%** | 93% | 2.46 |
-| GC | 200 | $3.24 | $175.07 | **2%** | 1% | 0.02 |
-| YM | 200 | $1.99 | $8.11 | **25%** | 14% | 0.29 |
-| HG | 200 | $3.87 | $15.63 | **25%** | 18% | 0.28 |
-| RTY | 200 | $1.99 | $7.97 | **25%** | 15% | 0.28 |
-| NQ | 200 | $1.99 | $7.86 | **25%** | 14% | 0.33 |
-| USDJPY | 200 | $0.80 | $3.01 | **27%** | 19% | 0.26 |
-| CL | 200 | $3.24 | $10.52 | **31%** | 20% | 0.40 |
-| EURUSD | 200 | $0.60 | $1.90 | **32%** | 21% | 0.35 |
-| ES | 200 | $3.87 | $8.84 | **44%** | 31% | 0.48 |
-| GBPUSD | 200 | $1.20 | $2.25 | **53%** | 37% | 0.53 |
-| USDCHF | 200 | $1.40 | $1.76 | **80%** | 50% | 0.90 |
-| AUDUSD | 200 | $1.60 | $1.91 | **84%** | 52% | 0.98 |
-| XAUUSD | 200 | $23.80 | $27.10 | **88%** | 56% | 0.89 |
-| NZDUSD | 200 | $1.80 | $1.68 | **107%** | 62% | 1.22 |
-| USDCAD | 200 | $2.20 | $1.95 | **113%** | 66% | 1.25 |
-| GC | 1000 | $3.24 | $362.99 | **1%** | 1% | 0.01 |
-| YM | 1000 | $1.99 | $18.26 | **11%** | 6% | 0.13 |
-| HG | 1000 | $3.87 | $34.43 | **11%** | 8% | 0.13 |
-| RTY | 1000 | $1.99 | $17.52 | **11%** | 7% | 0.13 |
-| NQ | 1000 | $1.99 | $17.50 | **11%** | 6% | 0.15 |
-| USDJPY | 1000 | $0.80 | $6.77 | **12%** | 8% | 0.12 |
-| CL | 1000 | $3.24 | $22.91 | **14%** | 10% | 0.18 |
-| EURUSD | 1000 | $0.60 | $4.05 | **15%** | 9% | 0.17 |
-| ES | 1000 | $3.87 | $19.46 | **20%** | 15% | 0.23 |
-| GBPUSD | 1000 | $1.20 | $5.13 | **23%** | 16% | 0.25 |
-| USDCHF | 1000 | $1.40 | $3.81 | **37%** | 25% | 0.41 |
-| AUDUSD | 1000 | $1.60 | $4.34 | **37%** | 24% | 0.44 |
-| XAUUSD | 1000 | $23.80 | $60.46 | **39%** | 28% | 0.41 |
-| NZDUSD | 1000 | $1.80 | $3.71 | **48%** | 31% | 0.55 |
-| USDCAD | 1000 | $2.20 | $4.31 | **51%** | 34% | 0.55 |
-| GC | 4000 | $3.24 | $524.31 | **1%** | 0% | 0.01 |
-| YM | 4000 | $1.99 | $36.81 | **5%** | 3% | 0.07 |
-| HG | 4000 | $3.87 | $68.92 | **6%** | 4% | 0.08 |
-| NQ | 4000 | $1.99 | $35.18 | **6%** | 3% | 0.07 |
-| RTY | 4000 | $1.99 | $34.87 | **6%** | 3% | 0.07 |
-| USDJPY | 4000 | $0.80 | $13.86 | **6%** | 4% | 0.07 |
-| CL | 4000 | $3.24 | $45.91 | **7%** | 5% | 0.09 |
-| EURUSD | 4000 | $0.60 | $8.05 | **7%** | 5% | 0.09 |
-| ES | 4000 | $3.87 | $38.55 | **10%** | 8% | 0.12 |
-| GBPUSD | 4000 | $1.20 | $10.25 | **12%** | 8% | 0.15 |
-| USDCHF | 4000 | $1.40 | $7.89 | **18%** | 11% | 0.22 |
-| AUDUSD | 4000 | $1.60 | $8.86 | **18%** | 12% | 0.23 |
-| XAUUSD | 4000 | $23.80 | $121.04 | **20%** | 14% | 0.21 |
-| NZDUSD | 4000 | $1.80 | $7.38 | **24%** | 16% | 0.30 |
-| USDCAD | 4000 | $2.20 | $8.62 | **26%** | 19% | 0.31 |
+| market | ticks/day | window | all-in cost | avg abs move | **cost / avg move** | % of trades whose whole move is eaten | edge needed (sd) |
+|---|---|---|---|---|---|---|---|
+| NQ | 393,787 | 1 min | $1.99 | $36.08 | **6%** | 6% | 0.04 |
+| RTY | 81,096 | 1 min | $1.99 | $9.33 | **21%** | 22% | 0.12 |
+| CL | 64,158 | 1 min | $3.24 | $13.09 | **25%** | 25% | 0.17 |
+| USDJPY | 82,034 | 1 min | $0.60 | $2.01 | **30%** | 25% | 0.16 |
+| YM | 62,483 | 1 min | $1.99 | $6.10 | **33%** | 26% | 0.28 |
+| EURUSD | 98,857 | 1 min | $0.60 | $1.69 | **36%** | 27% | 0.32 |
+| ES | 301,141 | 1 min | $3.87 | $10.15 | **38%** | 35% | 0.36 |
+| GC | 50,227 | 1 min | $3.24 | $7.01 | **46%** | 39% | 0.40 |
+| HG | 15,932 | 1 min | $3.87 | $4.82 | **80%** | 61% | 0.50 |
+| XAUUSD | 280,404 | 1 min | $12.80 | $15.02 | **85%** | 59% | 0.75 |
+| AUDUSD | 116,004 | 1 min | $1.80 | $1.63 | **111%** | 69% | 0.93 |
+| GBPUSD | 68,749 | 1 min | $1.40 | $1.21 | **115%** | 72% | 0.92 |
+| USDCAD | 84,081 | 1 min | $2.20 | $1.37 | **160%** | 81% | 1.50 |
+| NZDUSD | 80,289 | 1 min | $2.00 | $1.20 | **166%** | 82% | 1.71 |
+| USDCHF | 45,119 | 1 min | $1.60 | $0.91 | **175%** | 84% | 1.47 |
+| NQ | 393,787 | 5 min | $1.99 | $81.46 | **2%** | 3% | 0.02 |
+| RTY | 81,096 | 5 min | $1.99 | $20.44 | **10%** | 11% | 0.05 |
+| CL | 64,158 | 5 min | $3.24 | $26.24 | **12%** | 12% | 0.09 |
+| USDJPY | 82,034 | 5 min | $0.60 | $4.46 | **13%** | 11% | 0.09 |
+| YM | 62,483 | 5 min | $1.99 | $12.90 | **15%** | 13% | 0.14 |
+| EURUSD | 98,857 | 5 min | $0.60 | $3.75 | **16%** | 12% | 0.15 |
+| ES | 301,141 | 5 min | $3.87 | $21.63 | **18%** | 18% | 0.18 |
+| GC | 50,227 | 5 min | $3.24 | $14.65 | **22%** | 19% | 0.22 |
+| XAUUSD | 280,404 | 5 min | $12.80 | $33.55 | **38%** | 32% | 0.34 |
+| HG | 15,932 | 5 min | $3.87 | $9.81 | **39%** | 34% | 0.34 |
+| AUDUSD | 116,004 | 5 min | $1.80 | $3.48 | **52%** | 39% | 0.45 |
+| GBPUSD | 68,749 | 5 min | $1.40 | $2.64 | **53%** | 42% | 0.43 |
+| USDCAD | 84,081 | 5 min | $2.20 | $3.01 | **73%** | 50% | 0.75 |
+| NZDUSD | 80,289 | 5 min | $2.00 | $2.55 | **79%** | 51% | 0.85 |
+| USDCHF | 45,119 | 5 min | $1.60 | $2.03 | **79%** | 55% | 0.73 |
+| NQ | 393,787 | 30 min | $1.99 | $194.91 | **1%** | 1% | 0.01 |
+| RTY | 81,096 | 30 min | $1.99 | $44.95 | **4%** | 5% | 0.03 |
+| CL | 64,158 | 30 min | $3.24 | $58.36 | **6%** | 5% | 0.05 |
+| USDJPY | 82,034 | 30 min | $0.60 | $10.07 | **6%** | 5% | 0.05 |
+| YM | 62,483 | 30 min | $1.99 | $30.48 | **7%** | 6% | 0.06 |
+| EURUSD | 98,857 | 30 min | $0.60 | $8.98 | **7%** | 5% | 0.08 |
+| ES | 301,141 | 30 min | $3.87 | $49.74 | **8%** | 8% | 0.08 |
+| GC | 50,227 | 30 min | $3.24 | $33.30 | **10%** | 9% | 0.10 |
+| XAUUSD | 280,404 | 30 min | $12.80 | $78.69 | **16%** | 14% | 0.15 |
+| HG | 15,932 | 30 min | $3.87 | $21.51 | **18%** | 15% | 0.20 |
+| GBPUSD | 68,749 | 30 min | $1.40 | $6.56 | **21%** | 18% | 0.17 |
+| AUDUSD | 116,004 | 30 min | $1.80 | $8.20 | **22%** | 16% | 0.22 |
+| USDCAD | 84,081 | 30 min | $2.20 | $7.42 | **30%** | 23% | 0.31 |
+| NZDUSD | 80,289 | 30 min | $2.00 | $6.00 | **33%** | 22% | 0.40 |
+| USDCHF | 45,119 | 30 min | $1.60 | $4.76 | **34%** | 27% | 0.33 |
+| NQ | 393,787 | 2 h | $1.99 | $370.91 | **1%** | 1% | 0.00 |
+| RTY | 81,096 | 2 h | $1.99 | $74.14 | **3%** | 3% | 0.02 |
+| CL | 64,158 | 2 h | $3.24 | $105.10 | **3%** | 3% | 0.03 |
+| USDJPY | 82,034 | 2 h | $0.60 | $18.59 | **3%** | 2% | 0.03 |
+| YM | 62,483 | 2 h | $1.99 | $54.02 | **4%** | 3% | 0.04 |
+| EURUSD | 98,857 | 2 h | $0.60 | $15.61 | **4%** | 2% | 0.05 |
+| ES | 301,141 | 2 h | $3.87 | $99.76 | **4%** | 4% | 0.04 |
+| GC | 50,227 | 2 h | $3.24 | $63.20 | **5%** | 5% | 0.05 |
+| XAUUSD | 280,404 | 2 h | $12.80 | $148.82 | **9%** | 7% | 0.09 |
+| HG | 15,932 | 2 h | $3.87 | $40.72 | **9%** | 8% | 0.11 |
+| GBPUSD | 68,749 | 2 h | $1.40 | $12.40 | **11%** | 10% | 0.10 |
+| AUDUSD | 116,004 | 2 h | $1.80 | $15.25 | **12%** | 9% | 0.14 |
+| USDCAD | 84,081 | 2 h | $2.20 | $13.48 | **16%** | 13% | 0.17 |
+| NZDUSD | 80,289 | 2 h | $2.00 | $11.30 | **18%** | 13% | 0.22 |
+| USDCHF | 45,119 | 2 h | $1.60 | $8.53 | **19%** | 14% | 0.21 |
 
 ## The ranking that matters
 
@@ -73,21 +73,21 @@ Averaged across horizons, cheapest toll first:
 
 | market | mean cost / avg move | verdict |
 |---|---|---|
-| GC | **2%** | forgiving — a weak signal can still pay |
-| YM | **22%** | workable if the signal is good |
-| HG | **23%** | workable if the signal is good |
-| RTY | **23%** | workable if the signal is good |
-| NQ | **23%** | workable if the signal is good |
-| USDJPY | **25%** | workable if the signal is good |
-| CL | **28%** | workable if the signal is good |
-| EURUSD | **29%** | workable if the signal is good |
-| ES | **40%** | hostile — needs a strong signal |
-| GBPUSD | **49%** | hostile — needs a strong signal |
-| USDCHF | **73%** | close to unwinnable at this size |
-| AUDUSD | **77%** | close to unwinnable at this size |
-| XAUUSD | **82%** | close to unwinnable at this size |
-| NZDUSD | **100%** | close to unwinnable at this size |
-| USDCAD | **105%** | close to unwinnable at this size |
+| NQ | **2%** | forgiving — a weak signal can still pay |
+| RTY | **10%** | forgiving — a weak signal can still pay |
+| CL | **11%** | forgiving — a weak signal can still pay |
+| USDJPY | **13%** | forgiving — a weak signal can still pay |
+| YM | **15%** | forgiving — a weak signal can still pay |
+| EURUSD | **16%** | workable if the signal is good |
+| ES | **17%** | workable if the signal is good |
+| GC | **21%** | workable if the signal is good |
+| HG | **37%** | hostile — needs a strong signal |
+| XAUUSD | **37%** | hostile — needs a strong signal |
+| AUDUSD | **49%** | hostile — needs a strong signal |
+| GBPUSD | **50%** | hostile — needs a strong signal |
+| USDCAD | **70%** | close to unwinnable at this size |
+| NZDUSD | **74%** | close to unwinnable at this size |
+| USDCHF | **77%** | close to unwinnable at this size |
 
 Read it as: to make money you must predict more than this share of a typical move, on average, forever. The leg-grammar cell predicted about $0.87 of NQ's move and lost, which is the same statement in dollars.
 
