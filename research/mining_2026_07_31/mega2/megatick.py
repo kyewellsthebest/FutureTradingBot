@@ -69,6 +69,8 @@ TRIPLES = os.environ.get("NOTRIPLES", "0") != "1"
 TRICHUNK = int(os.environ.get("TRICHUNK", "1500"))
 TOPK = int(os.environ.get("TOPK", "40"))
 TARGET = float(os.environ.get("TARGET", "5e9"))
+SURVKEEP = int(os.environ.get("SURVKEEP", "150"))     # recorded per cell
+SURVJL = os.path.join(ROOT, "research", "megatick_survivors.jsonl")
 BAND = (int(os.environ.get("BAND_LO", "3500")),
         int(os.environ.get("BAND_HI", "7000")))
 KLADDER = [100, 150, 250, 400, 650, 1000, 1600, 2600, 4000, 6500, 10000,
@@ -144,8 +146,30 @@ class Tally:
         self.evaluated = 0        # enumerated, distinct
         self.top = []
         self.mk = {}              # market -> [scored, sum_train, sum_hold]
+        self.surv = 0             # profitable after costs on BOTH halves
+        self.best = []            # heap of survivors, keyed on min(train, hold)
 
-    def add(self, tr, ho, mk, tags=None):
+    def add(self, tr, ho, mk, tags=None, ctx=""):
+        # SURVIVORS: profitable after real costs on BOTH halves. This, not the
+        # training top-40, is the screen worth reading -- ledger #19 measured
+        # selection-by-training-score to be actively harmful. The null runs
+        # the identical test, so the count below has something to be compared
+        # against instead of being compared against zero.
+        sv = (tr > 0) & (ho > 0)
+        ns = int(sv.sum())
+        self.surv += ns
+        if ns and tags is not None:
+            idx = np.flatnonzero(sv)
+            key = np.minimum(tr[idx], ho[idx])
+            m = min(SURVKEEP, len(idx))
+            for i in np.argpartition(-key, m - 1)[:m]:
+                j = int(idx[i])
+                item = (float(key[i]), float(tr[j]), float(ho[j]),
+                        tags(j), mk, ctx)
+                if len(self.best) < 500:
+                    heapq.heappush(self.best, item)
+                elif item[0] > self.best[0][0]:
+                    heapq.heapreplace(self.best, item)
         b = np.clip(np.digitize(_t(tr), EDGES_T) - 1, 0, NB - 1)
         self.n += np.bincount(b, minlength=NB)
         self.pos += np.bincount(b, weights=(ho > 0).astype(np.float64),
@@ -191,6 +215,8 @@ class Tally:
         self.sho = np.array(d["sho"], np.float64)
         self.total = d["total"]; self.evaluated = d["evaluated"]
         self.top = [tuple(x) for x in d["top"]]; self.mk = d["mk"]
+        self.surv = d.get("surv", 0)
+        self.best = [tuple(x) for x in d.get("best", [])]
 
 
 # ---------------------------------------------------------------- data -----
@@ -257,7 +283,7 @@ def roll(a, w, fn):
     return getattr(pd.Series(a).rolling(w, min_periods=w), fn)().values
 
 
-def base_masks(B):
+def features(B):
     """The vocabulary. ~80 distinct QUESTIONS, each asked six ways.
 
     Every family below is one of the behaviours in the brief -- movement,
@@ -336,6 +362,13 @@ def base_masks(B):
     F["volst"] = roll(np.abs(dc), 5, "mean") / \
         np.maximum(roll(np.abs(dc), 89, "mean"), 1e-9) - 1     # vol regime
 
+    return F
+
+
+def base_masks(B):
+    """Threshold every feature at 3 strengths in 2 directions -> mask matrix."""
+    F = features(B)
+    n = len(B["c"])
     rows, tags = [], []
     for name, f in F.items():
         f = np.asarray(f, np.float64)
@@ -389,7 +422,8 @@ def outcome(B, hold, cut, cost_usd, usd_tick, fx):
     return np.where(ok, usd, 0.0).astype(np.float32), ok.astype(np.float32)
 
 
-def score(M, p, ok, cut, tally, tags, mk, shift=0, want_tags=True):
+def score(M, p, ok, cut, tally, tags, mk, ctx="", shift=0,
+          want_tags=True):
     """Every pair and every triple in a handful of matmuls."""
     n = len(p)
     if shift:
@@ -411,8 +445,8 @@ def score(M, p, ok, cut, tally, tags, mk, shift=0, want_tags=True):
         ii, jj = iu[0][g], iu[1][g]
         tf = (lambda k: f"L {tags[ii[k]]} & {tags[jj[k]]}") if want_tags else None
         ts_ = (lambda k: f"S {tags[ii[k]]} & {tags[jj[k]]}") if want_tags else None
-        tally.add(a, b, mk, tags=tf)
-        tally.add(-a, -b, mk, tags=ts_)
+        tally.add(a, b, mk, tags=tf, ctx=ctx)
+        tally.add(-a, -b, mk, tags=ts_, ctx=ctx)
     del Ntr, Str, Nho, Sho
 
     if TRIPLES:
@@ -438,13 +472,13 @@ def score(M, p, ok, cut, tally, tags, mk, shift=0, want_tags=True):
                 a = St[r, ci] / Nt[r, ci]
                 b = Sh[r, ci] / Nh[r, ci]
                 if want_tags:
-                    tally.add(a, b, mk, tags=lambda k: (
+                    tally.add(a, b, mk, ctx=ctx, tags=lambda k: (
                         f"L {tags[i2[r[k]]]} & {tags[j2[r[k]]]} & {tags[ci[k]]}"))
-                    tally.add(-a, -b, mk, tags=lambda k: (
+                    tally.add(-a, -b, mk, ctx=ctx, tags=lambda k: (
                         f"S {tags[i2[r[k]]]} & {tags[j2[r[k]]]} & {tags[ci[k]]}"))
                 else:
-                    tally.add(a, b, mk)
-                    tally.add(-a, -b, mk)
+                    tally.add(a, b, mk, ctx=ctx)
+                    tally.add(-a, -b, mk, ctx=ctx)
             del PA, PB, Nt, St, Nh, Sh, gd
         del pA, pB
     tally.evaluated += ev
@@ -519,6 +553,29 @@ def report(T, N, dt, nm_seen, head):
         a = T.mk[m]; b = N.mk.get(m, [1, 0.0, 0.0])
         w(f"| {m} | {a[0]:,} | ${a[1] / max(a[0], 1):+.4f} | "
           f"${a[2] / max(a[0], 1):+.4f} | ${b[2] / max(b[0], 1):+.4f} |")
+    w()
+    w("### The screen that actually matters: profitable on BOTH halves")
+    w()
+    rate = T.surv / max(T.total, 1) * 100
+    nrate = N.surv / max(N.total, 1) * 100
+    lift = (T.surv / max(T.total, 1)) / max(N.surv / max(N.total, 1), 1e-12)
+    w(f"| | configs scored | made money on both halves | rate |")
+    w("|---|---|---|---|")
+    w(f"| **real search** | {T.total:,} | **{T.surv:,}** | {rate:.3f}% |")
+    w(f"| shifted null | {N.total:,} | {N.surv:,} | {nrate:.3f}% |")
+    w()
+    w(f"Lift over chance: **{lift:.2f}x**. A lift near 1.0 means the survivors "
+      f"are what shuffling produces anyway — that is the honest reading of a "
+      f"long list of profitable-looking rules, and it is why the count alone "
+      f"is never the answer.")
+    w()
+    w("Survivors ranked by their WORSE half, so nothing qualifies on one "
+      "good split:")
+    w()
+    w("| worse half $/trade | train $ | holdout $ | market / bar / hold | rule |")
+    w("|---|---|---|---|---|")
+    for key, tr_, ho_, tag, mkt, ctx in sorted(T.best, reverse=True)[:60]:
+        w(f"| **${key:+.3f}** | ${tr_:+.3f} | ${ho_:+.3f} | {ctx} | `{tag}` |")
     w()
     w("### The best training scores, and what each did out of sample")
     w()
@@ -603,8 +660,9 @@ def main():
         for hold in HOLDS:
             p, ok = outcome(B, hold, cut, cost, cfg["usd_tick"],
                             bool(cfg.get("fx")))
-            score(M, p, ok, cut, T, tags, mk)
-            score(M, p, ok, cut, N, tags, mk, shift=len(p) // 2,
+            ctx = f"{mk} K={k} h={hold} {os.path.basename(f)}"
+            score(M, p, ok, cut, T, tags, mk, ctx=ctx)
+            score(M, p, ok, cut, N, tags, mk, ctx=ctx, shift=len(p) // 2,
                   want_tags=False)
         done.add(cid); save()
         log(f"- {mk} K={k} `{os.path.basename(f)}`: {B['n']:,} bars, "
