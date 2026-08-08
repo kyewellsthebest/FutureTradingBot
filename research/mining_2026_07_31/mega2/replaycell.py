@@ -68,6 +68,16 @@ def replay(sig_idx, cid, tape, F):
     return out
 
 
+def shift_control(sig_idx, tape, F, off):
+    """The SAME signals, slid down the tape. Preserves the exact number of
+    signals AND their clustering in time -- uniform-random entries do not,
+    because real signals bunch in volatile stretches and a uniform draw
+    spreads them evenly. Only the alignment with price is destroyed."""
+    n = len(tape)
+    return replay(np.sort((np.asarray(sig_idx) + off) % (n - F - 3)), 0,
+                  tape, F)
+
+
 def random_control(ntrades, tape, F, rng):
     """Same count, same hold, entries drawn uniformly, still non-overlapping."""
     n = len(tape)
@@ -98,7 +108,7 @@ rng = np.random.default_rng(SEED)
 rows = []
 for F in HORIZONS:
     tr_pnl, ho_pnl, tr_ctl, ho_ctl = [], [], [], []
-    ho_ts = []
+    ho_ts, ho_sft = [], []
     for i, name in enumerate(S.names):
         tape = S.tapes[i]
         m = S.BASE & (S.CID == i)
@@ -110,38 +120,43 @@ for F in HORIZONS:
         if not tr:
             continue
         ctl = random_control(len(tr), tape, F, rng)
+        sft = shift_control(conf, tape, F, len(tape) // 3)
         pn = [p * USD for _, p in tr]
         cn = [p * USD for _, p in ctl]
+        sn = [p * USD for _, p in sft]
         # entry index -> timestamp of the confirming leg, for day/week buckets
         pos = {int(c) + DELAY: t for c, t in zip(conf, tsc)}
         ts = [pos.get(e, 0) for e, _ in tr]
         if name in S.TRAIN:
             tr_pnl += pn; tr_ctl += cn
         else:
-            ho_pnl += pn; ho_ctl += cn; ho_ts += ts
+            ho_pnl += pn; ho_ctl += cn; ho_ts += ts; ho_sft += sn
     if not ho_pnl:
         continue
     rows.append((F, np.mean(tr_pnl), len(tr_pnl), np.mean(ho_pnl),
                  len(ho_pnl), np.mean(ho_ctl), np.array(ho_pnl),
-                 np.array(ho_ts)))
+                 np.array(ho_ts), np.mean(ho_sft) if ho_sft else np.nan))
 
 log("## 1. Non-overlapping, and against random entries with the same exposure")
 log()
-log("| hold | trades (holdout) | HOLDOUT gross $/trade | random-entry control "
-    "$ | difference | net @ $1.75 | net @ $2.00 |")
+log("| hold | trades (holdout) | HOLDOUT gross $/trade | random entries | "
+    "same signals slid down the tape | edge over the harder control | "
+    "net @ $1.75 |")
 log("|---|---|---|---|---|---|---|")
-for F, trm, trn, hom, hon, ctm, _, _ in rows:
-    log(f"| {F} | {hon:,} | **${hom:+.2f}** | ${ctm:+.2f} | "
-        f"**${hom - ctm:+.2f}** | ${hom - 1.75:+.2f} | ${hom - 2.00:+.2f} |")
+for F, trm, trn, hom, hon, ctm, _, _, sfm in rows:
+    hard = np.nanmax([ctm, sfm])
+    log(f"| {F} | {hon:,} | **${hom:+.2f}** | ${ctm:+.2f} | ${sfm:+.2f} | "
+        f"**${hom - hard:+.2f}** | ${hom - 1.75:+.2f} |")
 log()
 log("The **difference** column is the one that matters. Gross dollars at a "
     "long hold are mostly exposure; only the gap over random entries with the "
     "same exposure is timing, and only timing is repeatable.")
 log()
 
-best = max(rows, key=lambda r: r[3] - r[5]) if rows else None
+best = (max(rows, key=lambda r: r[3] - np.nanmax([r[5], r[8]]))
+        if rows else None)
 if best:
-    F, trm, trn, hom, hon, ctm, arr, tsarr = best
+    F, trm, trn, hom, hon, ctm, arr, tsarr, sfm = best
     log(f"## 2. The account's experience at hold {F}")
     log()
     ts = pd.to_datetime(np.asarray(tsarr, dtype="int64"))
