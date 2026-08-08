@@ -2,6 +2,14 @@
 
 **ENTRY DELAYED 3 price change(s) past confirmation** -- the bid-ask bounce test. Bounce dies at the first change; behaviour survives it.
 
+  R=4 NQH5: 2,671,656 legs [22s]
+  R=4 NQH6: 2,427,366 legs [38s]
+  R=4 NQM5: 3,156,190 legs [59s]
+  R=4 NQM6: 3,096,643 legs [78s]
+  R=4 NQU4: 2,218,222 legs [92s]
+  R=4 NQU5: 1,376,298 legs [99s]
+  R=4 NQZ4: 1,545,302 legs [110s]
+  R=4 NQZ5: 2,312,309 legs [127s]
 ## R = 4 ticks -- 18,803,586 legs, 8 contracts
 
 ### horizon 50 price-changes -- population baseline train +0.02, holdout +0.03 ticks
@@ -78,3 +86,5 @@ Shuffled control: **0 cells** pass the same screen on permuted outcomes (the fal
 
 ---
 Gates: $1.42 commission-only and $4.40 with the $3 slippage figure, against the FULL gross cell mean at $0.50/tick. 'vote' is contracts agreeing with the train sign, out of sample. Cells are judged against the event-population baseline at their horizon, never against zero.
+
+wrote /home/user/FutureTradingBot/research/TICK_GRAMMAR.md

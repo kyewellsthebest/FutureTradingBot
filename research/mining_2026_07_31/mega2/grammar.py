@@ -56,6 +56,13 @@ SYNTH = os.environ.get("SYNTH", "0") == "1"
 # change later the bounce has resolved. If a cell's effect is bounce, DELAY=1
 # kills it; if it is behaviour, it survives smaller.
 DELAY = int(os.environ.get("DELAY", "0"))
+# HOLDOUT_CONTRACTS: comma-separated contract names held out ENTIRELY. The
+# default split takes the last 30% within each contract, so training has seen
+# a slice of every era. Holding out whole contracts -- the newest ones, an era
+# the engine has never touched -- closes the last leakage channel. Bin edges,
+# screens and baselines then come only from the training contracts.
+HOLDOUT_CONTRACTS = set(x for x in
+                        os.environ.get("HOLDOUT_CONTRACTS", "").split(",") if x)
 GATES = [1.42, 4.40]               # $ per round turn: commission-only, +slippage
 
 LINES = []
@@ -198,9 +205,12 @@ def main():
             if d is None:
                 continue
             d["contract"] = c
-            # chronological split WITHIN each contract, so train and holdout
-            # both span all eight regimes instead of holdout being one era
-            d["train"] = np.arange(len(d)) < int(len(d) * 0.7)
+            if HOLDOUT_CONTRACTS:
+                d["train"] = c not in HOLDOUT_CONTRACTS
+            else:
+                # chronological split WITHIN each contract, so train and
+                # holdout both span all eight regimes
+                d["train"] = np.arange(len(d)) < int(len(d) * 0.7)
             frames.append(d)
             print(f"  R={R} {c}: {len(d):,} legs [{time.time()-t0:.0f}s]",
                   flush=True)
