@@ -82,3 +82,4 @@ data/fx/
 data/itch/
 research/.fxbillions_ckpt.npz
 research/.megatick_ckpt.json
+data/tick/cache/
