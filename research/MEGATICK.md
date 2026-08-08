@@ -10,23 +10,25 @@ Sizing: one micro futures contract per market. FX at $1 per pip (10k notional), 
 - ES K=6500 `ESH5.parquet`: 5,273 bars, 601 conditions, **289,441,600** distinct [433s, total 611,846,592 eval / 122,565,972 scored]
 - GC K=650 `GCM6.parquet`: 6,017 bars, 624 conditions, **323,960,000** distinct [708s, total 935,806,592 eval / 192,372,580 scored]
 - CL K=400 `CLH5.parquet`: 6,663 bars, 626 conditions, **327,085,000** distinct [986s, total 1,262,891,592 eval / 270,793,490 scored]
+- RTY K=1000 `RTYH5.parquet`: 5,590 bars, 612 conditions, **305,627,088** distinct [1140s, total 1,568,518,680 eval / 333,211,974 scored]
+- YM K=1000 `YMH5.parquet`: 4,919 bars, 614 conditions, **308,633,240** distinct [1251s, total 1,877,151,920 eval / 387,061,400 scored]
 
-## 1,262,891,592 distinct configurations evaluated; **270,793,490 scored** (met the sample-size gate) in 0.27 h
+## 1,877,151,920 distinct configurations evaluated; **387,061,400 scored** (met the sample-size gate) in 0.35 h
 
-Null: 1,262,891,592 evaluated, 270,793,490 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
+Null: 1,877,151,920 evaluated, 387,061,400 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
 
 ### What the whole population did, and what the null did
 
 | selection | train cut | kept | % that made money OOS | avg OOS $/trade | NULL % | NULL avg $ |
 |---|---|---|---|---|---|---|
 | top 1e-07% | >= $+401.220 | 37 | **32.4%** | **$-8.5217** | 6.4% | $-112.9628 |
-| top 0.0001% | >= $+372.157 | 244 | **35.7%** | **$-7.8668** | 11.4% | $-112.6427 |
-| top 0.001% | >= $+289.906 | 2,694 | **31.1%** | **$-4.1291** | 24.6% | $-70.6116 |
-| top 0.01% | >= $+188.995 | 26,939 | **49.5%** | **$+4.9938** | 31.0% | $-47.2775 |
-| top 0.1% | >= $+120.510 | 269,465 | **53.0%** | **$+1.4091** | 38.3% | $-26.5499 |
-| top 1% | >= $+59.947 | 2,690,297 | **45.5%** | **$-8.7573** | 42.0% | $-12.1655 |
-| top 10% | >= $+12.763 | 27,036,488 | **43.6%** | **$-6.3992** | 42.2% | $-6.3354 |
-| top 100% | >= $-402.429 | 270,793,490 | **50.0%** | **$-0.0000** | 50.0% | $-0.0000 |
+| top 0.0001% | >= $+365.501 | 377 | **28.1%** | **$-8.2187** | 13.8% | $-101.0705 |
+| top 0.001% | >= $+270.510 | 3,858 | **36.3%** | **$-1.3301** | 25.5% | $-65.8551 |
+| top 0.01% | >= $+176.328 | 38,697 | **52.5%** | **$+6.2296** | 32.3% | $-44.6567 |
+| top 0.1% | >= $+111.056 | 386,718 | **51.0%** | **$-1.2820** | 39.2% | $-23.3870 |
+| top 1% | >= $+51.144 | 3,854,585 | **44.7%** | **$-9.1267** | 42.2% | $-11.0685 |
+| top 10% | >= $+10.023 | 38,678,321 | **46.2%** | **$-4.4683** | 41.2% | $-5.6660 |
+| top 100% | >= $-402.429 | 387,061,400 | **50.0%** | **$+0.0000** | 50.0% | $-0.0000 |
 
 Read the last two columns first. If the real search cannot beat the shifted one, the pattern is the calendar and not the market.
 
@@ -37,16 +39,18 @@ Read the last two columns first. If the real search cannot beat the shifted one,
 | CL | 78,420,910 | $+0.0000 | $+0.0000 | $+0.0000 |
 | GC | 69,806,608 | $+0.0000 | $+0.0000 | $+0.0000 |
 | NQ | 67,260,794 | $+0.0000 | $+0.0000 | $+0.0000 |
+| RTY | 62,418,484 | $+0.0000 | $+0.0000 | $+0.0000 |
 | ES | 55,305,178 | $+0.0000 | $+0.0000 | $+0.0000 |
+| YM | 53,849,426 | $+0.0000 | $+0.0000 | $+0.0000 |
 
 ### The screen that actually matters: profitable on BOTH halves
 
 | | configs scored | made money on both halves | rate |
 |---|---|---|---|
-| **real search** | 270,793,490 | **84,696,356** | 31.277% |
-| shifted null | 270,793,490 | 78,317,681 | 28.922% |
+| **real search** | 387,061,400 | **121,719,457** | 31.447% |
+| shifted null | 387,061,400 | 110,004,941 | 28.421% |
 
-Lift over chance: **1.08x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
+Lift over chance: **1.11x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
 
 Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 
@@ -158,4 +162,4 @@ Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 | $+400.856 | $+21.188 | `L eff34<-1.35 & vpp34<-0.0 & run34<-0.0` |
 | $+400.746 | $-28.066 | `L vdir13<-0.0 & aeff34>1.35 & vdir34<-0.67` |
 
-Conditions per cell: 601-626 (median 623).
+Conditions per cell: 601-626 (median 618).
