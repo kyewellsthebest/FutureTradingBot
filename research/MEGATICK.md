@@ -1,4 +1,4 @@
-Resumed: 2,515,791,632 evaluated, 8 cells done.
+Resumed: 11,434,295,848 evaluated, 37 cells done.
 # MEGATICK — five billion distinct configurations in tick-event space
 
 Bars close every K price prints; the clock is never a bar rule. Outcomes are de-drifted per split, charged real costs, and measured in **net dollars per trade on one micro contract**. The floor is the identical search run on a circularly-shifted outcome series — same autocorrelation, same sample sizes, no alignment with the signal.
@@ -7,149 +7,134 @@ Vocabulary: 4 event-horizons x ~24 behavioural families + 18 bar-local questions
 
 Sizing: one micro futures contract per market. FX at $1 per pip (10k notional), gold at 10 oz — FX and gold are research-only, since the account cannot trade them; they exist here to test whether a behaviour transfers across markets.
 
-- NQ K=6500 `NQH5.parquet`: 3,819 bars, 606 conditions, **296,725,880** distinct [93s, total 2,812,517,512 eval / 566,574,910 scored]
-- NQ K=4000 `NQH6.parquet`: 5,354 bars, 624 conditions, **323,960,000** distinct [239s, total 3,136,477,512 eval / 632,691,192 scored]
-- NQ K=4000 `NQM5.parquet`: 6,305 bars, 623 conditions, **322,404,992** distinct [430s, total 3,458,882,504 eval / 698,564,384 scored]
-- ES K=6500 `ESH6.parquet`: 4,488 bars, 602 conditions, **290,888,808** distinct [534s, total 3,749,771,312 eval / 748,401,120 scored]
-- GC K=1000 `GCM6.parquet`: 3,911 bars, 607 conditions, **298,197,248** distinct [614s, total 4,047,968,560 eval / 792,649,714 scored]
-- CL K=650 `CLH5.parquet`: 4,100 bars, 612 conditions, **305,627,088** distinct [702s, total 4,353,595,648 eval / 841,196,632 scored]
-- CL K=400 `CLH6.parquet`: 6,850 bars, 621 conditions, **319,309,920** distinct [933s, total 4,672,905,568 eval / 918,530,310 scored]
-- RTY K=1000 `RTYH6.parquet`: 6,514 bars, 617 conditions, **313,179,328** distinct [1133s, total 4,986,084,896 eval / 991,455,436 scored]
-- RTY K=1600 `RTYH6.parquet`: 4,071 bars, 605 conditions, **295,259,360** distinct [1208s, total 5,281,344,256 eval / 1,037,910,330 scored]
-- YM K=1000 `YMH6.parquet`: 4,713 bars, 620 conditions, **317,769,840** distinct [1307s, total 5,599,114,096 eval / 1,089,917,504 scored]
-- EURUSD K=150 `EURUSD_202512.parquet`: 3,757 bars, 610 conditions, **302,640,520** distinct [1372s, total 5,901,754,616 eval / 1,136,007,584 scored]
-- GBPUSD K=100 `GBPUSD_202508.parquet`: 6,477 bars, 621 conditions, **319,309,920** distinct [1567s, total 6,221,064,536 eval / 1,212,843,172 scored]
-- AUDUSD K=150 `AUDUSD_202508.parquet`: 6,214 bars, 619 conditions, **316,234,720** distinct [1744s, total 6,537,299,256 eval / 1,287,151,708 scored]
-- NZDUSD K=100 `NZDUSD_202508.parquet`: 6,984 bars, 623 conditions, **322,404,992** distinct [1951s, total 6,859,704,248 eval / 1,364,801,234 scored]
-- USDCAD K=100 `USDCAD_202508.parquet`: 6,494 bars, 621 conditions, **319,309,920** distinct [2149s, total 7,179,014,168 eval / 1,444,776,280 scored]
-- USDCHF K=100 `USDCHF_202508.parquet`: 3,951 bars, 604 conditions, **293,797,680** distinct [2218s, total 7,472,811,848 eval / 1,489,307,900 scored]
-- USDJPY K=100 `USDJPY_202508.parquet`: 6,201 bars, 618 conditions, **314,704,552** distinct [2394s, total 7,787,516,400 eval / 1,557,366,584 scored]
-- USDJPY K=150 `USDJPY_202508.parquet`: 4,134 bars, 615 conditions, **310,143,680** distinct [2469s, total 8,097,660,080 eval / 1,600,439,324 scored]
-- XAUUSD K=650 `XAUUSD_202508.parquet`: 4,446 bars, 612 conditions, **305,627,088** distinct [2556s, total 8,403,287,168 eval / 1,652,772,384 scored]
-- NQ K=6500 `NQM5.parquet`: 3,880 bars, 597 conditions, **283,700,768** distinct [2627s, total 8,686,987,936 eval / 1,692,698,662 scored]
-- NQ K=4000 `NQM6.parquet`: 6,185 bars, 617 conditions, **313,179,328** distinct [2801s, total 9,000,167,264 eval / 1,765,998,458 scored]
-- NQ K=6500 `NQM6.parquet`: 3,806 bars, 603 conditions, **292,340,832** distinct [2868s, total 9,292,508,096 eval / 1,810,924,506 scored]
-- NQ K=4000 `NQU4.parquet`: 6,297 bars, 623 conditions, **322,404,992** distinct [3051s, total 9,614,913,088 eval / 1,885,427,684 scored]
-- ES K=6500 `ESM6.parquet`: 4,808 bars, 606 conditions, **296,725,880** distinct [3156s, total 9,911,638,968 eval / 1,941,269,096 scored]
-- ES K=4000 `ESU5.parquet`: 5,341 bars, 607 conditions, **298,197,248** distinct [3280s, total 10,209,836,216 eval / 2,004,817,684 scored]
-- GC K=1000 `GCZ4.parquet`: 4,556 bars, 620 conditions, **317,769,840** distinct [3367s, total 10,527,606,056 eval / 2,061,485,916 scored]
-- CL K=650 `CLH6.parquet`: 4,215 bars, 606 conditions, **296,725,880** distinct [3443s, total 10,824,331,936 eval / 2,110,631,310 scored]
-- CL K=400 `CLM5.parquet`: 6,425 bars, 618 conditions, **314,704,552** distinct [3626s, total 11,139,036,488 eval / 2,181,718,796 scored]
-- CL K=650 `CLM5.parquet`: 3,953 bars, 605 conditions, **295,259,360** distinct [3690s, total 11,434,295,848 eval / 2,224,554,228 scored]
+- RTY K=1600 `RTYM5.parquet`: 4,611 bars, 607 conditions, **298,197,248** distinct [97s, total 11,732,493,096 eval / 2,273,533,348 scored]
+- RTY K=1000 `RTYM6.parquet`: 6,707 bars, 613 conditions, **307,127,712** distinct [317s, total 12,039,620,808 eval / 2,350,430,884 scored]
+- RTY K=1600 `RTYM6.parquet`: 4,192 bars, 601 conditions, **289,441,600** distinct [397s, total 12,329,062,408 eval / 2,399,095,684 scored]
+- YM K=1000 `YMM5.parquet`: 4,631 bars, 612 conditions, **305,627,088** distinct [495s, total 12,634,689,496 eval / 2,449,770,978 scored]
+- YM K=650 `YMM6.parquet`: 6,820 bars, 621 conditions, **319,309,920** distinct [715s, total 12,953,999,416 eval / 2,532,005,672 scored]
+- HG K=400 `HGZ4.parquet`: 3,614 bars, 601 conditions, **289,441,600** distinct [779s, total 13,243,441,016 eval / 2,574,139,664 scored]
+- EURUSD K=150 `EURUSD_202602.parquet`: 4,936 bars, 618 conditions, **314,704,552** distinct [892s, total 13,558,145,568 eval / 2,637,138,404 scored]
+- EURUSD K=150 `EURUSD_202603.parquet`: 6,041 bars, 623 conditions, **322,404,992** distinct [1069s, total 13,880,550,560 eval / 2,707,877,972 scored]
+- GBPUSD K=150 `GBPUSD_202508.parquet`: 4,318 bars, 610 conditions, **302,640,520** distinct [1159s, total 14,183,191,080 eval / 2,759,595,744 scored]
+- AUDUSD K=250 `AUDUSD_202508.parquet`: 3,728 bars, 601 conditions, **289,441,600** distinct [1229s, total 14,472,632,680 eval / 2,804,414,480 scored]
+- NZDUSD K=150 `NZDUSD_202508.parquet`: 4,656 bars, 612 conditions, **305,627,088** distinct [1331s, total 14,778,259,768 eval / 2,858,188,478 scored]
+- USDCAD K=150 `USDCAD_202508.parquet`: 4,329 bars, 611 conditions, **304,131,360** distinct [1415s, total 15,082,391,128 eval / 2,911,550,864 scored]
+- USDCHF K=100 `USDCHF_202509.parquet`: 5,260 bars, 616 conditions, **311,659,040** distinct [1531s, total 15,394,050,168 eval / 2,972,474,794 scored]
+- USDJPY K=150 `USDJPY_202509.parquet`: 5,623 bars, 620 conditions, **317,769,840** distinct [1677s, total 15,711,820,008 eval / 3,037,272,428 scored]
+- USDJPY K=250 `USDJPY_202510.parquet`: 5,496 bars, 615 conditions, **310,143,680** distinct [1800s, total 16,021,963,688 eval / 3,097,260,512 scored]
 
-## 11,434,295,848 distinct configurations evaluated; **2,224,554,228 scored** (met the sample-size gate) in 1.02 h
+## 16,021,963,688 distinct configurations evaluated; **3,097,260,512 scored** (met the sample-size gate) in 0.50 h
 
-Null: 11,434,295,848 evaluated, 2,224,554,228 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
+Null: 16,021,963,688 evaluated, 3,097,260,512 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
 
 ### What the whole population did, and what the null did
 
 | selection | train cut | kept | % that made money OOS | avg OOS $/trade | NULL % | NULL avg $ |
 |---|---|---|---|---|---|---|
 | top 1e-07% | >= $+401.220 | 108 | **26.9%** | **$-31.4134** | 54.2% | $+15.0841 |
-| top 1e-05% | >= $+386.998 | 210 | **38.6%** | **$-29.6761** | - | - |
-| top 0.0001% | >= $+339.018 | 2,183 | **18.6%** | **$-51.2195** | 58.4% | $+11.9952 |
-| top 0.001% | >= $+244.918 | 21,917 | **27.4%** | **$-54.7564** | 57.7% | $+20.5558 |
-| top 0.01% | >= $+168.525 | 221,098 | **36.6%** | **$-32.9404** | 58.7% | $+33.7425 |
-| top 0.1% | >= $+104.214 | 2,198,123 | **40.5%** | **$-21.3221** | 57.2% | $+29.9955 |
-| top 1% | >= $+46.087 | 22,175,805 | **42.3%** | **$-13.5560** | 50.3% | $+10.3461 |
-| top 10% | >= $+9.166 | 221,802,566 | **53.5%** | **$-1.6002** | 51.2% | $+1.8163 |
-| top 100% | >= $-402.429 | 2,224,554,228 | **50.0%** | **$-0.0000** | 50.0% | $-0.0000 |
+| top 1e-05% | >= $+381.221 | 301 | **33.2%** | **$-31.6584** | - | - |
+| top 0.0001% | >= $+328.969 | 3,040 | **17.3%** | **$-52.2411** | 56.9% | $+9.9662 |
+| top 0.001% | >= $+233.393 | 30,957 | **27.8%** | **$-55.3678** | 58.6% | $+23.5492 |
+| top 0.01% | >= $+158.653 | 305,264 | **37.7%** | **$-29.8200** | 58.3% | $+33.2835 |
+| top 0.1% | >= $+95.448 | 3,071,116 | **40.4%** | **$-21.1282** | 56.8% | $+28.2877 |
+| top 1% | >= $+39.407 | 30,961,035 | **42.9%** | **$-11.7361** | 49.3% | $+7.9099 |
+| top 10% | >= $+7.440 | 309,671,046 | **53.8%** | **$-0.9535** | 50.8% | $+1.1326 |
+| top 100% | >= $-402.429 | 3,097,260,512 | **50.0%** | **$+0.0000** | 50.0% | $-0.0000 |
 
 Read the last two columns first. If the real search cannot beat the shifted one, the pattern is the calendar and not the market.
 
-### Per market
+### Per market — is the pooled number hiding one live market?
 
-| market | scored configs | avg train $ | avg holdout $ | NULL holdout $ |
-|---|---|---|---|---|
-| NQ | 471,861,182 | $+0.0000 | $+0.0000 | $+0.0000 |
-| CL | 367,369,818 | $+0.0000 | $+0.0000 | $+0.0000 |
-| ES | 224,531,914 | $+0.0000 | $+0.0000 | $+0.0000 |
-| RTY | 181,798,504 | $+0.0000 | $+0.0000 | $+0.0000 |
-| GC | 170,723,434 | $+0.0000 | $+0.0000 | $+0.0000 |
-| EURUSD | 115,897,078 | $+0.0000 | $+0.0000 | $+0.0000 |
-| USDJPY | 111,131,424 | $+0.0000 | $+0.0000 | $+0.0000 |
-| YM | 105,856,600 | $+0.0000 | $+0.0000 | $+0.0000 |
-| USDCAD | 79,975,046 | $+0.0000 | $+0.0000 | $+0.0000 |
-| NZDUSD | 77,649,526 | $+0.0000 | $+0.0000 | $+0.0000 |
-| GBPUSD | 76,835,588 | $+0.0000 | $+0.0000 | $+0.0000 |
-| AUDUSD | 74,308,536 | $+0.0000 | $+0.0000 | $+0.0000 |
-| HG | 69,750,898 | $+0.0000 | $+0.0000 | $+0.0000 |
-| XAUUSD | 52,333,060 | $+0.0000 | $+0.0000 | $+0.0000 |
-| USDCHF | 44,531,620 | $+0.0000 | $+0.0000 | $+0.0000 |
+Mean dollars per market is identically zero by construction: every configuration is scored alongside its short mirror, so the two cancel. The informative per-market number is the survivor rate against that market's OWN shifted null, because a single market with real structure would show a lift here even when the pooled figure sits at 1.0.
+
+| market | scored (this run) | made money both halves | rate | NULL rate | lift |
+|---|---|---|---|---|---|
+| RTY | 174,541,456 | 55,060,007 | 31.546% | 27.801% | **1.135x** |
+| EURUSD | 133,738,308 | 54,496,870 | 40.749% | 38.951% | **1.046x** |
+| YM | 132,909,988 | 38,718,794 | 29.132% | 26.503% | **1.099x** |
+| USDJPY | 124,785,718 | 48,176,312 | 38.607% | 33.819% | **1.142x** |
+| USDCHF | 60,923,930 | 29,719,404 | 48.781% | 49.704% | **0.981x** |
+| NZDUSD | 53,773,998 | 26,082,110 | 48.503% | 48.362% | **1.003x** |
+| USDCAD | 53,362,386 | 26,383,012 | 49.441% | 49.627% | **0.996x** |
+| GBPUSD | 51,717,772 | 22,807,160 | 44.099% | 46.425% | **0.950x** |
+| AUDUSD | 44,818,736 | 21,331,984 | 47.596% | 44.028% | **1.081x** |
+| HG | 42,133,992 | 13,478,614 | 31.990% | 36.112% | **0.886x** |
+
+Counts here begin from the run that added this table, so they cover the later cells rather than the whole campaign; the lift ratio is unaffected because both columns cover the same cells.
 
 ### The screen that actually matters: profitable on BOTH halves
 
 | | configs scored | made money on both halves | rate |
 |---|---|---|---|
-| **real search** | 2,224,554,228 | **615,604,729** | 27.673% |
-| shifted null | 2,224,554,228 | 595,181,332 | 26.755% |
+| **real search** | 3,097,260,512 | **336,254,267** | 10.857% |
+| shifted null | 3,097,260,512 | 319,769,323 | 10.324% |
 
-Lift over chance: **1.03x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
+Lift over chance: **1.05x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
 
 Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 
 | worse half $/trade | train $ | holdout $ | market / bar / hold | rule |
 |---|---|---|---|---|
-| **$+288.262** | $+292.898 | $+288.262 | NQ K=6500 h=21 NQM5.parquet | `S eff89<-0.0 & cmp<-0.67 & vratio>0.0` |
-| **$+285.067** | $+289.359 | $+285.067 | NQ K=4000 h=21 NQH6.parquet | `L exp89>0.67 & vpp89<-0.67 & run89<-0.0` |
-| **$+284.035** | $+284.035 | $+353.322 | NQ K=6500 h=21 NQM6.parquet | `S vmom89>0.0 & acc89>0.0 & exp89<-0.67` |
-| **$+282.056** | $+292.898 | $+282.056 | NQ K=6500 h=21 NQM5.parquet | `S mom89<-0.0 & cmp<-0.67 & vratio>0.0` |
-| **$+274.308** | $+295.271 | $+274.308 | NQ K=6500 h=21 NQM5.parquet | `S vmom89<-0.0 & cmp<-0.67 & vratio>0.0` |
-| **$+269.335** | $+269.335 | $+345.051 | NQ K=4000 h=21 NQH6.parquet | `L mom89<-1.35 & vpp89<-0.0 & vwapd<-1.35` |
-| **$+268.027** | $+291.668 | $+268.027 | NQ K=4000 h=21 NQH6.parquet | `L exp89>0.67 & vpp89<-0.67 & vdir89<-0.0` |
-| **$+266.721** | $+266.721 | $+329.945 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & mom89<-0.67 & vwapd<-1.35` |
-| **$+264.703** | $+264.703 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & upl34<-0.0 & vwapd<-1.35` |
-| **$+262.781** | $+275.012 | $+262.781 | GC K=1000 h=21 GCM6.parquet | `L dnh34<-0.0 & vpp34<-0.0 & vwapd<-0.67` |
-| **$+262.469** | $+262.469 | $+328.544 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & eff89<-0.67 & vwapd<-1.35` |
-| **$+262.392** | $+262.392 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & bdn34>0.0 & vwapd<-1.35` |
-| **$+262.019** | $+263.348 | $+262.019 | GC K=1000 h=21 GCM6.parquet | `L bdn34>0.0 & vpp34<-0.0 & vwapd<-0.67` |
-| **$+261.227** | $+261.227 | $+313.727 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & rev89>0.67 & vwapd<-1.35` |
-| **$+261.035** | $+266.896 | $+261.035 | GC K=1000 h=21 GCM6.parquet | `L rev89>0.0 & vpp89<-0.0 & vwapd<-0.67` |
-| **$+260.916** | $+260.916 | $+262.019 | GC K=1000 h=21 GCM6.parquet | `L upl34<-0.0 & vpp34<-0.0 & vwapd<-0.67` |
-| **$+260.027** | $+260.027 | $+299.792 | NQ K=4000 h=21 NQH6.parquet | `L mom34<-1.35 & acc89<-0.0 & vwapd<-1.35` |
-| **$+259.739** | $+259.739 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & brk34<-0.0 & vwapd<-1.35` |
-| **$+259.160** | $+259.160 | $+315.818 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vmom89<-0.67 & vwapd<-1.35` |
-| **$+258.344** | $+258.344 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & upl89<-0.67 & vwapd<-1.35` |
-| **$+258.344** | $+258.344 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & bdn89>0.67 & vwapd<-1.35` |
-| **$+257.769** | $+257.769 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L pos34<-0.0 & chop34<-0.0 & vwapd<-1.35` |
-| **$+257.594** | $+257.594 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L mom34<-0.0 & chop34<-0.0 & vwapd<-1.35` |
-| **$+257.475** | $+257.475 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L rev34>0.0 & chop34<-0.0 & vwapd<-1.35` |
-| **$+256.604** | $+256.604 | $+261.464 | NQ K=4000 h=21 NQH6.parquet | `L mom34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+256.421** | $+256.421 | $+321.963 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vdir89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L vmom34<-0.0 & chop34<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L eff34<-0.0 & chop34<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vwapd<-0.67 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vwapd<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & vmom89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & upl89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & rev89>0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & pos89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & mom89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & fail89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & fail34<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & eff89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & dnh89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & brk89<-0.0 & vwapd<-1.35` |
-| **$+256.238** | $+256.238 | $+318.223 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & bdn89>0.0 & vwapd<-1.35` |
-| **$+255.878** | $+255.878 | $+345.928 | NQ K=4000 h=21 NQH6.parquet | `L acc89<-0.0 & barups>0.67 & vwapd<-1.35` |
-| **$+255.681** | $+255.681 | $+265.022 | NQ K=4000 h=21 NQH6.parquet | `L rev34>0.0 & mom89<-1.35 & barups>0.67` |
-| **$+255.582** | $+293.880 | $+255.582 | NQ K=6500 h=21 NQM5.parquet | `L chop34<-0.67 & upl89<-0.0 & vratio<-0.0` |
-| **$+255.582** | $+287.613 | $+255.582 | NQ K=6500 h=21 NQM5.parquet | `L chop34<-0.67 & bdn89>0.0 & vratio<-0.0` |
-| **$+255.578** | $+255.578 | $+321.963 | NQ K=4000 h=21 NQH6.parquet | `L chop34<-0.0 & run89<-0.0 & vwapd<-1.35` |
-| **$+255.565** | $+272.540 | $+255.565 | GC K=1000 h=21 GCM6.parquet | `L rev34>0.0 & vpp34<-0.0 & vwapd<-0.67` |
-| **$+254.829** | $+254.829 | $+259.043 | NQ K=4000 h=21 NQH6.parquet | `L dnh34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+254.542** | $+254.542 | $+261.464 | NQ K=4000 h=21 NQH6.parquet | `L vmom34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+254.542** | $+254.542 | $+261.464 | NQ K=4000 h=21 NQH6.parquet | `L eff34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+253.946** | $+258.961 | $+253.946 | NQ K=6500 h=21 NQM5.parquet | `S vel34<-0.0 & exp89>0.0 & cmp<-0.67` |
-| **$+253.879** | $+253.879 | $+260.777 | NQ K=4000 h=21 NQH6.parquet | `L brk34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+253.527** | $+253.527 | $+343.597 | NQ K=4000 h=21 NQH6.parquet | `L aeff89>0.0 & barups>0.67 & vwapd<-1.35` |
-| **$+253.352** | $+253.352 | $+304.100 | NQ K=4000 h=21 NQH6.parquet | `L mom34<-1.35 & run89<-0.67 & vwapd<-1.35` |
-| **$+253.347** | $+253.347 | $+271.755 | NQ K=4000 h=21 NQH6.parquet | `L upl34<-0.0 & mom89<-1.35 & barups>0.67` |
-| **$+253.347** | $+253.347 | $+263.820 | NQ K=4000 h=21 NQH6.parquet | `L bdn34>0.0 & mom89<-1.35 & barups>0.67` |
-| **$+253.091** | $+259.622 | $+253.091 | NQ K=4000 h=21 NQH6.parquet | `L vpp13<-0.67 & mom34<-0.67 & vel89<-0.0` |
-| **$+252.761** | $+252.761 | $+282.930 | NQ K=4000 h=21 NQM6.parquet | `L vmom34<-0.67 & vpp89<-0.0 & dratio>0.67` |
-| **$+252.721** | $+252.721 | $+278.458 | NQ K=6500 h=21 NQM5.parquet | `L chop13<-0.0 & chop34<-0.67 & pos89<-0.67` |
+| **$+108.729** | $+108.729 | $+141.741 | YM K=1000 h=21 YMM5.parquet | `L chop34<-0.0 & pos89<-0.67 & exp89<-0.0` |
+| **$+108.677** | $+108.677 | $+112.605 | YM K=1000 h=21 YMM5.parquet | `L chop34<-0.67 & upl34<-0.0 & exp89<-0.0` |
+| **$+108.677** | $+108.677 | $+112.605 | YM K=1000 h=21 YMM5.parquet | `L chop34<-0.67 & bdn34>0.0 & exp89<-0.0` |
+| **$+108.658** | $+108.658 | $+109.657 | RTY K=1000 h=21 RTYM6.parquet | `L fail34<-0.0 & vmom89<-1.35 & barups>0.67` |
+| **$+107.937** | $+107.937 | $+111.615 | RTY K=1000 h=21 RTYM6.parquet | `L fail13<-0.0 & vmom89<-1.35 & barups>0.67` |
+| **$+107.933** | $+107.933 | $+110.357 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & upsz89>0.0 & barups>0.67` |
+| **$+107.933** | $+107.933 | $+109.314 | RTY K=1000 h=21 RTYM6.parquet | `L mom89<-0.67 & vmom89<-1.35 & barups>0.67` |
+| **$+107.601** | $+107.907 | $+107.601 | YM K=1000 h=21 YMM5.parquet | `L aeff89<-0.67 & chop89<-0.0 & exp89<-0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & pos89<-0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & fail89<-0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & eff89<-0.67 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & eff89<-0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & dnh89<-0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & brk89<-0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & barups>0.0 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-0.67 & vmom89<-1.35 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-0.0 & vmom89<-1.35 & barups>0.67` |
+| **$+107.041** | $+107.933 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L mom89<-0.0 & vmom89<-1.35 & barups>0.67` |
+| **$+107.041** | $+107.849 | $+107.041 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & run89<-0.0 & barups>0.67` |
+| **$+104.353** | $+109.220 | $+104.353 | RTY K=1000 h=21 RTYM6.parquet | `L upsz34>0.0 & vmom89<-1.35 & barups>0.67` |
+| **$+104.251** | $+110.445 | $+104.251 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & brk89<-0.67 & barups>0.67` |
+| **$+101.992** | $+105.494 | $+101.992 | YM K=1000 h=21 YMM5.parquet | `L chop34<-0.0 & bdn34>0.67 & exp89<-0.0` |
+| **$+101.441** | $+101.441 | $+105.063 | RTY K=1000 h=21 RTYM6.parquet | `L aeff89>0.0 & brk89<-0.67 & barups>0.67` |
+| **$+98.591** | $+100.310 | $+98.591 | RTY K=1600 h=21 RTYM6.parquet | `L vmom89<-0.67 & barpath>0.67 & dratio>0.0` |
+| **$+97.532** | $+97.532 | $+124.536 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & upl89<-0.0 & barpath>0.67` |
+| **$+97.532** | $+97.532 | $+122.164 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & bdn89>0.0 & barpath>0.67` |
+| **$+97.419** | $+97.419 | $+100.514 | RTY K=1600 h=21 RTYM6.parquet | `L vmom89<-0.67 & vel89<-0.0 & barpath>0.67` |
+| **$+97.199** | $+97.199 | $+116.685 | YM K=1000 h=21 YMM5.parquet | `L rev34>0.0 & chop34<-0.67 & exp89<-0.0` |
+| **$+97.157** | $+99.148 | $+97.157 | YM K=1000 h=21 YMM5.parquet | `L exp34<-0.0 & acc89>0.67 & aeff89<-0.0` |
+| **$+97.148** | $+97.148 | $+104.084 | RTY K=1600 h=21 RTYM6.parquet | `L fail13<-0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+97.117** | $+97.117 | $+100.134 | RTY K=1600 h=21 RTYM6.parquet | `L mom89<-0.67 & eff89<-0.67 & barpath>0.67` |
+| **$+96.895** | $+96.895 | $+103.657 | RTY K=1600 h=21 RTYM6.parquet | `L pthz34>0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+96.814** | $+96.814 | $+97.636 | RTY K=1600 h=21 RTYM6.parquet | `L vmom89<-0.67 & barvel<-0.0 & barpath>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-0.67 & aeff89>0.0 & barups>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-0.0 & aeff89>0.0 & barups>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L mom89<-0.67 & aeff89>0.0 & barups>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L mom89<-0.0 & aeff89>0.0 & barups>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L eff89<-0.67 & aeff89>0.0 & barups>0.67` |
+| **$+96.602** | $+98.219 | $+96.602 | RTY K=1000 h=21 RTYM6.parquet | `L eff89<-0.0 & aeff89>0.0 & barups>0.67` |
+| **$+95.668** | $+95.668 | $+118.626 | RTY K=1600 h=21 RTYM6.parquet | `L pos89<-0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+95.480** | $+98.219 | $+95.480 | RTY K=1000 h=21 RTYM6.parquet | `L pos89<-0.0 & aeff89>0.0 & barups>0.67` |
+| **$+95.443** | $+99.655 | $+95.443 | YM K=1000 h=21 YMM5.parquet | `L chop34<-0.0 & upl34<-0.67 & exp89<-0.0` |
+| **$+95.399** | $+97.333 | $+95.399 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & barpath>0.0 & cmp>0.0` |
+| **$+95.179** | $+95.179 | $+112.376 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & brk89<-0.0 & barpath>0.67` |
+| **$+94.772** | $+106.318 | $+94.772 | RTY K=1000 h=21 RTYM6.parquet | `L vmom89<-1.35 & bdn89>0.67 & upsz89>0.67` |
+| **$+94.761** | $+94.761 | $+101.187 | YM K=1000 h=21 YMM5.parquet | `L vmom34<-0.67 & chop34<-0.0 & exp89<-0.0` |
+| **$+94.697** | $+94.697 | $+102.891 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & upsz89>0.0 & barpath>0.67` |
+| **$+94.533** | $+94.533 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & barpath>0.67 & barups>0.0` |
+| **$+94.385** | $+97.886 | $+94.385 | RTY K=1000 h=21 RTYM6.parquet | `L aeff89>0.0 & dnh89<-0.0 & barups>0.67` |
+| **$+94.385** | $+97.886 | $+94.385 | RTY K=1000 h=21 RTYM6.parquet | `L aeff89>0.0 & brk89<-0.0 & barups>0.67` |
+| **$+94.356** | $+95.602 | $+94.356 | RTY K=1600 h=21 RTYM6.parquet | `L vmom34<-0.67 & eff89<-0.67 & barpath>0.0` |
+| **$+94.326** | $+94.326 | $+103.658 | RTY K=1600 h=21 RTYM6.parquet | `L fail34<-0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+101.141 | RTY K=1600 h=21 RTYM6.parquet | `L upsz34>0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L vmom89<-0.67 & eff89<-0.67 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L vmom89<-0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L mom89<-0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & pthz89>0.0 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & fail89<-0.0 & barpath>0.67` |
+| **$+94.326** | $+94.326 | $+99.577 | RTY K=1600 h=21 RTYM6.parquet | `L eff89<-0.67 & barpath>0.67` |
 
 ### The best training scores, and what each did out of sample
 
@@ -196,4 +181,4 @@ Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 | $+432.558 | $-114.158 | `L vdir34>0.0 & chop89>0.67 & dratio<-0.0` |
 | $+430.940 | $-35.235 | `L vdir34>0.0 & chop89>0.67 & barvel>0.0` |
 
-Conditions per cell: 597-624 (median 615).
+Conditions per cell: 601-623 (median 612).

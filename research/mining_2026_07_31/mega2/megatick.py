@@ -148,6 +148,7 @@ class Tally:
         self.mk = {}              # market -> [scored, sum_train, sum_hold]
         self.surv = 0             # profitable after costs on BOTH halves
         self.mksurv = {}          # market -> [scored, survivors]
+        self.cellstat = []        # per-cell [mk, scored, surv] -- the honest n
         self.best = []            # heap of survivors, keyed on min(train, hold)
 
     def add(self, tr, ho, mk, tags=None, ctx=""):
@@ -221,6 +222,7 @@ class Tally:
         self.surv = d.get("surv", 0)
         self.best = [tuple(x) for x in d.get("best", [])]
         self.mksurv = d.get("mksurv", {})
+        self.cellstat = d.get("cellstat", [])
 
 
 # ---------------------------------------------------------------- data -----
@@ -584,6 +586,33 @@ def report(T, N, dt, nm_seen, head):
       "the later cells rather than the whole campaign; the lift ratio is "
       "unaffected because both columns cover the same cells.")
     w()
+    w("**The effective sample size is CELLS, not configurations.** Inside one "
+      "cell, hundreds of millions of configurations share the same bars and "
+      "heavily overlapping conditions, so they are nowhere near independent "
+      "tests. A market-level lift of 1.14 means nothing unless the cells "
+      "inside that market agree. The spread below is the honest error bar.")
+    w()
+    w("| market | cells | mean per-cell lift | worst cell | best cell |")
+    w("|---|---|---|---|---|")
+    per = {}
+    for (m, ts_, tv), (m2, ns_, nv) in zip(T.cellstat, N.cellstat):
+        if ts_ <= 0 or ns_ <= 0 or nv <= 0:
+            continue
+        per.setdefault(m, []).append((tv / ts_) / (nv / ns_))
+    for m in sorted(per, key=lambda x: -len(per[x])):
+        v = per[m]
+        w(f"| {m} | {len(v)} | **{np.mean(v):.3f}x** | {min(v):.3f}x | "
+          f"{max(v):.3f}x |")
+    w()
+    allv = [x for v in per.values() for x in v]
+    if allv:
+        w(f"Across all {len(allv)} cells: mean lift **{np.mean(allv):.3f}x**, "
+          f"spread {min(allv):.3f}x to {max(allv):.3f}x, and "
+          f"{sum(1 for x in allv if x > 1)}/{len(allv)} cells above 1.0 "
+          f"(a coin would give {len(allv)/2:.0f}). If the count of cells above "
+          f"1.0 is near half and the spread straddles 1.0, the market-level "
+          f"numbers above are cell noise, not structure.")
+    w()
     w("### The screen that actually matters: profitable on BOTH halves")
     w()
     rate = T.surv / max(T.total, 1) * 100
@@ -687,6 +716,7 @@ def main():
         cut = int(B["n"] * 0.7)
         cost = COMM + SLIP_TICKS * cfg["usd_tick"]
         before = T.evaluated
+        b_ts, b_tv, b_ns, b_nv = T.total, T.surv, N.total, N.surv
         for hold in HOLDS:
             p, ok = outcome(B, hold, cut, cost, cfg["usd_tick"],
                             bool(cfg.get("fx")))
@@ -694,6 +724,8 @@ def main():
             score(M, p, ok, cut, T, tags, mk, ctx=ctx)
             score(M, p, ok, cut, N, tags, mk, ctx=ctx, shift=len(p) // 2,
                   want_tags=False)
+        T.cellstat.append([mk, T.total - b_ts, T.surv - b_tv])
+        N.cellstat.append([mk, N.total - b_ns, N.surv - b_nv])
         done.add(cid); save()
         log(f"- {mk} K={k} `{os.path.basename(f)}`: {B['n']:,} bars, "
             f"{len(M)} conditions, **{T.evaluated - before:,}** distinct "
