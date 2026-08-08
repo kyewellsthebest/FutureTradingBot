@@ -487,9 +487,21 @@ def score(M, p, ok, cut, tally, tags, mk, ctx="", shift=0,
 
 # ---------------------------------------------------------------- driver ---
 
+# Cost as a share of a typical 5-minute move, measured in COST_RATIO.md.
+# Five of these markets cost MORE than a typical one-minute move, so 81-84%
+# of trades there have the whole move eaten before being right or wrong. No
+# signal rescues that -- it is a property of the instrument. Search effort is
+# weighted accordingly instead of being spread evenly over markets that
+# cannot pay even when the search is right.
+TIER = {"NQ": 4, "RTY": 3, "CL": 3, "USDJPY": 2, "YM": 2, "EURUSD": 2,
+        "ES": 2, "GC": 2, "HG": 1, "XAUUSD": 1, "AUDUSD": 1, "GBPUSD": 1,
+        "USDCAD": 1, "NZDUSD": 1, "USDCHF": 1}
+
+
 def cells():
-    """Every (file, K) with a bar count inside the compute band, round-robin
-    across markets so breadth arrives before depth."""
+    """Every (file, K) with a bar count inside the compute band, visited
+    round-robin so breadth arrives before depth, but weighted by how much
+    room a market leaves for an edge after costs."""
     per = {}
     for mk in WANT:
         cfg = MARKETS[mk]
@@ -504,12 +516,13 @@ def cells():
         else:
             per[mk] = []
     order = []
-    i = 0
-    while any(len(v) > i for v in per.values()):
+    took = {m: 0 for m in WANT}
+    while any(took[m] < len(per[m]) for m in WANT):
         for mk in WANT:
-            if len(per[mk]) > i:
-                order.append(per[mk][i])
-        i += 1
+            for _ in range(TIER.get(mk, 1)):
+                if took[mk] < len(per[mk]):
+                    order.append(per[mk][took[mk]])
+                    took[mk] += 1
     return order, {m: len(v) for m, v in per.items()}
 
 
