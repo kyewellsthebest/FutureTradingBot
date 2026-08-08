@@ -9,23 +9,24 @@ Sizing: one micro futures contract per market. FX at $1 per pip (10k notional), 
 - NQ K=4000 `NQH5.parquet`: 6,206 bars, 623 conditions, **322,404,992** distinct [244s, total 322,404,992 eval / 67,260,794 scored]
 - ES K=6500 `ESH5.parquet`: 5,273 bars, 601 conditions, **289,441,600** distinct [433s, total 611,846,592 eval / 122,565,972 scored]
 - GC K=650 `GCM6.parquet`: 6,017 bars, 624 conditions, **323,960,000** distinct [708s, total 935,806,592 eval / 192,372,580 scored]
+- CL K=400 `CLH5.parquet`: 6,663 bars, 626 conditions, **327,085,000** distinct [986s, total 1,262,891,592 eval / 270,793,490 scored]
 
-## 935,806,592 distinct configurations evaluated; **192,372,580 scored** (met the sample-size gate) in 0.20 h
+## 1,262,891,592 distinct configurations evaluated; **270,793,490 scored** (met the sample-size gate) in 0.27 h
 
-Null: 935,806,592 evaluated, 192,372,580 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
+Null: 1,262,891,592 evaluated, 270,793,490 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
 
 ### What the whole population did, and what the null did
 
 | selection | train cut | kept | % that made money OOS | avg OOS $/trade | NULL % | NULL avg $ |
 |---|---|---|---|---|---|---|
 | top 1e-07% | >= $+401.220 | 37 | **32.4%** | **$-8.5217** | 6.4% | $-112.9628 |
-| top 0.0001% | >= $+377.797 | 184 | **33.2%** | **$-10.0222** | 11.5% | $-112.8726 |
-| top 0.001% | >= $+313.505 | 1,909 | **21.5%** | **$-10.4676** | 22.7% | $-77.8570 |
-| top 0.01% | >= $+201.958 | 19,200 | **46.7%** | **$+3.6767** | 30.0% | $-50.0134 |
-| top 0.1% | >= $+129.582 | 190,420 | **54.2%** | **$+3.2616** | 37.1% | $-30.1402 |
-| top 1% | >= $+68.547 | 1,916,504 | **46.2%** | **$-8.4032** | 42.0% | $-12.9365 |
-| top 10% | >= $+17.803 | 19,229,975 | **42.5%** | **$-7.7968** | 42.3% | $-7.0884 |
-| top 100% | >= $-402.429 | 192,372,580 | **50.0%** | **$+0.0000** | 50.0% | $+0.0000 |
+| top 0.0001% | >= $+372.157 | 244 | **35.7%** | **$-7.8668** | 11.4% | $-112.6427 |
+| top 0.001% | >= $+289.906 | 2,694 | **31.1%** | **$-4.1291** | 24.6% | $-70.6116 |
+| top 0.01% | >= $+188.995 | 26,939 | **49.5%** | **$+4.9938** | 31.0% | $-47.2775 |
+| top 0.1% | >= $+120.510 | 269,465 | **53.0%** | **$+1.4091** | 38.3% | $-26.5499 |
+| top 1% | >= $+59.947 | 2,690,297 | **45.5%** | **$-8.7573** | 42.0% | $-12.1655 |
+| top 10% | >= $+12.763 | 27,036,488 | **43.6%** | **$-6.3992** | 42.2% | $-6.3354 |
+| top 100% | >= $-402.429 | 270,793,490 | **50.0%** | **$-0.0000** | 50.0% | $-0.0000 |
 
 Read the last two columns first. If the real search cannot beat the shifted one, the pattern is the calendar and not the market.
 
@@ -33,6 +34,7 @@ Read the last two columns first. If the real search cannot beat the shifted one,
 
 | market | scored configs | avg train $ | avg holdout $ | NULL holdout $ |
 |---|---|---|---|---|
+| CL | 78,420,910 | $+0.0000 | $+0.0000 | $+0.0000 |
 | GC | 69,806,608 | $+0.0000 | $+0.0000 | $+0.0000 |
 | NQ | 67,260,794 | $+0.0000 | $+0.0000 | $+0.0000 |
 | ES | 55,305,178 | $+0.0000 | $+0.0000 | $+0.0000 |
@@ -41,8 +43,8 @@ Read the last two columns first. If the real search cannot beat the shifted one,
 
 | | configs scored | made money on both halves | rate |
 |---|---|---|---|
-| **real search** | 192,372,580 | **51,442,089** | 26.741% |
-| shifted null | 192,372,580 | 47,474,298 | 24.678% |
+| **real search** | 270,793,490 | **84,696,356** | 31.277% |
+| shifted null | 270,793,490 | 78,317,681 | 28.922% |
 
 Lift over chance: **1.08x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
 
@@ -156,4 +158,4 @@ Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 | $+400.856 | $+21.188 | `L eff34<-1.35 & vpp34<-0.0 & run34<-0.0` |
 | $+400.746 | $-28.066 | `L vdir13<-0.0 & aeff34>1.35 & vdir34<-0.67` |
 
-Conditions per cell: 601-624 (median 623).
+Conditions per cell: 601-626 (median 623).
