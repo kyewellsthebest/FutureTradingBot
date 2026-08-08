@@ -26,7 +26,7 @@ grep this file.
 | 19 | selection-by-train-score as a method | everywhere | 1.38B | HARMFUL | measured negative return to searching harder |
 | 20 | FX impulse at 97% lower costs | 4 FX pairs, measured spread | full sim | NULL | all arms negative gross; "it was the costs" hypothesis retired |
 
-| 21 | **leg-grammar conditional cells** | 8 NQ contracts, 27.6M legs, 3 scales | ~750 cells/scale | **REAL — survives bounce test AND held-out-era test** | 76–97% of screened cells hold OOS vs shuffled floor 0–1; standout: large+fast+LOW-volume leg reversal continues +6.15 ticks OOS at DELAY=1, 8/8 contracts, both directions, nbhd 100%; same cell at HIGH volume flips sign. Era test (trained mid-2024→late-2025, tested Dec-2025→Jun-2026 never touched): +8.0/+8.3 ticks at F=50, +11.8/+11.5 at F=200, +17.7/+16.3 at F=1000 — F≥200 passes BOTH gates incl. $4.40; 3/3 contracts, both directions, nbhd 100%, shuffled floor 0–1 |
+| 21 | **leg-grammar conditional cells** | 8 NQ contracts, 27.6M legs, 3 scales | ~750 cells/scale | **RETRACTED — unsorted-tape artifact** | 76–97% of screened cells hold OOS vs shuffled floor 0–1; standout: large+fast+LOW-volume leg reversal continues +6.15 ticks OOS at DELAY=1, 8/8 contracts, both directions, nbhd 100%; same cell at HIGH volume flips sign. grammar.py never sorted the tape; raw parquets are 86–88% out of time order (jumps up to 73h back). Every 'leg' was row-order fiction; the 'continuation' was the file jumping back to where the market had been hours earlier — which is why it was symmetric, everywhere, stronger with horizon, and passed a synthetic null (the synthetic tape was generated sorted). The trade-level replay sorted the tape: effect = +0.6 ticks gross, negative after costs. Caught at the equity-curve stage, before deployment. Sorted rerun pending — whatever survives sorting is the real residue |
 
 Open questions with machinery built and answer pending:
 - adverse selection after passive fills (mm_study.py, ITCH) — decides the maker path
@@ -39,3 +39,4 @@ Method rules validated the hard way (bug-derived, all reproduced in tests):
 - fill direction ≠ trade direction under inversion
 - µs vs ns timestamps: never `astype(int64)//10**9` on pandas 3
 - vacuous-test detection: a regression test where both versions reject everything tests nothing
+- SORT THE TAPE AND ASSERT MONOTONICITY AT LOAD (unsorted parquets invented cell #21; the null check passed because the synthetic tape was born sorted — controls must share every defect of the real data path)

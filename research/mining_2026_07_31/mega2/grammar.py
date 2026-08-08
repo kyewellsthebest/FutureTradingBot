@@ -198,6 +198,16 @@ def main():
                 size = t.column("size").to_numpy(zero_copy_only=False).astype(np.float64)
                 ts = t.column("ts").to_numpy(zero_copy_only=False).astype(np.int64)
                 del t
+                # THE BUG THAT INVENTED CELL #21. These parquets are 86-88%
+                # out of time order (rows jump back up to 73 hours), and this
+                # loader never sorted. Every "leg" was a fiction of row order
+                # and the "reversal continuation" was the file jumping back to
+                # where the market had been hours earlier. The trade-level
+                # replay sorted the tape and the effect died. Sort, always,
+                # and never trust a tape without checking.
+                o = np.argsort(ts, kind="stable")
+                price, size, ts = price[o], size[o], ts[o]
+                del o
             pc, vol, tsc = compress(price, size, ts)
             del price, size, ts
             d = leg_table(pc, vol, tsc, R)
