@@ -40,10 +40,12 @@ import numpy as np
 import pandas as pd
 
 ROOT = os.environ.get("M2_REPO", "/home/user/FutureTradingBot")
-RAW = os.path.join(ROOT, "data", "tick", "raw")
-OUT = os.path.join(ROOT, "research", "TICK_GRAMMAR.md")
-TICK = 0.25                        # NQ tick, points
-USD_TICK = 0.50                    # MNQ dollars per tick
+RAW = os.environ.get("RAW_DIR", os.path.join(ROOT, "data", "tick", "raw"))
+OUT = os.environ.get("OUT_MD", os.path.join(ROOT, "research", "TICK_GRAMMAR.md"))
+GLOB = os.environ.get("GLOB", "NQ*.parquet")
+TAG = os.environ.get("TAG", "NQ")
+TICK = float(os.environ.get("TICKSZ", "0.25"))     # tick size, price units
+USD_TICK = float(os.environ.get("USD_TICK", "0.50"))  # $ per tick, micro contract
 RS = [int(x) for x in (sys.argv[1:] or ["4", "8", "16"])]
 HORIZONS = [int(x) for x in os.environ.get("HORIZONS", "50,200,1000").split(",")]
 NORM_W = int(os.environ.get("NORM_W", "200"))
@@ -64,6 +66,10 @@ DELAY = int(os.environ.get("DELAY", "0"))
 HOLDOUT_CONTRACTS = set(x for x in
                         os.environ.get("HOLDOUT_CONTRACTS", "").split(",") if x)
 GATES = [1.42, 4.40]               # $ per round turn: commission-only, +slippage
+# SEQ2=1 appends the PREVIOUS leg's distance and velocity bins to the cell key
+# -- the first state-machine depth. Cells multiply 15x; the count gates decide
+# which survive, and sparsity is reported rather than hidden.
+SEQ2 = os.environ.get("SEQ2", "0") == "1"
 
 LINES = []
 
@@ -167,8 +173,8 @@ def qbins(x, edges):
 
 
 def main():
-    files = sorted(glob.glob(os.path.join(RAW, "NQ*.parquet")))
-    log("# Tick grammar: conditional behaviour of legs, eight NQ contracts")
+    files = sorted(glob.glob(os.path.join(RAW, GLOB)))
+    log(f"# Tick grammar: {TAG} -- {len(files)} contracts, tick {TICK}, ${USD_TICK}/tick")
     log()
     if DELAY:
         log(f"**ENTRY DELAYED {DELAY} price change(s) past confirmation** -- "
@@ -237,6 +243,12 @@ def main():
             edges[c] = np.quantile(v, np.linspace(0, 1, nb + 1)[1:-1])
             D[c + "_b"] = qbins(D[c].values, edges[c])
         D = D.dropna(subset=["dist_n", "vel_n", "retr", "vol_n"])
+        if SEQ2:
+            # the leg before the one just completed, within the same contract
+            D["p_dist_b"] = D.groupby("contract")["dist_n_b"].shift(1)
+            D["p_vel_b"] = D.groupby("contract")["vel_n_b"].shift(1)
+            D = D.dropna(subset=["p_dist_b", "p_vel_b"])
+            D[["p_dist_b", "p_vel_b"]] = D[["p_dist_b", "p_vel_b"]].astype(np.int8)
 
         log(f"## R = {R} ticks -- {len(D):,} legs, "
             f"{D.contract.nunique()} contracts")
@@ -249,6 +261,8 @@ def main():
                 f"train {base_tr:+.2f}, holdout {base_ho:+.2f} ticks")
             log()
             key = ["dir", "dist_n_b", "vel_n_b", "retr_b", "vol_n_b"]
+            if SEQ2:
+                key += ["p_dist_b", "p_vel_b"]
             g = D.groupby(key, observed=True)
             rows = []
             for k, grp in g:

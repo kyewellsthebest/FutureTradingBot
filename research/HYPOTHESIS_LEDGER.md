@@ -28,8 +28,9 @@ grep this file.
 
 | 21 | **leg-grammar conditional cells** | 8 NQ contracts, 27.6M legs, 3 scales | ~750 cells/scale | **RETRACTED — unsorted-tape artifact** | 76–97% of screened cells hold OOS vs shuffled floor 0–1; standout: large+fast+LOW-volume leg reversal continues +6.15 ticks OOS at DELAY=1, 8/8 contracts, both directions, nbhd 100%; same cell at HIGH volume flips sign. grammar.py never sorted the tape; raw parquets are 86–88% out of time order (jumps up to 73h back). Every 'leg' was row-order fiction; the 'continuation' was the file jumping back to where the market had been hours earlier — which is why it was symmetric, everywhere, stronger with horizon, and passed a synthetic null (the synthetic tape was generated sorted). The trade-level replay sorted the tape: effect = +0.6 ticks gross, negative after costs. Caught at the equity-curve stage, before deployment. Sorted rerun done: a SMALL real residue survives — short side only (fade upward thin-volume spikes): holdout +1.6/+2.1/+3.8 ticks at F=50/200/1000, 3/3 contracts, ~$0.82-1.91 gross vs ~$1.75 realistic cost → breakeven-to-slightly-negative net. Screened cells collapse 121-147 → 6-15 vs shuffled floor 1-2; sign-hold 78-83% vs coin. Real behaviour, an order of magnitude too small to trade as-is |
 
+| 22 | **back-of-queue market making** | NASDAQ ITCH L3, 46,398 passive orders, order-ID-exact queue | full day | **NEGATIVE — maker path closed** | Fill rate 50.8%; half-spread captured +1.1 bps; adverse selection −1.9 bps at ALL horizons → net −0.7 to −0.8 bps BEFORE commission. Imbalance gating does not rescue: all five quintiles net negative (best −0.21). Joining the back of the queue loses everywhere; front-of-queue unreachable for late joiners |
+
 Open questions with machinery built and answer pending:
-- adverse selection after passive fills (mm_study.py, ITCH) — decides the maker path
 - #21 next: trade-level simulation (equity curve, drawdown, weekly P&L distribution, MAE/MFE, session split), bootstrap, then paper execution design
 
 Method rules validated the hard way (bug-derived, all reproduced in tests):
