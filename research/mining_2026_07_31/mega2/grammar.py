@@ -49,6 +49,13 @@ HORIZONS = [int(x) for x in os.environ.get("HORIZONS", "50,200,1000").split(",")
 NORM_W = int(os.environ.get("NORM_W", "200"))
 MIN_TR, MIN_HO = 400, 150
 SYNTH = os.environ.get("SYNTH", "0") == "1"
+# DELAY: measure outcomes from the DELAY-th price CHANGE after confirmation
+# instead of the confirmation print itself. Trade prints bounce between bid
+# and ask, and the confirmation print sits preferentially on one side, so a
+# same-print entry inherits up to a spread of free-looking edge. One price
+# change later the bounce has resolved. If a cell's effect is bounce, DELAY=1
+# kills it; if it is behaviour, it survives smaller.
+DELAY = int(os.environ.get("DELAY", "0"))
 GATES = [1.42, 4.40]               # $ per round turn: commission-only, +slippage
 
 LINES = []
@@ -139,11 +146,12 @@ def leg_table(pc, vol, tsc, R):
 
     # outcomes: signed forward move from the CONFIRMATION price, continuation
     # of the new direction positive. new direction = -dir of completed leg.
-    cp = pc[conf].astype(np.float64)
+    ent = np.minimum(conf + DELAY, len(pc) - 1)
+    cp = pc[ent].astype(np.float64)
     for F in HORIZONS:
-        tgt = np.minimum(conf + F, len(pc) - 1)
+        tgt = np.minimum(ent + F, len(pc) - 1)
         d[f"fwd{F}"] = (pc[tgt] - cp) * (-d.dir)               # ticks
-    d["ok"] = conf + max(HORIZONS) < len(pc)
+    d["ok"] = conf + DELAY + max(HORIZONS) < len(pc)
     return d[d.ok].drop(columns="ok").reset_index(drop=True)
 
 
@@ -155,6 +163,11 @@ def main():
     files = sorted(glob.glob(os.path.join(RAW, "NQ*.parquet")))
     log("# Tick grammar: conditional behaviour of legs, eight NQ contracts")
     log()
+    if DELAY:
+        log(f"**ENTRY DELAYED {DELAY} price change(s) past confirmation** -- "
+            f"the bid-ask bounce test. Bounce dies at the first change; "
+            f"behaviour survives it.")
+        log()
     if SYNTH:
         log("**SYNTHETIC RANDOM WALK** -- the null check. Anything that "
             "passes screening here is the engine's false-positive rate.")
@@ -269,7 +282,7 @@ def main():
                 "HOLDOUT +/- se | vote | nbhd | $ gross | gates |")
             log("|---|---|---|---|---|---|---|---|---|")
             for r in RW.head(15).itertuples():
-                gate = " ".join("PASS" if r.usd >= g_ / 2 else "fail"
+                gate = " ".join("PASS" if r.usd >= g_ else "fail"
                                 for g_ in GATES)
                 log(f"| {r.key} | {r.ntr:,}/{r.nho:,} | {r.tr:+.2f} | "
                     f"{r.t:+.1f} | {r.ho:+.2f} +/- {r.hose:.2f} | "
@@ -295,7 +308,7 @@ def main():
 
     log("---")
     log(f"Gates: ${GATES[0]:.2f} commission-only and ${GATES[1]:.2f} with the "
-        f"$3 slippage figure, halved per side against the gross cell mean at "
+        f"$3 slippage figure, against the FULL gross cell mean at "
         f"$0.50/tick. 'vote' is contracts agreeing with the train sign, out "
         f"of sample. Cells are judged against the event-population baseline "
         f"at their horizon, never against zero.")
