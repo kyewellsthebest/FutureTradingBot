@@ -147,6 +147,7 @@ class Tally:
         self.top = []
         self.mk = {}              # market -> [scored, sum_train, sum_hold]
         self.surv = 0             # profitable after costs on BOTH halves
+        self.mksurv = {}          # market -> [scored, survivors]
         self.best = []            # heap of survivors, keyed on min(train, hold)
 
     def add(self, tr, ho, mk, tags=None, ctx=""):
@@ -158,6 +159,8 @@ class Tally:
         sv = (tr > 0) & (ho > 0)
         ns = int(sv.sum())
         self.surv += ns
+        q = self.mksurv.setdefault(mk, [0, 0])
+        q[0] += len(tr); q[1] += ns
         if ns and tags is not None:
             idx = np.flatnonzero(sv)
             key = np.minimum(tr[idx], ho[idx])
@@ -217,6 +220,7 @@ class Tally:
         self.top = [tuple(x) for x in d["top"]]; self.mk = d["mk"]
         self.surv = d.get("surv", 0)
         self.best = [tuple(x) for x in d.get("best", [])]
+        self.mksurv = d.get("mksurv", {})
 
 
 # ---------------------------------------------------------------- data -----
@@ -557,15 +561,28 @@ def report(T, N, dt, nm_seen, head):
     w("Read the last two columns first. If the real search cannot beat the "
       "shifted one, the pattern is the calendar and not the market.")
     w()
-    w("### Per market")
+    w("### Per market — is the pooled number hiding one live market?")
     w()
-    w("| market | scored configs | avg train $ | avg holdout $ | "
-      "NULL holdout $ |")
-    w("|---|---|---|---|---|")
-    for m in sorted(T.mk, key=lambda x: -T.mk[x][0]):
-        a = T.mk[m]; b = N.mk.get(m, [1, 0.0, 0.0])
-        w(f"| {m} | {a[0]:,} | ${a[1] / max(a[0], 1):+.4f} | "
-          f"${a[2] / max(a[0], 1):+.4f} | ${b[2] / max(b[0], 1):+.4f} |")
+    w("Mean dollars per market is identically zero by construction: every "
+      "configuration is scored alongside its short mirror, so the two cancel. "
+      "The informative per-market number is the survivor rate against that "
+      "market's OWN shifted null, because a single market with real structure "
+      "would show a lift here even when the pooled figure sits at 1.0.")
+    w()
+    w("| market | scored (this run) | made money both halves | rate | "
+      "NULL rate | lift |")
+    w("|---|---|---|---|---|---|")
+    for m in sorted(T.mksurv, key=lambda x: -T.mksurv[x][0]):
+        a = T.mksurv[m]; b = N.mksurv.get(m, [0, 0])
+        ra = a[1] / max(a[0], 1)
+        rb = b[1] / max(b[0], 1)
+        lf = ra / rb if rb > 0 else float("nan")
+        w(f"| {m} | {a[0]:,} | {a[1]:,} | {ra*100:.3f}% | {rb*100:.3f}% | "
+          f"**{lf:.3f}x** |")
+    w()
+    w("Counts here begin from the run that added this table, so they cover "
+      "the later cells rather than the whole campaign; the lift ratio is "
+      "unaffected because both columns cover the same cells.")
     w()
     w("### The screen that actually matters: profitable on BOTH halves")
     w()
