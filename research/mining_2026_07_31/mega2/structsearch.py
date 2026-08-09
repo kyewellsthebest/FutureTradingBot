@@ -135,8 +135,17 @@ def pivot_frame(pc, R):
         "regime": med(S, 20) / np.maximum(med(S, 200), 1e-9),
         "accel": S / np.maximum(prev, 1e-9) - np.r_[np.nan, np.nan, S[:-2]] /
                  np.maximum(prev, 1e-9),
-        "run": np.r_[np.nan, np.convolve((np.diff(S) > 0).astype(float),
-                                         np.ones(3), "same")[:len(S) - 1]],
+        # LOOK-AHEAD BUG, fixed. This was np.convolve(..., "same"), and "same"
+        # is CENTRED -- it reaches one step forward, so run[i] carried part of
+        # S[i+1], the size of the very swing the trade is about to take. The
+        # filter was selecting trades whose upcoming swing was large, which is
+        # reading the answer. It produced +14.83pp above geometry ON A SHUFFLED
+        # RANDOM WALK, where no edge can exist, and six "profitable" strategies
+        # worth $13/trade. Now a strictly backward window: run[i] counts how
+        # many of the LAST three completed swings grew.
+        "run": np.r_[np.nan, np.nan, np.nan,
+                     np.convolve((np.diff(S) > 0).astype(float),
+                                 np.ones(3), "valid")[:len(S) - 3]],
         "pos_in_range": np.zeros(len(S)),
         "size_z": (S - med(S)) / np.maximum(med(np.abs(S - med(S))), 1e-9),
         "len_ratio": nch / np.maximum(med(nch), 1e-9),
