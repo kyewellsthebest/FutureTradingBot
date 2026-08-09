@@ -119,8 +119,19 @@ def ev(P, up, dn, feats, qs, sr, tr, sside):
     return float(win.mean() - geo), net, int(res.sum())
 
 
-def sweep(store, label, combos):
-    """Every strategy, abandoned the instant one contract fails the bar."""
+def sweep(store, label, combos, ctrl=None):
+    """Every strategy, abandoned the instant one contract fails the bar.
+
+    THE FIX. The first version filtered on RAW above-geometry per contract and
+    returned zero survivors on real against 33,818 on shuffled -- at a bar of
+    merely 'positive', where chance alone should pass thousands. Real is
+    systematically BELOW geometry because volatility clusters: a stop sized
+    from a lagging median swing is too tight exactly when volatility expands,
+    so stop-outs run hot on a real tape and not on a shuffled one. Requiring
+    raw edge > 0 in eight contracts therefore rejects everything real by
+    construction. The edge must be measured against the SAME strategy on the
+    SAME contract's shuffled tape, which is what ctrl supplies.
+    """
     out = []
     t0 = time.time()
     tested = 0
@@ -134,11 +145,20 @@ def sweep(store, label, combos):
                 break
             P, up, dn = store[k]
             r = ev(P, up, dn, feats, qs, sr, tr, sd)
-            # short-circuit at edge<=0 only. Recording the per-strategy MINIMUM
-            # across contracts lets every bar be applied afterwards, which is
-            # what turns a pass/fail into a power curve -- and a test where both
-            # arms reject everything proves nothing (ledger method rule).
-            if r is None or r[0] <= 0:
+            if r is None:
+                alive = False
+                break
+            if ctrl is not None:
+                if k not in ctrl:
+                    alive = False
+                    break
+                Q, u2, d2 = ctrl[k]
+                b = ev(Q, u2, d2, feats, qs, sr, tr, sd)
+                if b is None:
+                    alive = False
+                    break
+                r = (r[0] - b[0], r[1] - b[1], r[2])   # corrected per contract
+            if r[0] <= 0:
                 alive = False
                 break
             per.append(r)
@@ -195,8 +215,18 @@ def main():
         f"triggers, which is where a rare, strong setup would live.")
     log()
 
-    rs, nt = sweep(RE, "real", combos)
-    ss, _ = sweep(SH, "shuffled", combos)
+    # real corrected against its own shuffled twin, contract by contract; and
+    # the control is the shuffled tape corrected against a SECOND independent
+    # shuffle, so both arms undergo the identical operation
+    rng2 = np.random.default_rng(S.SEED + 99)
+    sh2 = {}
+    for c, pc in real.items():
+        d = np.diff(pc).copy()
+        rng2.shuffle(d)
+        sh2[c] = np.r_[pc[0], pc[0] + np.cumsum(d)].astype(np.int64)
+    S2 = S.build(sh2, "shuffled-2")
+    rs, nt = sweep(RE, "real", combos, ctrl=SH)
+    ss, _ = sweep(SH, "shuffled", combos, ctrl=S2)
     log("## The result")
     log()
     log("| tape | strategies swept | **survivors** |")
