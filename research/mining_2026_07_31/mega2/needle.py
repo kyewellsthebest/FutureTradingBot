@@ -134,7 +134,11 @@ def sweep(store, label, combos):
                 break
             P, up, dn = store[k]
             r = ev(P, up, dn, feats, qs, sr, tr, sd)
-            if r is None or r[0] < MINEDGE or r[1] < MINNET:
+            # short-circuit at edge<=0 only. Recording the per-strategy MINIMUM
+            # across contracts lets every bar be applied afterwards, which is
+            # what turns a pass/fail into a power curve -- and a test where both
+            # arms reject everything proves nothing (ledger method rule).
+            if r is None or r[0] <= 0:
                 alive = False
                 break
             per.append(r)
@@ -143,9 +147,10 @@ def sweep(store, label, combos):
             e = float(np.mean([p[0] for p in per]))
             n = int(sum(p[2] for p in per))
             nt = float(np.mean([p[1] for p in per]))
+            wn = float(min(p[1] for p in per))
             tag = (f"{'+'.join(f'{f}>=q{q:g}' for f, q in zip(feats, qs))} "
                    f"R={R} stop={sr[0]} tgt={tr[0]} side={sd}")
-            out.append(dict(edge=e, net=nt, n=n, tag=tag,
+            out.append(dict(edge=e, net=nt, n=n, tag=tag, worstnet=wn,
                             worst=float(min(p[0] for p in per))))
         if i % 40000 == 0 and i:
             print(f"  [{label}] {i:,}/{len(combos):,}  survivors={len(out)}  "
@@ -207,6 +212,30 @@ def main():
         log("The shuffled tape produced **zero** survivors, which confirms the "
             "bar is set where noise cannot reach.")
     log()
+    log("### Was the bar reachable at all? The power curve")
+    log()
+    log("Both arms returning zero proves nothing unless a REAL edge could have "
+        "cleared the bar. So the bar is lowered step by step and the two tapes "
+        "compared at each level. If real never separates from shuffled, there "
+        "is nothing below the bar either.")
+    log()
+    log("| bar: min edge in ALL 8 contracts | real survivors | shuffled | "
+        "ratio |")
+    log("|---|---|---|---|")
+    for b in (0.0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05):
+        nr = sum(1 for r in rs if r["worst"] >= b)
+        ns = sum(1 for r in ss if r["worst"] >= b)
+        rat = f"{nr/ns:.2f}x" if ns else ("inf" if nr else "-")
+        log(f"| +{b*100:.1f} pp | {nr:,} | {ns:,} | **{rat}** |")
+    log()
+    log("| bar: min NET $/trade in ALL 8 | real | shuffled | ratio |")
+    log("|---|---|---|---|")
+    for b in (-2.0, -1.5, -1.0, -0.5, 0.0, 0.25, 0.5, 1.0):
+        nr = sum(1 for r in rs if r["worstnet"] >= b)
+        ns = sum(1 for r in ss if r["worstnet"] >= b)
+        rat = f"{nr/ns:.2f}x" if ns else ("inf" if nr else "-")
+        log(f"| ${b:+.2f} | {nr:,} | {ns:,} | **{rat}** |")
+    log()
     if rs:
         log(f"### The {min(len(rs), 40)} strongest survivors")
         log()
@@ -214,7 +243,8 @@ def main():
         log("|---|---|---|---|---|")
         for r in sorted(rs, key=lambda x: -x["worst"])[:40]:
             log(f"| {r['edge']*100:+.2f} pp | **{r['worst']*100:+.2f} pp** | "
-                f"${r['net']:+.2f} | {r['n']:,} | `{r['tag']}` |")
+                f"${r['net']:+.2f} (worst ${r['worstnet']:+.2f}) | {r['n']:,} | "
+                f"`{r['tag']}` |")
         log()
         log("The column that matters is **WORST contract** — the weakest of "
             "eight independent verdicts. A strategy is only as good as the "
