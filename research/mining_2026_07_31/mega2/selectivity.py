@@ -96,7 +96,7 @@ def legs_for(c, f, R):
     captured = S_next - 2.0 * R
 
     med = lambda a, w=100: (  # noqa: E731
-        __import__("pandas").Series(a).rolling(w, min_periods=30)
+        __import__("pandas").Series(a).rolling(w, min_periods=min(30, w))
         .median().shift(1).values)
 
     F = {
