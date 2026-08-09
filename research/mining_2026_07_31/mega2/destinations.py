@@ -56,7 +56,7 @@ import structsearch as S  # noqa: E402
 ROOT = S.ROOT
 RAW = os.path.join(ROOT, "data", "tick", "raw")
 CACHE = S.CACHE
-OUT = os.path.join(ROOT, "research", "DESTINATIONS.md")
+OUT = os.environ.get("OUT_MD", os.path.join(ROOT, "research", "DESTINATIONS.md"))
 PT = 4
 USD_TICK = 0.50
 COST = 1.99
@@ -194,7 +194,7 @@ def run(c, tape_kind, rng):
     return out, len(pc), ts
 
 
-HOLD = ["NQH6", "NQM6", "NQZ5"]
+HOLD = os.environ.get("CONTRACTS", "NQH6,NQM6,NQZ5").split(",")
 rng = np.random.default_rng(4242)
 acc = {"real": {}, "shuf": {}}
 ndays = 0
