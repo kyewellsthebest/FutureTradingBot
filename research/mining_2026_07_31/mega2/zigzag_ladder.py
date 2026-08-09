@@ -137,6 +137,52 @@ log("Read the last column. On three MNQ, catching swings of a given size, "
     "make $1,000 a week.")
 log()
 
+log("## The catch that decides all of it: you enter late and exit late")
+log()
+log("Table 2 assumes that when you are right you capture the WHOLE swing. "
+    "Nobody can. A swing is only known to have started once price has already "
+    "reversed R points off the extreme — that is what confirmation means — and "
+    "it is only known to have ENDED once price has reversed R points off the "
+    "other extreme. So a confirmation-based system enters R points late and "
+    "exits R points late, and keeps:")
+log()
+log("    captured = average swing - 2R")
+log()
+log("| swing size R | avg swing | avg swing / R | captured after entering and "
+    "exiting late | in dollars | net of $1.99 |")
+log("|---|---|---|---|---|---|")
+for R, ld, al, pd_, pf, cs, pbe, p1k, lu in rows:
+    cap = al - 2 * R
+    log(f"| {R} pts | {al:.1f} pts | **{al/R:.2f}x** | {cap:+.1f} pts | "
+        f"${cap*USD_PT:+.2f} | **${cap*USD_PT - COST:+.2f}** |")
+log()
+log("Look at the ratio column. The average swing is almost exactly **2R at "
+    "every single scale**, from 2 points to 80. That is not a coincidence and "
+    "it is not a property of NQ — it is what a random walk does. The expected "
+    "excursion between R-sized reversals is 2R.")
+log()
+log("Which means a confirmation-based swing system captures "
+    "`2R - 2R = about zero`, before costs, at every scale on the ladder. The "
+    "3,000-6,000 points are real, and the confirmation lag on both ends eats "
+    "essentially all of them. This is the honest reason the path length is not "
+    "money, and it holds no matter how many swings a day there are.")
+log()
+log("So there are exactly three ways out, and only three:")
+log()
+log("1. **Enter earlier than confirmation** — predict the turn instead of "
+    "reacting to it. Needs genuine forecasting skill at the turn.")
+log("2. **Exit better than the next confirmation** — a target or trail that "
+    "beats giving back R points. This is pure trade management and costs "
+    "nothing to test.")
+log("3. **Be selective** — only take swings that will run longer than 2R. "
+    "This is the one that matches how a discretionary trader actually works, "
+    "and it is testable: conditional on what is visible at confirmation, is "
+    "the REMAINING length of the swing predictable?")
+log()
+log("Every search run so far has been a version of (1), which is the hardest "
+    "of the three. (2) and (3) have never been tested.")
+log()
+
 log("## Where we actually are")
 log()
 log("The best real edge measured in this repo is $0.87 per trade on an "
