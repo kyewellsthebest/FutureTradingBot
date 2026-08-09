@@ -44,9 +44,27 @@ your bot's execution.**
 
 ## Markets skipped for lack of tick data
 
+**CORRECTION 2026-08-08 — the bond recommendation was WRONG and is withdrawn.**
+I argued repeatedly that ZB/ZN were the structural fix because their ticks are
+worth $31.25 and $15.62 against the same $0.74 commission. That compares
+commission to tick value and forgets the spread, which is ONE TICK in every
+one of these markets. What matters is the tick relative to how much the market
+moves, and on that measure bonds are the worst instruments on the board:
+
+| market | tick | ~1-min move | round-turn cost | cost / move |
+|---|---|---|---|---|
+| **MNQ** | $0.50 | $25 | $1.24 | **5%** |
+| MES | $1.25 | $13 | $1.99 | 16% |
+| ZN | $15.62 | $19 | $16.36 | **86%** |
+| ZB | $31.25 | $51 | $31.99 | 63% |
+
+On ZN a one-minute move is about one tick, so crossing the spread costs
+roughly the entire move. **MNQ is already the best-priced instrument available
+to this account** — which the corrected COST_RATIO table said (NQ cheapest of
+fifteen) before I connected it to the bond argument. Bonds are struck off.
+
 | market | why it matters | what's needed |
 |---|---|---|
-| ZB / ZN (bonds) | biggest tick-value-to-commission headroom on the board ($31.25 / $15.62 per tick) — the exact lever a 13-25% cost shortfall needs | tick source; Polygon first, else a data decision from you |
 | 6E / 6B / 6A / 6J (FX futures) | the tradeable twin of the Dukascopy FX ticks already searched | same |
 | NG (nat gas) | high volatility, MNG $2.50 tick | same |
 | MBT / MET (crypto futures) | 24/7 tape | same; note MBT commission $5.22/RT is brutal |
