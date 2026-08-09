@@ -36,6 +36,36 @@ The screenshot is confirmed by our own tick data: add up every swing and NQ real
 
 Read the last column. On three MNQ, catching swings of a given size, that is the fraction of swings you must call correctly — forever — to make $1,000 a week.
 
+## The catch that decides all of it: you enter late and exit late
+
+Table 2 assumes that when you are right you capture the WHOLE swing. Nobody can. A swing is only known to have started once price has already reversed R points off the extreme — that is what confirmation means — and it is only known to have ENDED once price has reversed R points off the other extreme. So a confirmation-based system enters R points late and exits R points late, and keeps:
+
+    captured = average swing - 2R
+
+| swing size R | avg swing | avg swing / R | captured after entering and exiting late | in dollars | net of $1.99 |
+|---|---|---|---|---|---|
+| 2 pts | 4.4 pts | **2.20x** | +0.4 pts | $+0.81 | **$-1.18** |
+| 3 pts | 6.4 pts | **2.14x** | +0.4 pts | $+0.84 | **$-1.15** |
+| 5 pts | 10.4 pts | **2.08x** | +0.4 pts | $+0.78 | **$-1.21** |
+| 8 pts | 16.3 pts | **2.04x** | +0.3 pts | $+0.58 | **$-1.41** |
+| 12 pts | 24.1 pts | **2.01x** | +0.1 pts | $+0.23 | **$-1.76** |
+| 20 pts | 40.0 pts | **2.00x** | +0.0 pts | $+0.02 | **$-1.97** |
+| 30 pts | 60.2 pts | **2.01x** | +0.2 pts | $+0.39 | **$-1.60** |
+| 50 pts | 100.8 pts | **2.02x** | +0.8 pts | $+1.50 | **$-0.49** |
+| 80 pts | 163.5 pts | **2.04x** | +3.5 pts | $+7.05 | **$+5.06** |
+
+Look at the ratio column. The average swing is almost exactly **2R at every single scale**, from 2 points to 80. That is not a coincidence and it is not a property of NQ — it is what a random walk does. The expected excursion between R-sized reversals is 2R.
+
+Which means a confirmation-based swing system captures `2R - 2R = about zero`, before costs, at every scale on the ladder. The 3,000-6,000 points are real, and the confirmation lag on both ends eats essentially all of them. This is the honest reason the path length is not money, and it holds no matter how many swings a day there are.
+
+So there are exactly three ways out, and only three:
+
+1. **Enter earlier than confirmation** — predict the turn instead of reacting to it. Needs genuine forecasting skill at the turn.
+2. **Exit better than the next confirmation** — a target or trail that beats giving back R points. This is pure trade management and costs nothing to test.
+3. **Be selective** — only take swings that will run longer than 2R. This is the one that matches how a discretionary trader actually works, and it is testable: conditional on what is visible at confirmation, is the REMAINING length of the swing predictable?
+
+Every search run so far has been a version of (1), which is the hardest of the three. (2) and (3) have never been tested.
+
 ## Where we actually are
 
 The best real edge measured in this repo is $0.87 per trade on an average move of about $17.50, which is 8.75 points. Converting that to accuracy:
