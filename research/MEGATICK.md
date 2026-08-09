@@ -8,10 +8,13 @@ Vocabulary: 4 event-horizons x ~24 behavioural families + 18 bar-local questions
 Sizing: one micro futures contract per market. FX at $1 per pip (10k notional), gold at 10 oz — FX and gold are research-only, since the account cannot trade them; they exist here to test whether a behaviour transfers across markets.
 
 - NQ K=4000 `NQZ4.parquet`: 5,044 bars, 617 conditions, **313,179,328** distinct [203s, total 17,249,247,736 eval / 3,325,098,822 scored]
+- NQ K=4000 `NQZ5.parquet`: 5,950 bars, 620 conditions, **317,769,840** distinct [533s, total 17,567,017,576 eval / 3,398,522,224 scored]
+- ES K=4000 `ESZ4.parquet`: 5,721 bars, 615 conditions, **310,143,680** distinct [850s, total 17,877,161,256 eval / 3,464,594,854 scored]
+- ES K=6500 `ESZ4.parquet`: 3,521 bars, 592 conditions, **276,632,128** distinct [916s, total 18,153,793,384 eval / 3,503,551,968 scored]
 
-## 17,249,247,736 distinct configurations evaluated; **3,325,098,822 scored** (met the sample-size gate) in 0.06 h
+## 18,153,793,384 distinct configurations evaluated; **3,503,551,968 scored** (met the sample-size gate) in 0.25 h
 
-Null: 17,249,247,736 evaluated, 3,325,098,822 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
+Null: 18,153,793,384 evaluated, 3,503,551,968 scored — the identical search on circularly-shifted outcomes, so the columns below are directly comparable.
 
 ### What the whole population did, and what the null did
 
@@ -19,13 +22,13 @@ Null: 17,249,247,736 evaluated, 3,325,098,822 scored — the identical search on
 |---|---|---|---|---|---|---|
 | top 1e-07% | >= $+401.220 | 115 | **31.3%** | **$-22.2332** | 54.2% | $+15.0841 |
 | top 1e-05% | >= $+380.076 | 332 | **34.3%** | **$-28.0079** | - | - |
-| top 0.0001% | >= $+326.013 | 3,291 | **18.3%** | **$-51.2835** | 57.4% | $+11.3076 |
-| top 0.001% | >= $+232.691 | 32,860 | **29.6%** | **$-51.1728** | 58.8% | $+24.4480 |
-| top 0.01% | >= $+160.580 | 327,733 | **41.2%** | **$-22.0657** | 59.1% | $+34.9122 |
-| top 0.1% | >= $+96.905 | 3,324,744 | **43.0%** | **$-16.4198** | 55.1% | $+24.8205 |
-| top 1% | >= $+40.637 | 33,141,898 | **43.6%** | **$-10.5910** | 48.5% | $+6.4405 |
-| top 10% | >= $+8.516 | 332,007,907 | **56.8%** | **$+0.0164** | 54.8% | $+2.2812 |
-| top 100% | >= $-402.429 | 3,325,098,822 | **50.0%** | **$+0.0000** | 50.0% | $-0.0000 |
+| top 0.0001% | >= $+324.057 | 3,438 | **18.3%** | **$-51.9727** | 57.4% | $+11.1232 |
+| top 0.001% | >= $+231.293 | 34,545 | **29.9%** | **$-50.5724** | 58.9% | $+24.7029 |
+| top 0.01% | >= $+159.613 | 344,856 | **41.6%** | **$-21.3962** | 59.0% | $+34.7309 |
+| top 0.1% | >= $+96.905 | 3,476,510 | **42.9%** | **$-16.8169** | 54.9% | $+24.1178 |
+| top 1% | >= $+41.014 | 34,996,134 | **43.0%** | **$-11.5085** | 48.4% | $+6.0169 |
+| top 10% | >= $+8.689 | 350,313,389 | **55.7%** | **$-0.5337** | 54.2% | $+1.9967 |
+| top 100% | >= $-402.429 | 3,503,551,968 | **50.0%** | **$-0.0000** | 50.0% | $+0.0000 |
 
 Read the last two columns first. If the real search cannot beat the shifted one, the pattern is the calendar and not the market.
 
@@ -35,7 +38,8 @@ Mean dollars per market is identically zero by construction: every configuration
 
 | market | scored (this run) | made money both halves | rate | NULL rate | lift |
 |---|---|---|---|---|---|
-| NQ | 60,136,838 | 15,770,058 | 26.224% | 29.680% | **0.884x** |
+| NQ | 133,560,240 | 33,249,178 | 24.895% | 27.285% | **0.912x** |
+| ES | 105,029,744 | 34,486,020 | 32.835% | 33.809% | **0.971x** |
 
 Counts here begin from the run that added this table, so they cover the later cells rather than the whole campaign; the lift ratio is unaffected because both columns cover the same cells.
 
@@ -43,83 +47,84 @@ Counts here begin from the run that added this table, so they cover the later ce
 
 | market | cells | mean per-cell lift | worst cell | best cell |
 |---|---|---|---|---|
-| NQ | 1 | **0.884x** | 0.884x | 0.884x |
+| NQ | 2 | **0.912x** | 0.884x | 0.940x |
+| ES | 2 | **0.986x** | 0.939x | 1.034x |
 
-Across all 1 cells: mean lift **0.884x**, spread 0.884x to 0.884x, and 0/1 cells above 1.0 (a coin would give 0). If the count of cells above 1.0 is near half and the spread straddles 1.0, the market-level numbers above are cell noise, not structure.
+Across all 4 cells: mean lift **0.949x**, spread 0.884x to 1.034x, and 1/4 cells above 1.0 (a coin would give 2). If the count of cells above 1.0 is near half and the spread straddles 1.0, the market-level numbers above are cell noise, not structure.
 
 ### The screen that actually matters: profitable on BOTH halves
 
 | | configs scored | made money on both halves | rate |
 |---|---|---|---|
-| **real search** | 3,325,098,822 | **15,770,058** | 0.474% |
-| shifted null | 3,325,098,822 | 17,848,720 | 0.537% |
+| **real search** | 3,503,551,968 | **67,735,198** | 1.933% |
+| shifted null | 3,503,551,968 | 71,951,502 | 2.054% |
 
-Lift over chance: **0.88x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
+Lift over chance: **0.94x**. A lift near 1.0 means the survivors are what shuffling produces anyway — that is the honest reading of a long list of profitable-looking rules, and it is why the count alone is never the answer.
 
 Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 
 | worse half $/trade | train $ | holdout $ | market / bar / hold | rule |
 |---|---|---|---|---|
+| **$+197.171** | $+215.869 | $+197.171 | NQ K=4000 h=21 NQZ5.parquet | `L acc34<-0.0 & exp34>0.0 & vwapd<-1.35` |
+| **$+192.376** | $+192.376 | $+199.077 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & vratio<-0.67 & vwapd<-0.67` |
+| **$+183.211** | $+188.141 | $+183.211 | NQ K=4000 h=21 NQZ5.parquet | `L vmom34<-0.67 & exp34>0.0 & vwapd<-1.35` |
+| **$+176.778** | $+225.340 | $+176.778 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & mom89<-0.0 & vel89<-1.35` |
+| **$+176.778** | $+222.485 | $+176.778 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & vmom89<-0.0 & vel89<-1.35` |
+| **$+174.490** | $+198.089 | $+174.490 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & acc89<-0.0 & vel89<-1.35` |
+| **$+170.496** | $+214.803 | $+170.496 | NQ K=4000 h=21 NQZ5.parquet | `S chop5>0.0 & mom89<-0.0 & vel89<-1.35` |
+| **$+170.496** | $+211.605 | $+170.496 | NQ K=4000 h=21 NQZ5.parquet | `S chop5>0.0 & vmom89<-0.0 & vel89<-1.35` |
+| **$+168.022** | $+178.715 | $+168.022 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & mom89<-0.0 & dratio>1.35` |
+| **$+168.022** | $+176.641 | $+168.022 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & vmom89<-0.0 & dratio>1.35` |
+| **$+168.013** | $+169.414 | $+168.013 | NQ K=4000 h=21 NQZ5.parquet | `S aeff13<-0.0 & cmp>1.35 & dratio>0.0` |
+| **$+167.459** | $+171.301 | $+167.459 | NQ K=4000 h=21 NQZ5.parquet | `S acc89<-0.0 & barups>0.67 & dratio>1.35` |
+| **$+167.138** | $+180.831 | $+167.138 | NQ K=4000 h=21 NQZ5.parquet | `S chop89>0.0 & barvel<-0.0 & cmp>1.35` |
+| **$+165.265** | $+174.009 | $+165.265 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & eff89<-0.0 & dratio>1.35` |
+| **$+163.766** | $+171.901 | $+163.766 | NQ K=4000 h=21 NQZ5.parquet | `S acc89<-0.0 & vel89<-1.35 & barvol<-0.67` |
+| **$+162.989** | $+168.922 | $+162.989 | NQ K=4000 h=21 NQZ5.parquet | `S vmom34>0.0 & chop34>0.67 & vratio<-0.67` |
+| **$+162.057** | $+162.057 | $+174.182 | NQ K=4000 h=21 NQZ5.parquet | `S vel34<-0.67 & eff89<-0.67 & vel89<-0.67` |
+| **$+161.968** | $+222.057 | $+161.968 | NQ K=4000 h=21 NQZ5.parquet | `S chop34>0.0 & mom89<-0.0 & dratio>1.35` |
+| **$+161.968** | $+217.461 | $+161.968 | NQ K=4000 h=21 NQZ5.parquet | `S chop34>0.0 & vmom89<-0.0 & dratio>1.35` |
+| **$+161.521** | $+161.521 | $+194.429 | NQ K=4000 h=21 NQZ5.parquet | `S exp34>0.0 & exp89<-0.67 & barvel<-0.0` |
+| **$+159.388** | $+170.512 | $+159.388 | NQ K=4000 h=21 NQZ5.parquet | `S chop34>0.0 & acc89<-0.0 & dratio>1.35` |
+| **$+159.363** | $+159.363 | $+185.368 | NQ K=4000 h=21 NQZ5.parquet | `S aeff13<-0.0 & barvel<-0.0 & cmp>1.35` |
+| **$+159.320** | $+178.884 | $+159.320 | NQ K=4000 h=21 NQZ5.parquet | `S chop34>0.0 & barvel<-0.0 & cmp>1.35` |
+| **$+158.860** | $+163.243 | $+158.860 | NQ K=4000 h=21 NQZ5.parquet | `S aeff13<-0.0 & vel89<-0.0 & cmp>1.35` |
+| **$+158.534** | $+170.690 | $+158.534 | NQ K=4000 h=21 NQZ5.parquet | `S eff34>0.0 & chop34>0.67 & vratio<-0.67` |
+| **$+158.435** | $+219.393 | $+158.435 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & mom89<-0.0 & vel89<-1.35` |
+| **$+158.435** | $+217.513 | $+158.435 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & vmom89<-0.0 & vel89<-1.35` |
+| **$+158.022** | $+158.146 | $+158.022 | NQ K=4000 h=21 NQZ5.parquet | `S chop89>0.0 & cmp>1.35 & dratio>0.0` |
+| **$+157.989** | $+165.220 | $+157.989 | NQ K=4000 h=21 NQZ5.parquet | `S vpp5<-0.0 & acc89<-0.0 & vel89<-1.35` |
+| **$+157.682** | $+184.051 | $+157.682 | NQ K=4000 h=21 NQZ5.parquet | `S rev89<-0.0 & exp89<-0.67 & vratio<-0.67` |
+| **$+155.317** | $+226.556 | $+155.317 | NQ K=4000 h=21 NQZ5.parquet | `S chop13>0.0 & eff89<-0.0 & vel89<-1.35` |
+| **$+154.394** | $+154.394 | $+186.911 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.67 & exp34>0.0 & exp89<-0.67` |
+| **$+154.346** | $+154.346 | $+164.510 | NQ K=4000 h=21 NQZ5.parquet | `S chop5>0.0 & mom89<-0.0 & dratio>1.35` |
+| **$+154.042** | $+164.240 | $+154.042 | NQ K=4000 h=21 NQZ5.parquet | `S pos89<-0.0 & acc89<-0.0 & vel89<-1.35` |
+| **$+153.844** | $+239.254 | $+153.844 | NQ K=4000 h=21 NQZ5.parquet | `L mom34<-1.35 & dnh89<-0.67 & vwapd<-1.35` |
+| **$+153.844** | $+239.254 | $+153.844 | NQ K=4000 h=21 NQZ5.parquet | `L mom34<-1.35 & brk89<-0.67 & vwapd<-1.35` |
+| **$+153.703** | $+155.391 | $+153.703 | NQ K=4000 h=21 NQZ5.parquet | `S acc34>0.0 & eff89<-0.67 & barpath>0.67` |
+| **$+153.262** | $+161.509 | $+153.262 | NQ K=4000 h=21 NQZ5.parquet | `L exp34>0.0 & brk34<-0.67 & vwapd<-1.35` |
+| **$+153.119** | $+153.119 | $+153.839 | NQ K=4000 h=21 NQZ5.parquet | `S vel13>0.0 & eff89>0.0 & vdir89<-0.0` |
+| **$+152.647** | $+213.068 | $+152.647 | NQ K=4000 h=21 NQZ5.parquet | `S chop5>0.0 & eff89<-0.0 & vel89<-1.35` |
 | **$+152.617** | $+161.274 | $+152.617 | NQ K=4000 h=21 NQZ4.parquet | `L bdn13<-0.0 & aeff34<-0.0 & chop34>1.35` |
-| **$+142.366** | $+142.995 | $+142.366 | NQ K=4000 h=21 NQZ4.parquet | `L aeff34<-0.0 & chop34>1.35 & exp34<-0.0` |
-| **$+140.193** | $+158.039 | $+140.193 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & aeff34<-0.0 & chop34>1.35` |
-| **$+138.140** | $+160.148 | $+138.140 | NQ K=4000 h=21 NQZ4.parquet | `L pos13>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+137.458** | $+137.458 | $+280.183 | NQ K=4000 h=21 NQZ4.parquet | `S dnh13<-0.0 & exp89>0.0 & dratio>0.67` |
-| **$+136.561** | $+152.022 | $+136.561 | NQ K=4000 h=21 NQZ4.parquet | `L dnh13>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+136.306** | $+155.924 | $+136.306 | NQ K=4000 h=21 NQZ4.parquet | `L bdn13<-0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+135.382** | $+147.091 | $+135.382 | NQ K=4000 h=21 NQZ4.parquet | `L chop89>0.0 & upl89>0.67 & exp89<-0.67` |
-| **$+135.349** | $+135.349 | $+153.126 | NQ K=4000 h=21 NQZ4.parquet | `S aeff34>0.0 & exp89>0.0 & vratio<-0.67` |
-| **$+134.894** | $+157.868 | $+134.894 | NQ K=4000 h=21 NQZ4.parquet | `L upl13>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+134.791** | $+155.562 | $+134.791 | NQ K=4000 h=21 NQZ4.parquet | `L brk13>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+133.489** | $+167.155 | $+133.489 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+133.306** | $+148.831 | $+133.306 | NQ K=4000 h=21 NQZ4.parquet | `L brk5>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+133.200** | $+133.200 | $+284.480 | NQ K=4000 h=21 NQZ4.parquet | `S brk13<-0.0 & exp89>0.0 & dratio>0.67` |
-| **$+133.016** | $+133.016 | $+137.176 | NQ K=4000 h=21 NQZ4.parquet | `L dnh5>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+131.752** | $+144.810 | $+131.752 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & bdn13<-0.0 & chop34>1.35` |
-| **$+131.133** | $+131.133 | $+162.669 | NQ K=4000 h=21 NQZ4.parquet | `S aeff34>0.0 & exp89>0.0 & dratio>0.67` |
-| **$+130.594** | $+130.594 | $+143.541 | NQ K=4000 h=21 NQZ4.parquet | `L vel13<-0.0 & chop34>1.35 & vel34<-0.0` |
-| **$+130.449** | $+131.241 | $+130.449 | NQ K=4000 h=21 NQZ4.parquet | `L rev13<-0.0 & acc13>0.0 & chop34>1.35` |
-| **$+130.257** | $+145.168 | $+130.257 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & upl13>0.0 & chop34>1.35` |
-| **$+129.338** | $+129.338 | $+168.132 | NQ K=4000 h=21 NQZ4.parquet | `S exp34>0.0 & exp89>0.0 & vel89<-0.67` |
-| **$+128.787** | $+129.532 | $+128.787 | NQ K=4000 h=21 NQZ4.parquet | `L chop34>0.67 & run34<-0.0 & vratio>0.67` |
-| **$+128.254** | $+128.254 | $+137.244 | NQ K=4000 h=21 NQZ4.parquet | `S exp89>0.0 & cmp>0.0 & dratio>1.35` |
-| **$+127.892** | $+147.719 | $+127.892 | NQ K=4000 h=21 NQZ4.parquet | `L chop89>0.0 & exp89<-0.67 & bdn89<-0.67` |
-| **$+127.545** | $+136.713 | $+127.545 | NQ K=4000 h=21 NQZ4.parquet | `L chop34>1.35 & exp34<-0.0 & fail34<-0.0` |
-| **$+127.244** | $+145.624 | $+127.244 | NQ K=4000 h=21 NQZ4.parquet | `L pos13>0.0 & acc13>0.0 & chop34>1.35` |
-| **$+126.661** | $+126.661 | $+134.962 | NQ K=4000 h=21 NQZ4.parquet | `S chop34<-0.0 & run34>0.0 & barvol<-0.67` |
-| **$+126.237** | $+128.268 | $+126.237 | NQ K=4000 h=21 NQZ4.parquet | `L mom5>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+126.208** | $+126.208 | $+130.769 | NQ K=4000 h=21 NQZ4.parquet | `S eff34<-0.67 & aeff89>0.0 & vratio<-0.0` |
-| **$+126.038** | $+140.831 | $+126.038 | NQ K=4000 h=21 NQZ4.parquet | `L chop34>1.35 & exp34<-0.0 & fail89<-0.0` |
-| **$+125.921** | $+137.053 | $+125.921 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & dnh13>0.0 & chop34>1.35` |
-| **$+125.893** | $+125.893 | $+166.493 | NQ K=4000 h=21 NQZ4.parquet | `S acc13<-0.0 & exp89>0.0 & vel89<-0.67` |
-| **$+125.787** | $+125.787 | $+159.603 | NQ K=4000 h=21 NQZ4.parquet | `S exp34>0.0 & exp89>0.0 & dratio>0.67` |
-| **$+125.768** | $+134.960 | $+125.768 | NQ K=4000 h=21 NQZ4.parquet | `L eff5>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+125.768** | $+127.988 | $+125.768 | NQ K=4000 h=21 NQZ4.parquet | `L vmom5>0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+125.552** | $+125.552 | $+235.016 | NQ K=4000 h=21 NQZ4.parquet | `S pos13<-0.0 & exp89>0.0 & barvel<-0.67` |
-| **$+124.240** | $+124.240 | $+168.745 | NQ K=4000 h=21 NQZ4.parquet | `S exp34>0.0 & exp89>0.0 & vel89<-0.0` |
-| **$+124.154** | $+129.101 | $+124.154 | NQ K=4000 h=21 NQZ4.parquet | `L upl13>0.0 & chop34>0.67 & run34<-0.0` |
-| **$+124.089** | $+132.192 | $+124.089 | NQ K=4000 h=21 NQZ4.parquet | `S rev34<-0.0 & run89>0.67 & pthz89>0.0` |
-| **$+123.753** | $+154.320 | $+123.753 | NQ K=4000 h=21 NQZ4.parquet | `L rev13<-0.0 & chop34>1.35 & aeff89<-0.0` |
-| **$+123.075** | $+123.075 | $+198.754 | NQ K=4000 h=21 NQZ4.parquet | `S exp89>0.0 & barups>0.0 & dratio>1.35` |
-| **$+122.851** | $+122.851 | $+127.791 | NQ K=4000 h=21 NQZ4.parquet | `L eff13>0.0 & chop34>1.35 & fail34<-0.0` |
-| **$+122.752** | $+124.413 | $+122.752 | NQ K=4000 h=21 NQZ4.parquet | `S exp89>0.0 & pthz89>0.0 & dratio>1.35` |
-| **$+122.658** | $+122.658 | $+181.491 | NQ K=4000 h=21 NQZ4.parquet | `S dnh13<-0.0 & exp89>0.0 & vel89<-0.67` |
-| **$+122.491** | $+122.491 | $+147.010 | NQ K=4000 h=21 NQZ4.parquet | `S exp89>0.0 & vratio<-0.67 & dratio>1.35` |
-| **$+122.247** | $+122.247 | $+168.132 | NQ K=4000 h=21 NQZ4.parquet | `S exp34>0.0 & exp89>0.0 & dratio>0.0` |
-| **$+121.852** | $+124.356 | $+121.852 | NQ K=4000 h=21 NQZ4.parquet | `L bdn13<-0.0 & chop34>0.67 & run34<-0.0` |
-| **$+121.612** | $+121.612 | $+194.696 | NQ K=4000 h=21 NQZ4.parquet | `S brk5<-0.0 & exp89>0.0 & dratio>0.67` |
-| **$+121.555** | $+132.033 | $+121.555 | NQ K=4000 h=21 NQZ4.parquet | `L vpp89>0.0 & cmp<-0.0 & vwapd<-0.67` |
-| **$+121.449** | $+131.055 | $+121.449 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & eff13>0.0 & chop34>1.35` |
-| **$+121.261** | $+121.261 | $+129.763 | NQ K=4000 h=21 NQZ4.parquet | `L faild13<-0.0 & chop34>1.35 & vel34<-0.0` |
-| **$+120.995** | $+120.995 | $+251.411 | NQ K=4000 h=21 NQZ4.parquet | `S pos5<-0.0 & exp89>0.0 & dratio>0.67` |
-| **$+120.788** | $+131.816 | $+120.788 | NQ K=4000 h=21 NQZ4.parquet | `L vmom13>0.0 & acc13>0.0 & chop34>1.35` |
-| **$+120.788** | $+131.816 | $+120.788 | NQ K=4000 h=21 NQZ4.parquet | `L mom13>0.0 & acc13>0.0 & chop34>1.35` |
-| **$+120.633** | $+140.295 | $+120.633 | NQ K=4000 h=21 NQZ4.parquet | `L acc13>0.0 & brk13>0.0 & chop34>1.35` |
-| **$+120.121** | $+120.121 | $+135.186 | NQ K=4000 h=21 NQZ4.parquet | `S exp89>0.0 & absb89<-0.67 & dratio>1.35` |
-| **$+120.059** | $+120.059 | $+325.533 | NQ K=4000 h=21 NQZ4.parquet | `S mom13<-0.0 & exp89>0.0 & dratio>0.67` |
-| **$+119.991** | $+122.448 | $+119.991 | NQ K=4000 h=21 NQZ4.parquet | `S eff34>0.67 & chop34<-0.0 & vpp34<-0.0` |
-| **$+119.833** | $+119.833 | $+179.429 | NQ K=4000 h=21 NQZ4.parquet | `S exp34>0.0 & exp89>0.0 & barvel<-0.0` |
-| **$+119.780** | $+119.780 | $+129.763 | NQ K=4000 h=21 NQZ4.parquet | `L chop34>1.35 & vel34<-0.0 & faild89<-0.0` |
+| **$+152.521** | $+179.455 | $+152.521 | NQ K=4000 h=21 NQZ5.parquet | `S vel34<-0.67 & vmom89<-0.67 & vel89<-0.67` |
+| **$+152.069** | $+152.069 | $+157.926 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & mom89<-0.0 & dratio>1.35` |
+| **$+152.058** | $+164.420 | $+152.058 | NQ K=4000 h=21 NQZ5.parquet | `S pos89>0.0 & exp89<-0.67 & vratio<-0.67` |
+| **$+151.686** | $+151.686 | $+153.858 | NQ K=4000 h=21 NQZ5.parquet | `S eff89<-0.67 & vel89<-0.67 & run89<-0.67` |
+| **$+151.527** | $+151.527 | $+164.510 | NQ K=4000 h=21 NQZ5.parquet | `S chop5>0.0 & vmom89<-0.0 & dratio>1.35` |
+| **$+151.090** | $+151.090 | $+165.646 | NQ K=4000 h=21 NQZ5.parquet | `S absb34<-0.67 & acc89<-0.0 & vel89<-1.35` |
+| **$+151.058** | $+155.297 | $+151.058 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & run89<-0.67 & barvol<-0.67` |
+| **$+150.914** | $+150.914 | $+161.090 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & cmp>1.35 & dratio>0.0` |
+| **$+150.819** | $+150.819 | $+154.457 | NQ K=4000 h=21 NQZ5.parquet | `S absb34<-0.67 & mom89<-0.0 & dratio>1.35` |
+| **$+150.792** | $+191.561 | $+150.792 | NQ K=4000 h=21 NQZ5.parquet | `S chop34>0.0 & cmp>1.35 & dratio>0.0` |
+| **$+150.652** | $+150.652 | $+157.926 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & vmom89<-0.0 & dratio>1.35` |
+| **$+150.350** | $+177.115 | $+150.350 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & mom89<-0.0 & barvel<-1.35` |
+| **$+149.845** | $+149.845 | $+152.457 | NQ K=4000 h=21 NQZ5.parquet | `S volz34<-0.67 & acc89<-0.0 & vel89<-1.35` |
+| **$+149.755** | $+149.755 | $+156.978 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & vel89<-0.0 & cmp>1.35` |
+| **$+149.656** | $+179.268 | $+149.656 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & volz89<-0.67 & vwapd<-0.67` |
+| **$+149.647** | $+149.647 | $+161.538 | NQ K=4000 h=21 NQZ5.parquet | `S acc89<-0.0 & vel89<-1.35 & absb89<-0.67` |
+| **$+149.371** | $+194.838 | $+149.371 | NQ K=4000 h=21 NQZ5.parquet | `L mom34<-0.67 & exp34>0.0 & vwapd<-1.35` |
+| **$+149.215** | $+149.215 | $+167.246 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & barvel<-0.0 & cmp>1.35` |
+| **$+148.796** | $+175.306 | $+148.796 | NQ K=4000 h=21 NQZ5.parquet | `S aeff34<-0.0 & vmom89<-0.0 & barvel<-1.35` |
 
 ### The best training scores, and what each did out of sample
 
@@ -166,4 +171,4 @@ Survivors ranked by their WORSE half, so nothing qualifies on one good split:
 | $+432.558 | $-114.158 | `L vdir34>0.0 & chop89>0.67 & dratio<-0.0` |
 | $+430.940 | $-35.235 | `L vdir34>0.0 & chop89>0.67 & barvel>0.0` |
 
-Conditions per cell: 617-617 (median 617).
+Conditions per cell: 592-620 (median 616).
