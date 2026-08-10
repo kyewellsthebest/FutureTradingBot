@@ -296,11 +296,18 @@ def main():
                         tpw = len(keep) / days * 5
                         nfull += 1
                         stat["g_full"] += 1
+                        pw = float(wt[keep].mean())
+                        # how many standard errors the win rate sits above the
+                        # rate it NEEDS. This is the only column that can be
+                        # compared against the selection ceiling, and without
+                        # it a 1pp excess and a 10pp excess look alike.
+                        sew = np.sqrt(max(pstar * (1 - pstar), 1e-9) /
+                                      len(keep))
                         rec = dict(mkt=m, con=cn, K=k, feat=fn, q=q, side=side,
                                    stop=int(ks[si]), tgt=int(ks[ti]),
                                    n=len(keep), tpw=tpw, dol=mu,
                                    se=sd / np.sqrt(len(keep)),
-                                   win=float(wt[keep].mean()), pstar=pstar)
+                                   win=pw, pstar=pstar, z=(pw - pstar) / sew)
                         rows.append(rec)
                         if tpw >= MIN_TPW and mu >= MIN_DOL:
                             hits.append(rec)
@@ -360,13 +367,14 @@ def report(rows, hits, stat, t0):
         log(f"## {len(hits)} configurations cleared both gates")
         log()
         log("| market | contract | clock | trigger | stop | target | win% | "
-            "needed | trades/wk | **$/trade** | ± |")
+            "needed | **sigma over needed** | trades/wk | **$/trade** |")
         log("|---|---|---|---|---|---|---|---|---|---|---|")
         for r in sorted(hits, key=lambda z: -z["dol"])[:40]:
             log(f"| {r['mkt']} | {r['con']} | {r['K']} | {r['feat']} "
                 f"{'≥' if r['side'] > 0 else '≤'} q{r['q']:g} | {r['stop']} | "
                 f"{r['tgt']} | {r['win']*100:.1f}% | {r['pstar']*100:.1f}% | "
-                f"{r['tpw']:.0f} | **${r['dol']:+.2f}** | ${r['se']:.2f} |")
+                f"**{r.get('z', 0):+.1f}σ** | {r['tpw']:.0f} | "
+                f"**${r['dol']:+.2f}** |")
         log()
         log("**Candidates, not strategies.** No shuffled tape yet, no held-out "
             "contract, and no correction for how many configurations were "
@@ -381,8 +389,19 @@ def report(rows, hits, stat, t0):
     if rows:
         fr = [r for r in rows if r["tpw"] >= MIN_TPW]
         pf = [r for r in rows if r["dol"] >= MIN_DOL]
+        ceil = np.sqrt(2 * np.log(max(len(rows), 2)))
         log(f"`{len(rows):,}` reached full scoring. `{len(fr):,}` were frequent "
             f"enough, `{len(pf):,}` paid enough, `{len(hits):,}` did both.")
+        log()
+        log(f"> **The number to read is the sigma column, not the dollars.** "
+            f"It is how far a win rate sits above the rate its own bracket "
+            f"requires. Trying `{len(rows):,}` configurations and keeping the "
+            f"best is a selection procedure, and the best of that many pure "
+            f"noise draws lands about **{ceil:.1f}σ** up by itself "
+            f"(`sqrt(2 ln N)`). So anything under {ceil:.1f}σ here is "
+            f"consistent with having tried a lot of things, no matter how "
+            f"good the dollars look — and the dollars are what will tempt "
+            f"you.")
         log()
         for title, sel, keyf in (
                 (f"Best paying, among those firing {MIN_TPW:.0f}+ a week",
@@ -392,13 +411,13 @@ def report(rows, hits, stat, t0):
             log(f"### {title}")
             log()
             log("| market | clock | trigger | stop | target | win% | needed | "
-                "trades/wk | $/trade |")
-            log("|---|---|---|---|---|---|---|---|---|")
+                "sigma | trades/wk | $/trade |")
+            log("|---|---|---|---|---|---|---|---|---|---|")
             for r in sorted(sel, key=keyf)[:12]:
                 log(f"| {r['mkt']} | {r['K']} | {r['feat']} q{r['q']:g} | "
                     f"{r['stop']} | {r['tgt']} | {r['win']*100:.1f}% | "
-                    f"{r['pstar']*100:.1f}% | {r['tpw']:.0f} | "
-                    f"${r['dol']:+.2f} |")
+                    f"{r['pstar']*100:.1f}% | {r.get('z', 0):+.1f}σ | "
+                    f"{r['tpw']:.0f} | ${r['dol']:+.2f} |")
             log()
         log("A miss by thirty times and a miss by ten percent are different "
             "facts, and these two tables are what separates them. That is why "
