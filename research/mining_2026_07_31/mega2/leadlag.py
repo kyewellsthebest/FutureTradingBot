@@ -64,19 +64,52 @@ def px_at(ts, px, T):
     return out
 
 
-def run(t, fwd, fts, fpx, sym, shift):
-    """One (foreign stream, control) sweep. The NQ side is passed in already
+def _px_getter(ts, px, tick):
+    """Predictor = how far the stream moved over the window, in its own ticks."""
+    def g(a, b):
+        return (px_at(ts, px, a) - px_at(ts, px, b)) / tick
+    return g
+
+
+def _ofi_getter(C):
+    """Predictor = order flow imbalance over the window, in [-1, +1].
+
+    Signed volume over total volume. Not a transform of the price path: it
+    multiplies the aggressor's direction by the SIZE they traded, and size is
+    information the price series does not carry at all.
+    """
+    ts, csv, cv = C["ts"], C["csv"], C["cv"]
+
+    def at(arr, T):
+        j = np.searchsorted(ts, T, side="right") - 1
+        out = arr[np.maximum(j, 0)].astype(np.float64)
+        out[j < 0] = np.nan
+        return out
+
+    def g(a, b):
+        dv = at(cv, a) - at(cv, b)
+        return np.where(dv > 0, (at(csv, a) - at(csv, b)) / np.maximum(dv, 1e-9),
+                        np.nan)
+    return g
+
+
+def run(t, fwd, fts, get, shift):
+    """One (predictor stream, control) sweep. The NQ side is passed in already
     computed -- reloading a 24-million-print tape once per symbol per control
-    is 32 loads for what is genuinely 4."""
+    is 32 loads for what is genuinely 4.
+
+    `get(a, b)` returns the predictor over the window (b, a]. That indirection
+    is what lets a foreign PRICE move and NQ's own ORDER FLOW go through
+    identical machinery, so the two are directly comparable.
+    """
     off = int(fuse.SHIFT_DAYS * fuse.DAY_NS) if shift else 0
     out = {}
     for lg in LAGS:
         a = t - lg * MS
-        b = a - LOOK * MS
         if shift:
             a = fuse.shift_query(dict(ts=fts), a, off)
-            b = a - LOOK * MS
-        fr = (px_at(fts, fpx, a) - px_at(fts, fpx, b)) / fuse.TICKSZ[sym]
+        b = a - LOOK * MS
+        fr = get(a, b)
         for f in FWD:
             y = fwd[f]
             m = np.isfinite(fr) & np.isfinite(y) & (fr != 0)
@@ -96,30 +129,42 @@ def main():
     meta = fuse.tape_meta()
     acc = {"real": {}, "shift": {}}
     for c in CONTRACTS:
-        nts, npx, _ = fuse.load_tape(meta[c]["path"])
+        nts, npx, nsz = fuse.load_tape(meta[c]["path"])
         e = np.arange(0, len(nts), STEP)
         t = nts[e]
         p0 = npx[e].astype(np.float64)
         # NQ's forward moves do not depend on the lag, so the whole sweep
         # reuses them.
         fwd = {f: (px_at(nts, npx, t + f * MS) - p0) / fuse.PT for f in FWD}
-        del nts, npx, p0
+        del p0
+
+        # NQ's OWN order flow, run through exactly the same sweep. This is the
+        # classic microstructure result -- signed volume predicts the next
+        # move -- and it is the single most likely thing in this repo to be
+        # real. The bar-clock ablation samples it every 2.7 minutes, which is
+        # a hundred times too slow to see it.
+        Cn = fuse.cumulants(nts, npx, nsz)
+        del npx, nsz
+        streams = [("NQ order flow", nts, _ofi_getter(Cn))]
         for sym in SYMS:
             fc = fuse.pick_contract(meta, sym, int(t[0]), int(t[-1]))
             if fc is None:
                 print(f"  {c} {sym}: no dense contract", flush=True)
                 continue
             fts, fpx, _ = fuse.load_tape(meta[fc]["path"])
+            streams.append((sym, fts, _px_getter(fts, fpx, fuse.TICKSZ[sym])))
+        del nts
+
+        for sym, fts, get in streams:
             for kind in ("real", "shift"):
-                o = run(t, fwd, fts, fpx, sym, kind == "shift")
+                o = run(t, fwd, fts, get, kind == "shift")
                 for k, v in o.items():
                     a = acc[kind].setdefault((sym,) + k, [0.0, 0.0, 0])
                     a[0] += v[0] * v[2]
                     a[1] += v[1] * v[2]
                     a[2] += v[2]
                 print(f"  {c} {sym} {kind} ({time.time()-t0:.0f}s)", flush=True)
-            del fts, fpx
-        del t, fwd
+        del t, fwd, streams, Cn
 
     log("# How fast does cross-market information die?")
     log()
@@ -145,11 +190,13 @@ def main():
         "significant just because it sits on millions of rows. The shifted "
         "control, not the row count, is what makes a number here trustworthy.")
     log()
-    for sym in SYMS:
+    order = ["NQ order flow"] + SYMS
+    for sym in order:
         rows = [(lg, f) for (s, lg, f) in acc["real"] if s == sym]
         if not rows:
             continue
-        log(f"## {sym} → NQ")
+        log(f"## {sym} → NQ" if sym != "NQ order flow"
+            else "## NQ order flow → NQ price")
         log()
         log("| total latency | " + " | ".join(
             f"IC @ {f}ms" for f in FWD) + " | " + " | ".join(
@@ -182,9 +229,9 @@ def main():
              if (sym, 0, f) in acc["shift"] else "—") for f in FWD) + " |")
         log()
         log(f"The control slides the {sym} tape {fuse.SHIFT_DAYS:g} days along "
-            f"the calendar and repeats the L=0 row. {sym} and NQ are close to "
-            f"the same asset, so almost any bug produces a number here; only "
-            f"the shifted row separates *{sym} leads NQ* from *{sym} is NQ*.")
+            f"the calendar and repeats the L=0 row — same tape, wrong times. "
+            f"Almost any bug produces a number in the real row; only the "
+            f"shifted row separates information from arithmetic.")
         log()
     log("## What the curve decides")
     log()
