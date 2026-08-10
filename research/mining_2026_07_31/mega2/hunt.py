@@ -66,7 +66,7 @@ HOURS = float(os.environ.get("HOURS", "10"))
 KBAR = [int(x) for x in os.environ.get("KBAR", "250,500,1000").split(",")]
 SLICE = 0.15
 W = 400                              # forward bars a bracket may live for
-Z = 2.33                             # one-sided 99% for the win-rate gate
+NLEG = int(os.environ.get("NLEG", "26"))   # legs kept for pairing
 
 # dollars per tick of the MICRO contract, and an all-in round turn built the
 # way the MNQ figure was measured from the user's own fills: $0.74 commission
@@ -182,6 +182,7 @@ def main():
     st = (json.load(open(STATE)) if os.path.exists(STATE)
           else {"done": [], "rows": []})
     done, rows, hits = set(st["done"]), st["rows"], []
+    allnear = []
     QS = [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
     stat = dict(g_geo=0, g_freq=0, g_win=0, g_full=0)
 
@@ -256,7 +257,62 @@ def main():
         del up, dn
         names = sorted(F)
         cut = int(n * SLICE)
-        nfire = nwin = nfull = 0
+        nfire = nwin = nfull = npair = 0
+        near = []
+        # ---- the bracket loop, shared by single triggers and pairs -------
+        legs = []
+
+        def score(idx, label, side, fn, q):
+            nonlocal nwin, nfull
+            best = -9.9
+            for (si, ti) in pairs:
+                pstar = (ks[si] + cost_ticks) / (ks[si] + ks[ti])
+                r, hold, wt = OC[(si, ti, side)]
+                # GATE 1, rebuilt. The first version tested a 15% slice at a
+                # 99% bound and rejected NOTHING on any job -- real win rates
+                # sit within 1-2pp of break-even and the band was +-3.1pp. A
+                # gate whose error bar is wider than the spread of the
+                # population it sorts is not a gate.
+                #
+                # The costly step was never the win rate, which is one
+                # vectorised mean; it is the non-overlap scan, a Python loop
+                # over every firing bar. So the win rate is taken on the WHOLE
+                # tape -- cheap and exact -- and only candidates at or above
+                # their required rate pay for the scan.
+                pf = float(wt[idx].mean())
+                best = max(best, pf - pstar)
+                if pf < pstar:
+                    stat["g_win"] += 1
+                    near.append(dict(mkt=m, K=k, feat=label, q=q, side=side,
+                                     stop=int(ks[si]), tgt=int(ks[ti]),
+                                     win=pf, pstar=pstar, nfire=int(len(idx))))
+                    continue
+                nwin += 1
+                keep = nonoverlap(idx, hold)          # ---- GATE 2, exact ----
+                if len(keep) < 100:
+                    continue
+                pnl = r[keep] - cost
+                mu, sd = float(pnl.mean()), float(pnl.std())
+                tpw = len(keep) / days * 5
+                nfull += 1
+                stat["g_full"] += 1
+                pw = float(wt[keep].mean())
+                # standard errors above the rate the bracket itself REQUIRES.
+                # The only column comparable against the selection ceiling;
+                # without it a 1pp excess and a 10pp excess look alike.
+                sew = np.sqrt(max(pstar * (1 - pstar), 1e-9) / len(keep))
+                rec = dict(mkt=m, con=cn, K=k, feat=label, q=q, side=side,
+                           stop=int(ks[si]), tgt=int(ks[ti]), n=len(keep),
+                           tpw=tpw, dol=mu, se=sd / np.sqrt(len(keep)),
+                           win=pw, pstar=pstar, z=(pw - pstar) / sew)
+                rows.append(rec)
+                if tpw >= MIN_TPW and mu >= MIN_DOL:
+                    hits.append(rec)
+                    print(f"  *** HIT {m} {cn} K={k} {label} q{q:g} "
+                          f"s{ks[si]}/t{ks[ti]} {tpw:.0f}/wk ${mu:+.2f}",
+                          flush=True)
+            return best
+
         for fn in names:
             v = F[fn]
             fin = np.isfinite(v)
@@ -265,67 +321,57 @@ def main():
             qv = np.quantile(v[fin], QS)
             for q, thr in zip(QS, qv):
                 for side in (1, -1):
-                    sig = (v >= thr) if side > 0 else (v <= thr)
-                    sig &= fin
-                    # ---- GATE 0: firing count, outcome untouched -----------
-                    if sig.mean() < need_fire:
+                    sig = ((v >= thr) if side > 0 else (v <= thr)) & fin
+                    if sig.mean() < need_fire:   # GATE 0, outcome untouched
                         stat["g_freq"] += len(pairs)
                         continue
                     idx = np.flatnonzero(sig)
                     nfire += 1
-                    for (si, ti) in pairs:
-                        pstar = (ks[si] + cost_ticks) / (ks[si] + ks[ti])
-                        # ---- GATE 1: win rate on a slice ------------------
-                        sl = idx[idx < cut]
-                        if len(sl) < 100:
-                            continue
-                        r, hold, wt = OC[(si, ti, side)]
-                        p = float(wt[sl].mean())
-                        se = np.sqrt(max(p * (1 - p), 1e-9) / len(sl))
-                        if p + Z * se < pstar:
-                            stat["g_win"] += 1
-                            continue
-                        nwin += 1
-                        # ---- GATE 2: the whole tape, exact ----------------
-                        keep = nonoverlap(idx, hold)
-                        if len(keep) < 100:
-                            continue
-                        pnl = r[keep] - cost
-                        mu = float(pnl.mean())
-                        sd = float(pnl.std())
-                        tpw = len(keep) / days * 5
-                        nfull += 1
-                        stat["g_full"] += 1
-                        pw = float(wt[keep].mean())
-                        # how many standard errors the win rate sits above the
-                        # rate it NEEDS. This is the only column that can be
-                        # compared against the selection ceiling, and without
-                        # it a 1pp excess and a 10pp excess look alike.
-                        sew = np.sqrt(max(pstar * (1 - pstar), 1e-9) /
-                                      len(keep))
-                        rec = dict(mkt=m, con=cn, K=k, feat=fn, q=q, side=side,
-                                   stop=int(ks[si]), tgt=int(ks[ti]),
-                                   n=len(keep), tpw=tpw, dol=mu,
-                                   se=sd / np.sqrt(len(keep)),
-                                   win=pw, pstar=pstar, z=(pw - pstar) / sew)
-                        rows.append(rec)
-                        if tpw >= MIN_TPW and mu >= MIN_DOL:
-                            hits.append(rec)
-                            print(f"  *** HIT {m} {cn} K={k} {fn} q{q:g} "
-                                  f"s{ks[si]}/t{ks[ti]} {tpw:.0f}/wk "
-                                  f"${mu:+.2f}", flush=True)
+                    legs.append((score(idx, fn, side, fn, q), sig, fn, q, side))
+
+        # ---- PAIRS -------------------------------------------------------
+        # A single threshold is a crude thing to ask of a market. An AND of two
+        # is the smallest step into conditions a one-feature rule cannot state
+        # -- "flow is heavy AND we are low in the range" -- and two loose legs
+        # can still clear the frequency gate where one tight leg cannot.
+        #
+        # It also multiplies the number of configurations tried, which
+        # multiplies the selection ceiling. That is why the report prints
+        # sqrt(2 ln N) against the count actually reached.
+        legs.sort(key=lambda z: -z[0])
+        top = legs[:NLEG]
+        for i in range(len(top)):
+            for j in range(i + 1, len(top)):
+                if time.time() > deadline:
+                    break
+                _, s1, f1, q1, d1 = top[i]
+                _, s2, f2, q2, d2 = top[j]
+                if f1 == f2:
+                    continue
+                sig = s1 & s2
+                if sig.mean() < need_fire:       # GATE 0 again, still free
+                    stat["g_freq"] += len(pairs)
+                    continue
+                npair += 1
+                idx = np.flatnonzero(sig)
+                lab = (f"{f1}{'>' if d1 > 0 else '<'}q{q1:g} & "
+                       f"{f2}{'>' if d2 > 0 else '<'}q{q2:g}")
+                score(idx, lab, d1, f1, q1)
         done.add(key)
+        near.sort(key=lambda z: -(z["win"] - z["pstar"]))
+        allnear.extend(near[:200])
         json.dump({"done": sorted(done), "rows": rows[-300000:]},
                   open(STATE, "w"))
         print(f"  {key}: {bpd:.0f} bars/day, need {need_fire*100:.0f}% firing, "
               f"{len(pairs)}/{len(ks)**2} brackets survive geometry | "
-              f"{nfire} triggers, {nwin} past win-gate, {nfull} scored "
+              f"{nfire} triggers + {npair} pairs, {nwin} past win-gate, "
+              f"{nfull} scored "
               f"({(time.time()-t0)/60:.0f} min, {len(hits)} hits)", flush=True)
 
-    report(rows, hits, stat, t0)
+    report(rows, hits, stat, t0, allnear)
 
 
-def report(rows, hits, stat, t0):
+def report(rows, hits, stat, t0, allnear=()):
     log("# The filtered hunt")
     log()
     log(f"Hard gates, cheapest first, so nothing below the bar costs time. "
