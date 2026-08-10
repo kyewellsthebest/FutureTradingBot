@@ -80,9 +80,35 @@ PT = 4                                # NQ ticks per point
 TICKSZ = {"NQ": 0.25, "ES": 0.25, "YM": 1.0, "RTY": 0.10,
           "CL": 0.01, "GC": 0.10, "HG": 0.0005}
 WINS = (1, 5, 21, 89)                 # bars of NQ tick-event time
-VOLW = 200                            # bars used to scale everything
+# Foreign windows are WALL-CLOCK SECONDS, never bar counts, and the reason is
+# the single most expensive bug this repo has caught.
+#
+# The first version measured a foreign stream over "the last 21 NQ bars". An NQ
+# bar is 500 PRINTS, so the wall-clock length of that window is set by how long
+# NQ took to trade -- which is pure NQ activity, one of the strongest features
+# on the board. Every difference-of-cumulatives inherited it: foreign volume,
+# print count, trade size, path length, and even |return|, whose variance grows
+# with elapsed time. So the "cross-market" features were largely NQ's own clock
+# wearing an ES costume.
+#
+# The stream-shift control caught it and could not have been talked out of it:
+# sliding ES 11.5 days along the calendar left the score intact, and in three
+# cases the SHIFTED tape scored HIGHER than the real one. A foreign tape that
+# predicts better when it is deliberately misaligned is not carrying foreign
+# information at all.
+#
+# A fixed wall-clock window makes "ES volume in the last 60 seconds" a fact
+# about ES and nothing else.
+WSEC = (5, 30, 120, 600)
+VOLW = 200                            # grid points used to scale everything
 LAG_MS = int(os.environ.get("LAG_MS", "250"))
-SHIFT_DAYS = float(os.environ.get("SHIFT_DAYS", "11.5"))
+# A WHOLE number of days, deliberately. A half-day offset would also throw the
+# time-of-day alignment away, so a foreign stream could fail the control just
+# for being busy at the open. Shifting by whole days keeps the diurnal shape
+# intact and destroys only the event alignment -- so anything that survives is
+# time-of-day seasonality, which NQ's own clock already provides for free and
+# which is not cross-market information by any definition.
+SHIFT_DAYS = float(os.environ.get("SHIFT_DAYS", "11"))
 DAY_NS = 86_400_000_000_000
 
 
@@ -257,6 +283,43 @@ def stream_features(G, pre, tick):
     return F, rets
 
 
+def wallclock_features(C, T, pre, tick, lag_ns=0, shift_off=0):
+    """A stream measured over FIXED SECONDS, sampled at NQ's bar closes.
+
+    NQ's clock decides only WHEN we look. It no longer decides HOW FAR BACK we
+    look, which is what leaked before. Every window here is the same number of
+    seconds at every sample, so a foreign stream's volume, intensity and
+    movement are facts about that stream alone.
+
+    `lag_ns` is the hard latency rail: the window ENDS at (sample - lag), never
+    at the sample itself.
+    """
+    end = T - lag_ns
+    if shift_off:
+        end = shift_query(C, end, shift_off)
+    F, rets = {}, {}
+    A = sample(C, end)
+    for ws in WSEC:
+        Bp = sample(C, end - ws * 1_000_000_000)
+        dv = A["cv"] - Bp["cv"]
+        dn = A["cn"] - Bp["cn"]
+        d2 = A["cs2"] - Bp["cs2"]
+        dsv = A["csv"] - Bp["csv"]
+        dap = A["cap"] - Bp["cap"]
+        ret = (A["px"] - Bp["px"]) / tick
+        scale = np.maximum(_roll(np.abs(ret), VOLW, "mean"), 1e-9)
+        F[f"{pre}ret{ws}"] = ret / scale
+        rets[ws] = ret / scale
+        F[f"{pre}ofi{ws}"] = np.where(dv > 0, dsv / np.maximum(dv, 1e-9), np.nan)
+        F[f"{pre}sz{ws}"] = _z(np.where(dv > 0, d2 / np.maximum(dv, 1e-9),
+                                        np.nan))
+        F[f"{pre}vol{ws}"] = _z(dv)
+        F[f"{pre}int{ws}"] = _z(dn)
+        F[f"{pre}eff{ws}"] = np.where(dap > 0, ret * tick /
+                                      np.maximum(dap, 1e-9), np.nan)
+    return F, rets
+
+
 def price_path_features(B):
     """Data type 1. Same family ceiling.py used, so the baseline row of the
     ablation is directly comparable to the zero already measured."""
@@ -282,7 +345,7 @@ def price_path_features(B):
     return F
 
 
-def cross_features(nq_rets, fr):
+def cross_features(nq_rets, fr, wins=None):
     """The part a single-stream search cannot express by construction.
 
     DIVERGENCE  foreign move minus NQ move, both in their own sigma units. The
@@ -296,7 +359,11 @@ def cross_features(nq_rets, fr):
     RISK        gold minus oil: the macro complex's one interpretable axis.
     """
     F = {}
-    for w in WINS:
+    # NQ's leg of every divergence is measured over the SAME wall-clock window
+    # as the foreign leg. Differencing a 21-bar NQ move against a 60-second ES
+    # move would reintroduce exactly the bar-duration channel the wall-clock
+    # windows exist to remove.
+    for w in (WSEC if wins is None else wins):
         nr = nq_rets[w]
         idx = []
         for s in INDEX:
@@ -370,11 +437,24 @@ def build(contract, k, lag_ms=None, shift=False, verbose=True):
     F = price_path_features(B)
 
     Cn = cumulants(ts, px, _sz)
-    Gn = sample(Cn, T)               # own tape needs no lag: it IS the bar
-    fn, nq_rets = stream_features(Gn, "f_", TICKSZ["NQ"])
+    # NQ's own tape needs no lag -- the bar has closed, its last print is known.
+    # Bar-count flow features stay: they are NQ's clock applied to NQ, which is
+    # a legitimate NQ fact, not a foreign stream in disguise.
+    Gn = sample(Cn, T)
+    fn, _ = stream_features(Gn, "f_", TICKSZ["NQ"])
     F.update(fn)
+    # ...and a matched WALL-CLOCK set, which is what the divergences difference
+    # against and what makes NQ comparable to the foreign streams.
+    fw, nq_rets = wallclock_features(Cn, T, "wc", TICKSZ["NQ"])
+    # split by INFORMATION TYPE rather than by source file. NQ's wall-clock
+    # RETURN is price, and it has to land in the price group or the
+    # "everything except price path" set would quietly contain NQ's returns and
+    # stop meaning what its name says.
+    for k, v in fw.items():
+        F[("p_" if k.startswith(("wcret", "wceff")) else "f_") + k] = v
     del Cn, Gn, ts, px, _sz
 
+    off = int(SHIFT_DAYS * DAY_NS) if shift else 0
     fr, cov = {}, {}
     for s in FOREIGN:
         c = pick_contract(meta, s, int(T[0]), int(T[-1]))
@@ -383,22 +463,22 @@ def build(contract, k, lag_ms=None, shift=False, verbose=True):
             # Every contract must present an IDENTICAL feature set or the
             # matrices cannot be stacked, and a quarter where GC has no dense
             # contract is a coverage fact, not a different experiment.
-            G = {k: np.full(len(T), np.nan) for k in KEYS}
+            C = dict(ts=np.array([0, 1], dtype=np.int64),
+                     **{k: np.full(2, np.nan) for k in KEYS})
+            C["ts"] = np.array([0, 1], dtype=np.int64)
         else:
             fts, fpx, fsz = load_tape(meta[c]["path"])
             C = cumulants(fts, fpx, fsz)
-            Q = T - lag
-            if shift:
-                Q = shift_query(C, Q, int(SHIFT_DAYS * DAY_NS))
-            G = sample(C, Q)
-            del C, fts, fpx, fsz
-        ff, rr = stream_features(G, GROUP[s] + s.lower() + "_", TICKSZ[s])
+            del fts, fpx, fsz
+        ff, rr = wallclock_features(C, T, GROUP[s] + s.lower() + "_",
+                                    TICKSZ[s], lag_ns=lag, shift_off=off)
         F.update(ff)
         fr[s] = rr
-        cov[s] = float(np.isfinite(G["px"]).mean())
+        cov[s] = 0.0 if c is None else float(
+            np.isfinite(sample(C, T - lag)["px"]).mean())
         if verbose:
             print(f"    {contract} <- {str(c):7s} {cov[s]*100:5.1f}% covered",
                   flush=True)
-        del G
+        del C
     F.update(cross_features(nq_rets, fr))
     return B, F, cov
