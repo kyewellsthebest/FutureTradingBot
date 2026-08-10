@@ -4,7 +4,17 @@ name: Pull NQ tick + quote data
 # refused by that container's egress policy. Trigger it by hand from the
 # Actions tab; every run commits a small parquet back to the repo.
 
+# A workflow_dispatch button only appears when the file sits on the repo's
+# DEFAULT branch, which here is claude/transfer-trading-bot-GiNxs -- so the
+# button never showed up for a workflow living on claude/hello-vc2ivo. A push
+# trigger has no such rule: it runs the version of the workflow on whichever
+# branch was pushed. That is the mechanism the existing fetch-polygon-data.yml
+# already uses, so this follows it: I fire a run by committing the trigger
+# file, and its contents are the dates to pull.
 on:
+  push:
+    branches: [claude/hello-vc2ivo, claude/transfer-trading-bot-GiNxs]
+    paths: ['data/poly/.trigger']
   workflow_dispatch:
     inputs:
       dates:
@@ -47,11 +57,22 @@ jobs:
 
       - name: Pull, filter and join
         env:
-          DATES: ${{ github.event.inputs.dates }}
-          WANT_QUOTES: ${{ github.event.inputs.quotes }}
+          IN_DATES: ${{ github.event.inputs.dates }}
+          IN_QUOTES: ${{ github.event.inputs.quotes }}
         run: |
           set -euo pipefail
           mkdir -p data/poly
+          # dispatch supplies inputs; a push trigger reads the trigger file,
+          # whose first non-comment line is the date list and second is
+          # quotes yes/no
+          if [ -n "${IN_DATES:-}" ]; then
+            DATES="$IN_DATES"; WANT_QUOTES="${IN_QUOTES:-true}"
+          else
+            DATES=$(grep -v '^#' data/poly/.trigger | sed -n 1p | tr -d ' ')
+            WANT_QUOTES=$(grep -v '^#' data/poly/.trigger | sed -n 2p | tr -d ' ')
+            WANT_QUOTES=${WANT_QUOTES:-true}
+          fi
+          echo "dates=$DATES quotes=$WANT_QUOTES"
           EP="--endpoint-url https://files.polygon.io"
           B="s3://flatfiles/us_futures_cme"
 
