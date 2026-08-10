@@ -1,0 +1,51 @@
+name: Backfill dealer gamma history
+
+# Two years of gamma rebuilt from option PRICES, so it survives the options
+# plan lapsing on 2026-08-16. Greeks are arithmetic; prices are the data.
+on:
+  push:
+    branches: [claude/hello-vc2ivo, claude/transfer-trading-bot-GiNxs]
+    paths: ['data/gex/.backfill']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas pyarrow numpy
+      - name: Pull day-aggregates and rebuild gamma
+        env:
+          KEY: ${{ secrets.POLYGON_S3_KEY }}
+          SECRET: ${{ secrets.POLYGON_S3_SECRET }}
+        run: |
+          set -euo pipefail
+          aws configure set aws_access_key_id "$KEY"
+          aws configure set aws_secret_access_key "$SECRET"
+          aws configure set default.region us-east-1
+          MONTHS=$(grep -v '^#' data/gex/.backfill | tr ',' ' ')
+          mkdir -p /tmp/agg
+          for YM in $MONTHS; do
+            Y=${YM:0:4}; M=${YM:5:2}
+            echo "::group::$YM"
+            aws s3 cp --endpoint-url https://files.polygon.io --recursive --quiet \
+              "s3://flatfiles/us_options_opra/day_aggs_v1/$Y/$M/" /tmp/agg/ || true
+            ls /tmp/agg/*.csv.gz 2>/dev/null | wc -l
+            ls /tmp/agg/*.csv.gz 2>/dev/null \
+              | python research/mining_2026_07_31/mega2/opra_backfill.py data/gex
+            rm -f /tmp/agg/*.csv.gz
+            echo "::endgroup::"
+          done
+      - name: Commit
+        run: |
+          git config user.name "gex-bot"; git config user.email "noreply@github.com"
+          git add data/gex
+          git diff --staged --quiet || git commit -m "data: gamma history rebuilt from option prices"
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push origin HEAD:${{ github.ref_name }}
