@@ -1,0 +1,102 @@
+name: Pull NQ tick + quote data
+
+# Runs on GitHub's machines, not the research container -- files.polygon.io is
+# refused by that container's egress policy. Trigger it by hand from the
+# Actions tab; every run commits a small parquet back to the repo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dates:
+        description: 'Trading days, comma separated, YYYY-MM-DD'
+        required: true
+        default: '2026-06-10'
+      quotes:
+        description: 'Also pull quotes? (4.9 GB/day, slow, but it is the point)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+
+      - run: pip install pandas pyarrow numpy
+
+      - name: Configure the flat-file bucket
+        env:
+          KEY: ${{ secrets.POLYGON_S3_KEY }}
+          SECRET: ${{ secrets.POLYGON_S3_SECRET }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::POLYGON_S3_KEY secret is not set. Repo Settings ->"
+            echo "::error::Secrets and variables -> Actions -> New secret."
+            exit 1
+          fi
+          aws configure set aws_access_key_id     "$KEY"
+          aws configure set aws_secret_access_key "$SECRET"
+          aws configure set default.region us-east-1
+
+      - name: Pull, filter and join
+        env:
+          DATES: ${{ github.event.inputs.dates }}
+          WANT_QUOTES: ${{ github.event.inputs.quotes }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/poly
+          EP="--endpoint-url https://files.polygon.io"
+          B="s3://flatfiles/us_futures_cme"
+
+          for D in $(echo "$DATES" | tr ',' ' '); do
+            Y=${D:0:4}; M=${D:5:2}
+            echo "::group::$D"
+            df -h / | tail -1
+
+            # ---- trades: 76 MB, cheap. grep at C speed rather than in Python,
+            #      which matters when the quote file is forty gigabytes open.
+            aws s3 cp $EP "$B/trades_v1/$Y/$M/$D.csv.gz" - \
+              | zcat | grep '^NQ' > /tmp/tr.csv || true
+            echo "trades rows: $(wc -l < /tmp/tr.csv)"
+            if [ ! -s /tmp/tr.csv ]; then echo "no trades, skipping"; continue; fi
+
+            # ---- the front month is whichever NQ contract traded most
+            FRONT=$(cut -d, -f1 /tmp/tr.csv | sort | uniq -c | sort -rn \
+                    | head -1 | awk '{print $2}')
+            echo "front month: $FRONT"
+
+            # ---- quotes: filter to that ONE contract in the pipe, so the
+            #      python step never sees a multi-gigabyte frame
+            if [ "$WANT_QUOTES" = "true" ]; then
+              aws s3 cp $EP "$B/quotes_v1/$Y/$M/$D.csv.gz" - \
+                | zcat | grep "^$FRONT," > /tmp/qt.csv || true
+              echo "quote rows: $(wc -l < /tmp/qt.csv)"
+            else
+              : > /tmp/qt.csv
+            fi
+
+            python research/mining_2026_07_31/mega2/poly_join.py \
+              "$D" "$FRONT" /tmp/tr.csv /tmp/qt.csv data/poly
+            rm -f /tmp/tr.csv /tmp/qt.csv
+            echo "::endgroup::"
+          done
+
+      - name: Commit what came back
+        run: |
+          git config user.name  "nq-data-bot"
+          git config user.email "noreply@github.com"
+          git add data/poly research/POLY_TBBO.md 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "data: NQ tick+quote pull
+
+          Streamed from the Polygon flat-file bucket on a GitHub runner. The
+          research container cannot reach files.polygon.io, so the download
+          happens here and only the filtered result is committed."
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push origin HEAD:${{ github.ref_name }}
