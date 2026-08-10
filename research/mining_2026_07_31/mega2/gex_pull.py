@@ -66,7 +66,7 @@ def chain(root):
     """Every live contract with greeks, IV and open interest."""
     url = "https://api.polygon.io/v3/snapshot/options/" + root
     rows, cur, page = [], None, 0
-    while page < 60:
+    while page < 400:
         p = {"apiKey": KEY, "limit": 250}
         if cur:
             p["cursor"] = cur
@@ -92,6 +92,34 @@ def chain(root):
         page += 1
         time.sleep(0.05)
     return pd.DataFrame(rows)
+
+
+def spot_of(df, root):
+    """The snapshot returned an empty underlying price on every one of 15,000
+    contracts, so the first run computed every gamma figure against NaN and
+    reported a confident $0.00. Three ways to recover it, cheapest first --
+    and the last one cannot fail, because it reads the chain against itself.
+    """
+    s = pd.to_numeric(df.spot, errors="coerce").dropna()
+    if len(s):
+        return float(s.median())
+    try:
+        r = requests.get("https://api.polygon.io/v3/snapshot/indices",
+                         params={"ticker": root, "apiKey": KEY}, timeout=30)
+        v = (r.json().get("results") or [{}])[0].get("value")
+        if v:
+            print(f"  spot from index snapshot: {v:,.0f}")
+            return float(v)
+    except Exception:                                            # noqa: BLE001
+        pass
+    # A call struck at the money has delta near 0.5. That is a property of the
+    # chain, so it survives any missing underlying field.
+    c = df[(df.kind == "call") & df.delta.notna()]
+    if len(c):
+        k = float(c.iloc[(c.delta - 0.5).abs().argsort()[:1]].strike.iloc[0])
+        print(f"  spot inferred from the delta-0.5 strike: {k:,.0f}")
+        return k
+    return None
 
 
 def gex(df, spot):
@@ -136,15 +164,22 @@ def main():
         if df.empty:
             print(f"{root}: nothing returned")
             continue
-        spot = float(pd.to_numeric(df.spot, errors="coerce").dropna().median())
+        spot = spot_of(df, root)
+        if not spot:
+            print(f"{root}: could not establish spot")
+            continue
         d = gex(df, spot)
         if d.empty:
             print(f"{root}: no gamma/OI rows")
             continue
         total = float(d.gex.sum())
         flip, grid, curve = flip_level(d, spot)
-        walls = (d.groupby("strike").gex.sum().abs().sort_values(ascending=False)
-                 .head(5).index.tolist())
+        # walls only mean something near the money; the first run "found"
+        # 4,000 and 5,000 on a 29,725 index because every gex was NaN and the
+        # sort returned whatever came first
+        w = d[(d.strike > spot * 0.93) & (d.strike < spot * 1.07)]
+        walls = (w.groupby("strike").gex.sum().abs().sort_values(ascending=False)
+                 .head(6).index.tolist())
         near = sorted(walls, key=lambda s: abs(s - spot))[:3]
 
         df.to_parquet(f"{OUT}/{root.replace(':','_')}_{day}_chain.parquet",
