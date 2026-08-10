@@ -88,3 +88,7 @@ data/tick/cache/
 data/tick/fusecache/
 data/tick/cache/tape_meta.json
 research/mining_2026_07_31/mega2/*.log
+
+# hunt: bar caches and resumable search state (regenerated from tape)
+data/tick/barcache/
+data/tick/hunt_state.json
