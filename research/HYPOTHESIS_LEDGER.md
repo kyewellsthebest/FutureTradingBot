@@ -70,3 +70,61 @@ What it does NOT cover: information outside the price path. Ledger #17 is the st
 | 35 | **THE CEILING: gradient-boosted model over the whole feature space** | 8 NQ contracts, ~400k bars of 2,000 prints, 50 features | 4 horizons x 2 arms, purged walk-forward CV | **ZERO — and this bounds every other entry in this file** | Stops enumerating rules and measures the upper bound instead. 1.8M threshold rules were axis-aligned boxes, a measure-zero sliver of the function space; one boosted model with 250 trees explores curves and interactions no grid can express, so its out-of-sample power bounds ANY strategy built from these features — including every rule never enumerated. Result, real IC vs shuffled-target control: 1 bar −0.0036/+0.0046, 3 bars −0.0067/−0.0080, 10 bars −0.0190/+0.0027, 30 bars −0.0298/+0.0029. **Real minus shuffled is at or below zero at every horizon.** Turnover-aware position P&L (cost on \|Δposition\|, not a round turn per signal — the denominator error behind four separate edges landing at 40-80% of cost) is −$0.64 to −$5.99 per bar. The turnover fix worked as designed and had a numerator of zero to rescue. NOT chased: real IC is consistently NEGATIVE and grows with horizon while shuffled sits at zero, which is regime non-stationarity (a model fit on the past predicts the opposite in the future), and inverting it would mean selecting on the sign of an out-of-sample result — the exact error behind every false positive in this session |
 
 **THE PROGRAMME IS BOUNDED, NOT MERELY UNSUCCESSFUL.** Entries 21-35 are seven independent nulls, and #35 explains all of them at once with a measured number rather than an accumulation of failures: there is no extractable signal in NQ's price and volume history at any horizon this account could trade. The four effects that were genuinely real — leg grammar $0.87, prev session low $1.53, structural targets $1.13, book imbalance ~1/7 spread — all landed at 40-80% of the $1.99 toll. That was not the tip of something. It was the noise floor of a well-run search, and the ceiling confirms it. Further chart-derived search is knowably wasted effort. The only live directions require an input we do not have (order book, cross-asset, event data), a cost base not purchasable at $4,100, or a different target.
+
+---
+
+## #35 — Four data types fused. The zero-cost ceiling is $97/week on one MNQ.
+
+**Question.** The user's argument: two billion people trade on price, so an
+edge there is nearly impossible; almost nobody fuses several data types at tick
+resolution because only bots can, which shrinks the competition enormously.
+Correct reasoning, and the one advantage never used — all 26 billion prior
+configurations read one stream. So: add data, keep the search model.
+
+**Built.** Four types on one clock, 366,189 tick-event bars, 623 days, two
+continuous years, 266 features. NQ price path; NQ order flow (same file, read
+for aggressor and size); the index complex (ES/YM/RTY); the macro complex
+(CL/GC/HG). Order book and options stubbed behind loaders.
+
+**Three defects found, all by controls, none by reading the code.**
+
+1. *Bar-duration leak.* Foreign streams were measured between NQ **bar**
+   boundaries, so the window length was NQ's own trading speed — a strong NQ
+   feature that every foreign difference inherited. The stream-shift control
+   caught it: sliding ES 11.5 days left the score intact and in three cases the
+   SHIFTED tape scored HIGHER than the real one. Fixed with fixed wall-clock
+   windows.
+2. *Overlap inflation.* Gross dollars were `mean(pos[t] * y_h[t])` per bar with
+   an h-bar return — h overlapping positions' P&L charged one contract's cost.
+   Inflated gross by ~h at h>1.
+3. *Alphabetical folds* carried in from ceiling.py — contracts stacked H5, H6,
+   M5, M6, U4..., so walk-forward trained on 2026 to predict 2025.
+
+**Result, with cost set to exactly zero — no commission, no spread, no
+slippage — across 6 data sets x 9 horizons x 7 selectivity levels:**
+
+| | |
+|---|---|
+| best weekly gross, one MNQ, zero cost | **$97** |
+| net of the same cut on shuffled outcomes | **$81** |
+| target | **$1,000** |
+
+**This overturns the framing from earlier the same day.** The break-even-cost
+table ($0.09 / $0.59 / $2.09 per round turn by horizon) implied cost was the
+binding constraint. It was computed from the inflated gross. Corrected: even
+free trading yields ~$97/week per contract, so **the signal is the binding
+constraint, not the cost.** Cheaper commissions and better execution cannot
+close a 10x gap.
+
+**The stable finding underneath.** At a 24-minute hold the edge is a clean,
+believable plateau of **$0.92-$1.21 per trade** from the top 10% of signals
+down to the top 1%, with the shuffled control pinned at zero throughout. A
+round turn costs $1.99. The edge is real and it is about half the toll.
+
+**Method rule added.** Ranking on gross with a selectivity filter is not a
+neutral view of the data. At a 20-hour horizon, the best 0.2% of *scrambled*
+predictions earns $9.11/trade. Any report of a selected subset must print the
+identical cut on shuffled outcomes beside it, or it is meaningless.
+
+**Also.** The macro complex (CL/GC/HG) is dead at every horizon tested. High
+frequency is monotonically worse at every step in this space, not better.

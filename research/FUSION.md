@@ -1,3 +1,29 @@
+# CORRECTION — the dollar columns below are wrong at h>1
+
+Read `research/GROSS.md` for correct dollar accounting. Two defects, both mine,
+both found after this report was written:
+
+1. **Overlap inflation.** Gross was `mean(pos[t] * y_h[t])` summed over every
+   bar, with `y_h` an h-bar forward return. Holding `pos[t]` from t to t+h for
+   every t is h overlapping positions at once, so that P&L belongs to a book h
+   times the intended size — while turnover, and therefore cost, was still that
+   of one contract. **Gross is inflated by roughly h; cost is not.** So the
+   `net $/week` column is far too flattering at h=5 and h=20, and the single
+   positive row in this report (+$30/week) is negative once corrected. Fixed in
+   `fusion_ceiling.py::score`, which now accounts P&L against the next bar's
+   return and lets the position persist.
+
+2. **The bar-duration leak**, which the stream-shift control caught and which
+   the verdict table below reports honestly. Foreign features were measured
+   between NQ *bar* boundaries, so their window length was NQ's own trading
+   speed. Fixed in `fuse.py` — foreign windows are now fixed wall-clock seconds.
+
+The **IC columns are unaffected** by defect 1, and the stream-shift verdicts
+stand. The conclusion of this report — every set loses, and every cross-market
+result fails the shift control — is unchanged and if anything understated.
+
+---
+
 # Four data types at once — does any of them carry information?
 
 Every search so far read one stream: the NQ price path. Its ceiling measured zero. That is a fact about **that stream**, not about the market. This loads three more and asks the question that has to come first — is there anything in here at all — before another configuration is enumerated.

@@ -127,7 +127,20 @@ def purged_cv(n, nfold, horizon):
         yield np.arange(0, tr1), np.arange(te0, te1)
 
 
-def score(X, y, h, shuffle, rng):
+def score(X, y, h, shuffle, rng, y1=None):
+    """OVERLAP INFLATION -- fixed here, and it was wrong in the first run.
+
+    The dollar columns used to be mean(pos[t] * y_h[t]) summed over every bar,
+    where y_h is an h-bar forward return. Holding pos[t] from t to t+h for
+    EVERY t means running h overlapping positions at once, so that P&L belongs
+    to a book h times the intended size while the turnover -- and therefore the
+    cost -- was still that of a single contract. Gross was inflated by roughly
+    h, cost was not, and every net figure at h>1 was flattered.
+
+    The fix is the standard one: predict the h-bar return, but account the P&L
+    against the NEXT BAR's return and let the position persist. `y1` is that
+    one-bar return in dollars. The IC columns were never affected.
+    """
     import lightgbm as lgb
     ok = np.isfinite(y)
     Xo, yo = X[ok], y[ok]
@@ -148,7 +161,11 @@ def score(X, y, h, shuffle, rng):
     ic = float(np.corrcoef(preds[v], yo[v])[0, 1])
     s = preds[v] / np.nanstd(preds[v])
     pos = np.clip(s, -1, 1)
-    gross = float(np.mean(pos * yo[v]))
+    if y1 is None:
+        pnl = yo[v]                     # h == 1: the two coincide
+    else:
+        pnl = y1[ok][v]                 # one-bar return, position persists
+    gross = float(np.nanmean(pos * pnl))
     turn = float(np.mean(np.abs(np.diff(pos, prepend=0.0))))
     return dict(ic=ic, gross=gross, turn=turn,
                 net=gross - turn * COST_RT / 2.0, n=int(v.sum()))
@@ -210,7 +227,8 @@ def main():
             for ctl in ("real", "shuffled"):
                 k = (lab, h, ctl)
                 t1 = time.time()
-                res[k] = score(X[:, cols], Y[h], h, ctl == "shuffled", rng)
+                res[k] = score(X[:, cols], Y[h], h, ctl == "shuffled", rng,
+                               y1=None if h == 1 else Y[1])
                 print(f"  {lab:32s} h={h:<3d} {ctl:9s} "
                       f"IC={res[k]['ic']:+.4f} net=${res[k]['net']:+.3f} "
                       f"({time.time()-t1:.0f}s)", flush=True)
@@ -273,7 +291,8 @@ def main():
             continue
         cols = np.flatnonzero([n.startswith(pres) for n in nm])
         for h in HZ:
-            sh = score(Xs[:, cols], Ys[h], h, False, rng)
+            sh = score(Xs[:, cols], Ys[h], h, False, rng,
+                       y1=None if h == 1 else Ys[1])
             base = res[(lab, h, "shuffled")]["ic"]
             d_real = res[(lab, h, "real")]["ic"] - base
             d_sh = sh["ic"] - base
