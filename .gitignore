@@ -83,3 +83,8 @@ data/itch/
 research/.fxbillions_ckpt.npz
 research/.megatick_ckpt.json
 data/tick/cache/
+
+# fusion feature matrices (regenerated from tape by fusion_ceiling.py)
+data/tick/fusecache/
+data/tick/cache/tape_meta.json
+research/mining_2026_07_31/mega2/*.log
