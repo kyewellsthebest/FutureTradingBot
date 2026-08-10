@@ -1,0 +1,39 @@
+name: Pull dealer gamma
+
+# Runs on GitHub because the research container cannot reach api.polygon.io.
+# Daily after the US close, plus on demand via the trigger file.
+#
+# TIME-CRITICAL: the Options Starter plan carrying greeks, IV and open interest
+# is set to cancel on 2026-08-16. Every day it runs before then is a day of
+# chain history we keep; after that these calls start failing.
+on:
+  schedule:
+    - cron: '30 21 * * 1-5'       # 21:30 UTC, after the US cash close
+  push:
+    branches: [claude/hello-vc2ivo, claude/transfer-trading-bot-GiNxs]
+    paths: ['data/gex/.trigger']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  gex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas pyarrow numpy requests
+      - name: Pull the chain and compute gamma
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+        run: python research/mining_2026_07_31/mega2/gex_pull.py
+      - name: Commit
+        run: |
+          git config user.name  "gex-bot"
+          git config user.email "noreply@github.com"
+          git add data/gex research/GEX.md 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "data: dealer gamma snapshot"
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push origin HEAD:${{ github.ref_name }}
