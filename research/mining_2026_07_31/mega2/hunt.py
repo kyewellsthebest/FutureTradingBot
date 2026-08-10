@@ -249,11 +249,14 @@ def main():
         # are computed once per (stop, target, side) and indexed thereafter.
         # Computing them inside the trigger loop was ~10 billion redundant
         # operations and would have made the ten hours mostly recomputation.
-        OC = {}
+        OC, PALL = {}, {}
         for (si, ti) in pairs:
             for side in (1, -1):
                 OC[(si, ti, side)] = outcomes(B, up, dn, si, ti, side,
                                               ks, tpx, tv)[:3]
+                # what this bracket does entered at EVERY bar: the drift,
+                # trend and seasonality a trigger has to beat to know anything
+                PALL[(si, ti, side)] = float(OC[(si, ti, side)][2].mean())
         del up, dn
         names = sorted(F)
         cut = int(n * SLICE)
@@ -280,8 +283,20 @@ def main():
                 # tape -- cheap and exact -- and only candidates at or above
                 # their required rate pay for the scan.
                 pf = float(wt[idx].mean())
-                best = max(best, pf - pstar)
-                if pf < pstar:
+                # THE DRIFT BASELINE, and it is the whole ballgame.
+                #
+                # Comparing a win rate to the driftless coin flip S/(S+T) is
+                # wrong in a market that trended. NQ rose 8,492 points across
+                # this sample, so a LONG symmetric bracket beats 50% for no
+                # reason but the rise -- and measured that way, 94% of every
+                # result above +2 sigma was long. That was beta wearing a
+                # strategy's clothes.
+                #
+                # p_all is the same bracket, same side, entered at EVERY bar.
+                # It contains the drift, the seasonality and the trend. A
+                # trigger only knows something if it beats THAT.
+                best = max(best, pf - max(pstar, PALL[(si, ti, side)]))
+                if pf < max(pstar, PALL[(si, ti, side)]):
                     stat["g_win"] += 1
                     near.append(dict(mkt=m, K=k, feat=label, q=q, side=side,
                                      stop=int(ks[si]), tgt=int(ks[ti]),
@@ -301,10 +316,13 @@ def main():
                 # The only column comparable against the selection ceiling;
                 # without it a 1pp excess and a 10pp excess look alike.
                 sew = np.sqrt(max(pstar * (1 - pstar), 1e-9) / len(keep))
+                pall = PALL[(si, ti, side)]
                 rec = dict(mkt=m, con=cn, K=k, feat=label, q=q, side=side,
                            stop=int(ks[si]), tgt=int(ks[ti]), n=len(keep),
                            tpw=tpw, dol=mu, se=sd / np.sqrt(len(keep)),
-                           win=pw, pstar=pstar, z=(pw - pstar) / sew)
+                           win=pw, pstar=pstar, pall=pall,
+                           z=(pw - pstar) / sew,        # vs break-even
+                           zd=(pw - pall) / sew)        # vs drift: the real one
                 rows.append(rec)
                 if tpw >= MIN_TPW and mu >= MIN_DOL:
                     hits.append(rec)
@@ -360,8 +378,10 @@ def main():
         done.add(key)
         near.sort(key=lambda z: -(z["win"] - z["pstar"]))
         allnear.extend(near[:200])
+        tmp = STATE + ".tmp"
         json.dump({"done": sorted(done), "rows": rows[-300000:]},
-                  open(STATE, "w"))
+                  open(tmp, "w"))
+        os.replace(tmp, STATE)      # atomic: a reader never sees a half file
         print(f"  {key}: {bpd:.0f} bars/day, need {need_fire*100:.0f}% firing, "
               f"{len(pairs)}/{len(ks)**2} brackets survive geometry | "
               f"{nfire} triggers + {npair} pairs, {nwin} past win-gate, "
@@ -439,7 +459,14 @@ def report(rows, hits, stat, t0, allnear=()):
         log(f"`{len(rows):,}` reached full scoring. `{len(fr):,}` were frequent "
             f"enough, `{len(pf):,}` paid enough, `{len(hits):,}` did both.")
         log()
-        log(f"> **The number to read is the sigma column, not the dollars.** "
+        log("> **Every win rate is measured against the same bracket entered "
+            "at EVERY bar, not against a coin flip.** NQ rose 8,492 points "
+            "across this sample, so a long symmetric bracket beats 50% for no "
+            "reason but the trend. Measured against a driftless flip, 94% of "
+            "everything above +2σ was long — beta wearing a strategy's "
+            "clothes. The `sigma vs drift` column is that correction.")
+        log()
+        log(f"> **Read sigma, not dollars.** "
             f"It is how far a win rate sits above the rate its own bracket "
             f"requires. Trying `{len(rows):,}` configurations and keeping the "
             f"best is a selection procedure, and the best of that many pure "
@@ -457,13 +484,15 @@ def report(rows, hits, stat, t0, allnear=()):
             log(f"### {title}")
             log()
             log("| market | clock | trigger | stop | target | win% | needed | "
-                "sigma | trades/wk | $/trade |")
-            log("|---|---|---|---|---|---|---|---|---|---|")
+                "same bracket, any bar | **sigma vs drift** | trades/wk | "
+                "$/trade |")
+            log("|---|---|---|---|---|---|---|---|---|---|---|")
             for r in sorted(sel, key=keyf)[:12]:
                 log(f"| {r['mkt']} | {r['K']} | {r['feat']} q{r['q']:g} | "
                     f"{r['stop']} | {r['tgt']} | {r['win']*100:.1f}% | "
-                    f"{r['pstar']*100:.1f}% | {r.get('z', 0):+.1f}σ | "
-                    f"{r['tpw']:.0f} | ${r['dol']:+.2f} |")
+                    f"{r['pstar']*100:.1f}% | {r.get('pall', 0)*100:.1f}% | "
+                    f"**{r.get('zd', 0):+.1f}σ** | {r['tpw']:.0f} | "
+                    f"${r['dol']:+.2f} |")
             log()
         log("A miss by thirty times and a miss by ten percent are different "
             "facts, and these two tables are what separates them. That is why "
