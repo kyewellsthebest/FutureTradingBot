@@ -59,12 +59,35 @@ def main(day, front, trpath, qtpath, outdir):
                      usecols=["ticker", "timestamp", "ask_price", "ask_size",
                               "bid_price", "bid_size"])
     qt = qt.sort_values("timestamp")
-    # a quote row can carry only one side; carry the other forward so every
-    # row is a complete book rather than a one-sided update
-    qt[["bid_price", "ask_price", "bid_size", "ask_size"]] = \
-        qt[["bid_price", "ask_price", "bid_size", "ask_size"]].ffill()
-    qt = qt.dropna(subset=["bid_price", "ask_price"])
-    print(f"{len(qt):,} quote updates")
+    n_raw = len(qt)
+    both = qt.bid_price.notna() & qt.ask_price.notna()
+    print(f"{n_raw:,} quote updates, {both.mean()*100:.1f}% carry BOTH sides")
+
+    # THE FIRST ATTEMPT AT THIS WAS WRONG AND THE OUTPUT SAID SO. Forward-
+    # filling each side independently gave a median spread of 7 ticks on
+    # front-month NQ, which is impossible -- it is one tick nearly always --
+    # with 79% of trades printing strictly inside the quoted book and a median
+    # top-of-book of one contract. Bid too low AND ask too high, symmetrically,
+    # is the signature of carrying "the last quote seen on each side" when
+    # those quotes are not both top-of-book.
+    #
+    # So both reconstructions are computed and reported side by side. Rows
+    # carrying both sides at once are a genuine BBO snapshot and need no
+    # filling; if their spread is one tick, the fill was the bug.
+    snap = qt[both].copy()
+    ff = qt.copy()
+    ff[["bid_price", "ask_price", "bid_size", "ask_size"]] = \
+        ff[["bid_price", "ask_price", "bid_size", "ask_size"]].ffill()
+    ff = ff.dropna(subset=["bid_price", "ask_price"])
+    for nm, f in (("both-sides-only", snap), ("forward-filled", ff)):
+        s = (f.ask_price - f.bid_price) / TICK
+        s = s[(s >= 0) & np.isfinite(s)]
+        if len(s):
+            print(f"  {nm:16s} n={len(f):>10,}  median spread "
+                  f"{s.median():5.2f} ticks   1-tick {float((s <= 1.01).mean())*100:5.1f}%")
+    # a complete snapshot beats a reconstruction whenever there are enough
+    qt = snap if both.sum() > 0.2 * n_raw else ff
+    print(f"  using: {'both-sides-only' if both.sum() > 0.2*n_raw else 'forward-filled'}")
 
     m = pd.merge_asof(tr, qt.drop(columns=["ticker"]),
                       on="timestamp", direction="backward")

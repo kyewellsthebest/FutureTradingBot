@@ -99,6 +99,9 @@ jobs:
               aws s3 cp $EP "$B/quotes_v1/$Y/$M/$D.csv.gz" - \
                 | zcat | grep "^$FRONT," > /tmp/qt.csv || true
               echo "quote rows: $(wc -l < /tmp/qt.csv)"
+              # keep a few thousand raw lines so the reconstruction can be
+              # checked against the source instead of argued about
+              head -3000 /tmp/qt.csv > data/poly/sample_quotes_$D.csv || true
             else
               : > /tmp/qt.csv
             fi
