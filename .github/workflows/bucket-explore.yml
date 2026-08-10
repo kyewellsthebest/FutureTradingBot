@@ -1,0 +1,45 @@
+name: Explore the flat-file bucket
+
+# Cheap listing job -- no downloads, just what exists and how big. Used to work
+# out whether a dataset is worth pulling before spending an hour on it.
+on:
+  push:
+    branches: [claude/hello-vc2ivo, claude/transfer-trading-bot-GiNxs]
+    paths: ['data/poly/.explore']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  explore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: List
+        env:
+          KEY: ${{ secrets.POLYGON_S3_KEY }}
+          SECRET: ${{ secrets.POLYGON_S3_SECRET }}
+        run: |
+          set -euo pipefail
+          aws configure set aws_access_key_id "$KEY"
+          aws configure set aws_secret_access_key "$SECRET"
+          aws configure set default.region us-east-1
+          EP="--endpoint-url https://files.polygon.io"
+          OUT=research/BUCKET.md
+          echo "# What is in the flat-file bucket" > $OUT
+          echo "" >> $OUT
+          echo "Listing only, no downloads. Decides what is worth an hour before spending one." >> $OUT
+          for P in $(grep -v '^#' data/poly/.explore); do
+            echo "" >> $OUT; echo "## \`$P\`" >> $OUT; echo '```' >> $OUT
+            aws s3 ls $EP "s3://flatfiles/$P" 2>&1 | head -40 >> $OUT || true
+            echo '```' >> $OUT
+          done
+          cat $OUT
+      - name: Commit
+        run: |
+          git config user.name "explore-bot"; git config user.email "noreply@github.com"
+          git add research/BUCKET.md
+          git diff --staged --quiet || git commit -m "data: bucket listing"
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push origin HEAD:${{ github.ref_name }}

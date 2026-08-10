@@ -1,0 +1,6 @@
+# prefixes to list -- one per line
+us_options_opra/
+us_options_opra/day_aggs_v1/2026/08/
+us_options_opra/quotes_v1/2026/08/
+us_options_opra/trades_v1/2026/08/
+us_futures_cme/quotes_v1/2026/08/
