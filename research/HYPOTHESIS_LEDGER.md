@@ -128,3 +128,54 @@ identical cut on shuffled outcomes beside it, or it is meaningless.
 
 **Also.** The macro complex (CL/GC/HG) is dead at every horizon tested. High
 frequency is monotonically worse at every step in this space, not better.
+
+---
+
+## #36 — The latency decay curve closes the high-frequency route
+
+**Question.** Is the order book worth buying? The user has a CME account and a
+Databento key. Before spending, measure what anything on that timescale is
+worth.
+
+**Method.** `leadlag.py`. For a total latency L — everything between a foreign
+print existing and our order resting — how much does the preceding move predict
+NQ's next move? The predictor window ENDS at t−L and the outcome STARTS at t, so
+nothing is contemporaneous. Control: the source tape slid 11 days and rejoined.
+
+**ES → NQ is real, and it is the cleanest positive finding in this repo.**
+
+| latency | IC | $/trade |
+|---|---|---|
+| 0 ms | +0.0499 | $+0.007 |
+| 5 ms | +0.0312 | $+0.010 |
+| 50 ms | +0.0197 | $+0.008 |
+| 250 ms | +0.0111 | $+0.005 |
+| 500 ms | −0.0120 | $+0.001 |
+| 2 s (this bot) | −0.0075 | −$0.004 |
+| shifted control | −0.0099 | — |
+
+Smooth decay over hundreds of milliseconds, clearly above the shifted control,
+dead at the timescale physics predicts. A genuine effect — **worth under one
+cent a trade at zero latency, against a $1.99 round turn.** 250× short.
+
+**NQ order flow is not even that.** IC falls from +0.0225 to +0.0005 in ONE
+millisecond, a 45× collapse. That is not decay, it is an artifact: essentially
+all of it is "the last trade tells you the current price", which cannot be
+traded because it is the same instant as the entry. Every `f_ofi` result in the
+hunt rests on this.
+
+**Decision: do not buy mbp-10.** The book's value lives on precisely this
+timescale. It is worth cents there while we pay dollars, and it is negative at
+this bot's measured 2 s latency. Reaching 50 ms means colocation and a rewritten
+execution path, after which $0.008/trade needs 125,000 trades to make $1,000.
+
+**Four independent measurements now agree** the high-frequency route is closed:
+the $97/week zero-cost ceiling (#35), the frequency-vs-edge trade-off, the
+pooled-quarters test, and this decay curve. None is about bad luck or
+insufficient searching.
+
+**Correction issued to the user.** I quoted "+$2.05–$2.45 a trade at 221–237
+trades/week" as near-misses. All 120 such rows came from ONE contract, NQM6.
+Pooled over eight quarters the same rule makes −$1.40 a trade and is positive in
+1 quarter of 8. Quoting a per-quarter figure without the contract attached was
+the error.
