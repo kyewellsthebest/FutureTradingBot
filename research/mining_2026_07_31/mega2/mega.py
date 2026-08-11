@@ -256,8 +256,23 @@ def main():
             need = MIN_TPW / 5.0 / bpd
             ct = cost / tv
             unit = max(float(np.median(B["h"] - B["l"])) / tpx, 1.0)
-            ks = np.unique(np.rint(unit * np.array([.5, 1, 1.5, 2, 3, 4.5, 7]))
-                           ).astype(int)
+            # A LADDER FINE ENOUGH TO LAND INSIDE A NARROW BAND. The old rungs
+            # were unit x [.5, 1, 1.5, 2, 3, 4.5, 7] -- seven of them, spaced
+            # by up to 50% -- which is fine when R:R may be anything from 1 to
+            # 2.5 and any stop is allowed. Tighten the gates and it becomes
+            # unusable: a 10% drawdown cap allows stops to about 52 ticks,
+            # leaving rungs at 20 and 40, and from 20 an R:R of 1.1-1.6 wants
+            # a target of 22-32 ticks where no rung exists. Every bracket was
+            # rejected on geometry and the run scanned nothing at all, while
+            # reporting as cleanly as if it had searched everything.
+            #
+            # Geometric with a 12% step reaches R:R 1.12, 1.25, 1.40 and 1.57
+            # -- four ways into a 1.1-1.6 band instead of none.
+            rung, x = [], 0.25 * unit
+            while x <= 3.0 * unit:
+                rung.append(x)
+                x *= 1.12
+            ks = np.unique(np.rint(np.array(rung))).astype(int)
             ks = ks[ks >= 1]
             def keep_bracket(i, j):
                 S, T = ks[i], ks[j]
@@ -277,7 +292,30 @@ def main():
                      if keep_bracket(i, j)]
             stat["geo"] += len(ks) ** 2 - len(pairs)
             if not pairs:
+                # LOUD, because the first version was silent. A contract with
+                # no feasible geometry contributes nothing, and saying which
+                # constraint killed it beats a report full of zeroes that
+                # reads exactly like a completed search.
+                why = {"cost": 0, "rr": 0, "win": 0, "dd": 0}
+                for i in range(len(ks)):
+                    for j in range(len(ks)):
+                        S, T = ks[i], ks[j]
+                        p_ = (S + ct) / (S + T)
+                        if ct / (S + T) > MAX_EDGE:
+                            why["cost"] += 1
+                        elif not (MIN_RR <= T / S <= MAX_RR):
+                            why["rr"] += 1
+                        elif not (MIN_WIN <= p_ <= MAX_WIN):
+                            why["win"] += 1
+                        else:
+                            why["dd"] += 1
+                print(f"{cn} K{K}: NO FEASIBLE BRACKET. unit {unit:.0f} ticks, "
+                      f"rungs {list(ks)[:14]}. Rejected by — cost "
+                      f"{why['cost']}, R:R {why['rr']}, win band {why['win']}, "
+                      f"drawdown {why['dd']}", flush=True)
                 continue
+            print(f"{cn} K{K}: {len(ks)} rungs, {len(pairs)} feasible brackets",
+                  flush=True)
             up, dn = hunt.tau(B, ks, tpx)
             OC, PALL = {}, {}
             for (si, ti) in pairs:
