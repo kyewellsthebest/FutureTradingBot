@@ -73,6 +73,20 @@ MAX_EDGE = float(os.environ.get("MAX_EDGE", "0.06"))
 MIN_RR = float(os.environ.get("MIN_RR", "1.0"))      # target / stop
 MAX_RR = float(os.environ.get("MAX_RR", "2.5"))
 MIN_EDGE_PP = float(os.environ.get("MIN_EDGE_PP", "0.01"))   # over the bar
+# HOW FAR ABOVE BREAK-EVEN, as a fraction of the rate the bracket demands.
+# The gate above only asked a configuration to beat break-even at all, by a
+# single percentage point, which is why the search kept surfacing rules that
+# clear the bar and pay nothing. This asks for a MARGIN, and because the
+# break-even rate is (S+c)/(S+T) the margin is automatically scaled to the
+# R:R -- a wide target needs a lower rate and therefore a lower absolute
+# margin, a tight one needs more. One number, correlated to the geometry by
+# construction.
+#
+# At a 52-tick 1:1 bracket break-even is 52.4% and each point above it is
+# worth $0.52 a trade, so 0.10 -- ten percent of 52.4%, about 5.2 points --
+# is $2.71 a trade, $1,086 a week at 400 trades. That is the target, expressed
+# as a property of the strategy rather than a hope about it.
+MIN_EDGE_REL = float(os.environ.get("MIN_EDGE_REL", "0.0"))
 # SURVIVABILITY, which is a separate question from expectancy and the one that
 # actually ends accounts. At 500 trades a week you take 26,000 a year, and the
 # longest losing run you should EXPECT is log(n)/log(1/(1-p)). At a 16% win
@@ -285,7 +299,7 @@ def main():
                         best = max(best, pf - max(pstar, pall))
                         # GATE 1 -- must beat the rate the bracket requires AND
                         # what the same bracket earns at random entry
-                        if pf < pstar:
+                        if pf < pstar * (1.0 + MIN_EDGE_REL):
                             stat["win"] += 1
                             continue
                         if pf < pall + MIN_EDGE_PP:
@@ -500,7 +514,8 @@ def main():
     log(f"| −1 geometry, before any data | {stat['geo']:,} |")
     log(f"| 0 frequency, outcome untouched | {stat['freq']:,} |")
     log(f"| 0b **degenerate — always true, or a duplicate mask** | {stat['degen']:,} |")
-    log(f"| 1 win rate below what the bracket needs | {stat['win']:,} |")
+    log(f"| 1 win rate below break-even × {1+MIN_EDGE_REL:.2f} "
+        f"| {stat['win']:,} |")
     log(f"| 1b **below what RANDOM ENTRY earns** | {stat['drift']:,} |")
     log(f"| 2 fully scored | {stat['full']:,} |")
     log()
