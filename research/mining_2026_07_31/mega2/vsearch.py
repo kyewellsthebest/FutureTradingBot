@@ -308,8 +308,14 @@ def search_one(cn, K, cand, deadline):
                       f"{[x[1] for x in cb]} {'L' if side > 0 else 'S'} "
                       f"train ${a['dol']:+.2f}@{a['tpw']:.0f}/wk  "
                       f"test ${b['dol']:+.2f}@{b['tpw']:.0f}/wk", flush=True)
-    print(f"  {cn} K{K}: done, {len(cand)} candidates so far "
-          f"({(time.time()-t_start)/60:.0f}m)", flush=True)
+    # WHERE THINGS DIE, after every contract rather than only at the end.
+    # Without this the log is silent for hours and "found nothing" is
+    # indistinguishable from "nothing came close" -- the counters are the
+    # only thing that says which stage is the wall.
+    print(f"  {cn} K{K}: done in {(time.time()-t_start)/60:.0f}m | "
+          f"scanned {STAT['scan']:,} -> train gates {STAT['gate1']:,} -> "
+          f"also paid on held-out {STAT['test']:,} -> candidates "
+          f"{STAT['cand']:,}", flush=True)
     del B, F, OC
 
 
