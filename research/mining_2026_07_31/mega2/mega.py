@@ -90,6 +90,8 @@ HOURS = float(os.environ.get("HOURS", "2"))
 KBAR = [int(x) for x in os.environ.get("KBAR", "500").split(",")]
 QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")]
 NLEG = int(os.environ.get("NLEG", "34"))
+PERTYPE = int(os.environ.get("PERTYPE", "12"))  # legs kept per data type
+TRIP = int(os.environ.get("TRIP", "4"))         # legs per type in triples
 WAIT = 2
 L = []
 
@@ -161,8 +163,15 @@ def main():
     print(f"gates: >={MIN_TPW:.0f} trades/wk AND >=${MIN_DOL:.2f}/trade net, "
           f"beating random entry. budget {HOURS:g}h", flush=True)
 
-    for cn in fuse.NQ_CONTRACTS:
-        for K in KBAR:
+    # CLOCK OUTER, CONTRACT INNER. The scan stops on a wall clock, and running
+    # every clock for one contract before touching the next means a timeout
+    # leaves whole quarters unsearched -- and a result that appears in one
+    # quarter is worth nothing, since only 2.4% of families survive into three.
+    # This way each bar size gets a complete pass over all eight quarters
+    # before the next one starts, so whatever finishes is testable for
+    # persistence rather than being a single-quarter curiosity.
+    for K in KBAR:
+        for cn in fuse.NQ_CONTRACTS:
             if time.time() > deadline:
                 break
             try:
@@ -288,21 +297,75 @@ def main():
                         i0 = np.flatnonzero(sig)
                         legs.append((score(i0, fn, side, q), sig, fn, q, side))
 
-            # PAIRS: two streams required together, which is the whole point
-            legs.sort(key=lambda z: -z[0])
-            for a in range(min(NLEG, len(legs))):
-                for b in range(a + 1, min(NLEG, len(legs))):
-                    if time.time() > deadline:
-                        break
-                    _, s1, f1, q1, d1 = legs[a]
-                    _, s2, f2, q2, d2 = legs[b]
-                    if f1 == f2:
-                        continue
-                    sig = s1 & s2
-                    if sig.mean() < need:
-                        stat["freq"] += len(pairs) * 2
-                        continue
-                    score(np.flatnonzero(sig), f"{f1}&{f2}", d1, q1)
+            # COMBINATIONS, STRATIFIED BY DATA TYPE.
+            #
+            # The previous version ranked every leg together and paired the top
+            # thirty. Those were nearly all price features, so the "pairs" were
+            # price x price -- p_chop55 & p_pos55, f_wcofi600 & f_ofi21 -- and
+            # the cross-type combinations that are the entire point of carrying
+            # six data streams were never tested.
+            #
+            # So legs are bucketed by type and combinations are generated
+            # ACROSS buckets by construction: every type against every other
+            # type, then triples spanning three distinct types. A price
+            # condition AND an index-complex condition AND a long-gamma session
+            # is now expressible, which is the claim being tested.
+            import itertools
+            byt = {}
+            for lg in legs:
+                t = lg[2].split("_")[0] + "_"
+                byt.setdefault(t, []).append(lg)
+            for t in byt:
+                byt[t].sort(key=lambda z: -z[0])
+                byt[t] = byt[t][:PERTYPE]
+            types = sorted(byt)
+            print(f"    legs by type: "
+                  + ", ".join(f"{t}{len(byt[t])}" for t in types), flush=True)
+
+            groups, seen = [], set()
+            for t1, t2 in itertools.combinations(types, 2):      # A+B across
+                groups.append([(a, b) for a in byt[t1] for b in byt[t2]])
+            for t in types:                                      # A+A within
+                groups.append(list(itertools.combinations(byt[t][:8], 2)))
+            for t1, t2, t3 in itertools.combinations(types, 3):  # A+B+C
+                groups.append([(a, b, c) for a in byt[t1][:TRIP]
+                               for b in byt[t2][:TRIP] for c in byt[t3][:TRIP]])
+            # ROUND-ROBIN, not group-by-group. The scan stops on a wall clock,
+            # and walking the groups in order means a timeout leaves the last
+            # type pairs entirely untested while the alphabetically-first ones
+            # are exhausted. Interleaving makes the cut uniform: whatever the
+            # deadline allows is a fair sample of every cross-type pairing
+            # rather than all of some and none of others.
+            combos = [c for tier in itertools.zip_longest(*groups)
+                      for c in tier if c is not None]
+            print(f"    {len(combos):,} combinations across {len(groups)} "
+                  f"type-groups ({len(types)} types)", flush=True)
+
+            for cb in combos:
+                if time.time() > deadline:
+                    break
+                fs = tuple(x[2] for x in cb)
+                if len(set(fs)) < len(fs):
+                    continue
+                # Dedup on the FULL leg identity. Keying on feature names alone
+                # would collapse "chop above its 20th pct AND NDX below its
+                # 80th" into "chop above its 80th AND NDX above its 20th" --
+                # opposite conditions, one surviving arbitrarily. The threshold
+                # and the direction are the condition; the name is only where
+                # it came from.
+                key = tuple(sorted((x[2], x[3], x[4]) for x in cb))
+                if key in seen:
+                    continue
+                seen.add(key)
+                sig = cb[0][1]
+                for x in cb[1:]:
+                    sig = sig & x[1]
+                if sig.mean() < need:
+                    stat["freq"] += len(pairs) * 2
+                    continue
+                lab = "&".join(f"{x[2]}{'>' if x[4] > 0 else '<'}{x[3]:g}"
+                               for x in cb)
+                score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
 
             json.dump({"rows": rows[-200000:]}, open(STATE, "w"))
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
