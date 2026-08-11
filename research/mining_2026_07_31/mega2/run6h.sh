@@ -25,8 +25,8 @@ while [ "$(date +%s)" -lt "$END" ]; do
   END_TS="$END" \
   KBAR="${KBAR:-500,250,1000}" ARITY="${ARITY:-5}" PERTYPE="${PERTYPE:-12}" \
   MIN_TPW="${MIN_TPW:-400}" MIN_DOL="${MIN_DOL:-2.00}" \
-  MIN_RR="${MIN_RR:-1.1}" MAX_RR="${MAX_RR:-1.6}" \
-  MIN_WIN="${MIN_WIN:-0.45}" MAX_WIN="${MAX_WIN:-0.60}" \
+  MIN_RR="${MIN_RR:-1.1}" MAX_RR="${MAX_RR:-3.0}" \
+  MIN_WIN="${MIN_WIN:-0.28}" MAX_WIN="${MAX_WIN:-0.80}" \
   MAX_DD_PCT="${MAX_DD_PCT:-0.10}" MIN_EDGE_REL="${MIN_EDGE_REL:-0.10}" \
   MIN_EDGE_PP="${MIN_EDGE_PP:-0.02}" MAX_FIRE="${MAX_FIRE:-0.90}" \
   PROBE="${PROBE:-0.04}" BEEP="${BEEP:-0.015}" DIG_ROUNDS="${DIG_ROUNDS:-6}" \

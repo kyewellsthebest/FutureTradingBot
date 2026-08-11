@@ -98,6 +98,16 @@ MIN_EDGE_REL = float(os.environ.get("MIN_EDGE_REL", "0.0"))
 # A bracket's required win rate is (S+c)/(S+T), and the achieved rate lands
 # within a few points of it, so the band can be enforced at the GEOMETRY gate
 # for free -- before any data is touched.
+#
+# THESE ARE NOW WIDE ON PURPOSE. A narrow band on the REQUIRED win rate was
+# doing survivability's job as a proxy, badly, and throwing away geometries
+# for being better than asked: MIN_WIN rejected brackets that need a LOWER
+# win rate, which are the easier ones, and MAX_WIN and MAX_RR rejected the
+# other end. MAX_DD_PCT below prices the expected worst losing run exactly --
+# run length times stop size against the account -- so it is the real
+# constraint and the proxy only narrowed the search. Every gate is a MINIMUM;
+# anything better than the minimum is kept, and drawdown is the one thing
+# genuinely capped.
 MIN_WIN = float(os.environ.get("MIN_WIN", "0.35"))
 MAX_WIN = float(os.environ.get("MAX_WIN", "0.65"))
 ACCOUNT = float(os.environ.get("ACCOUNT", "4100"))
@@ -759,7 +769,7 @@ def sweep(epoch, deadline):
                         dig(cb, e)
 
             json.dump({"rows": rows[-250000:], "stat": STAT,
-                       "min_dol": MIN_DOL,
+                       "min_dol": MIN_DOL, "min_tpw": MIN_TPW,
                        "min_edge_rel": MIN_EDGE_REL}, open(STATE, "w"))
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
                   f"{len(legs)} legs, {nf} scored, {len(hits)} hits "
@@ -888,7 +898,7 @@ def main():
     A deadline passed in through END_TS survives a restart, so a supervisor
     that relaunches after a crash resumes toward the ORIGINAL finish time
     rather than granting a fresh six hours."""
-    global MIN_DOL, MIN_EDGE_REL, QS, PERTYPE, DIG_ROUNDS, T0
+    global MIN_DOL, MIN_TPW, MIN_EDGE_REL, QS, PERTYPE, DIG_ROUNDS, T0
     T0 = time.time()
     end = float(os.environ.get("END_TS") or 0) or (T0 + HOURS * 3600)
     if os.path.exists(STATE):
@@ -898,10 +908,12 @@ def main():
             for k, v in (prev.get("stat") or {}).items():
                 STAT[k] = STAT.get(k, 0) + v
             MIN_DOL = max(MIN_DOL, float(prev.get("min_dol", MIN_DOL)))
+            MIN_TPW = max(MIN_TPW, float(prev.get("min_tpw", MIN_TPW)))
             MIN_EDGE_REL = max(MIN_EDGE_REL,
                                float(prev.get("min_edge_rel", MIN_EDGE_REL)))
             print(f"resumed: {len(ROWS):,} rows, bar ${MIN_DOL:.2f}/trade "
-                  f"and break-even x{1+MIN_EDGE_REL:.2f}", flush=True)
+                  f"at {MIN_TPW:.0f}/wk, break-even x{1+MIN_EDGE_REL:.2f}",
+                  flush=True)
         except Exception as e:                                   # noqa: BLE001
             print(f"could not resume ({type(e).__name__}), starting clean",
                   flush=True)
@@ -918,8 +930,8 @@ def main():
             PERTYPE = min(12 + ep, 26)
             DIG_ROUNDS = min(6 + ep // 2, 14)
         left = (end - time.time()) / 3600
-        print(f"\n=== epoch {ep} | {left:.2f}h left | bar ${MIN_DOL:.2f}/tr, "
-              f"break-even x{1+MIN_EDGE_REL:.2f} | q="
+        print(f"\n=== epoch {ep} | {left:.2f}h left | bar ${MIN_DOL:.2f}/tr "
+              f"at {MIN_TPW:.0f}/wk, break-even x{1+MIN_EDGE_REL:.2f} | q="
               f"{[round(q,2) for q in QS]} | pertype {PERTYPE}", flush=True)
         try:
             sweep(ep, end)
@@ -932,20 +944,29 @@ def main():
             print(f"epoch {ep} died ({type(e).__name__}) -- continuing",
                   flush=True)
 
-        # ---- THE RATCHET ----
+        # ---- THE RATCHET, ON EVERY MINIMUM ----
+        # The first version raised the dollar bar and the margin and left the
+        # frequency bar alone, so a breakthrough at 700 trades a week would
+        # not have raised the trades-a-week requirement at all. Every gate is
+        # a MINIMUM, so every gate ratchets: beat one and it moves to just
+        # above what beat it.
         if HITS:
-            top = max(h["dol"] for h in HITS)
-            new = max(MIN_DOL, round(top * 1.10 + 1e-9, 3))
-            if new > MIN_DOL:
-                print(f"*** BREAKTHROUGH ${top:.2f}/trade — raising the bar "
-                      f"${MIN_DOL:.2f} -> ${new:.2f} and the margin "
-                      f"x{1+MIN_EDGE_REL:.2f} -> x{1+MIN_EDGE_REL+0.02:.2f}",
-                      flush=True)
-                MIN_DOL = new
+            best = max(HITS, key=lambda h: h["dol"] * h["tpw"])
+            nd = max(MIN_DOL, round(best["dol"] * 1.10 + 1e-9, 3))
+            nt = max(MIN_TPW, round(best["tpw"] * 1.05))
+            if nd > MIN_DOL or nt > MIN_TPW:
+                print(f"\n*** BREAKTHROUGH — ${best['dol']:.2f}/trade at "
+                      f"{best['tpw']:.0f} trades/wk = "
+                      f"${best['dol']*best['tpw']:,.0f}/week\n"
+                      f"    raising  $/trade  ${MIN_DOL:.2f} -> ${nd:.2f}\n"
+                      f"             trades/wk {MIN_TPW:.0f} -> {nt:.0f}\n"
+                      f"             margin    x{1+MIN_EDGE_REL:.2f} -> "
+                      f"x{1+MIN_EDGE_REL+0.02:.2f}", flush=True)
+                MIN_DOL, MIN_TPW = nd, nt
                 MIN_EDGE_REL += 0.02
         json.dump({"rows": ROWS[-250000:], "stat": STAT,
-                   "min_dol": MIN_DOL, "min_edge_rel": MIN_EDGE_REL},
-                  open(STATE, "w"))
+                   "min_dol": MIN_DOL, "min_tpw": MIN_TPW,
+                   "min_edge_rel": MIN_EDGE_REL}, open(STATE, "w"))
         report()
         L.clear()
     print(f"\ndone: {ep} epochs, {len(ROWS):,} scored, {len(HITS)} hits",
