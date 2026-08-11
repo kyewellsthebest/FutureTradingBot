@@ -203,8 +203,14 @@ def main():
                 print(f"{cn} K{K}: {type(e).__name__}: {e}", flush=True)
                 continue
             rows += r
-            print(f"{cn} K{K}: {len(r)} scored ({(time.time()-t0)/60:.0f}m)",
-                  flush=True)
+            # Checkpoint after every contract. The previous two attempts were
+            # both lost whole when the container restarted mid-run; an hour of
+            # work should not depend on the box staying up.
+            pd.DataFrame(rows).to_parquet(
+                os.path.join(fuse.ROOT, "data", "edge_rows.parquet"),
+                compression="zstd")
+            print(f"{cn} K{K}: {len(r)} scored, {len(rows)} total "
+                  f"({(time.time()-t0)/60:.0f}m)", flush=True)
     if not rows:
         print("nothing scored")
         return
