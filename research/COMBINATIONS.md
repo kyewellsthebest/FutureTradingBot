@@ -60,29 +60,59 @@ agreeing, in a short-gamma session. That is "flow, confirmed, into a market
 that has to chase." It is the strongest version of the premise, and it was
 literally not expressible in any script in this repo before today.
 
+## Past pairs and triples: arity, and the combiner
+
+For an AND the **order of the legs is meaningless** — `C+B+D` and `B+C+D`
+select the same bars. So what adds coverage is not permuting letters, it is
+taking more of them at once: every 2-, 3-, 4-way set of distinct types, with
+the legs per type shrinking as the set widens (6 types choose 4, at 12 legs
+each, would be 311,040 sets on its own).
+
+The bigger change is that **AND is no longer the only combiner**, and this is
+the thing that was quietly boxing the search in. Every added AND condition cuts
+how often a rule fires — which is exactly why the first pass scored 952
+configurations and not one reached 500 trades a week, topping out at 241.
+Stacking to four- and five-way ANDs alone would have made that *worse*.
+
+| combiner | fires | uses all streams? |
+|---|---|---|
+| `AND` | rarest — every leg must agree | yes, but frequency collapses |
+| `OR` | **more** often than any single leg | yes, and it *raises* trade count |
+| `k-of-n` | tuned by k | **yes, and frequency is a dial** |
+
+`k-of-n` is the one that resolves the conflict. "Four of these six streams
+agree" reads every data type simultaneously — the actual premise — while `k`
+tunes firing rate toward 500/week instead of letting it collapse. `2-of-5`
+fires often; `4-of-5` rarely; both are genuine five-stream rules.
+
 ## Count
 
 Per quarter, per bar size:
 
 ```
- 2,160  cross-type pairs      (15 groups × 12 legs × 12 legs)
-   168  within-type pairs     (6 groups × C(8,2), kept as the control)
- 1,280  cross-type triples    (20 groups × 4 × 4 × 4)
-─────
- 3,608  combinations
+ 4,823  distinct leg sets (2-way through 4-way, plus within-type controls)
+13,020  scored variants once AND / OR / k-of-n are applied to each
 ```
 
-Across 8 quarters × 3 bar sizes: **86,592**. Groups are interleaved
-round-robin, so if the wall clock cuts the run short the cut falls evenly
-across all 35 families rather than exhausting the alphabetically-first ones.
+Groups are interleaved round-robin, so if the wall clock cuts the run short
+the cut falls evenly across all families rather than exhausting the
+alphabetically-first ones.
 
 ## What this costs, and it is not free
 
-Testing 86,592 combinations instead of a few thousand raises the selection
-ceiling. The best of N pure-noise draws sits at `sqrt(2 ln N)` sigma: at 1,708
-configurations that was 3.9σ, at 86,592 it is **5.0σ**. Anything this run
-produces has to clear a *higher* bar than anything before it, purely for
-having looked in more places. Breadth is not free and the report prices it.
+Testing this many combinations raises the selection ceiling. The best of N
+pure-noise draws sits at `sqrt(2 ln N)` sigma: at 1,708 configurations that was
+3.9σ, and the report recomputes it against whatever this run actually scores.
+Anything found here has to clear a *higher* bar than anything before it, purely
+for having looked in more places. Breadth is not free and the report prices it.
+
+Two degeneracies are now rejected rather than counted. A leg that fires more
+than 90% of the time is not a condition, it is the tape — `g_regime` is a
+binary ±1 label, so thresholding it at five quantiles produced the same
+all-true mask five times, and four "triples" in the first pass scored
+identically to the cent to the plain pair without gamma. And any combination
+whose mask exactly repeats one already scored is dropped, since a triple that
+selects precisely the pair's bars *is* the pair.
 
 Every other gate stays exactly where it was: ≥500 trades/week, ≥$2.00/trade
 net of the corrected $1.24 round turn, reward:risk between 1.0 and 2.5 with a

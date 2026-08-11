@@ -95,6 +95,7 @@ QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")
 NLEG = int(os.environ.get("NLEG", "34"))
 PERTYPE = int(os.environ.get("PERTYPE", "12"))  # legs kept per data type
 TRIP = int(os.environ.get("TRIP", "4"))         # legs per type in triples
+ARITY = int(os.environ.get("ARITY", "4"))       # widest set of data types
 WAIT = 2
 L = []
 
@@ -155,6 +156,48 @@ def entries(B, idx, side, tpx, passive):
                 px.append(want)
                 break
     return np.array(at, dtype=np.int64), np.array(px)
+
+
+def combine(cb):
+    """AND IS NOT THE ONLY WAY TO COMBINE STREAMS, and treating it as the only
+    way is what put the search in a corner. Every added AND condition cuts how
+    often the rule fires -- which is exactly why the first pass scored 952
+    configurations and not one of them reached 500 trades a week, topping out
+    at 241. Demanding more confirmation and demanding more trades pull in
+    opposite directions, so stacking to four- and five-way ANDs alone would
+    make the frequency problem worse, not better.
+
+    The other combiners do not have that property:
+
+      AND    all legs agree           rarest, most confirmed
+      OR     any leg fires            MORE frequent than any single leg, so it
+                                      raises trade count instead of cutting it
+      k-of-n at least k of n agree    the dial between them -- 2-of-5 fires
+                                      often, 4-of-5 rarely, and both use all
+                                      five streams at once
+
+    k-of-n is the one that actually resolves the conflict. It reads every data
+    type simultaneously, which is the premise, while k tunes frequency to the
+    target instead of letting it collapse. "Four of these six streams agree" is
+    a genuine six-stream rule that can still trade 500 times a week.
+    """
+    out = []
+    n = len(cb)
+    a = cb[0][1].copy()
+    for x in cb[1:]:
+        a &= x[1]
+    out.append(("AND", a))
+    o = cb[0][1].copy()
+    for x in cb[1:]:
+        o |= x[1]
+    out.append(("OR", o))
+    if n >= 3:
+        tot = np.zeros(len(cb[0][1]), dtype=np.int16)
+        for x in cb:
+            tot += x[1].astype(np.int16)
+        for k in range(2, n):            # k=1 is OR, k=n is AND, both above
+            out.append((str(k), tot >= k))
+    return out
 
 
 def main():
@@ -350,14 +393,22 @@ def main():
             print(f"    legs by type: "
                   + ", ".join(f"{t}{len(byt[t])}" for t in types), flush=True)
 
+            # ARITY, and it goes past pairs and triples. For an AND the ORDER
+            # of the legs is meaningless -- C+B+D and B+C+D select the same
+            # bars -- so what adds coverage is not permuting the letters, it is
+            # taking MORE of them at once: every 2-, 3-, 4-, 5- and 6-way set
+            # of distinct data types, up to ARITY. WIDE[m] is how many legs per
+            # type feed an m-way set, and it has to shrink as m grows or the
+            # count explodes (6 types choose 4, at 12 legs each, is 311,040).
+            WIDE = {2: PERTYPE, 3: TRIP, 4: 3, 5: 2, 6: 2}
             groups, seen = [], set()
-            for t1, t2 in itertools.combinations(types, 2):      # A+B across
-                groups.append([(a, b) for a in byt[t1] for b in byt[t2]])
             for t in types:                                      # A+A within
                 groups.append(list(itertools.combinations(byt[t][:8], 2)))
-            for t1, t2, t3 in itertools.combinations(types, 3):  # A+B+C
-                groups.append([(a, b, c) for a in byt[t1][:TRIP]
-                               for b in byt[t2][:TRIP] for c in byt[t3][:TRIP]])
+            for m in range(2, min(ARITY, len(types)) + 1):
+                w = WIDE.get(m, 2)
+                for ts in itertools.combinations(types, m):
+                    groups.append([tuple(c) for c in itertools.product(
+                        *[byt[t][:w] for t in ts])])
             # ROUND-ROBIN, not group-by-group. The scan stops on a wall clock,
             # and walking the groups in order means a timeout leaves the last
             # type pairs entirely untested while the alphabetically-first ones
@@ -385,25 +436,26 @@ def main():
                 if key in seen:
                     continue
                 seen.add(key)
-                sig = cb[0][1]
-                for x in cb[1:]:
-                    sig = sig & x[1]
-                if sig.mean() < need:
-                    stat["freq"] += len(pairs) * 2
-                    continue
-                # and again at the combination level: if adding a third leg
-                # selects exactly the bars the pair already selected, it is the
-                # pair. Scoring it a second time would be one more draw against
-                # the ceiling in exchange for nothing.
-                hc = hashlib.blake2b(np.packbits(sig).tobytes(),
-                                     digest_size=16).digest()
-                if hc in seen:
-                    stat["degen"] += 1
-                    continue
-                seen.add(hc)
-                lab = "&".join(f"{x[2]}{'>' if x[4] > 0 else '<'}{x[3]:g}"
-                               for x in cb)
-                score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
+                for mode, sig in combine(cb):
+                    if sig.mean() < need:
+                        stat["freq"] += len(pairs) * 2
+                        continue
+                    # and again at the combination level: if adding a third leg
+                    # selects exactly the bars the pair already selected, it is
+                    # the pair. Scoring it a second time would be one more draw
+                    # against the ceiling in exchange for nothing.
+                    hc = hashlib.blake2b(np.packbits(sig).tobytes(),
+                                         digest_size=16).digest()
+                    if hc in seen:
+                        stat["degen"] += 1
+                        continue
+                    seen.add(hc)
+                    body = ",".join(f"{x[2]}{'>' if x[4] > 0 else '<'}{x[3]:g}"
+                                    for x in cb)
+                    lab = (body.replace(",", "&") if mode == "AND" else
+                           body.replace(",", "|") if mode == "OR" else
+                           f"{mode}of({body})")
+                    score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
 
             json.dump({"rows": rows[-200000:]}, open(STATE, "w"))
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
