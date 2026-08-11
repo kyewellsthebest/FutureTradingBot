@@ -235,3 +235,52 @@ trades, median −$1.00. Both dead.
 earns entered at RANDOM times in the same period. Three separate findings today
 were the bull market wearing a strategy's clothes, and the random-entry column
 is the one line that exposes it immediately.
+
+---
+
+## #37 — The fusion premise, measured directly. The new streams add nothing.
+
+**The claim being tested.** Two billion people watch price, almost nobody fuses
+several data types at tick resolution because only a machine can, so that is
+where an edge should hide. Good reasoning, and it deserved the machinery built
+for it: wall-clock windows, a hard lag rail, the stream-shift control, and 484
+days of dealer gamma rebuilt from option prices.
+
+**The measurement.** 929 configurations scored in a single search where every
+stream competes on equal terms — same gates, same brackets, same random-entry
+baseline.
+
+| stream | configs | best σ | best $/week | median σ |
+|---|---|---|---|---|
+| NQ price (old) | 409 | **+4.5** | +$380 | **+2.52** |
+| NQ order flow (old) | 347 | +3.9 | **+$467** | +2.50 |
+| index complex ES/YM/RTY (new) | 257 | +3.9 | +$427 | +2.41 |
+| macro CL/GC/HG (new) | 97 | +3.6 | +$234 | +2.18 |
+| dealer gamma (new) | 3 | +1.2 | +$124 | +1.17 |
+| sweeps (new) | 0 | — | — | — |
+
+**Worse on every measure, and worse than it looks.** New streams are 38% of the
+configurations but only 8 of the top 40 — underrepresented among the best
+results rather than merely tied.
+
+Gamma and sweeps barely entered this run (3 and 0 configs) because they could
+not pass the frequency gate. Gamma was not left untested though: entry #36
+covers a dedicated 120-family study with permuted labels, and it was a clean
+null.
+
+**What this does and does not establish.** It does not show the reasoning was
+wrong. It shows the streams obtainable here do not carry it — ES, YM, RTY, CL,
+GC, HG and gamma are all, in the end, further descriptions of what has already
+happened. The order book is the only remaining stream that shows intent BEFORE
+it trades, and it is the only one still untested.
+
+**A structural finding from the same run, and it matters more.** Under the
+survivability gate — R:R between 1:1 and 2.5:1, required win rate 35-65%,
+worst expected yearly losing run under 15% of the account — the maximum
+achievable frequency is **412 trades a week, median 150**. The target is 500.
+
+These two requirements pull against each other mechanically. A balanced bracket
+needs ROOM to resolve, and while a trade is open no other can be taken. The
+lottery-ticket brackets that did reach 500+/week got there because a 32-tick
+stop resolves fast, which is the same property that delivers sixty consecutive
+losses in a year. You can have the frequency or the survivability, not both.
