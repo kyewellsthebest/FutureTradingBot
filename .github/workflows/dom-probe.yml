@@ -1,0 +1,25 @@
+name: Probe market data access
+
+# Settles one question: is depth blocked by the symbol or by the account?
+# Runs on GitHub because the research container cannot reach tradovateapi.com.
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ['data/dom/.probe']
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install requests websocket-client
+      - env:
+          TRADOVATE_USER: ${{ secrets.TRADOVATE_USER }}
+          TRADOVATE_PASS: ${{ secrets.TRADOVATE_PASS }}
+          TRADOVATE_CID:  ${{ secrets.TRADOVATE_CID }}
+          TRADOVATE_SEC:  ${{ secrets.TRADOVATE_SEC }}
+        run: python research/mining_2026_07_31/mega2/dom_probe.py
