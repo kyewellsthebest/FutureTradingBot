@@ -660,7 +660,17 @@ def main():
 
     # ---------------------------------------------------------------- report
     d = pd.DataFrame(rows)
-    ceil = math.sqrt(2 * math.log(max(len(d), 2)))
+    # THE CEILING IS ABOUT HOW MANY THINGS WERE TRIED, NOT HOW MANY SURVIVED.
+    # This used len(d) -- the rows that cleared every gate -- which is exactly
+    # backwards: a harsher gate leaves fewer survivors and so reported a LOWER
+    # bar, making a more selective search look more significant. The 62 rows
+    # that cleared a 10%-over-break-even gate gave a 2.87 sigma ceiling while
+    # the search had in fact evaluated 24.9 million configurations, whose real
+    # ceiling is 5.84. Every attempt that was measured against an outcome is a
+    # draw, including the ones the cheap screen killed and the ones the dig
+    # generated.
+    ntried = max(stat["prune"] + stat["win"] + stat["drift"] + stat["full"], 2)
+    ceil = math.sqrt(2 * math.log(ntried))
     log("# Every stream, both entry styles, one search")
     log()
     log("Each idea was previously tested in its own script and never together. "
@@ -707,7 +717,9 @@ def main():
         log(f"`{len(d):,}` scored. `{int((d.tpw >= MIN_TPW).sum()):,}` frequent "
             f"enough, `{int((d.dol >= MIN_DOL).sum()):,}` paid enough, "
             f"**`{len(hits)}` did both.** Selection ceiling "
-            f"**{ceil:.1f}σ**.")
+            f"**{ceil:.1f}σ**, from `{ntried:,}` configurations actually "
+            f"measured against an outcome — not from the handful that "
+            f"survived.")
         log()
         for title, sel in ((f"Cleared both gates", d[(d.tpw >= MIN_TPW) &
                                                      (d.dol >= MIN_DOL)]),
