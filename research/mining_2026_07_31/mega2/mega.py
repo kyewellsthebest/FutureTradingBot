@@ -156,7 +156,107 @@ def features(cn, K):
     rng = np.maximum(B["h"] - B["l"], 1e-9)
     F["x_sweep"] = (B["c"] - B["o"]) / rng
     F.update({k: v[:n] for k, v in gamma_features(B["ts"]).items()})
+    F.update(derived(B, F))
     return B, F
+
+
+def _z(a, w):
+    """Rolling z-score, NaN-safe, same length as the input."""
+    s = pd.Series(a, dtype="float64")
+    m = s.rolling(w, min_periods=max(w // 4, 5)).mean()
+    sd = s.rolling(w, min_periods=max(w // 4, 5)).std()
+    return ((s - m) / sd.replace(0, np.nan)).to_numpy()
+
+
+def derived(B, F):
+    """FOUR MORE WAYS TO READ THE SAME TAPE, none of them another price
+    indicator. Every stream carried so far describes WHERE price is. These
+    describe how it is behaving, and three of them were sitting in data
+    already loaded and never looked at.
+
+      d_  THE CLOCK ITSELF. Bars are 500 ticks each, so a bar is not a fixed
+          amount of time -- it is however long 500 trades took. That duration
+          is a pure measure of urgency that no price feature contains: the
+          same candle printed in four seconds and in four minutes means
+          opposite things. It was in B["ts"] the whole time and nothing has
+          ever used it.
+
+      v_  WHETHER THE TAPE IS TRENDING OR REVERTING, measured rather than
+          assumed. Return autocorrelation over a window says directly whether
+          continuation or fade is the right trade, and a short/long realised
+          vol ratio says whether the range is expanding. Every study here has
+          applied one bracket to both regimes and averaged them together.
+
+      b_  BREADTH AS A COUNT, not a mean. i_mean already averages the foreign
+          returns, which cancels when two go up and two go down. Counting how
+          many agree in sign with NQ keeps the disagreement that the average
+          destroys -- five markets pulling together is a different world from
+          five pulling apart to the same mean.
+
+      r_  THE BETA-ADJUSTED RESIDUAL, which is the only genuine relative-value
+          quantity in the whole set. i_div subtracts a raw foreign return from
+          NQ's, but NQ moves about 1.2x ES, so that difference is mostly beta
+          and only incidentally dislocation. Regressing it out leaves what is
+          actually NQ-specific -- the part with a reason to revert, because
+          index arbitrage anchors it."""
+    out = {}
+    ts = B["ts"].astype(np.float64)
+    ret = np.r_[np.nan, np.diff(B["c"])]
+
+    # ---- d_: how long each bar took, and whether that is speeding up ----
+    dt = np.r_[np.nan, np.diff(ts)] / 1e9
+    dt = np.where(dt > 0, dt, np.nan)
+    out["d_secs"] = np.log(np.maximum(dt, 1e-3))
+    for w in (21, 55, 144):
+        out[f"d_z{w}"] = _z(out["d_secs"], w)
+    fast = pd.Series(dt).rolling(21, min_periods=6).mean().to_numpy()
+    slow = pd.Series(dt).rolling(144, min_periods=36).mean().to_numpy()
+    out["d_ratio"] = np.log(np.maximum(fast, 1e-6) / np.maximum(slow, 1e-6))
+
+    # ---- v_: trending or reverting, expanding or contracting ----
+    r = pd.Series(ret, dtype="float64")
+    for w in (55, 144):
+        out[f"v_ac{w}"] = r.rolling(w, min_periods=w // 3).corr(
+            r.shift(1)).to_numpy()
+    sv = r.rolling(21, min_periods=6).std().to_numpy()
+    lv = r.rolling(144, min_periods=36).std().to_numpy()
+    out["v_vr"] = np.log(np.maximum(sv, 1e-9) / np.maximum(lv, 1e-9))
+    out["v_eff55"] = (pd.Series(np.abs(B["c"] - np.r_[[np.nan]*55, B["c"][:-55]]))
+                      / pd.Series(np.abs(ret)).rolling(55, min_periods=14).sum()
+                      ).to_numpy()
+
+    # ---- b_: how many foreign markets agree in SIGN with NQ ----
+    fr = [k for k in F if (k.startswith(("i_div", "m_div"))
+                           or k.startswith(("i_es_ret", "i_ym_ret",
+                                            "i_rty_ret", "m_cl_ret",
+                                            "m_gc_ret", "m_hg_ret")))]
+    if fr:
+        sn = np.sign(ret)
+        agree = np.zeros(len(ret))
+        live = np.zeros(len(ret))
+        for k in fr:
+            v = np.asarray(F[k], dtype=np.float64)
+            ok = np.isfinite(v)
+            agree += np.where(ok, (np.sign(v) == sn).astype(float), 0.0)
+            live += ok.astype(float)
+        out["b_agree"] = np.where(live > 0, agree / np.maximum(live, 1), np.nan)
+        for w in (21, 55):
+            out[f"b_agree{w}"] = pd.Series(out["b_agree"]).rolling(
+                w, min_periods=w // 3).mean().to_numpy()
+
+    # ---- r_: NQ minus its beta to the complex ----
+    for w in (30, 120, 600):
+        k = f"i_mean{w}"
+        if k not in F:
+            continue
+        x = pd.Series(np.asarray(F[k], dtype=np.float64))
+        y = pd.Series(ret)
+        cov = y.rolling(288, min_periods=72).cov(x)
+        var = x.rolling(288, min_periods=72).var()
+        beta = (cov / var.replace(0, np.nan)).clip(-5, 5)
+        out[f"r_res{w}"] = (y - beta * x).to_numpy()
+        out[f"r_beta{w}"] = beta.to_numpy()
+    return out
 
 
 def entries(B, idx, side, tpx, passive):
@@ -220,15 +320,20 @@ def combine(cb):
     return out
 
 
-def main():
+ROWS, HITS, NEAR = [], [], []
+STAT = dict(geo=0, freq=0, degen=0, prune=0, drift=0, win=0,
+            full=0, dig=0, beeps=0, epochs=0)
+
+
+def sweep(epoch, deadline):
+    """One full pass over every contract and clock. Called repeatedly until
+    the wall clock runs out -- see main()."""
     t0 = time.time()
-    deadline = t0 + HOURS * 3600
     meta = fuse.tape_meta()
-    rows, hits, near = [], [], []
-    stat = dict(geo=0, freq=0, degen=0, prune=0, drift=0, win=0,
-            full=0, dig=0, beeps=0)
+    rows, hits, near, stat = ROWS, HITS, NEAR, STAT
     print(f"gates: >={MIN_TPW:.0f} trades/wk AND >=${MIN_DOL:.2f}/trade net, "
-          f"beating random entry. budget {HOURS:g}h", flush=True)
+          f"beating random entry. {(deadline-time.time())/3600:.2f}h left",
+          flush=True)
 
     # CLOCK OUTER, CONTRACT INNER. The scan stops on a wall clock, and running
     # every clock for one contract before touching the next means a timeout
@@ -653,11 +758,19 @@ def main():
                         print(f"  beep {e:+.4f}  {lab[:60]}", flush=True)
                         dig(cb, e)
 
-            json.dump({"rows": rows[-200000:]}, open(STATE, "w"))
+            json.dump({"rows": rows[-250000:], "stat": STAT,
+                       "min_dol": MIN_DOL,
+                       "min_edge_rel": MIN_EDGE_REL}, open(STATE, "w"))
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
                   f"{len(legs)} legs, {nf} scored, {len(hits)} hits "
                   f"({(time.time()-t0)/60:.0f}m)", flush=True)
 
+    return len(rows)
+
+
+def report():
+    rows, hits, near, stat = ROWS, HITS, NEAR, STAT
+    t0 = T0
     # ---------------------------------------------------------------- report
     d = pd.DataFrame(rows)
     # THE CEILING IS ABOUT HOW MANY THINGS WERE TRIED, NOT HOW MANY SURVIVED.
@@ -747,6 +860,99 @@ def main():
     open(OUT, "w").write("\n".join(L) + "\n")
     print("\nwrote", OUT)
 
+
+def main():
+    """RUN UNTIL THE CLOCK SAYS STOP, not until the list runs out.
+
+    Every previous run finished when it reached the end of its enumeration and
+    reported whatever it had -- 22 minutes for a nine-hour budget, because the
+    cheap screen made the sweep faster than the space was large. That wastes
+    the budget. This keeps going in EPOCHS until the deadline, and each epoch
+    is a genuinely different search rather than the same one repeated:
+
+      the quantile grid is JITTERED. Thresholds are the single biggest source
+      of new hypotheses -- the coarse five-value grid is what the dig kept
+      beating -- so each epoch offsets them, and every offset is a new mask,
+      a new rule, a new draw.
+
+      the shape widens. More legs per type, more clocks, deeper digs as the
+      epochs go on, so early epochs are broad and cheap and later ones are
+      narrow and thorough.
+
+    THE BAR RATCHETS. When something clears the gates, the gates move up to
+    just above it -- so the search never again spends a cycle on anything that
+    is merely as good as what it already has. It is a record chase, not a
+    filter, and it is what makes six hours of searching different from the
+    same twenty-two minutes repeated sixteen times.
+
+    A deadline passed in through END_TS survives a restart, so a supervisor
+    that relaunches after a crash resumes toward the ORIGINAL finish time
+    rather than granting a fresh six hours."""
+    global MIN_DOL, MIN_EDGE_REL, QS, PERTYPE, DIG_ROUNDS, T0
+    T0 = time.time()
+    end = float(os.environ.get("END_TS") or 0) or (T0 + HOURS * 3600)
+    if os.path.exists(STATE):
+        try:
+            prev = json.load(open(STATE))
+            ROWS.extend(prev.get("rows", []))
+            for k, v in (prev.get("stat") or {}).items():
+                STAT[k] = STAT.get(k, 0) + v
+            MIN_DOL = max(MIN_DOL, float(prev.get("min_dol", MIN_DOL)))
+            MIN_EDGE_REL = max(MIN_EDGE_REL,
+                               float(prev.get("min_edge_rel", MIN_EDGE_REL)))
+            print(f"resumed: {len(ROWS):,} rows, bar ${MIN_DOL:.2f}/trade "
+                  f"and break-even x{1+MIN_EDGE_REL:.2f}", flush=True)
+        except Exception as e:                                   # noqa: BLE001
+            print(f"could not resume ({type(e).__name__}), starting clean",
+                  flush=True)
+
+    base = list(QS)
+    ep = 0
+    while time.time() < end - 30:
+        ep += 1
+        STAT["epochs"] = ep
+        rng = np.random.default_rng(1000 + ep)
+        if ep > 1:
+            QS = sorted(float(np.clip(q + rng.uniform(-0.06, 0.06), 0.05, 0.95))
+                        for q in base)
+            PERTYPE = min(12 + ep, 26)
+            DIG_ROUNDS = min(6 + ep // 2, 14)
+        left = (end - time.time()) / 3600
+        print(f"\n=== epoch {ep} | {left:.2f}h left | bar ${MIN_DOL:.2f}/tr, "
+              f"break-even x{1+MIN_EDGE_REL:.2f} | q="
+              f"{[round(q,2) for q in QS]} | pertype {PERTYPE}", flush=True)
+        try:
+            sweep(ep, end)
+        except MemoryError:
+            print("MemoryError -- trimming and continuing", flush=True)
+            del ROWS[:max(len(ROWS) - 50000, 0)]
+        except Exception as e:                                   # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            print(f"epoch {ep} died ({type(e).__name__}) -- continuing",
+                  flush=True)
+
+        # ---- THE RATCHET ----
+        if HITS:
+            top = max(h["dol"] for h in HITS)
+            new = max(MIN_DOL, round(top * 1.10 + 1e-9, 3))
+            if new > MIN_DOL:
+                print(f"*** BREAKTHROUGH ${top:.2f}/trade — raising the bar "
+                      f"${MIN_DOL:.2f} -> ${new:.2f} and the margin "
+                      f"x{1+MIN_EDGE_REL:.2f} -> x{1+MIN_EDGE_REL+0.02:.2f}",
+                      flush=True)
+                MIN_DOL = new
+                MIN_EDGE_REL += 0.02
+        json.dump({"rows": ROWS[-250000:], "stat": STAT,
+                   "min_dol": MIN_DOL, "min_edge_rel": MIN_EDGE_REL},
+                  open(STATE, "w"))
+        report()
+        L.clear()
+    print(f"\ndone: {ep} epochs, {len(ROWS):,} scored, {len(HITS)} hits",
+          flush=True)
+
+
+T0 = time.time()
 
 if __name__ == "__main__":
     main()
