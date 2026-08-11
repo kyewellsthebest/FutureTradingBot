@@ -179,3 +179,59 @@ trades/week" as near-misses. All 120 such rows came from ONE contract, NQM6.
 Pooled over eight quarters the same rule makes −$1.40 a trade and is positive in
 1 quarter of 8. Quoting a per-quarter figure without the contract attached was
 the error.
+
+---
+
+## #36 — Dealer gamma does not condition anything. And three cost assumptions were wrong.
+
+**The hypothesis.** Every study here measured an average over two years. A rule
+that works when dealers are long gamma and loses when they are short averages
+to the near-zero every study reported. Gamma was the first dataset available
+that classifies the DAY rather than describing the price, so it was the first
+real explanation for two years of failure.
+
+**Verdict: dead.** 120 families, 484 sessions labelled from option prices,
+drift baseline computed within each regime, day-to-regime labels permuted five
+times.
+
+| | |
+|---|---|
+| shuffled-label floor | 1.70σ |
+| largest real gap | 3.0σ |
+| median gap | −0.64σ |
+| leaning the same way | **39 of 120** |
+
+81 of 120 lean the *opposite* way, so there is no consistent direction, and
+dollars per trade are negative in nearly every cell in BOTH regimes. The floor
+is also generous: it is the max over 12 families per shuffle against 120 tried,
+so the honest bar is nearer 2.5σ.
+
+**Three cost assumptions corrected the same day, all wrong, none in our favour
+on net.**
+
+1. *Latency is 95–115 ms, not 2,000 ms.* Measured twice on the live API. But
+   measuring what that delay COSTS gave **−$0.014 a trade**. Latency only costs
+   money if there is momentum to chase; there is none. The absence of a latency
+   penalty is another confirmation of the absence of predictability.
+2. *Slippage was never measured and could not be.* The account has only traded
+   the simulator, which fills at the requested price — 34 fills, median +0.00
+   ticks. The 2.5-tick figure was an estimate reported as a measurement.
+3. *Realistic taker cost is $1.24, not $1.99* — commission plus the one-tick
+   spread. Everything in GROSS.md, HUNT.md and EDGE.md is scored 60% too
+   expensive and needs re-running.
+
+**What the cheaper cost reveals is drift, not edge.** At $1.24 several
+configurations turn positive at 400+ trades a week, but the SAME bracket
+entered at random times earns +$0.95 — the market rose 8,492 points over the
+sample. The handful beating a negative random baseline are all NQM6, the same
+single quarter that produced the phantom +$2 rows, at 0.7–1.6σ.
+
+**Also settled today.** Posting instead of crossing: paired across 103,680
+families, median gain −$0.066, helps 49.6% of the time. Adverse selection
+consumes the entire two-tick improvement. Sweeps: 4,096 configurations, 14.5M
+trades, median −$1.00. Both dead.
+
+**Method rule.** Every result must now be printed beside what the same bracket
+earns entered at RANDOM times in the same period. Three separate findings today
+were the bull market wearing a strategy's clothes, and the random-entry column
+is the one line that exposes it immediately.
