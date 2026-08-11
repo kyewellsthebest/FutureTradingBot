@@ -43,6 +43,7 @@ The 2.5-tick slippage every earlier study charged was an estimate reported as a
 measurement -- the account has only traded a simulator, and measuring what
 latency costs gave -$0.014 a trade.
 """
+import hashlib
 import json
 import math
 import os
@@ -86,6 +87,8 @@ MIN_WIN = float(os.environ.get("MIN_WIN", "0.35"))
 MAX_WIN = float(os.environ.get("MAX_WIN", "0.65"))
 ACCOUNT = float(os.environ.get("ACCOUNT", "4100"))
 MAX_DD_PCT = float(os.environ.get("MAX_DD_PCT", "0.15"))
+# a leg firing above this is not a condition, it is the whole tape
+MAX_FIRE = float(os.environ.get("MAX_FIRE", "0.90"))
 HOURS = float(os.environ.get("HOURS", "2"))
 KBAR = [int(x) for x in os.environ.get("KBAR", "500").split(",")]
 QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")]
@@ -159,7 +162,7 @@ def main():
     deadline = t0 + HOURS * 3600
     meta = fuse.tape_meta()
     rows, hits, near = [], [], []
-    stat = dict(geo=0, freq=0, drift=0, win=0, full=0)
+    stat = dict(geo=0, freq=0, degen=0, drift=0, win=0, full=0)
     print(f"gates: >={MIN_TPW:.0f} trades/wk AND >=${MIN_DOL:.2f}/trade net, "
           f"beating random entry. budget {HOURS:g}h", flush=True)
 
@@ -288,12 +291,37 @@ def main():
                 fin = np.isfinite(v)
                 if fin.sum() < n * 0.5:
                     continue
+                # A CONDITION THAT IS ALWAYS TRUE IS NOT A CONDITION, and the
+                # first pass was full of them. g_regime is a binary +-1 label,
+                # so thresholding it at five quantiles gives the same all-true
+                # mask five times over -- which is why
+                # "f_wcofi120<0.2 & g_regime<0.35 & x_sweep<0.8" scored to the
+                # cent identically to the same rule at <0.5, <0.65 and <0.8,
+                # and identically to the plain pair without gamma at all. Four
+                # duplicate "triples" that added no constraint, ate the
+                # deadline, and each counted as another draw against the
+                # selection ceiling.
+                #
+                # Legs are now dropped when they fire almost always, and
+                # deduplicated on the SIGNAL itself rather than on the
+                # (feature, quantile, direction) label -- two labels that
+                # select the same bars are one leg however different they look.
+                seen_sig = set()
                 for q, thr in zip(QS, np.quantile(v[fin], QS)):
                     for side in (1, -1):
                         sig = ((v >= thr) if side > 0 else (v <= thr)) & fin
                         if sig.mean() < need:
                             stat["freq"] += len(pairs) * 2
                             continue
+                        if sig.mean() > MAX_FIRE:
+                            stat["degen"] += 1
+                            continue
+                        h = hashlib.blake2b(np.packbits(sig).tobytes(),
+                                            digest_size=16).digest()
+                        if h in seen_sig:
+                            stat["degen"] += 1
+                            continue
+                        seen_sig.add(h)
                         i0 = np.flatnonzero(sig)
                         legs.append((score(i0, fn, side, q), sig, fn, q, side))
 
@@ -363,6 +391,16 @@ def main():
                 if sig.mean() < need:
                     stat["freq"] += len(pairs) * 2
                     continue
+                # and again at the combination level: if adding a third leg
+                # selects exactly the bars the pair already selected, it is the
+                # pair. Scoring it a second time would be one more draw against
+                # the ceiling in exchange for nothing.
+                hc = hashlib.blake2b(np.packbits(sig).tobytes(),
+                                     digest_size=16).digest()
+                if hc in seen:
+                    stat["degen"] += 1
+                    continue
+                seen.add(hc)
                 lab = "&".join(f"{x[2]}{'>' if x[4] > 0 else '<'}{x[3]:g}"
                                for x in cb)
                 score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
@@ -395,6 +433,7 @@ def main():
     log("|---|---|")
     log(f"| −1 geometry, before any data | {stat['geo']:,} |")
     log(f"| 0 frequency, outcome untouched | {stat['freq']:,} |")
+    log(f"| 0b **degenerate — always true, or a duplicate mask** | {stat['degen']:,} |")
     log(f"| 1 win rate below what the bracket needs | {stat['win']:,} |")
     log(f"| 1b **below what RANDOM ENTRY earns** | {stat['drift']:,} |")
     log(f"| 2 fully scored | {stat['full']:,} |")
