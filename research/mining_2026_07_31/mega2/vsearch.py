@@ -272,7 +272,17 @@ def search_one(cn, K, cand, deadline):
                     b = pnl_of(r, te, 1 - TRAIN, dayspan)
                     if not a or not b:
                         continue
-                    if a["tpw"] < MIN_TPW or a["dol"] < MIN_DOL:
+                    # THE FREQUENCY MINIMUM IS A HIT CRITERION, NOT A
+                    # CANDIDATE FILTER. 400 trades a week has never once been
+                    # reached -- 0 of 11,742 scored configurations in the
+                    # six-hour run, against a maximum of 252 -- so applying it
+                    # here would guarantee an empty run for reasons that have
+                    # nothing to do with validation. It is enforced at the end,
+                    # where a hit must meet every minimum; anything that
+                    # validates but falls short on frequency is still recorded,
+                    # because "it generalises but only trades 250 times a week"
+                    # is information and an empty file is not.
+                    if a["dol"] < MIN_DOL:
                         continue
                     # ---- the held-out half of this very contract ----
                     if b["dol"] <= 0:
@@ -386,9 +396,17 @@ def main():
         print(f"  {len(cand)} candidates passed train+test, validating...",
               flush=True)
         vals = validate(cand, cons, end - 30)
-        good = [c for c in vals
-                if c["oos"]["dol"] >= MIN_OOS_DOL
-                and c["oos"]["green"] >= MIN_GREEN]
+        passed = [c for c in vals
+                  if c["oos"]["dol"] >= MIN_OOS_DOL
+                  and c["oos"]["green"] >= MIN_GREEN]
+        good = [c for c in passed if c["oos"]["tpw"] >= MIN_TPW]
+        short = [c for c in passed if c["oos"]["tpw"] < MIN_TPW]
+        for c in short:
+            o = c["oos"]
+            print(f"  validated but {o['tpw']:.0f}/wk < {MIN_TPW:.0f}: "
+                  f"${o['dol']:+.2f}/tr oos, {o['green']}/{o['q']} green",
+                  flush=True)
+        winners += short
         for c in good:
             STAT["hit"] += 1
             o = c["oos"]
@@ -397,7 +415,6 @@ def main():
                   f"    {c['mode']}of{[l[0] for l in c['legs']]} "
                   f"{'L' if c['side'] > 0 else 'S'} {c['stop']}/{c['tgt']}",
                   flush=True)
-        winners += good
         if good:
             top = max(good, key=lambda c: c["oos"]["dol"] * c["oos"]["tpw"])
             nd = max(MIN_DOL, round(top["oos"]["dol"] * 1.10, 3))
@@ -445,7 +462,14 @@ def main():
             f"before, reached without needing a separate validation pass to "
             f"discover it — which is the point of building it into the gate.")
     else:
-        log(f"`{len(winners)}` survived everything. Ranked by out-of-sample "
+        nfull = sum(1 for c in winners if c["oos"]["tpw"] >= MIN_TPW)
+        log(f"`{len(winners)}` survived train, test AND every other quarter — "
+            f"**{nfull}** of them also meet the {MIN_TPW:.0f} trades/week "
+            f"minimum. The rest generalise but trade too rarely, which is "
+            f"reported rather than hidden: 400 a week has never been reached "
+            f"by anything, in any run.")
+        log()
+        log(f"Ranked by out-of-sample "
             f"dollars per week, which is the only number here that was not "
             f"used to select them.")
         log()
