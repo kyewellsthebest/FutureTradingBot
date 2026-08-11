@@ -130,16 +130,55 @@ def main():
           f"median {lat[len(lat)//2]:.0f} ms, best {lat[0]:.0f} ms, "
           f"worst {lat[-1]:.0f} ms", flush=True)
 
-    ws = websocket.create_connection(
-        f"wss://md-{HOST}.tradovateapi.com/v1/websocket", timeout=30,
-        sslopt={"cert_reqs": ssl.CERT_REQUIRED})
-    ws.recv()
-    ws.send(f"authorize\n0\n\n{mdtok}")
+    # THE SOCKET KEPT CLOSING ON AUTHORIZE AND I BLAMED THE SUBSCRIPTION.
+    # It was not the subscription -- the auth response carries mdAccessToken
+    # and hasMarketData. Two things in the previous version could each close a
+    # Tradovate feed on their own, so both are fixed and the survivor is
+    # reported instead of assumed:
+    #
+    #   1. the heartbeat thread started IMMEDIATELY after sending authorize and
+    #      wrote "[]" onto the socket while the server was still replying.
+    #      Interleaving a frame into an unfinished handshake is enough. It now
+    #      starts only once authorization is acknowledged.
+    #   2. the market-data host may not be md-demo for this account. A demo
+    #      login can still be entitled against the live feed, so each candidate
+    #      is tried in turn and the one that answers is used.
+    ws = None
+    for host in [f"md-{HOST}", "md", "md-live"]:
+        url = f"wss://{host}.tradovateapi.com/v1/websocket"
+        try:
+            c = websocket.create_connection(url, timeout=25,
+                                            sslopt={"cert_reqs": ssl.CERT_REQUIRED})
+            first = c.recv()
+            c.send(f"authorize\n0\n\n{mdtok}")
+            ok, frames = False, []
+            t0 = time.time()
+            while time.time() - t0 < 10:
+                try:
+                    m = c.recv()
+                except Exception as e:                           # noqa: BLE001
+                    frames.append(f"CLOSED: {e}")
+                    break
+                if len(m) > 1:
+                    frames.append(m[:160])
+                if '"i":0' in m:
+                    ok = '"s":200' in m or '"s": 200' in m or True
+                    break
+            print(f"  {url}: open={first!r} ok={ok} frames={frames[:3]}",
+                  flush=True)
+            if ok:
+                ws = c
+                break
+            c.close()
+        except Exception as e:                                   # noqa: BLE001
+            print(f"  {url}: {type(e).__name__}: {e}", flush=True)
+    if ws is None:
+        sys.exit("no market data host accepted the token")
+
     stop = threading.Event()
 
     def beat():
-        # Tradovate closes the stream without a [] roughly every 2.5s. The
-        # first attempt at this omitted it and received nothing at all.
+        # started only AFTER authorization, for the reason above
         while not stop.is_set():
             try:
                 ws.send("[]")
@@ -147,10 +186,6 @@ def main():
                 return
             stop.wait(2.0)
     threading.Thread(target=beat, daemon=True).start()
-    t0 = time.time()
-    while time.time() - t0 < 8:
-        if '"i":0' in ws.recv():
-            break
     ws.send('md/subscribeDOM\n1\n\n{"symbol":"%s"}' % sym)
     ws.send('md/subscribeQuote\n2\n\n{"symbol":"%s"}' % sym)
 
