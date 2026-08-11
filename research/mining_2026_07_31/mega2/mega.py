@@ -130,6 +130,22 @@ WAIT = 2
 L = []
 
 
+def save_state():
+    """Write the checkpoint atomically -- temp file, then rename.
+
+    json.dump straight onto the path leaves the file truncated and invalid for
+    as long as it takes to serialise a quarter of a million rows. The watchdog
+    commits that file on a timer and a supervisor restart reads it, so either
+    can catch it mid-write; a torn checkpoint is a wiped search. rename() on
+    the same filesystem is atomic, so every reader sees either the previous
+    complete file or the new complete one and never a partial."""
+    tmp = STATE + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump({"rows": ROWS[-250000:], "stat": STAT, "min_dol": MIN_DOL,
+                   "min_tpw": MIN_TPW, "min_edge_rel": MIN_EDGE_REL}, fh)
+    os.replace(tmp, STATE)
+
+
 def log(s=""):
     print(s, flush=True)
     L.append(s)
@@ -768,9 +784,7 @@ def sweep(epoch, deadline):
                         print(f"  beep {e:+.4f}  {lab[:60]}", flush=True)
                         dig(cb, e)
 
-            json.dump({"rows": rows[-250000:], "stat": STAT,
-                       "min_dol": MIN_DOL, "min_tpw": MIN_TPW,
-                       "min_edge_rel": MIN_EDGE_REL}, open(STATE, "w"))
+            save_state()
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
                   f"{len(legs)} legs, {nf} scored, {len(hits)} hits "
                   f"({(time.time()-t0)/60:.0f}m)", flush=True)
@@ -970,9 +984,7 @@ def main():
                       f"x{1+MIN_EDGE_REL+0.02:.2f}", flush=True)
                 MIN_DOL, MIN_TPW = nd, nt
                 MIN_EDGE_REL += 0.02
-        json.dump({"rows": ROWS[-250000:], "stat": STAT,
-                   "min_dol": MIN_DOL, "min_tpw": MIN_TPW,
-                   "min_edge_rel": MIN_EDGE_REL}, open(STATE, "w"))
+        save_state()
         report()
         L.clear()
     print(f"\ndone: {ep} epochs, {len(ROWS):,} scored, {len(HITS)} hits",
