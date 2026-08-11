@@ -26,9 +26,10 @@ THREE THINGS ARE PRICED HONESTLY RATHER THAN ASSUMED:
   at once and double the risk in that moment. Concurrency is counted, not
   waved away.
 
-  CORRELATION. Both are SHORT. Two short strategies in a rising market are not
-  a diversified portfolio, and the day-level correlation says how much of the
-  second one is really a second bet.
+  CORRELATION. One rule is LONG and the other SHORT, so they may genuinely
+  diversify -- but that has to be measured rather than assumed from the signs,
+  because two rules can still lose on the same days. The day-level correlation
+  says how much of the second one is really a second bet.
 """
 import json
 import math
@@ -54,7 +55,15 @@ L = []
 
 # The two rules, exactly as the searches reported them.
 RULES = [
-    dict(name="A · duration+regime", k=3, side=-1, stop=49, tgt=62, K=500,
+    # SIDE AND BAR SIZE COME FROM THE RECORD, NOT FROM READING THE LABEL.
+    # The first version of this file guessed both from the rule text and got
+    # both wrong -- side SHORT when the record says LONG, and 500-tick bars
+    # when it was found on 250. On its own home quarter the reconstruction
+    # then produced -$2.14 a trade against the +$2.35 the search reported, a
+    # clean sign flip that only showed up because the home quarter was run at
+    # all. Anything trading on out-of-sample quarters alone would have looked
+    # merely disappointing rather than wrong.
+    dict(name="A · duration+regime", k=3, side=1, stop=49, tgt=62, K=250,
          home="NQU4",
          legs=[("d_z55", 1, 0.90), ("f_eff21", 1, 0.78), ("p_chop55", 1, 0.85),
                ("v_ac144", 1, 0.30), ("i_rty_sz600", 1, 0.80)]),
@@ -182,7 +191,8 @@ def main():
     for r in RULES:
         legs = ", ".join(f"`{f}`{'>' if s > 0 else '<'}{q:g}"
                          for f, s, q in r["legs"])
-        log(f"| **{r['name']}** | {r['k']} of ({legs}) — SHORT, "
+        log(f"| **{r['name']}** | {r['k']} of ({legs}) — "
+            f"**{'LONG' if r['side'] > 0 else 'SHORT'}**, {r['K']}-tick bars, "
             f"stop {r['stop']}/target {r['tgt']}, found in {r['home']} |")
     log()
 
@@ -266,12 +276,14 @@ def main():
 
     log("## What these numbers are resting on")
     log()
-    log(f"**Both rules are SHORT.** Their daily P&L correlates **{corr:+.2f}** "
-        f"on the {len(j):,} days both traded. Two short strategies in a market "
-        f"that rose 8,492 points are not a diversified portfolio — the second "
-        f"one is only partly a second bet, and that correlation is why the "
-        f"combined drawdown is closer to the sum of the two than to the square "
-        f"root of it.")
+    sides = "one LONG and one SHORT"
+    log(f"**The two rules trade opposite directions** — {sides}. Their daily "
+        f"P&L correlates **{corr:+.2f}** across the {len(j):,} days both were "
+        f"active. That number, not the direction labels, decides whether the "
+        f"second rule is a second bet: near zero and the drawdowns genuinely "
+        f"offset, strongly positive and they compound. Opposite signs do not "
+        f"guarantee opposite outcomes, because both can lose on the same "
+        f"choppy day.")
     log()
     log(f"**Execution is the whole result.** Both rest a limit, and the search "
         f"credited that a flat two ticks. Measured, resting is worth "
