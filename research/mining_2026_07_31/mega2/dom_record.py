@@ -44,6 +44,7 @@ import pandas as pd
 
 DUR = int(os.environ.get("DUR_MIN", "300")) * 60
 SNAP_MS = int(os.environ.get("SNAP_MS", "250"))
+PROBE_MIN = float(os.environ.get("PROBE_MIN", "5"))
 SYMBOL = os.environ.get("SYMBOL", "")
 OUT = os.environ.get("OUT_DIR", "data/dom")
 HOST = os.environ.get("TV_HOST", "demo")
@@ -70,9 +71,15 @@ def auth():
     # Printing it turns "the websocket died" into a fact worth quoting at
     # support: the API is not issuing a market-data token for this account.
     md = j.get("mdAccessToken")
-    print(f"  accessToken: yes | mdAccessToken: "
-          f"{'YES' if md else 'NO  <-- market data not entitled'} | "
-          f"keys returned: {sorted(j)}", flush=True)
+    # PRINTING THE KEY LIST WAS NOT ENOUGH. The last run reported
+    # "mdAccessToken: YES", authorized against md-demo with s:200, and then sat
+    # for five hours receiving nothing. Tradovate hands out an mdAccessToken
+    # whether or not the account is entitled -- the entitlement is the VALUE of
+    # hasMarketData, which was in the key list and never read.
+    print(f"  accessToken: yes | mdAccessToken: {'YES' if md else 'NO'} | "
+          f"hasMarketData={j.get('hasMarketData')!r} "
+          f"hasLive={j.get('hasLive')!r} userStatus={j.get('userStatus')!r}",
+          flush=True)
     return j["accessToken"], md or j["accessToken"], (time.time() - t0) * 1000
 
 
@@ -188,14 +195,43 @@ def main():
     threading.Thread(target=beat, daemon=True).start()
     ws.send('md/subscribeDOM\n1\n\n{"symbol":"%s"}' % sym)
     ws.send('md/subscribeQuote\n2\n\n{"symbol":"%s"}' % sym)
+    ws.send('md/getChart\n3\n\n{"symbol":"%s","chartDescription":'
+            '{"underlyingType":"Tick","elementSize":1,'
+            '"elementSizeUnit":"UnderlyingUnits"},'
+            '"timeRange":{"asMuchAsElements":20}}' % sym)
 
     rows, stale, last = [], [], 0.0
+    # THE LAST RUN THREW AWAY THE ANSWER. Every frame without "doms" was
+    # dropped, so the reply to the subscribe request itself -- the one frame
+    # that would have said WHY no depth was coming -- went in the bin, and the
+    # job spent five hours waiting on a subscription that may have been
+    # rejected in the first second. Frames are now counted by kind and the
+    # first few of each are printed, so the run ends with a fact rather than
+    # "check market data entitlement".
+    kinds, shown = {}, {}
     t0 = time.time()
     while time.time() - t0 < DUR:
         try:
             m = ws.recv()
         except Exception as e:                                   # noqa: BLE001
             print("ws closed:", e, flush=True)
+            break
+        if len(m) > 1:
+            k = ("doms" if '"doms"' in m else
+                 "quotes" if '"quotes"' in m else
+                 "charts" if '"charts"' in m or '"bars"' in m else
+                 "reply" if '"i":' in m else "other")
+            kinds[k] = kinds.get(k, 0) + 1
+            if shown.get(k, 0) < 3:
+                shown[k] = shown.get(k, 0) + 1
+                print(f"  [{k}] {m[:400]}", flush=True)
+        # Do not burn five hours proving a subscription was refused in the
+        # first second. If no market data of any kind has arrived by PROBE_MIN,
+        # the answer is already in and the run is over.
+        if (not kinds.get("doms") and not kinds.get("quotes")
+                and time.time() - t0 > PROBE_MIN * 60):
+            print(f"no market data in {PROBE_MIN} min -- stopping early",
+                  flush=True)
             break
         if '"doms"' not in m:
             continue
@@ -236,8 +272,19 @@ def main():
     except Exception:                                            # noqa: BLE001
         pass
 
+    print(f"frames received by kind: {kinds or 'NONE AT ALL'}", flush=True)
     if not rows:
-        print("no depth received -- check market data entitlement")
+        # Distinguish the three cases that all used to print the same line.
+        if not kinds:
+            print("socket authorized but delivered NOTHING -- not even a "
+                  "heartbeat echo. The connection is dead after authorize.")
+        elif kinds.get("quotes") or kinds.get("charts"):
+            print("quotes/charts ARRIVED but depth did not -- the account has "
+                  "market data; md/subscribeDOM specifically is refused. That "
+                  "is a depth entitlement, not a connection problem.")
+        else:
+            print("only replies/heartbeats arrived -- no market data of any "
+                  "kind. See the [reply] frames above for the refusal.")
         return
     df = pd.DataFrame(rows)
     day = time.strftime("%Y-%m-%d")
