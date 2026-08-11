@@ -59,7 +59,8 @@ import hunt  # noqa: E402
 
 OUT = os.environ.get("OUT_MD", os.path.join(fuse.ROOT, "research", "MEGA.md"))
 GEX = os.path.join(fuse.ROOT, "data", "gex", "gex_history.parquet")
-STATE = os.path.join(fuse.ROOT, "data", "mega_state.json")
+STATE = os.environ.get("STATE_JSON",
+                       os.path.join(fuse.ROOT, "data", "mega_state.json"))
 MIN_TPW = float(os.environ.get("MIN_TPW", "500"))
 MIN_DOL = float(os.environ.get("MIN_DOL", "2.00"))
 MAX_EDGE = float(os.environ.get("MAX_EDGE", "0.06"))
