@@ -76,8 +76,18 @@ MKT = {"NQ":  dict(tickval=0.50, tickpx=0.25),
        "RTY": dict(tickval=0.50, tickpx=0.10),
        "YM":  dict(tickval=0.50, tickpx=1.00),
        "CL":  dict(tickval=1.00, tickpx=0.01)}
+# COST, CORRECTED. This charged 0.74 commission plus 2.5 ticks of "slippage",
+# and the 2.5 ticks was an estimate reported as a measurement -- the account
+# has only ever traded the simulator, which fills at the requested price (34
+# fills, median +0.00 ticks). Measuring what latency costs gave -$0.014 a
+# trade, so delay is not the source either.
+#
+# What a taker genuinely pays on a round turn is the commission plus ONE full
+# spread: buy at the offer, sell at the bid, and the difference against mid is
+# one tick. On NQ that is $1.24, not $1.99 -- 60% cheaper, and every earlier
+# study is scored against the wrong number.
 for _m in MKT:
-    MKT[_m]["cost"] = 0.74 + 2.5 * MKT[_m]["tickval"]
+    MKT[_m]["cost"] = 0.74 + 1.0 * MKT[_m]["tickval"]
 MARKETS = os.environ.get("MARKETS", "NQ,RTY,YM,ES,CL").split(",")
 L = []
 
@@ -183,7 +193,8 @@ def main():
           else {"done": [], "rows": []})
     done, rows, hits = set(st["done"]), st["rows"], []
     allnear = []
-    QS = [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
+    QS = [float(x) for x in os.environ.get("QS",
+      "0.15,0.25,0.35,0.45,0.55,0.65,0.75,0.85").split(",")]
     stat = dict(g_geo=0, g_freq=0, g_win=0, g_full=0)
 
     jobs = []
