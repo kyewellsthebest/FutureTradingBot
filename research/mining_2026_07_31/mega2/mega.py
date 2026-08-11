@@ -1,0 +1,347 @@
+"""Everything at once: every stream, both entry styles, all gates, one search.
+
+WHY THIS FILE EXISTS. Each idea from the brainstorm was tested in its own
+script and never together. hunt.py searched NQ price and order flow. edge.py
+tested passive entry and sweeps. regime.py tested gamma. Nothing ever combined
+them, so a rule that needs "heavy buy flow AND the index complex agreeing AND
+a long-gamma session" could not be expressed, let alone found. That combination
+is the entire premise -- watching several unrelated streams at once is the one
+advantage a bot has that a human cannot copy.
+
+WHAT IS IN THE SEARCH SPACE NOW:
+
+  p_   NQ price path
+  f_   NQ order flow -- aggressor side times size
+  i_   the index complex, ES/YM/RTY on NQ's clock, wall-clock windows
+  m_   the macro complex, CL/GC/HG
+  x_   sweeps: one aggressor taking several levels at once
+  g_   dealer gamma -- 484 sessions labelled from option prices
+
+  entries        crossing the spread AND resting a limit, scored separately
+  exits          brackets on first touch, ties to the stop
+  conditions     pairs of the above, so two streams can be required together
+
+FOUR GATES, cheapest first, and the last one is new:
+
+  -1  GEOMETRY    cost/(S+T): the edge over a coin flip the bracket demands,
+                  known before any data is read
+   0  FREQUENCY   fires often enough for the trades/week target, outcome
+                  untouched
+   1  WIN RATE    beats the rate the bracket REQUIRES *and* beats what the
+                  same bracket earns at random entry
+   2  FULL        every bar, exact, non-overlapping
+
+THE RANDOM-ENTRY GATE IS THE ONE THAT MATTERS. NQ rose 8,492 points across this
+sample, so a long bracket makes money for no reason whatsoever. Three separate
+findings today were exactly that, and each survived until someone thought to
+ask what a random entry would have earned. Here it is a gate rather than a
+post-mortem: a configuration that cannot beat its own random baseline never
+reaches full scoring.
+
+COST is 0.74 commission plus one spread, which is what a taker actually pays.
+The 2.5-tick slippage every earlier study charged was an estimate reported as a
+measurement -- the account has only traded a simulator, and measuring what
+latency costs gave -$0.014 a trade.
+"""
+import json
+import math
+import os
+import sys
+import time
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fuse  # noqa: E402
+import hunt  # noqa: E402
+
+OUT = os.environ.get("OUT_MD", os.path.join(fuse.ROOT, "research", "MEGA.md"))
+GEX = os.path.join(fuse.ROOT, "data", "gex", "gex_history.parquet")
+STATE = os.path.join(fuse.ROOT, "data", "mega_state.json")
+MIN_TPW = float(os.environ.get("MIN_TPW", "500"))
+MIN_DOL = float(os.environ.get("MIN_DOL", "2.00"))
+MAX_EDGE = float(os.environ.get("MAX_EDGE", "0.06"))
+# THE JOINT FILTER. Screening on win rate alone accepts a 92% winner risking
+# 554 to make 62, which needs 90.3% just to break even -- one bad run and it is
+# gone. Screening on reward:risk alone accepts a 7:1 payoff that wins 7% of the
+# time. Neither is a strategy. Both together are: the payoff must be worth
+# taking AND the win rate must clear what that payoff demands by a real margin,
+# not by a rounding error.
+MIN_RR = float(os.environ.get("MIN_RR", "1.0"))      # target / stop
+MIN_EDGE_PP = float(os.environ.get("MIN_EDGE_PP", "0.01"))   # over the bar
+HOURS = float(os.environ.get("HOURS", "2"))
+KBAR = [int(x) for x in os.environ.get("KBAR", "500").split(",")]
+QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")]
+NLEG = int(os.environ.get("NLEG", "34"))
+WAIT = 2
+L = []
+
+
+def log(s=""):
+    print(s, flush=True)
+    L.append(s)
+
+
+def gamma_features(ts):
+    """Dealer gamma as two columns on the bar grid: which regime, and how
+    extreme. Rebuilt from option prices, so it costs nothing to keep."""
+    if not os.path.exists(GEX):
+        return {}
+    g = pd.read_parquet(GEX)
+    g = g[g.fam == "NDX"].copy()
+    g["date"] = pd.to_datetime(g.day).dt.strftime("%Y-%m-%d")
+    sign = dict(zip(g.date, np.where(g.gex_vol > 0, 1.0, -1.0)))
+    z = (g.gex_vol - g.gex_vol.mean()) / max(g.gex_vol.std(), 1e-9)
+    mag = dict(zip(g.date, z))
+    d = pd.to_datetime(ts).strftime("%Y-%m-%d")
+    return {"g_regime": np.array([sign.get(x, 0.0) for x in d]),
+            "g_gex": np.array([mag.get(x, np.nan) for x in d])}
+
+
+def features(cn, K):
+    """Every stream on one clock. fuse.build carries the cross-market layer
+    with wall-clock windows; hunt.build carries the bar-based price path and
+    order flow. Both, plus sweeps and gamma."""
+    B, F, cov = fuse.build(cn, K, verbose=False)
+    Bh, Fh = hunt.build(cn, K, fuse.tape_meta()[cn]["path"])
+    n = min(len(B["c"]), len(Bh["c"]))
+    for k in B:
+        B[k] = B[k][:n]
+    F = {k: np.asarray(v)[:n] for k, v in F.items()}
+    for k, v in Fh.items():
+        F.setdefault(k, np.asarray(v)[:n])
+    rng = np.maximum(B["h"] - B["l"], 1e-9)
+    F["x_sweep"] = (B["c"] - B["o"]) / rng
+    F.update({k: v[:n] for k, v in gamma_features(B["ts"]).items()})
+    return B, F
+
+
+def entries(B, idx, side, tpx, passive):
+    """Crossing pays the offer. Resting waits for a trade-through, which only
+    happens when price kept moving against you -- adverse selection, taken off
+    the tape rather than assumed."""
+    if not passive:
+        return idx, B["c"][idx] + side * tpx
+    lo, hi, n = B["l"], B["h"], len(B["c"])
+    at, px = [], []
+    for i in idx:
+        want = B["c"][i] - side * tpx
+        thru = want - side * tpx
+        for j in range(i + 1, min(i + WAIT, n - 1) + 1):
+            if (side > 0 and lo[j] <= thru) or (side < 0 and hi[j] >= thru):
+                at.append(j)
+                px.append(want)
+                break
+    return np.array(at, dtype=np.int64), np.array(px)
+
+
+def main():
+    t0 = time.time()
+    deadline = t0 + HOURS * 3600
+    meta = fuse.tape_meta()
+    rows, hits, near = [], [], []
+    stat = dict(geo=0, freq=0, drift=0, win=0, full=0)
+    print(f"gates: >={MIN_TPW:.0f} trades/wk AND >=${MIN_DOL:.2f}/trade net, "
+          f"beating random entry. budget {HOURS:g}h", flush=True)
+
+    for cn in fuse.NQ_CONTRACTS:
+        for K in KBAR:
+            if time.time() > deadline:
+                break
+            try:
+                B, F = features(cn, K)
+            except Exception as e:                               # noqa: BLE001
+                print(f"{cn} K{K}: {type(e).__name__}: {e}", flush=True)
+                continue
+            n = len(B["c"])
+            days = len(np.unique(B["ts"] // fuse.DAY_NS))
+            if n < 8000 or days < 20:
+                continue
+            bpd = n / days
+            tv, tpx = hunt.MKT["NQ"]["tickval"], hunt.MKT["NQ"]["tickpx"]
+            cost = hunt.MKT["NQ"]["cost"]
+            need = MIN_TPW / 5.0 / bpd
+            ct = cost / tv
+            unit = max(float(np.median(B["h"] - B["l"])) / tpx, 1.0)
+            ks = np.unique(np.rint(unit * np.array([.5, 1, 1.5, 2, 3, 4.5, 7]))
+                           ).astype(int)
+            ks = ks[ks >= 1]
+            pairs = [(i, j) for i in range(len(ks)) for j in range(len(ks))
+                     if ct / (ks[i] + ks[j]) <= MAX_EDGE
+                     and ks[j] / ks[i] >= MIN_RR]
+            stat["geo"] += len(ks) ** 2 - len(pairs)
+            if not pairs:
+                continue
+            up, dn = hunt.tau(B, ks, tpx)
+            OC, PALL = {}, {}
+            for (si, ti) in pairs:
+                for side in (1, -1):
+                    o = hunt.outcomes(B, up, dn, si, ti, side, ks, tpx, tv)[:3]
+                    OC[(si, ti, side)] = o
+                    PALL[(si, ti, side)] = float(o[2].mean())
+            del up, dn
+
+            legs, nf = [], 0
+            names = sorted(F)
+
+            def score(idx0, label, side, q):
+                nonlocal nf
+                best = -9.9
+                for (si, ti) in pairs:
+                    r, hold, wt = OC[(si, ti, side)]
+                    pstar = (ks[si] + ct) / (ks[si] + ks[ti])
+                    pall = PALL[(si, ti, side)]
+                    for passive in (False, True):
+                        at, epx = entries(B, idx0, side, tpx, passive)
+                        if len(at) < 200:
+                            continue
+                        pf = float(wt[at].mean())
+                        best = max(best, pf - max(pstar, pall))
+                        # GATE 1 -- must beat the rate the bracket requires AND
+                        # what the same bracket earns at random entry
+                        if pf < pstar:
+                            stat["win"] += 1
+                            continue
+                        if pf < pall + MIN_EDGE_PP:
+                            stat["drift"] += 1
+                            near.append((pf - pall, label, "drift"))
+                            continue
+                        keep = hunt.nonoverlap(at, hold)
+                        if len(keep) < 100:
+                            continue
+                        sel = np.isin(at, keep)
+                        kk, kpx = at[sel], epx[sel]
+                        # PASSIVE P&L, CORRECTED. This credited
+                        # (close - fill) * side, which pays you the whole
+                        # intrabar recovery after a dip fill WITHOUT ever
+                        # risking the stop during it -- the bracket only starts
+                        # at the bar close. On 27-minute bars that produced
+                        # +$13.67 a trade against -$1.96 for the identical
+                        # bracket crossed, a $15.63 gap where two ticks is the
+                        # ceiling. Resting a limit is worth exactly two ticks
+                        # and not a cent more, so that is what is credited.
+                        gain = 2.0 * tv if passive else 0.0
+                        pnl = r[kk] + gain - cost
+                        mu = float(pnl.mean())
+                        tpw = len(kk) / days * 5
+                        nf += 1
+                        stat["full"] += 1
+                        sew = math.sqrt(max(pall * (1 - pall), 1e-9) / len(kk))
+                        rec = dict(con=cn, K=K, feat=label, q=q, side=side,
+                                   passive=passive, stop=int(ks[si]),
+                                   tgt=int(ks[ti]), n=len(kk), tpw=tpw,
+                                   dol=mu, wk=mu * tpw, win=pf, pstar=pstar,
+                                   pall=pall, zd=(pf - pall) / sew)
+                        rows.append(rec)
+                        if tpw >= MIN_TPW and mu >= MIN_DOL:
+                            hits.append(rec)
+                            print(f"  *** HIT {label[:30]} {tpw:.0f}/wk "
+                                  f"${mu:+.2f} ${mu*tpw:+,.0f}/wk "
+                                  f"{rec['zd']:+.1f}σ", flush=True)
+                return best
+
+            for fn in names:
+                v = np.asarray(F[fn], dtype=np.float64)
+                fin = np.isfinite(v)
+                if fin.sum() < n * 0.5:
+                    continue
+                for q, thr in zip(QS, np.quantile(v[fin], QS)):
+                    for side in (1, -1):
+                        sig = ((v >= thr) if side > 0 else (v <= thr)) & fin
+                        if sig.mean() < need:
+                            stat["freq"] += len(pairs) * 2
+                            continue
+                        i0 = np.flatnonzero(sig)
+                        legs.append((score(i0, fn, side, q), sig, fn, q, side))
+
+            # PAIRS: two streams required together, which is the whole point
+            legs.sort(key=lambda z: -z[0])
+            for a in range(min(NLEG, len(legs))):
+                for b in range(a + 1, min(NLEG, len(legs))):
+                    if time.time() > deadline:
+                        break
+                    _, s1, f1, q1, d1 = legs[a]
+                    _, s2, f2, q2, d2 = legs[b]
+                    if f1 == f2:
+                        continue
+                    sig = s1 & s2
+                    if sig.mean() < need:
+                        stat["freq"] += len(pairs) * 2
+                        continue
+                    score(np.flatnonzero(sig), f"{f1}&{f2}", d1, q1)
+
+            json.dump({"rows": rows[-200000:]}, open(STATE, "w"))
+            print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
+                  f"{len(legs)} legs, {nf} scored, {len(hits)} hits "
+                  f"({(time.time()-t0)/60:.0f}m)", flush=True)
+
+    # ---------------------------------------------------------------- report
+    d = pd.DataFrame(rows)
+    ceil = math.sqrt(2 * math.log(max(len(d), 2)))
+    log("# Every stream, both entry styles, one search")
+    log()
+    log("Each idea was previously tested in its own script and never together. "
+        "`hunt.py` searched NQ price and flow, `edge.py` tested passive entry "
+        "and sweeps, `regime.py` tested gamma. So a rule needing *heavy buy "
+        "flow AND the index complex agreeing AND a long-gamma session* could "
+        "not be expressed, let alone found — which is the entire premise, "
+        "since watching several unrelated streams at once is the one advantage "
+        "a bot has that a human cannot copy.")
+    log()
+    log(f"Streams: NQ price, NQ order flow, the index complex (ES/YM/RTY), the "
+        f"macro complex (CL/GC/HG), sweeps, and dealer gamma over 484 labelled "
+        f"sessions. Entries scored **both** crossing and resting a limit. "
+        f"Cost **${hunt.MKT['NQ']['cost']:.2f}** — commission plus one spread, "
+        f"which is what a taker actually pays.")
+    log()
+    log("| gate | rejected |")
+    log("|---|---|")
+    log(f"| −1 geometry, before any data | {stat['geo']:,} |")
+    log(f"| 0 frequency, outcome untouched | {stat['freq']:,} |")
+    log(f"| 1 win rate below what the bracket needs | {stat['win']:,} |")
+    log(f"| 1b **below what RANDOM ENTRY earns** | {stat['drift']:,} |")
+    log(f"| 2 fully scored | {stat['full']:,} |")
+    log()
+    log("**Gate 1b is the one that matters.** NQ rose 8,492 points across this "
+        "sample, so a long bracket makes money for no reason at all. Three "
+        "separate findings today were exactly that, each surviving until "
+        "someone asked what a random entry would have earned. Here it is a "
+        "gate rather than a post-mortem.")
+    log()
+    if len(d) == 0:
+        log("Nothing reached full scoring.")
+    else:
+        log(f"`{len(d):,}` scored. `{int((d.tpw >= MIN_TPW).sum()):,}` frequent "
+            f"enough, `{int((d.dol >= MIN_DOL).sum()):,}` paid enough, "
+            f"**`{len(hits)}` did both.** Selection ceiling "
+            f"**{ceil:.1f}σ**.")
+        log()
+        for title, sel in ((f"Cleared both gates", d[(d.tpw >= MIN_TPW) &
+                                                     (d.dol >= MIN_DOL)]),
+                           (f"Best $/week among {MIN_TPW:.0f}+ trades/week",
+                            d[d.tpw >= MIN_TPW].nlargest(12, "wk")),
+                           ("Highest sigma over random entry, any frequency",
+                            d.nlargest(12, "zd"))):
+            if not len(sel):
+                continue
+            log(f"### {title}")
+            log()
+            log("| trigger | entry | stop | tgt | win% | needs | random | "
+                "**σ vs random** | tr/wk | $/trade | **$/week** |")
+            log("|---|---|---|---|---|---|---|---|---|---|---|")
+            for _, r in sel.iterrows():
+                log(f"| {r.feat[:34]} q{r.q:g} | "
+                    f"{'post' if r.passive else 'cross'} | {int(r.stop)} | "
+                    f"{int(r.tgt)} | {r.win*100:.1f}% | {r.pstar*100:.1f}% | "
+                    f"{r.pall*100:.1f}% | **{r.zd:+.1f}σ** | {r.tpw:.0f} | "
+                    f"${r.dol:+.2f} | **${r.wk:+,.0f}** |")
+            log()
+    log(f"_Ran {(time.time()-t0)/3600:.2f} h._")
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    open(OUT, "w").write("\n".join(L) + "\n")
+    print("\nwrote", OUT)
+
+
+if __name__ == "__main__":
+    main()
