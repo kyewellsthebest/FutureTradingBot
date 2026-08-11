@@ -907,10 +907,16 @@ def main():
             ROWS.extend(prev.get("rows", []))
             for k, v in (prev.get("stat") or {}).items():
                 STAT[k] = STAT.get(k, 0) + v
-            MIN_DOL = max(MIN_DOL, float(prev.get("min_dol", MIN_DOL)))
-            MIN_TPW = max(MIN_TPW, float(prev.get("min_tpw", MIN_TPW)))
+            # `or` rather than a dict default: a key present with a null
+            # value slips past .get(), and float(None) would raise straight
+            # into the catch-all below -- which starts clean and throws away
+            # every row already scored. A stale checkpoint written before
+            # these keys existed would have silently wiped the run on its
+            # first restart.
+            MIN_DOL = max(MIN_DOL, float(prev.get("min_dol") or MIN_DOL))
+            MIN_TPW = max(MIN_TPW, float(prev.get("min_tpw") or MIN_TPW))
             MIN_EDGE_REL = max(MIN_EDGE_REL,
-                               float(prev.get("min_edge_rel", MIN_EDGE_REL)))
+                               float(prev.get("min_edge_rel") or 0.0))
             print(f"resumed: {len(ROWS):,} rows, bar ${MIN_DOL:.2f}/trade "
                   f"at {MIN_TPW:.0f}/wk, break-even x{1+MIN_EDGE_REL:.2f}",
                   flush=True)
