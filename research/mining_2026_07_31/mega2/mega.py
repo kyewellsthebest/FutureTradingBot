@@ -69,7 +69,23 @@ MAX_EDGE = float(os.environ.get("MAX_EDGE", "0.06"))
 # taking AND the win rate must clear what that payoff demands by a real margin,
 # not by a rounding error.
 MIN_RR = float(os.environ.get("MIN_RR", "1.0"))      # target / stop
+MAX_RR = float(os.environ.get("MAX_RR", "2.5"))
 MIN_EDGE_PP = float(os.environ.get("MIN_EDGE_PP", "0.01"))   # over the bar
+# SURVIVABILITY, which is a separate question from expectancy and the one that
+# actually ends accounts. At 500 trades a week you take 26,000 a year, and the
+# longest losing run you should EXPECT is log(n)/log(1/(1-p)). At a 16% win
+# rate that is sixty losses back to back -- $966 on a 32-tick stop, a quarter
+# of a $4,100 account, gone in one run. At 50% it is fifteen losses and $440.
+# Identical expectancy, less than half the damage, and the difference between
+# a bot you leave running and one you switch off at the worst moment.
+#
+# A bracket's required win rate is (S+c)/(S+T), and the achieved rate lands
+# within a few points of it, so the band can be enforced at the GEOMETRY gate
+# for free -- before any data is touched.
+MIN_WIN = float(os.environ.get("MIN_WIN", "0.35"))
+MAX_WIN = float(os.environ.get("MAX_WIN", "0.65"))
+ACCOUNT = float(os.environ.get("ACCOUNT", "4100"))
+MAX_DD_PCT = float(os.environ.get("MAX_DD_PCT", "0.15"))
 HOURS = float(os.environ.get("HOURS", "2"))
 KBAR = [int(x) for x in os.environ.get("KBAR", "500").split(",")]
 QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")]
@@ -167,9 +183,22 @@ def main():
             ks = np.unique(np.rint(unit * np.array([.5, 1, 1.5, 2, 3, 4.5, 7]))
                            ).astype(int)
             ks = ks[ks >= 1]
+            def keep_bracket(i, j):
+                S, T = ks[i], ks[j]
+                if ct / (S + T) > MAX_EDGE:
+                    return False
+                if not (MIN_RR <= T / S <= MAX_RR):
+                    return False
+                need = (S + ct) / (S + T)
+                if not (MIN_WIN <= need <= MAX_WIN):
+                    return False
+                # expected worst losing run over a year at this frequency,
+                # priced against the account
+                n = MIN_TPW * 52
+                run = math.log(n) / math.log(1 / max(1 - need, 1e-9))
+                return run * S * tv <= MAX_DD_PCT * ACCOUNT
             pairs = [(i, j) for i in range(len(ks)) for j in range(len(ks))
-                     if ct / (ks[i] + ks[j]) <= MAX_EDGE
-                     and ks[j] / ks[i] >= MIN_RR]
+                     if keep_bracket(i, j)]
             stat["geo"] += len(ks) ** 2 - len(pairs)
             if not pairs:
                 continue
@@ -232,7 +261,11 @@ def main():
                                    passive=passive, stop=int(ks[si]),
                                    tgt=int(ks[ti]), n=len(kk), tpw=tpw,
                                    dol=mu, wk=mu * tpw, win=pf, pstar=pstar,
-                                   pall=pall, zd=(pf - pall) / sew)
+                                   pall=pall, zd=(pf - pall) / sew,
+                                   rr=ks[ti] / ks[si],
+                                   dd=(math.log(max(tpw, 1) * 52) /
+                                       math.log(1 / max(1 - pf, 1e-9))
+                                       * ks[si] * tv))
                         rows.append(rec)
                         if tpw >= MIN_TPW and mu >= MIN_DOL:
                             hits.append(rec)
@@ -327,15 +360,16 @@ def main():
                 continue
             log(f"### {title}")
             log()
-            log("| trigger | entry | stop | tgt | win% | needs | random | "
-                "**σ vs random** | tr/wk | $/trade | **$/week** |")
-            log("|---|---|---|---|---|---|---|---|---|---|---|")
+            log("| trigger | entry | R:R | win% | random | **σ vs random** | "
+                "tr/wk | $/trade | **$/week** | worst run $ |")
+            log("|---|---|---|---|---|---|---|---|---|---|")
             for _, r in sel.iterrows():
-                log(f"| {r.feat[:34]} q{r.q:g} | "
-                    f"{'post' if r.passive else 'cross'} | {int(r.stop)} | "
-                    f"{int(r.tgt)} | {r.win*100:.1f}% | {r.pstar*100:.1f}% | "
+                log(f"| {r.feat[:32]} q{r.q:g} | "
+                    f"{'post' if r.passive else 'cross'} | "
+                    f"{r.get('rr', 0):.1f}:1 | {r.win*100:.1f}% | "
                     f"{r.pall*100:.1f}% | **{r.zd:+.1f}σ** | {r.tpw:.0f} | "
-                    f"${r.dol:+.2f} | **${r.wk:+,.0f}** |")
+                    f"${r.dol:+.2f} | **${r.wk:+,.0f}** | "
+                    f"${r.get('dd', 0):,.0f} |")
             log()
     log(f"_Ran {(time.time()-t0)/3600:.2f} h._")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
