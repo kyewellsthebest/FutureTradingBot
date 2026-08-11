@@ -223,7 +223,11 @@ def search_one(cn, K, cand, deadline):
     combos = [c for tier in itertools.zip_longest(*groups)
               for c in tier if c is not None]
 
+    print(f"  {cn} K{K}: {len(ks)} rungs, {len(pairs)} brackets, "
+          f"{len(types)} types, {len(combos):,} combos "
+          f"(train {cut:,}/{n:,} bars)", flush=True)
     seen = set()
+    t_start = time.time()
     for cb in combos:
         if time.time() > deadline or len(cand) >= MAX_CAND:
             return
@@ -304,6 +308,8 @@ def search_one(cn, K, cand, deadline):
                       f"{[x[1] for x in cb]} {'L' if side > 0 else 'S'} "
                       f"train ${a['dol']:+.2f}@{a['tpw']:.0f}/wk  "
                       f"test ${b['dol']:+.2f}@{b['tpw']:.0f}/wk", flush=True)
+    print(f"  {cn} K{K}: done, {len(cand)} candidates so far "
+          f"({(time.time()-t_start)/60:.0f}m)", flush=True)
     del B, F, OC
 
 
