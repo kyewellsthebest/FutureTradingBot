@@ -92,3 +92,7 @@ research/mining_2026_07_31/mega2/*.log
 # hunt: bar caches and resumable search state (regenerated from tape)
 data/tick/barcache/
 data/tick/hunt_state.json
+
+# regenerable feature cache -- 58 MB per contract-clock, rebuilt from the
+# tapes on demand. Build artifact, not source.
+data/fcache/
