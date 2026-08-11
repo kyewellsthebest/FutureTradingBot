@@ -104,6 +104,11 @@ ACCOUNT = float(os.environ.get("ACCOUNT", "4100"))
 MAX_DD_PCT = float(os.environ.get("MAX_DD_PCT", "0.15"))
 # a leg firing above this is not a condition, it is the whole tape
 MAX_FIRE = float(os.environ.get("MAX_FIRE", "0.90"))
+# how far below the gate the cheap crossing screen still bothers looking
+PROBE = float(os.environ.get("PROBE", "0.04"))
+# come this close to the gate and the sweep stops to dig around the spot
+BEEP = float(os.environ.get("BEEP", "0.015"))
+DIG_ROUNDS = int(os.environ.get("DIG_ROUNDS", "6"))
 HOURS = float(os.environ.get("HOURS", "2"))
 KBAR = [int(x) for x in os.environ.get("KBAR", "500").split(",")]
 QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")]
@@ -220,7 +225,8 @@ def main():
     deadline = t0 + HOURS * 3600
     meta = fuse.tape_meta()
     rows, hits, near = [], [], []
-    stat = dict(geo=0, freq=0, degen=0, drift=0, win=0, full=0)
+    stat = dict(geo=0, freq=0, degen=0, prune=0, drift=0, win=0,
+            full=0, dig=0, beeps=0)
     print(f"gates: >={MIN_TPW:.0f} trades/wk AND >=${MIN_DOL:.2f}/trade net, "
           f"beating random entry. budget {HOURS:g}h", flush=True)
 
@@ -284,21 +290,74 @@ def main():
             legs, nf = [], 0
             names = sorted(F)
 
+            FV = {}
+
+            def mkleg(fn, q, side):
+                """A leg at an arbitrary quantile, so the dig can step off the
+                coarse grid the sweep uses."""
+                if not (0.02 <= q <= 0.98):
+                    return None
+                v = FV.get(fn)
+                if v is None:
+                    v = np.asarray(F[fn], dtype=np.float64)
+                    FV[fn] = v
+                fin = np.isfinite(v)
+                if fin.sum() < len(v) * 0.5:
+                    return None
+                thr = float(np.quantile(v[fin], q))
+                sig = ((v >= thr) if side > 0 else (v <= thr)) & fin
+                m = sig.mean()
+                if m < need or m > MAX_FIRE:
+                    return None
+                return (0.0, sig, fn, round(q, 3), side)
+
             def score(idx0, label, side, q):
+                """Cheap screen first, full work only where the screen beeps.
+
+                THE OLD LOOP RECOMPUTED THE SAME THING FORTY TIMES. entries()
+                depends on the signal, the side and the entry style -- and NOT
+                on the bracket -- but it was called inside the bracket loop, so
+                its Python for-loop over every signal bar ran once per bracket
+                per entry style. That was most of the runtime, spent
+                recalculating an identical answer.
+
+                It is now hoisted out. And before any of it runs, every bracket
+                is screened with crossing only, which is pure numpy: for a
+                crossing entry `entries` returns the signal indices unchanged,
+                so wt[idx0].mean() is the exact win rate, not an approximation.
+                If no bracket comes within PROBE of the gate on that screen,
+                the whole configuration is dropped without a single Python
+                loop. Dead ground gets walked over, not dug."""
                 nonlocal nf
                 best = -9.9
+                live = []
                 for (si, ti) in pairs:
+                    wt = OC[(si, ti, side)][2]
+                    pstar = (ks[si] + ct) / (ks[si] + ks[ti])
+                    pall = PALL[(si, ti, side)]
+                    bar = max(pstar * (1.0 + MIN_EDGE_REL), pall + MIN_EDGE_PP)
+                    e = float(wt[idx0].mean()) - bar
+                    if e > best:
+                        best = e
+                    if e >= -PROBE:
+                        live.append((si, ti))
+                if not live:
+                    stat["prune"] += len(pairs) * 2
+                    return best
+
+                AT = {pv: entries(B, idx0, side, tpx, pv)
+                      for pv in (False, True)}
+                for (si, ti) in live:
                     r, hold, wt = OC[(si, ti, side)]
                     pstar = (ks[si] + ct) / (ks[si] + ks[ti])
                     pall = PALL[(si, ti, side)]
+                    bar = max(pstar * (1.0 + MIN_EDGE_REL), pall + MIN_EDGE_PP)
                     for passive in (False, True):
-                        at, epx = entries(B, idx0, side, tpx, passive)
+                        at, epx = AT[passive]
                         if len(at) < 200:
                             continue
                         pf = float(wt[at].mean())
-                        best = max(best, pf - max(pstar, pall))
-                        # GATE 1 -- must beat the rate the bracket requires AND
-                        # what the same bracket earns at random entry
+                        best = max(best, pf - bar)
                         if pf < pstar * (1.0 + MIN_EDGE_REL):
                             stat["win"] += 1
                             continue
@@ -310,19 +369,11 @@ def main():
                         if len(keep) < 100:
                             continue
                         sel = np.isin(at, keep)
-                        kk, kpx = at[sel], epx[sel]
-                        # PASSIVE P&L, CORRECTED. This credited
-                        # (close - fill) * side, which pays you the whole
-                        # intrabar recovery after a dip fill WITHOUT ever
-                        # risking the stop during it -- the bracket only starts
-                        # at the bar close. On 27-minute bars that produced
-                        # +$13.67 a trade against -$1.96 for the identical
-                        # bracket crossed, a $15.63 gap where two ticks is the
-                        # ceiling. Resting a limit is worth exactly two ticks
-                        # and not a cent more, so that is what is credited.
+                        kk = at[sel]
                         gain = 2.0 * tv if passive else 0.0
                         pnl = r[kk] + gain - cost
                         mu = float(pnl.mean())
+                        pf2 = float(wt[kk].mean())
                         tpw = len(kk) / days * 5
                         nf += 1
                         stat["full"] += 1
@@ -330,19 +381,90 @@ def main():
                         rec = dict(con=cn, K=K, feat=label, q=q, side=side,
                                    passive=passive, stop=int(ks[si]),
                                    tgt=int(ks[ti]), n=len(kk), tpw=tpw,
-                                   dol=mu, wk=mu * tpw, win=pf, pstar=pstar,
-                                   pall=pall, zd=(pf - pall) / sew,
+                                   dol=mu, wk=mu * tpw, win=pf2, pstar=pstar,
+                                   pall=pall, zd=(pf2 - pall) / sew,
                                    rr=ks[ti] / ks[si],
                                    dd=(math.log(max(tpw, 1) * 52) /
-                                       math.log(1 / max(1 - pf, 1e-9))
+                                       math.log(1 / max(1 - pf2, 1e-9))
                                        * ks[si] * tv))
                         rows.append(rec)
                         if tpw >= MIN_TPW and mu >= MIN_DOL:
                             hits.append(rec)
-                            print(f"  *** HIT {label[:30]} {tpw:.0f}/wk "
+                            print(f"  *** HIT {label[:40]} {tpw:.0f}/wk "
                                   f"${mu:+.2f} ${mu*tpw:+,.0f}/wk "
-                                  f"{rec['zd']:+.1f}σ", flush=True)
+                                  f"{rec['zd']:+.1f}s", flush=True)
                 return best
+
+            def dig(cb0, e0):
+                """The detector beeped -- stop sweeping and work this spot.
+
+                A uniform sweep gives the same effort to barren ground and to
+                the one patch that reads hot, which is the wrong allocation
+                when the grid is coarse. The quantiles the sweep uses are five
+                fixed values; the real boundary of anything worth having will
+                sit between them. So when a configuration comes within BEEP of
+                the gate, hill-climb around it: nudge each leg's threshold off
+                the grid, flip a leg's direction, drop a leg, add one from a
+                type not yet present -- score every neighbour under every
+                combiner, take the best, and repeat while it keeps improving.
+
+                Bounded by DIG_ROUNDS and by the same wall clock as everything
+                else, so a hot spot cannot eat the run."""
+                cur, cure = list(cb0), e0
+                for _ in range(DIG_ROUNDS):
+                    cands = []
+                    for i in range(len(cur)):
+                        fn, qq, sd = cur[i][2], cur[i][3], cur[i][4]
+                        for dq in (-0.10, -0.05, -0.02, 0.02, 0.05, 0.10):
+                            lg = mkleg(fn, qq + dq, sd)
+                            if lg:
+                                nb = list(cur); nb[i] = lg; cands.append(nb)
+                        lg = mkleg(fn, qq, -sd)
+                        if lg:
+                            nb = list(cur); nb[i] = lg; cands.append(nb)
+                        if len(cur) > 2:
+                            cands.append([x for j, x in enumerate(cur)
+                                          if j != i])
+                    have = {x[2].split("_")[0] + "_" for x in cur}
+                    for t in types:
+                        if t in have:
+                            continue
+                        for a in byt[t][:2]:
+                            cands.append(list(cur) + [a])
+
+                    bestnb, beste = None, cure
+                    for nb in cands:
+                        if time.time() > deadline:
+                            return cure
+                        fs = tuple(x[2] for x in nb)
+                        if len(set(fs)) < len(fs):
+                            continue
+                        for m2, sg in combine(nb):
+                            fr = sg.mean()
+                            if fr < need or fr > MAX_FIRE:
+                                continue
+                            h = hashlib.blake2b(np.packbits(sg).tobytes(),
+                                                digest_size=16).digest()
+                            if h in seen:
+                                continue
+                            seen.add(h)
+                            stat["dig"] += 1
+                            body = ",".join(
+                                f"{x[2]}{'>' if x[4] > 0 else '<'}{x[3]:g}"
+                                for x in nb)
+                            lab = (body.replace(",", "&") if m2 == "AND" else
+                                   body.replace(",", "|") if m2 == "OR" else
+                                   f"{m2}of({body})")
+                            e = score(np.flatnonzero(sg), "DIG " + lab,
+                                      nb[0][4], nb[0][3])
+                            if e > beste:
+                                bestnb, beste = nb, e
+                    if bestnb is None:
+                        break
+                    cur, cure = bestnb, beste
+                    print(f"    dig -> edge {cure:+.4f} "
+                          f"({len(cur)} legs)", flush=True)
+                return cure
 
             for fn in names:
                 v = np.asarray(F[fn], dtype=np.float64)
@@ -483,7 +605,15 @@ def main():
                     lab = (body.replace(",", "&") if mode == "AND" else
                            body.replace(",", "|") if mode == "OR" else
                            f"{mode}of({body})")
-                    score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
+                    e = score(np.flatnonzero(sig), lab, cb[0][4], cb[0][3])
+                    # THE BEEP. Everything above walks the ground quickly and
+                    # throws away whatever cannot clear the gate. This is the
+                    # other half: when something reads hot, stop sweeping and
+                    # work the spot properly before moving on.
+                    if e >= -BEEP:
+                        stat["beeps"] += 1
+                        print(f"  beep {e:+.4f}  {lab[:60]}", flush=True)
+                        dig(cb, e)
 
             json.dump({"rows": rows[-200000:]}, open(STATE, "w"))
             print(f"{cn} K{K}: {bpd:.0f} bars/day, need {need*100:.0f}% firing, "
@@ -514,10 +644,18 @@ def main():
     log(f"| −1 geometry, before any data | {stat['geo']:,} |")
     log(f"| 0 frequency, outcome untouched | {stat['freq']:,} |")
     log(f"| 0b **degenerate — always true, or a duplicate mask** | {stat['degen']:,} |")
+    log(f"| 0c dropped by the cheap crossing screen | {stat['prune']:,} |")
     log(f"| 1 win rate below break-even × {1+MIN_EDGE_REL:.2f} "
         f"| {stat['win']:,} |")
     log(f"| 1b **below what RANDOM ENTRY earns** | {stat['drift']:,} |")
     log(f"| 2 fully scored | {stat['full']:,} |")
+    log()
+    log(f"**{stat['beeps']:,} beeps, {stat['dig']:,} neighbours dug.** The "
+        f"sweep drops anything the cheap screen says cannot clear the gate — "
+        f"no Python loop, no bracket scan — and spends what it saves "
+        f"hill-climbing around whatever reads hot: thresholds nudged off the "
+        f"coarse grid, legs flipped, dropped and added, every combiner "
+        f"retried, repeating while it improves.")
     log()
     log("**Gate 1b is the one that matters.** NQ rose 8,492 points across this "
         "sample, so a long bracket makes money for no reason at all. Three "
