@@ -62,8 +62,18 @@ def auth():
     j = r.json()
     if not j.get("accessToken"):
         sys.exit(f"auth failed: {json.dumps(j)[:300]}")
-    return j["accessToken"], j.get("mdAccessToken") or j["accessToken"], \
-        (time.time() - t0) * 1000
+    # THE ENTITLEMENT TELL. Tradovate returns a SEPARATE mdAccessToken only
+    # when the account is entitled to market data. If it is absent, the code
+    # below would send the ordinary access token to the market-data socket and
+    # the server would hang up -- which is exactly what happened: authorize
+    # sent, connection closed, before any subscribe was even attempted.
+    # Printing it turns "the websocket died" into a fact worth quoting at
+    # support: the API is not issuing a market-data token for this account.
+    md = j.get("mdAccessToken")
+    print(f"  accessToken: yes | mdAccessToken: "
+          f"{'YES' if md else 'NO  <-- market data not entitled'} | "
+          f"keys returned: {sorted(j)}", flush=True)
+    return j["accessToken"], md or j["accessToken"], (time.time() - t0) * 1000
 
 
 def front_month(tok):
@@ -75,8 +85,18 @@ def front_month(tok):
     r = requests.get(f"https://{HOST}.tradovateapi.com/v1/contract/suggest",
                      params={"t": "NQ", "l": 10},
                      headers={"Authorization": f"Bearer {tok}"}, timeout=30)
-    names = [c["name"] for c in r.json() if c.get("name", "").startswith("NQ")]
-    return sorted(names)[0] if names else "NQU6"
+    # Sorting names alphabetically picked NQH7 -- March 2027 -- because "H7"
+    # precedes "U6" as text. Contract codes are not chronological as strings,
+    # so decode the month letter and year digit instead.
+    MON = "FGHJKMNQUVXZ"
+    def when(nm):
+        try:
+            return (int(nm[-1]), MON.index(nm[-2]))
+        except Exception:                                        # noqa: BLE001
+            return (99, 99)
+    names = [c["name"] for c in r.json()
+             if c.get("name", "").startswith("NQ") and len(c["name"]) >= 4]
+    return sorted(names, key=when)[0] if names else "NQU6"
 
 
 def rest_latency(tok, n=12):
