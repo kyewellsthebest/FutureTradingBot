@@ -1,3 +1,3 @@
-# line 2 = minutes to record
+# line 2 = minutes
 2
-# retry after permissions change
+# host probe + heartbeat ordering fix
