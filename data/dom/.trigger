@@ -1,2 +1,2 @@
-# touch to start a recording session now
-1
+# line 2 = minutes to record
+3

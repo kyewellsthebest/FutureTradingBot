@@ -30,8 +30,12 @@ jobs:
           TRADOVATE_PASS: ${{ secrets.TRADOVATE_PASS }}
           TRADOVATE_CID:  ${{ secrets.TRADOVATE_CID }}
           TRADOVATE_SEC:  ${{ secrets.TRADOVATE_SEC }}
-          DUR_MIN: ${{ vars.DOM_MINUTES || '300' }}
         run: |
+          # duration comes from line 2 of the trigger file, so a short probe
+          # can be fired without editing the workflow
+          export DUR_MIN=$(grep -v '^#' data/dom/.trigger | sed -n 2p | tr -d ' ')
+          export DUR_MIN=${DUR_MIN:-300}
+          echo "recording for $DUR_MIN minutes"
           if [ -z "$TRADOVATE_USER" ]; then
             echo "::error::Tradovate secrets missing. Settings -> Secrets and"
             echo "::error::variables -> Actions: TRADOVATE_USER, _PASS, _CID, _SEC"
