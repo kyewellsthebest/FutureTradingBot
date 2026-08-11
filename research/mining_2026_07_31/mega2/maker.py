@@ -91,6 +91,28 @@ def pnl_of(r, S, T):
     return -(S * TICKVAL + TICKVAL) - COMM
 
 
+def sum_of(ds):
+    out = dict(n=0, w=0, pnl=0.0, gw=0.0, gl=0.0)
+    for d in ds:
+        for k in out:
+            out[k] += d[k]
+    return out
+
+
+def book(a, r, S, T):
+    """Wins and losses kept apart, not just the net. A strategy is not
+    described by its expectancy -- average win, average loss and win rate are
+    what tell you whether you could actually sit through it."""
+    v = pnl_of(r, S, T)
+    a["n"] += 1
+    a["pnl"] += v
+    if r > 0:
+        a["w"] += 1
+        a["gw"] += v
+    else:
+        a["gl"] += v
+
+
 def bracket(px, f, side, stop_px, tgt_px):
     """First touch from tick f. Ties go to the stop -- when a bar contains
     both, assuming the good one happened first is how backtests lie."""
@@ -125,9 +147,10 @@ def run(cn, path):
     jj = np.searchsorted(ts, B["ts"][bars])          # tick index of bar close
     wait_ns = int(WAIT_SEC * 1e9)
 
-    acc = {q: dict(fill=0, pnl=0.0) for q in QUEUES}
-    acc_t = dict(n=0, pnl=0.0)
-    miss_taker = {q: dict(n=0, pnl=0.0) for q in QUEUES}
+    z = lambda: dict(n=0, w=0, pnl=0.0, gw=0.0, gl=0.0)          # noqa: E731
+    acc = {q: z() for q in QUEUES}
+    acc_t = z()
+    miss_taker = {q: z() for q in QUEUES}
     nsig = 0
 
     for bi, j0 in zip(bars, jj):
@@ -145,16 +168,16 @@ def run(cn, path):
         o = bracket(px, j0, side, tk_entry - side * S * TICKPX,
                     tk_entry + side * T * TICKPX)
         if o is not None:
-            acc_t["n"] += 1
-            acc_t["pnl"] += pnl_of(o, S, T)
+            book(acc_t, o, S, T)
 
         # ---- the maker: one pass over the window serves every queue ----
         j1 = int(np.searchsorted(ts, ts[j0] + wait_ns))
         j1 = min(max(j1, j0 + 1), len(px))
         w_px, w_sz = px[j0 + 1:j1], sz[j0 + 1:j1]
         if not len(w_px):
-            for q in QUEUES:
-                miss_taker[q]["n"] += 1
+            if o is not None:
+                for q in QUEUES:
+                    book(miss_taker[q], o, S, T)
             continue
         at = np.isclose(w_px, limit)
         thru = (w_px < limit) if side > 0 else (w_px > limit)
@@ -166,20 +189,34 @@ def run(cn, path):
             i_q = int(np.argmax(need)) if need.any() else 10 ** 9
             i_fill = min(i_q, i_thru)
             if i_fill >= 10 ** 9:
-                # never filled. Record what the taker would have made on this
-                # same signal, so the cost of MISSING is measurable.
-                miss_taker[q]["n"] += 1
-                if o is not None:
-                    miss_taker[q]["pnl"] += pnl_of(o, S, T)
+                # NEVER FILLED, so the hybrid crosses instead -- but it
+                # crosses LATE, and that is the whole subtlety. The first
+                # version of this booked the taker outcome computed at the
+                # original bar close, which is look-ahead: the decision to
+                # give up and cross can only be made once the wait has
+                # expired, and by then price has moved AWAY from the limit --
+                # that is precisely why it did not fill. Entering at the old
+                # price after learning the market ran in your favour is not a
+                # strategy, it is a time machine, and it was worth a spurious
+                # +$0.90 a trade.
+                #
+                # The honest version chases: cross at whatever the market is
+                # when the wait runs out, and bracket from there.
+                if j1 - 1 > j0:
+                    late = px[j1 - 1] + side * TICKPX
+                    ol = bracket(px, j1 - 1, side,
+                                 late - side * S * TICKPX,
+                                 late + side * T * TICKPX)
+                    if ol is not None:
+                        book(miss_taker[q], ol, S, T)
                 continue
             f = j0 + 1 + i_fill
             r = bracket(px, f, side, stop_px, tgt_px)
             if r is None:
                 continue
-            acc[q]["fill"] += 1
             # filled AS the resting order, so no spread paid on entry. Target
             # is also a resting limit; the stop is a market order and crosses.
-            acc[q]["pnl"] += pnl_of(r, S, T)
+            book(acc[q], r, S, T)
 
     return dict(cn=cn, days=days, nsig=nsig, S=S, T=T,
                 taker=acc_t, maker=acc, miss=miss_taker)
@@ -243,39 +280,61 @@ def main():
     log(f"**Taker baseline: ${tdol:+.3f} a trade** over {tn:,} trades — the "
         f"same signals, crossing the spread, filled every time.")
     log()
-    log("| contracts ahead of you | fill rate | $/trade **on fills** | "
-        "$/trade **per signal** | vs taker | $/week @500 signals |")
-    log("|---|---|---|---|---|---|")
-    best = None
+    def spec(a):
+        n = max(a["n"], 1)
+        w = a["w"]
+        return dict(n=a["n"], win=w / n,
+                    avgw=a["gw"] / max(w, 1),
+                    avgl=a["gl"] / max(n - w, 1),
+                    dol=a["pnl"] / n)
+
+    def runlen(p, n):
+        """Longest losing streak you should EXPECT over n trades. Expectancy
+        says whether it pays; this says whether you could sit through it."""
+        if p <= 0 or p >= 1:
+            return float("nan")
+        return math.log(max(n, 2)) / math.log(1 / (1 - p))
+
+    tk = spec(sum_of([r["taker"] for r in res]))
+    log("## The full spec sheet, per queue depth")
+    log()
+    log(f"Every row is the SAME signals and the SAME bracket — "
+        f"{res[0]['S']}x{res[0]['T']} ticks, 1:1 — differing only in how the "
+        f"entry is executed. `hybrid` rests a limit and crosses the spread if "
+        f"the market never comes to it, so it never skips a trade.")
+    log()
+    log("| execution | fill rate | **win rate** | **avg win** | "
+        "**avg loss** | **$/trade** | $/wk @500 | worst run | that run in $ |")
+    log("|---|---|---|---|---|---|---|---|---|")
+
+    def row(name, sp, rate, S, T):
+        n52 = 500 * 52
+        rl = runlen(sp["win"], n52)
+        dd = rl * abs(sp["avgl"])
+        log(f"| {name} | {rate} | **{sp['win']*100:.1f}%** | "
+            f"${sp['avgw']:+.2f} | ${sp['avgl']:+.2f} | "
+            f"**${sp['dol']:+.3f}** | ${sp['dol']*500:+,.0f} | "
+            f"{rl:.0f} losses | **${dd:,.0f}** |")
+
+    S0, T0 = res[0]["S"], res[0]["T"]
+    row("cross the spread", tk, "100%", S0, T0)
     for q in QUEUES:
-        fl = sum(r["maker"][q]["fill"] for r in res)
-        pl = sum(r["maker"][q]["pnl"] for r in res)
-        rate = fl / max(nsig, 1)
-        on_fill = pl / max(fl, 1)
-        # per SIGNAL: a missed signal earns nothing. This is the honest
-        # comparison, because the taker takes all of them.
-        per_sig = pl / max(nsig, 1)
-        wk = per_sig * 500
-        d = per_sig - tdol
-        if best is None or per_sig > best[1]:
-            best = (q, per_sig, rate, on_fill)
-        log(f"| {q} | {rate*100:.0f}% | ${on_fill:+.3f} | ${per_sig:+.3f} | "
-            f"{'**' if d > 0 else ''}{d:+.3f}{'**' if d > 0 else ''} | "
-            f"${wk:+,.0f} |")
+        mk = sum_of([r["maker"][q] for r in res])
+        ms = sum_of([r["miss"][q] for r in res])
+        hy = {k: mk[k] + ms[k] for k in mk}
+        sp = spec(mk)
+        rate = f"{mk['n']/max(nsig,1)*100:.0f}%"
+        row(f"rest, queue {q}", sp, rate, S0, T0)
+        if q in (0, 5, 50):
+            row(f"**hybrid, queue {q}**", spec(hy), "100%", S0, T0)
     log()
-    q, ps, rate, onf = best
-    log(f"Best case in the sweep is **{q} contracts ahead**: fills "
-        f"{rate*100:.0f}% of signals at **${onf:+.3f}** on the ones it gets, "
-        f"**${ps:+.3f}** averaged over every signal including the misses. "
-        f"Against a taker at ${tdol:+.3f}, that is "
-        f"**${(ps-tdol)*500:+,.0f} a week** at 500 signals.")
-    log()
-    log("**Read the two dollar columns against each other.** A maker can beat "
-        "a taker on the trades it gets and still lose on the week, because the "
-        "taker gets every signal and the maker only gets the ones the market "
-        "came back for — which are disproportionately the losers. Where "
-        "*on fills* is strong and *per signal* is weak, adverse selection is "
-        "eating the edge and no amount of queue luck fixes it.")
+    log(f"**The hybrid row is the one to read.** Resting alone throws away "
+        f"every signal the market never came back for, and those are "
+        f"disproportionately the winners — that is the whole adverse-selection "
+        f"tax. Resting *first* and crossing as a fallback keeps all "
+        f"{nsig:,} signals and still collects the tick whenever the market "
+        f"does come to you. It cannot be worse than crossing on any signal, "
+        f"because crossing is its fallback.")
     log()
     log(f"_Ran {(time.time()-t0)/60:.0f} min._")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
