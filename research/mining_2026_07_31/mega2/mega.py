@@ -95,7 +95,7 @@ QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")
 NLEG = int(os.environ.get("NLEG", "34"))
 PERTYPE = int(os.environ.get("PERTYPE", "12"))  # legs kept per data type
 TRIP = int(os.environ.get("TRIP", "4"))         # legs per type in triples
-ARITY = int(os.environ.get("ARITY", "4"))       # widest set of data types
+ARITY = int(os.environ.get("ARITY", "6"))       # widest set of data types
 WAIT = 2
 L = []
 
@@ -400,7 +400,7 @@ def main():
             # of distinct data types, up to ARITY. WIDE[m] is how many legs per
             # type feed an m-way set, and it has to shrink as m grows or the
             # count explodes (6 types choose 4, at 12 legs each, is 311,040).
-            WIDE = {2: PERTYPE, 3: TRIP, 4: 3, 5: 2, 6: 2}
+            WIDE = {2: PERTYPE, 3: 6, 4: 4, 5: 3, 6: 3}
             groups, seen = [], set()
             for t in types:                                      # A+A within
                 groups.append(list(itertools.combinations(byt[t][:8], 2)))
@@ -437,8 +437,21 @@ def main():
                     continue
                 seen.add(key)
                 for mode, sig in combine(cb):
-                    if sig.mean() < need:
+                    if time.time() > deadline:
+                        break
+                    fire = sig.mean()
+                    if fire < need:
                         stat["freq"] += len(pairs) * 2
+                        continue
+                    # AND the other end, which only became reachable once OR
+                    # and low-k joined the search. "Any one of six streams
+                    # fires" is true on almost every bar -- that is not a
+                    # signal, it is a description of the tape wearing six
+                    # labels. Without this bound the OR modes would flood the
+                    # expensive scorer with rules that trade constantly and
+                    # select nothing.
+                    if fire > MAX_FIRE:
+                        stat["degen"] += 1
                         continue
                     # and again at the combination level: if adding a third leg
                     # selects exactly the bars the pair already selected, it is
