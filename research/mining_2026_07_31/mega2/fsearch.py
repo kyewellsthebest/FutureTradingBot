@@ -278,38 +278,63 @@ def scan(cn):
 
 
 def evaluate(cn, cands):
-    """Every candidate on a quarter it has never seen."""
-    P = prep(cn)
-    if P is None:
-        return cn, {}
-    F, n, dayspan = P["F"], P["n"], P["dayspan"]
-    keys, R, H = P["keys"], P["R"], P["H"]
-    kmap = {k: i for i, k in enumerate(keys)}
-    out = {}
+    """Every candidate on a quarter it has never seen.
+
+    THE BRACKET HAS TO BE REBUILT, NOT LOOKED UP. The ladder is derived from
+    each contract's own median bar range, so a 49/62-tick bracket found in one
+    quarter simply does not exist in another quarter's ladder. The first
+    version looked the bracket up by tick value and skipped the candidate when
+    it was missing -- which was almost always. Validation silently evaluated
+    NOTHING and reported "0 survived", a lookup failure wearing the costume of
+    a result. The saved state gave it away: zero out-of-sample entries for
+    5,521 candidates that had supposedly all been tested.
+
+    Outcomes are now computed for the candidate's exact stop and target on
+    this quarter's bars, cached per distinct bracket so the cost is paid once
+    however many candidates share it."""
+    B, F = V.cached(cn, KBAR)
+    n = len(B["c"])
+    dayspan = len(np.unique(B["ts"] // fuse.DAY_NS))
+    out, cache, sigs = {}, {}, {}
     for j, c in enumerate(cands):
         if c["home"] == cn:
             continue
-        bi = kmap.get((c["stop"], c["tgt"], c["side"]))
-        if bi is None:
+        key = (c["stop"], c["tgt"], c["side"])
+        if key not in cache:
+            kk = np.array(sorted({c["stop"], c["tgt"]}), dtype=np.int64)
+            si = int(np.where(kk == c["stop"])[0][0])
+            ti = int(np.where(kk == c["tgt"])[0][0])
+            u, d = hunt.tau(B, kk, TPX)
+            r, hold, _wt = hunt.outcomes(B, u, d, si, ti, c["side"], kk,
+                                         TPX, TV)[:3]
+            del u, d
+            cache[key] = (r.astype(np.float32), hold.astype(np.int32))
+        r, hold = cache[key]
+
+        sk = (tuple(c["legs"]), c["k"])
+        sig = sigs.get(sk)
+        if sig is None:
+            tot, have = np.zeros(n, dtype=np.int16), 0
+            for fn, sd, q in c["legs"]:
+                v = F.get(fn)
+                if v is None:
+                    continue
+                v = np.asarray(v, dtype=np.float32)
+                fin = np.isfinite(v)
+                if fin.sum() < n * 0.5:
+                    continue
+                thr = float(np.quantile(v[fin], q))
+                tot += (((v >= thr) if sd > 0
+                         else (v <= thr)) & fin).astype(np.int16)
+                have += 1
+            sig = (tot >= c["k"]) if have >= c["k"] else False
+            sigs[sk] = sig
+        if sig is False:
             continue
-        tot, have = np.zeros(n, dtype=np.int16), 0
-        for fn, sd, q in c["legs"]:
-            v = F.get(fn)
-            if v is None:
-                continue
-            v = np.asarray(v, dtype=np.float32)
-            fin = np.isfinite(v)
-            if fin.sum() < n * 0.5:
-                continue
-            thr = float(np.quantile(v[fin], q))
-            tot += (((v >= thr) if sd > 0 else (v <= thr)) & fin).astype(np.int16)
-            have += 1
-        if have < c["k"]:
-            continue
-        idx = hunt.nonoverlap(np.flatnonzero(tot >= c["k"]), H[:, bi])
+        idx = nonoverlap(np.flatnonzero(sig), hold)
         if len(idx) < 30:
             continue
-        v = R[idx, bi] - COST + MAKER
+        v = r[idx] - COST + MAKER
         out[j] = dict(dol=float(v.mean()), tpw=len(idx) / dayspan * 5)
     return cn, out
 
