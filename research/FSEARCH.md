@@ -6,17 +6,17 @@ Legs are now scored and the best per type kept, capped at three thresholds per f
 
 | quarter | features | combos | scanned | cleared train gate | + held-out test | combos/sec |
 |---|---|---|---|---|---|---|
-| NQU4 | 70 | 4,000 | 2,494 | 130 | 23 | 286 |
-| NQZ4 | 69 | 4,000 | 2,414 | 127 | 16 | 139 |
-| NQH5 | 68 | 4,000 | 2,668 | 133 | 21 | 113 |
-| NQM5 | 58 | 4,000 | 2,468 | 80 | 5 | 19 |
-| NQU5 | 69 | 4,000 | 2,867 | 355 | 43 | 23 |
-| NQZ5 | 69 | 4,000 | 2,833 | 111 | 10 | 18 |
-| NQH6 | 64 | 4,000 | 2,728 | 55 | 1 | 19 |
-| NQM6 | 67 | 4,000 | 2,917 | 47 | 7 | 25 |
+| NQU4 | 78 | 80,688 | 53,120 | 3,661 | 529 | 1,102 |
+| NQZ4 | 75 | 138,650 | 59,934 | 8,257 | 1,695 | 961 |
+| NQH5 | 73 | 138,650 | 71,671 | 2,813 | 258 | 1,026 |
+| NQM5 | 67 | 138,650 | 46,694 | 1,764 | 84 | 772 |
+| NQU5 | 75 | 138,650 | 80,029 | 14,857 | 1,944 | 1,125 |
+| NQZ5 | 77 | 129,906 | 67,422 | 5,350 | 572 | 1,033 |
+| NQH6 | 74 | 138,650 | 60,129 | 1,972 | 199 | 1,066 |
+| NQM6 | 73 | 138,650 | 76,928 | 3,059 | 240 | 1,087 |
 
-**21,389 scanned → 1,038 cleared the train gate → 126 also paid on the held-out 40% → 0 survived every other quarter.**
+**515,927 scanned → 41,733 cleared the train gate → 5,521 also paid on the held-out 40% → 0 survived every other quarter.**
 
 **Nothing survived out of sample** — but this time the search actually looked at the data.
 
-_Ran 4.2 min on 4 workers._
+_Ran 2.6 min on 4 workers._

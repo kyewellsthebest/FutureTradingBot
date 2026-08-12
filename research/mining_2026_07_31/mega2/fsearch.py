@@ -396,8 +396,31 @@ def main():
     L += ["", f"_Ran {(time.time()-t0)/60:.1f} min on {WORKERS} workers._"]
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     open(OUT, "w").write("\n".join(L) + "\n")
-    json.dump({"winners": winners, "stats": stats}, open(STATE, "w"),
-              default=float)
+    # EVERY validated candidate, not just the survivors. "Zero survived" and
+    # "zero came close" are different findings and the second one needs the
+    # distribution -- if 5,521 candidates cluster at -$1.50 out of sample the
+    # answer is settled; if they straddle zero it is a threshold question.
+    allo = [c["oos"] for c in allc if "oos" in c]
+    json.dump({"winners": winners, "stats": stats, "oos": allo},
+              open(STATE, "w"), default=float)
+    if allo:
+        v = np.array([o["dol"] for o in allo])
+        g = np.array([o["green"] for o in allo])
+        L += ["", "## How far off were they?", "",
+              f"`{len(v):,}` candidates reached cross-quarter validation.",
+              "", "| out-of-sample $/trade | candidates |", "|---|---|"]
+        for lo, hi in ((-99, -1), (-1, -0.5), (-0.5, 0), (0, 0.25),
+                       (0.25, 0.5), (0.5, 99)):
+            n_ = int(((v >= lo) & (v < hi)).sum())
+            L.append(f"| {lo:+.2f} to {hi:+.2f} | {n_:,} "
+                     f"({n_/len(v)*100:.1f}%) |")
+        L += ["", f"Best out-of-sample **${v.max():+.2f}/trade**, median "
+                  f"**${np.median(v):+.2f}**. "
+                  f"`{int((v>0).sum()):,}` were positive at all "
+                  f"({(v>0).mean()*100:.1f}%), "
+                  f"`{int((g>=MIN_GREEN).sum()):,}` were green in "
+                  f"{MIN_GREEN}+ quarters.", ""]
+        open(OUT, "w").write("\n".join(L) + "\n")
     print("\n".join(L[-8:]))
     print("\nwrote", OUT)
 
