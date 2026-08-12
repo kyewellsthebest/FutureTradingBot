@@ -62,7 +62,7 @@ MIN_EDGE_PP = float(os.environ.get("MIN_EDGE_PP", "0.02"))
 MAX_FIRE = float(os.environ.get("MAX_FIRE", "0.90"))
 PERTYPE = int(os.environ.get("PERTYPE", "14"))
 ARITY = int(os.environ.get("ARITY", "4"))
-SHAPES = os.environ.get("SHAPES", "state,cross,hold4").split(",")
+SHAPES = os.environ.get("SHAPES", "state,cross,hold4,hold8,after8").split(",")
 QS = [float(x) for x in os.environ.get(
     "QS", "0.15,0.3,0.45,0.6,0.75,0.9").split(",")]
 KBAR = int(os.environ.get("KBAR", "500"))
@@ -168,6 +168,11 @@ def forms(v, n):
     market are close to opposites."""
     S = pd.Series(v, dtype="float64")
     out = {"raw": v}
+    # z: how unusual the value is vs its own recent distribution -- a
+    # different question from raw level and from rank position
+    m = S.rolling(288, min_periods=72).mean()
+    sd = S.rolling(288, min_periods=72).std()
+    out["z288"] = ((S - m) / sd.replace(0, np.nan)).to_numpy()
     for w in (21, 89):
         out[f"d{w}"] = (S - S.shift(w)).to_numpy()
     for w in (55, 233):
@@ -195,10 +200,19 @@ def shape(sig, kind):
         out = np.zeros_like(sig)
         out[1:] = sig[1:] & ~sig[:-1]
         return out
+    if kind == "after8":
+        # the AFTERMATH window: the condition fired within the last 8 bars
+        # but is not firing now -- shock-and-cooldown, a different claim from
+        # the state itself and disjoint from it by construction
+        rec = np.zeros_like(sig)
+        for k in range(1, 9):
+            rec[k:] |= sig[:-k]
+        return rec & ~sig
+    span = 8 if kind == "hold8" else 4
     out = sig.copy()
-    for k in range(1, 4):
+    for k in range(1, span):
         out[k:] &= sig[:-k]
-    out[:3] = False
+    out[:span - 1] = False
     return out
 
 

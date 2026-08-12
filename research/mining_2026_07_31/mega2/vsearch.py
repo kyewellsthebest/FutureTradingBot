@@ -103,7 +103,7 @@ def cached(cn, K):
     fuse.build re-reads the raw tape every call, so without this a validated
     search costs double what an unvalidated one does."""
     os.makedirs(FCACHE, exist_ok=True)
-    p = os.path.join(FCACHE, f"{cn}_K{K}_v2.npz")
+    p = os.path.join(FCACHE, f"{cn}_K{K}_v3.npz")
     if os.path.exists(p):
         z = np.load(p, allow_pickle=False)
         B = {k: z["B_" + k] for k in ("o", "h", "l", "c", "ts")}

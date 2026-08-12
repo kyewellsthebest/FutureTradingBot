@@ -131,5 +131,61 @@ def build(cn, K, B):
     pc = prev_close.shift(1).reindex(pd.Series(dayg)).to_numpy()
     F["o_gap"] = (first_o - pc) / unit
     F["o_gapabs"] = np.abs(F["o_gap"])
+    # ---- tranche 2: fifteen more measurement families ---------------------
+    # classic levels: yesterday's high, low and close as magnets/walls
+    dh = pd.Series(h).groupby(dayg).max()
+    dl = pd.Series(l).groupby(dayg).min()
+    dc = pd.Series(c).groupby(dayg).last()
+    for nm, ser in (("w_pdh", dh), ("w_pdl", dl), ("w_pdc", dc)):
+        prev = ser.shift(1).reindex(pd.Series(dayg)).to_numpy()
+        F[nm] = (c - prev) / unit
+    # initial balance: where price sits inside the day's first-hour range
+    dsec = (B["ts"][:n] - pd.Series(B["ts"][:n]).groupby(dayg)
+            .transform("first").to_numpy())
+    inib = dsec < 3_600_000_000_000
+    # RUNNING extremes only -- broadcasting the completed first-hour range
+    # back over the bars inside that hour would let them see minutes into
+    # the future, which is how fake winners get manufactured
+    ibh = pd.Series(np.where(inib, h, -np.inf)).groupby(dayg).cummax().to_numpy()
+    ibl = pd.Series(np.where(inib, l, np.inf)).groupby(dayg).cummin().to_numpy()
+    F["w_ib"] = np.where(np.isfinite(ibh - ibl) & (ibh > ibl),
+                         (c - ibl) / np.maximum(ibh - ibl, 1e-9), np.nan)
+    # freshness of the day's extremes: bars since they were set
+    isnh = (h >= hi - 1e-9).astype(float)
+    isnl = (l <= lo + 1e-9).astype(float)
+    barno = pd.Series(np.arange(n))
+    lasth = barno.where(isnh > 0).groupby(day).ffill()
+    lastl = barno.where(isnl > 0).groupby(day).ffill()
+    F["w_sincehi"] = np.log1p((barno - lasth).to_numpy())
+    F["w_sincelo"] = np.log1p((barno - lastl).to_numpy())
+    # day range expansion vs its own recent history
+    # yesterday-and-back only: including today's own completed range in the
+    # denominator is a same-day leak
+    dr_day = pd.Series(hi - lo).groupby(day).last()
+    med = dr_day.shift(1).rolling(20, min_periods=5).median()
+    med20 = med.reindex(pd.Series(day)).to_numpy()
+    F["w_rex"] = (hi - lo) / np.maximum(med20, 1e-9)
+    # inside-bar path, second helpings
+    F["t_upshare"] = (sgn > 0).sum(axis=1) / moves       # micro balance
+    half = P[:, K // 2]
+    F["t_endpush"] = (c - half) / rng                    # who won the 2nd half
+    s1 = S[:, :K // 4].mean(axis=1)
+    s2 = S[:, -K // 4:].mean(axis=1)
+    F["t_finishsz"] = np.log((s2 + 1) / (s1 + 1))        # size at the finish
+    F["t_backdur"] = 1.0 - F["t_impdur"]                 # time spent retracing
+    # time since the last sweep-scale event, the aftermath clock
+    sw = np.abs((c - o) / rng)
+    thr9 = pd.Series(sw).rolling(2000, min_periods=200).quantile(0.9).to_numpy()
+    ev = sw > thr9
+    lastev = barno.where(pd.Series(ev)).ffill()
+    F["t_sincesweep"] = np.log1p((barno - lastev).to_numpy())
+    # session clocks
+    F["c_rth"] = ((hour >= 13.5) & (hour < 20.0)).astype(float)   # UTC RTH
+    F["c_hour1"] = ((hour >= 13.5) & (hour < 14.5)).astype(float)
+    F["c_lasth"] = ((hour >= 19.0) & (hour < 20.0)).astype(float)
+    dte = (15 - dom) % 31 + np.where(np.isin(mon, (3, 6, 9, 12)), 0, 30)
+    F["c_expdist"] = np.minimum(dte, 90).astype(float)   # rough days-to-expiry
+    F["o_ovnr"] = np.where(F["c_rth"] > 0, np.nan,
+                           (hi - lo) / np.maximum(med20, 1e-9))
     del P, S, T, ts, px, sz
     return {k: np.asarray(v, dtype=np.float32)[:n] for k, v in F.items()}
