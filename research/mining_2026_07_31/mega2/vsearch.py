@@ -262,7 +262,20 @@ def search_one(cn, K, cand, deadline):
                     pstar = (ks[si] + ct) / (ks[si] + ks[ti])
                     pall = float(wt[:cut].mean())
                     bar = max(pstar * (1 + MIN_EDGE_REL), pall + MIN_EDGE_PP)
-                    if float(wt[tr_all].mean()) - bar < -PROBE:
+                    # THE EXACT GATE BEFORE THE EXPENSIVE PART, not after.
+                    # nonoverlap is O(n) and was being called for every
+                    # (combination, bracket, side) that merely came within
+                    # PROBE of the bar -- so the costly step ran on thousands
+                    # of configurations that the very next line rejected. That
+                    # is why this scanned 92,842 configurations in 22 minutes
+                    # while the unvalidated search managed 365 million in six
+                    # hours: 68x slower, for no extra information.
+                    #
+                    # The overlapping win rate is a tight upper bound on the
+                    # non-overlapping one, so failing it here means failing it
+                    # there. Screen exactly, then pay for nonoverlap only on
+                    # what survives.
+                    if float(wt[tr_all].mean()) < bar:
                         continue
                     keep = hunt.nonoverlap(idx_all, hold)
                     tr = keep[keep < cut]
