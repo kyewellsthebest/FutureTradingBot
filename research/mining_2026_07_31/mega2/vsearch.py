@@ -103,7 +103,7 @@ def cached(cn, K):
     fuse.build re-reads the raw tape every call, so without this a validated
     search costs double what an unvalidated one does."""
     os.makedirs(FCACHE, exist_ok=True)
-    p = os.path.join(FCACHE, f"{cn}_K{K}.npz")
+    p = os.path.join(FCACHE, f"{cn}_K{K}_v2.npz")
     if os.path.exists(p):
         z = np.load(p, allow_pickle=False)
         B = {k: z["B_" + k] for k in ("o", "h", "l", "c", "ts")}
@@ -111,6 +111,8 @@ def cached(cn, K):
         F = {k[2:]: z[k] for k in z.files if k.startswith("F_")}
         return B, F
     B, F = mega.features(cn, K)
+    import ideas
+    F.update(ideas.build(cn, K, B))
     np.savez(p, **{"B_" + k: v for k, v in B.items()},
              **{"F_" + k: np.asarray(v, dtype=np.float32) for k, v in F.items()})
     return B, F
