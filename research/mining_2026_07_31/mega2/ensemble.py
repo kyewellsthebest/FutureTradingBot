@@ -175,6 +175,15 @@ def main():
             kept.append(j)
     print(f"{len(cands)} unique -> {len(kept)} distinct cores "
           f"(Jaccard<{MAXJ})", flush=True)
+    # CORES env: measure a chosen subset -- e.g. the handful whose individual
+    # drawdowns actually fit a $4,100 account -- instead of estimating the
+    # subset's numbers by arithmetic on the full-stack table.
+    want = os.environ.get("CORES")
+    if want:
+        pick = {int(x) for x in want.split(",")}
+        kept = [j for j in kept if j in pick]
+        print(f"subset requested: {sorted(pick)} -> {len(kept)} kept",
+              flush=True)
 
     # ---- per-core and portfolio daily P&L, ex-home ----
     dailies, rows = {}, []
