@@ -42,6 +42,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
+import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fuse  # noqa: E402
@@ -61,6 +62,7 @@ MIN_EDGE_PP = float(os.environ.get("MIN_EDGE_PP", "0.02"))
 MAX_FIRE = float(os.environ.get("MAX_FIRE", "0.90"))
 PERTYPE = int(os.environ.get("PERTYPE", "14"))
 ARITY = int(os.environ.get("ARITY", "4"))
+SHAPES = os.environ.get("SHAPES", "state,cross,hold4").split(",")
 QS = [float(x) for x in os.environ.get(
     "QS", "0.15,0.3,0.45,0.6,0.75,0.9").split(",")]
 KBAR = int(os.environ.get("KBAR", "500"))
@@ -143,6 +145,63 @@ def prep(cn):
                 BAR=np.array(bar, dtype=np.float32), F=F, B=B)
 
 
+def forms(v, n):
+    """SIX DIFFERENT QUESTIONS OF THE SAME COLUMN, not six thresholds on one.
+
+    Every leg until now asked one question -- "is this feature above a level
+    right now" -- of 287 features. That is one idea repeated 287 times, and it
+    is why the survivors came back as near-duplicates differing by a single
+    threshold. These ask structurally different things, and they fire on
+    genuinely different bars rather than on slightly shifted versions of the
+    same set:
+
+      raw     where the value sits                  a STATE
+      d21     how much it moved over 21 bars        a CHANGE
+      d89     the same over 89                      a slower change
+      rk55    its position within the last 55 bars  a LOCAL extreme, scale-free
+      rk233   the same over 233                     a slower extreme
+      acc     change of the change                  ACCELERATION
+
+    A local-extreme condition and a level condition on the same feature select
+    almost disjoint bars: one fires when the value is high absolutely, the
+    other when it is high RELATIVE TO ITS RECENT PAST, which in a trending
+    market are close to opposites."""
+    S = pd.Series(v, dtype="float64")
+    out = {"raw": v}
+    for w in (21, 89):
+        out[f"d{w}"] = (S - S.shift(w)).to_numpy()
+    for w in (55, 233):
+        lo = S.rolling(w, min_periods=w // 3).min()
+        hi = S.rolling(w, min_periods=w // 3).max()
+        out[f"rk{w}"] = ((S - lo) / (hi - lo).replace(0, np.nan)).to_numpy()
+    out["acc"] = (S.diff() - S.diff().shift(21)).to_numpy()
+    return out
+
+
+def shape(sig, kind):
+    """And three ways to USE a condition once it exists.
+
+      state   it is true now
+      cross   it BECAME true this bar -- an event, firing on a fraction of the
+              bars the state does, and selecting the moment of change rather
+              than the whole period after it
+      hold4   it has been true for four bars running -- sustained rather than
+              momentary, which is a different claim about the market
+
+    A state and its own cross share a name and almost no trades."""
+    if kind == "state":
+        return sig
+    if kind == "cross":
+        out = np.zeros_like(sig)
+        out[1:] = sig[1:] & ~sig[:-1]
+        return out
+    out = sig.copy()
+    for k in range(1, 4):
+        out[k:] &= sig[:-k]
+    out[:3] = False
+    return out
+
+
 def legs_for(P):
     """Every feature gets a fair hearing, then the best survive.
 
@@ -160,31 +219,37 @@ def legs_for(P):
     base = WTr[:cut].mean(axis=0)
     out = {}
     for fn in sorted(F):
-        v = np.asarray(F[fn], dtype=np.float32)
-        fin = np.isfinite(v)
-        if fin.sum() < n * 0.5:
+        v0 = np.asarray(F[fn], dtype=np.float64)
+        if np.isfinite(v0).sum() < n * 0.5:
             continue
-        qs = np.quantile(v[fin], QS)
-        for q, thr in zip(QS, qs):
-            for sd in (1, -1):
-                sig = ((v >= thr) if sd > 0 else (v <= thr)) & fin
-                m = sig.mean()
-                if m < need or m > MAX_FIRE:
-                    continue
-                tr = np.flatnonzero(sig[:cut])
-                if len(tr) < 200:
-                    continue
-                sc = float(np.abs(WTr[tr].mean(axis=0) - base).max())
-                out.setdefault(fn.split("_")[0] + "_", []).append(
-                    (sc, sig, fn, sd, float(q)))
+        for form, v in forms(v0, n).items():
+            fin = np.isfinite(v)
+            if fin.sum() < n * 0.4:
+                continue
+            qs = np.quantile(v[fin], QS)
+            for q, thr in zip(QS, qs):
+                for sd in (1, -1):
+                    base_sig = ((v >= thr) if sd > 0 else (v <= thr)) & fin
+                    for sh in SHAPES:
+                        sig = shape(base_sig, sh)
+                        m = sig.mean()
+                        if m < need or m > MAX_FIRE:
+                            continue
+                        tr = np.flatnonzero(sig[:cut])
+                        if len(tr) < 200:
+                            continue
+                        sc = float(np.abs(WTr[tr].mean(axis=0) - base).max())
+                        out.setdefault(fn.split("_")[0] + "_", []).append(
+                            (sc, sig, f"{fn}|{form}|{sh}", sd, float(q)))
     for t in out:
         out[t].sort(key=lambda z: -z[0])
         best, seen = [], {}
         for lg in out[t]:                    # spread across FEATURES, not
-            c = seen.get(lg[2], 0)           # three thresholds of one feature
+            root = lg[2].split("|")[0]       # many forms of one feature
+            c = seen.get(root, 0)
             if c >= 3:
                 continue
-            seen[lg[2]] = c + 1
+            seen[root] = c + 1
             best.append(lg)
             if len(best) >= PERTYPE:
                 break
@@ -234,7 +299,11 @@ def scan(cn):
             tr = np.flatnonzero(sig[:cut])
             if len(tr) < 200:
                 continue
-            key = (fs, k)
+            # DEDUP ON THE BAR-SET, not on the label. Two rules with
+            # different names that select the same bars are one rule, and
+            # scoring both inflates the count while adding nothing -- which is
+            # exactly how a "top 5" came back as two ideas wearing five names.
+            key = hash(np.packbits(sig).tobytes())
             if key in seen:
                 continue
             seen.add(key)
