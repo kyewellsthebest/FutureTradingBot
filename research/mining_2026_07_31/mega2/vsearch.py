@@ -393,6 +393,27 @@ def main():
     meta = fuse.tape_meta()
     cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
     winners, ep = [], 0
+    # RESUME ACROSS REBOOTS. The container has been reclaimed twice in eighty
+    # minutes, and a restart that begins epoch 1 on the first quarter again
+    # would loop over the same two quarters forever and never reach the
+    # validation stage at all. Completed contracts and accumulated candidates
+    # are checkpointed after every quarter, so successive windows add up
+    # instead of repeating.
+    done, carry = set(), []
+    if os.path.exists(STATE):
+        try:
+            prev = json.load(open(STATE))
+            done = set(prev.get("done", []))
+            carry = prev.get("cand", [])
+            winners = prev.get("winners", [])
+            for k, v in (prev.get("stat") or {}).items():
+                STAT[k] = STAT.get(k, 0) + int(v)
+            if done or carry:
+                print(f"resumed: {len(done)} quarters already searched, "
+                      f"{len(carry)} candidates carried, "
+                      f"{len(winners)} validated", flush=True)
+        except Exception as e:                                   # noqa: BLE001
+            print(f"could not resume ({type(e).__name__})", flush=True)
     global MIN_DOL, MIN_TPW
     print(f"train {TRAIN:.0%}/{1-TRAIN:.0%} split, then every other quarter. "
           f"hit = train gates AND test>0 AND out-of-sample >= "
@@ -409,15 +430,23 @@ def main():
         print(f"\n=== epoch {ep} | {(end-time.time())/3600:.2f}h left | "
               f"bar ${MIN_DOL:.2f}/tr {MIN_TPW:.0f}/wk | "
               f"q={[round(q,2) for q in QS]}", flush=True)
-        cand = []
+        cand = list(carry)
+        carry = []
         for K in KBAR:
             for cn in cons:
                 if time.time() > end - 60 or len(cand) >= MAX_CAND:
                     break
+                if f"{cn}_{K}_{ep}" in done:
+                    continue
                 try:
                     search_one(cn, K, cand, end - 60)
                 except Exception as e:                           # noqa: BLE001
                     print(f"{cn} K{K}: {type(e).__name__}: {e}", flush=True)
+                done.add(f"{cn}_{K}_{ep}")
+                json.dump({"done": sorted(done), "cand": cand,
+                           "winners": winners, "stat": STAT,
+                           "min_dol": MIN_DOL, "min_tpw": MIN_TPW},
+                          open(STATE, "w"), default=float)
         print(f"  {len(cand)} candidates passed train+test, validating...",
               flush=True)
         vals = validate(cand, cons, end - 30)
@@ -448,8 +477,9 @@ def main():
                 print(f"    ratchet ${MIN_DOL:.2f}->${nd:.2f}, "
                       f"{MIN_TPW:.0f}->{nt:.0f}/wk", flush=True)
                 MIN_DOL, MIN_TPW = nd, nt
-        json.dump({"winners": winners, "stat": STAT,
-                   "min_dol": MIN_DOL, "min_tpw": MIN_TPW},
+        done = {d for d in done if not d.endswith(f"_{ep}")}
+        json.dump({"done": sorted(done), "cand": [], "winners": winners,
+                   "stat": STAT, "min_dol": MIN_DOL, "min_tpw": MIN_TPW},
                   open(STATE, "w"), default=float)
 
     # ------------------------------------------------------------ report
