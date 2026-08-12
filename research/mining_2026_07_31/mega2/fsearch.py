@@ -364,7 +364,7 @@ def evaluate(cn, cands):
     B, F = V.cached(cn, KBAR)
     n = len(B["c"])
     dayspan = len(np.unique(B["ts"] // fuse.DAY_NS))
-    out, cache, sigs = {}, {}, {}
+    out, cache, sigs, fcache = {}, {}, {}, {}
     for j, c in enumerate(cands):
         if c["home"] == cn:
             continue
@@ -383,18 +383,34 @@ def evaluate(cn, cands):
         sk = (tuple(c["legs"]), c["k"])
         sig = sigs.get(sk)
         if sig is None:
+            # LEG NAMES CARRY A FORM AND A SHAPE NOW -- "d_z55|rk55|hold4" --
+            # and the first validator looked that string up as a literal
+            # feature, found nothing, and silently skipped every candidate.
+            # 13,331 candidates, zero evaluated, reported as "0 survived".
+            # Same disease as the bracket lookup, third occurrence today. The
+            # transformed series must be REBUILT here exactly as legs_for
+            # built it, and it is cached per (root, form) per quarter.
             tot, have = np.zeros(n, dtype=np.int16), 0
             for fn, sd, q in c["legs"]:
-                v = F.get(fn)
+                parts = fn.split("|")
+                root = parts[0]
+                form = parts[1] if len(parts) > 1 else "raw"
+                sh = parts[2] if len(parts) > 2 else "state"
+                fk = (root, form)
+                if fk not in fcache:
+                    v0 = F.get(root)
+                    fcache[fk] = (None if v0 is None else
+                                  forms(np.asarray(v0, dtype=np.float64),
+                                        n).get(form))
+                v = fcache[fk]
                 if v is None:
                     continue
-                v = np.asarray(v, dtype=np.float32)
                 fin = np.isfinite(v)
-                if fin.sum() < n * 0.5:
+                if fin.sum() < n * 0.4:
                     continue
                 thr = float(np.quantile(v[fin], q))
-                tot += (((v >= thr) if sd > 0
-                         else (v <= thr)) & fin).astype(np.int16)
+                bs = ((v >= thr) if sd > 0 else (v <= thr)) & fin
+                tot += shape(bs, sh).astype(np.int16)
                 have += 1
             sig = (tot >= c["k"]) if have >= c["k"] else False
             sigs[sk] = sig
@@ -437,6 +453,9 @@ def main():
                     res[j][cn] = v
                 print(f"  validated on {cn}", flush=True)
 
+    if allc and not any(res.values()):
+        print("!!! VALIDATION EVALUATED NOTHING -- leg reconstruction failed. "
+              "Result is NOT a finding.", flush=True)
     winners = []
     for i, c in enumerate(allc):
         got = res[i]
