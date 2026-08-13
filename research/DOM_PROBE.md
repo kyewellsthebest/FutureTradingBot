@@ -48,6 +48,29 @@ No further code change can move this.
 > API key auth succeeds; the 2FA device is approved. What is missing for the
 > market-data subscription to apply to API access?
 
+## Rounds 7-8: the account side is exhausted too
+
+The entitlement dump (userPlugin/marketDataSubscription/tradovateSubscription
+over REST) and the user's own portal work established, with the md refusal
+unchanged after each step:
+
+- `apiAccess` plugin active ($25/mo, since 2026-08-11), autorenewing
+- six market-data subscription rows on the account (dealer-covered, $0)
+- the API key -- the "data" key, the one in the GitHub secrets -- has every
+  permission toggle on, including Market Data and View Contracts, and the
+  save verifiably succeeded (an earlier save had been silently failing on
+  "maxExposedTotal must be positive" -- worth knowing, but fixing it did
+  not change the refusal)
+- `mdAccessToken` is issued at login
+
+With all of that green and "Symbol is inaccessible" still uniform across
+demo and live, the standing explanation is the licensing tier: retail
+subscriptions entitle the Trader app; API streaming is licensed as
+redistribution and requires the CME sub-vendor ILA (~$290-500/mo).
+The economical path to depth data is Databento MBP-10 history (one-off,
+~$100-200/month of NQ) for the maker-edge verification, and Sierra
+Chart + Denali (~$80/mo) if ongoing live depth recording is ever wanted.
+
 ## Two bugs this hunt fixed in our own tooling
 
 - probe parser treated router errors (`d` as string) as unparseable and
