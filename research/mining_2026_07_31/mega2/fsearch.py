@@ -75,6 +75,9 @@ TV = float(os.environ.get("TV", "0.50"))
 TPX = float(os.environ.get("TPX", "0.25"))
 COST = float(os.environ.get("COST", "1.24"))
 MAKER = float(os.environ.get("MAKER", "0.355"))
+# survivor-level spec: what a rule must still do on quarters it never saw
+MIN_OOS_TPW = float(os.environ.get("MIN_OOS_TPW", os.environ.get("MIN_TPW", "100")))
+MIN_OOS_WK = float(os.environ.get("MIN_OOS_WK", "150"))
 
 
 def nonoverlap(idx, hold):
@@ -570,6 +573,14 @@ def main():
     print(f"\n{len(allc):,} candidates passed train AND held-out test. "
           f"Validating across quarters...", flush=True)
 
+    # THE SPEC IS END-TO-END, not train-side only. A candidate that cannot
+    # sustain MIN_TPW in the held-out 40% has already failed the brief --
+    # validating it wastes the budget and reporting it wastes attention.
+    n0 = len(allc)
+    allc = [c for c in allc
+            if c["train"]["tpw"] >= MIN_TPW and c["test"]["tpw"] >= MIN_TPW]
+    print(f"frequency gate: {n0:,} -> {len(allc):,} sustain "
+          f">={MIN_TPW:.0f}/wk in train AND held-out", flush=True)
     MAXVAL = int(os.environ.get("MAX_VAL", "20000"))
     if len(allc) > MAXVAL:
         # the held-out test segment, not train, ranks who gets validated --
@@ -621,7 +632,11 @@ def main():
         c["oos"] = dict(dol=float(np.mean(dols)),
                         green=sum(1 for x in dols if x > 0), q=len(got),
                         tpw=float(np.mean([v["tpw"] for v in got.values()])))
-        if c["oos"]["dol"] >= MIN_OOS_DOL and c["oos"]["green"] >= MIN_GREEN:
+        ok = (c["oos"]["dol"] >= MIN_OOS_DOL
+              and c["oos"]["green"] >= MIN_GREEN
+              and c["oos"]["tpw"] >= MIN_OOS_TPW
+              and c["oos"]["dol"] * c["oos"]["tpw"] >= MIN_OOS_WK)
+        if ok:
             winners.append(c)
 
     ts = sum(s["scan"] for s in stats.values())
