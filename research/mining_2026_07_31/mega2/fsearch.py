@@ -475,7 +475,9 @@ def evaluate(cn, cands, csig=None):
             cache[key] = (r.astype(np.float32), hold.astype(np.int32))
         r, hold = cache[key]
 
-        sk = (tuple(c["legs"]), c["k"])
+        # legs reloaded from JSON checkpoints are lists-of-lists; tuples all
+        # the way down or the cache key is unhashable
+        sk = (tuple(tuple(x) for x in c["legs"]), c["k"])
         sig = sigs.get(sk)
         if sig is None:
             # LEG NAMES CARRY A FORM AND A SHAPE NOW -- "d_z55|rk55|hold4" --
