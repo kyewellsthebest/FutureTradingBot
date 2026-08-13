@@ -283,8 +283,12 @@ def legs_for(P, cn=None):
                             continue
                         wr = sigc.astype(np.float32) @ WTc / ntr
                         sc = float(np.abs(wr - base).max())
+                        # PACKED, 8x smaller: retaining tens of thousands of
+                        # full bool arrays across 4 workers is what OOM-killed
+                        # the MIN_TPW=100 run with no traceback
                         out.setdefault(fn.split("_")[0] + "_", []).append(
-                            (sc, sig, f"{fn}|{form}|{sh}", sd, float(q)))
+                            (sc, np.packbits(sig), f"{fn}|{form}|{sh}",
+                             sd, float(q)))
     for t in out:
         out[t].sort(key=lambda z: -z[0])
         best, seen = [], {}
@@ -299,11 +303,10 @@ def legs_for(P, cn=None):
                 break
         out[t] = best
     if lp is not None:
-        packed = {t: [(sc, np.packbits(sig), nm, sd, q)
-                      for sc, sig, nm, sd, q in v] for t, v in out.items()}
-        pickle.dump(packed, open(lp + ".tmp", "wb"))
+        pickle.dump(out, open(lp + ".tmp", "wb"))
         os.replace(lp + ".tmp", lp)
-    return out
+    return {t: [(sc, np.unpackbits(pk)[:n].astype(bool), nm, sd, q)
+                for sc, pk, nm, sd, q in v] for t, v in out.items()}
 
 
 def scan(cn):
