@@ -323,6 +323,11 @@ def scan(cn):
     cut, n, dayspan, keys = P["cut"], P["n"], P["dayspan"], P["keys"]
     nfeat = sum(len({l[2] for l in v}) for v in byt.values())
 
+    # the needle has a SHAPE: at MIN_TPW/wk, a candidate needs this many
+    # non-overlapping trades in each segment -- anything that cannot reach
+    # it is hay and gets no further arithmetic
+    needA = int(MIN_TPW * dayspan * TRAIN / 5.0)
+    needB = int(MIN_TPW * dayspan * (1 - TRAIN) / 5.0)
     WIDE = {2: PERTYPE, 3: 6, 4: 4, 5: 3}
     groups = [[(a,) for t in types for a in byt[t][:8]]]
     for m in range(2, min(ARITY, len(types)) + 1):
@@ -376,7 +381,11 @@ def scan(cn):
             if fr < 0.01 or fr > MAX_FIRE:
                 continue
             tr = np.flatnonzero(sig[:cut])
-            if len(tr) < 200:
+            # signal bars bound trades from above: below the frequency spec
+            # in EITHER segment means impossible, skip before any scoring
+            if len(tr) < max(200, needA):
+                continue
+            if int(sig[cut:].sum()) < needB:
                 continue
             # DEDUP ON THE BAR-SET, not on the label. Two rules with
             # different names that select the same bars are one rule, and
@@ -396,12 +405,16 @@ def scan(cn):
             # Only the BEST few brackets are worth the non-overlap pass. The
             # loop breaks on the first success, so testing all of them just
             # pays for the expensive step on brackets that will never be used.
-            ok = ok[np.argsort(-(m[ok] - BAR[ok]))[:3]]
+            # SIX brackets, judged by $/WEEK -- ranking by edge alone and
+            # breaking at the first pass systematically chose wide slow
+            # brackets and discarded the tight fast ones the spec demands
+            ok = ok[np.argsort(-(m[ok] - BAR[ok]))[:6]]
             allidx = np.flatnonzero(sig)
+            best, bestwk = None, 0.0
             for bi in ok:
                 keep = nonoverlap(allidx, H[:, bi])
                 a, b = keep[keep < cut], keep[keep >= cut]
-                if len(a) < 100 or len(b) < 60:
+                if len(a) < needA or len(b) < needB:
                     continue
                 if float(WT[a, bi].mean()) < BAR[bi]:
                     continue
@@ -410,15 +423,19 @@ def scan(cn):
                 da, db = float(ra.mean()), float(rb.mean())
                 if da < MIN_DOL or db <= 0:
                     continue
+                tpwa = len(a) / (dayspan * TRAIN) * 5
+                if da * tpwa > bestwk:
+                    bestwk = da * tpwa
+                    S, T, side = keys[bi]
+                    best = dict(
+                        legs=[(x[2], int(x[3]), float(x[4])) for x in cb],
+                        k=int(k), side=int(side), stop=S, tgt=T, home=cn,
+                        train=dict(dol=da, tpw=tpwa),
+                        test=dict(dol=db,
+                                  tpw=len(b) / (dayspan * (1 - TRAIN)) * 5))
+            if best is not None:
                 st["test"] += 1
-                S, T, side = keys[bi]
-                cand.append(dict(
-                    legs=[(x[2], int(x[3]), float(x[4])) for x in cb],
-                    k=int(k), side=int(side), stop=S, tgt=T, home=cn,
-                    train=dict(dol=da, tpw=len(a) / (dayspan * TRAIN) * 5),
-                    test=dict(dol=db,
-                              tpw=len(b) / (dayspan * (1 - TRAIN)) * 5)))
-                break
+                cand.append(best)
     st["feat"] = nfeat
     st["combos"] = len(combos)
     st["secs"] = time.time() - t0
