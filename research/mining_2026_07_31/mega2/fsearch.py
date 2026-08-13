@@ -444,11 +444,30 @@ def main():
     cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
     print(f"{len(cons)} quarters, {WORKERS} workers, K={KBAR}", flush=True)
 
-    allc, stats = [], {}
+    # per-quarter checkpoints: the container hosting this search is reclaimed
+    # roughly hourly, and state written only at the end means every reclaim
+    # loses everything. A finished quarter is a durable unit -- dump it, and
+    # skip it on relaunch.
+    ckdir = os.path.join(os.path.dirname(STATE), "fsearch_ck")
+    os.makedirs(ckdir, exist_ok=True)
+    allc, stats, todo = [], {}, []
+    for cn in cons:
+        p = os.path.join(ckdir, f"scan_{cn}.json")
+        if os.path.exists(p):
+            d = json.load(open(p))
+            stats[cn] = d["st"]
+            allc += d["cand"]
+            print(f"  {cn}: checkpoint ({len(d['cand'])} candidates)",
+                  flush=True)
+        else:
+            todo.append(cn)
     with ProcessPoolExecutor(max_workers=WORKERS) as ex:
-        for cn, cand, st in ex.map(scan, cons):
+        for cn, cand, st in ex.map(scan, todo):
             stats[cn] = st
             allc += cand
+            json.dump({"st": st, "cand": cand},
+                      open(os.path.join(ckdir, f"scan_{cn}.json"), "w"),
+                      default=float)
             print(f"  {cn}: {st.get('feat',0)} features, "
                   f"{st.get('combos',0):,} combos, scanned {st['scan']:,} -> "
                   f"gate {st['gate']:,} -> train+test {st['test']:,} "
@@ -459,12 +478,33 @@ def main():
 
     res = {i: {} for i in range(len(allc))}
     if allc:
+        # validation checkpoints are only valid against the exact candidate
+        # list they were computed for -- key them to its digest
+        import hashlib
+        csig = hashlib.blake2b(
+            json.dumps([(c["home"], c["stop"], c["tgt"], c["side"], c["k"],
+                         c["legs"]) for c in allc],
+                       default=float).encode(), digest_size=8).hexdigest()
+        vtodo = []
+        for cn in cons:
+            p = os.path.join(ckdir, f"val_{cn}.json")
+            if os.path.exists(p):
+                d = json.load(open(p))
+                if d.get("sig") == csig:
+                    for j, v in d["out"].items():
+                        res[int(j)][cn] = v
+                    print(f"  validated on {cn} (checkpoint)", flush=True)
+                    continue
+            vtodo.append(cn)
         with ProcessPoolExecutor(max_workers=WORKERS) as ex:
-            futs = [ex.submit(evaluate, cn, allc) for cn in cons]
+            futs = {ex.submit(evaluate, cn, allc): cn for cn in vtodo}
             for f in futs:
                 cn, out = f.result()
                 for j, v in out.items():
                     res[j][cn] = v
+                json.dump({"sig": csig, "out": out},
+                          open(os.path.join(ckdir, f"val_{cn}.json"), "w"),
+                          default=float)
                 print(f"  validated on {cn}", flush=True)
 
     if allc and not any(res.values()):
