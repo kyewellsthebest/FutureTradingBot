@@ -68,7 +68,13 @@ QS = [float(x) for x in os.environ.get(
 KBAR = int(os.environ.get("KBAR", "500"))
 WORKERS = int(os.environ.get("WORKERS", "4"))
 MAXCOMBO = int(os.environ.get("MAXCOMBO", "400000"))
-TV, TPX, COST, MAKER = 0.50, 0.25, 1.24, 0.355
+# per-market economics of the MICRO contract, env-overridable. MAKER
+# defaults to the measured MNQ front-of-queue edge only for NQ; other
+# markets have no queue measurement yet and price as takers (0).
+TV = float(os.environ.get("TV", "0.50"))
+TPX = float(os.environ.get("TPX", "0.25"))
+COST = float(os.environ.get("COST", "1.24"))
+MAKER = float(os.environ.get("MAKER", "0.355"))
 
 
 def nonoverlap(idx, hold):
@@ -526,7 +532,10 @@ def evaluate(cn, cands, csig=None):
 def main():
     t0 = time.time()
     meta = fuse.tape_meta()
-    cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
+    want = os.environ.get("CONTRACTS")
+    cons = (want.split(",") if want else
+            [c for c in fuse.NQ_CONTRACTS if c in meta])
+    cons = [c for c in cons if c in meta]
     print(f"{len(cons)} quarters, {WORKERS} workers, K={KBAR}", flush=True)
 
     # per-quarter checkpoints: the container hosting this search is reclaimed

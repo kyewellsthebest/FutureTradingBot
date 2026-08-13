@@ -70,6 +70,7 @@ INDEX = ["ES", "YM", "RTY"]          # data type 3
 MACRO = ["CL", "GC", "HG"]           # data type 4
 FOREIGN = INDEX + MACRO
 GROUP = {s: ("i_" if s in INDEX else "m_") for s in FOREIGN}
+GROUP["NQ"] = "i_"                   # NQ as a satellite of another centre
 
 # minimum tape density for a contract to count as the liquid one. GCH5 holds
 # 22,805 prints against GC's 8.6 million and a name-based pick grabbed it once
@@ -456,7 +457,14 @@ def build(contract, k, lag_ms=None, shift=False, verbose=True):
 
     off = int(SHIFT_DAYS * DAY_NS) if shift else 0
     fr, cov = {}, {}
-    for s in FOREIGN:
+    # the centre market is whatever contract was asked for; its own symbol
+    # must not appear among the "foreign" satellites (for ES-centred bars a
+    # satellite ES stream would be the centre's own tape wearing an i_ prefix)
+    # and NQ joins the index satellites whenever it is not the centre.
+    csym = meta[contract]["sym"]
+    foreign = [s for s in (["NQ"] if csym != "NQ" else []) + FOREIGN
+               if s != csym]
+    for s in foreign:
         c = pick_contract(meta, s, int(T[0]), int(T[-1]))
         if c is None:
             # emit the group's columns as all-NaN rather than dropping them.

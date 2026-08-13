@@ -31,6 +31,8 @@ hold) then multiply each measurement into dozens of structurally different
 conditions -- which is how ~120 of the 200 catalogue entries become
 concrete tested hypotheses in a single sweep.
 """
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -99,7 +101,8 @@ def build(cn, K, B):
     lo = pd.Series(l).groupby(day).cummin().to_numpy()
     F["w_dhi"] = (hi - c) / unit                      # distance to day high
     F["w_dlo"] = (c - lo) / unit
-    F["w_round"] = np.abs(c / 25.0 - np.round(c / 25.0))   # 25pt magnets
+    rnd = float(os.environ.get("ROUND", "25.0"))    # magnet spacing, per market
+    F["w_round"] = np.abs(c / rnd - np.round(c / rnd))
     ph = np.r_[h[0], h[:-1]]
     fb = ((h > ph) & (c < ph)).astype(float)          # poked above, failed
     F["w_fbreak"] = pd.Series(fb).rolling(21, min_periods=6).mean().to_numpy()

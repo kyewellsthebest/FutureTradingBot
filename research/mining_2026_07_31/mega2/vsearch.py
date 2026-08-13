@@ -84,7 +84,9 @@ QS = [float(x) for x in os.environ.get("QS", "0.2,0.35,0.5,0.65,0.8").split(",")
 PERTYPE = int(os.environ.get("PERTYPE", "10"))
 ARITY = int(os.environ.get("ARITY", "5"))
 
-TV, TPX, COST = 0.50, 0.25, 1.24
+TV = float(os.environ.get("TV", "0.50"))
+TPX = float(os.environ.get("TPX", "0.25"))
+COST = float(os.environ.get("COST", "1.24"))
 # resting a limit is worth this much over crossing, MEASURED, not the flat two
 # ticks the earlier searches credited -- which was most of their reported edge
 MAKER = 0.355
