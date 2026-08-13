@@ -96,17 +96,24 @@ def probe(mdtok, items):
             print(f"authorize reply: {m[:300]}", flush=True)
             break
 
+    # LOWERCASE endpoints: live's router 404s the camelCase spelling that
+    # demo tolerates ("Not found: md/subscribeQuote", s:404, every request)
     rid, want = 10, {}
     for name, cid in items:
         # by NAME
         rid += 1
-        want[rid] = (name, "name")
-        c.send('md/subscribeQuote\n%d\n\n{"symbol":"%s"}' % (rid, name))
+        want[rid] = (name, "quote")
+        c.send('md/subscribequote\n%d\n\n{"symbol":"%s"}' % (rid, name))
         # by numeric contract ID, which the socket also accepts
         if cid:
             rid += 1
             want[rid] = (name, "id")
-            c.send('md/subscribeQuote\n%d\n\n{"symbol":%d}' % (rid, cid))
+            c.send('md/subscribequote\n%d\n\n{"symbol":%d}' % (rid, cid))
+        # depth is the prize -- ask for it on the front months
+        if name in ("NQU6", "MNQU6", "ESU6", "MESU6"):
+            rid += 1
+            want[rid] = (name, "dom")
+            c.send('md/subscribedom\n%d\n\n{"symbol":"%s"}' % (rid, name))
 
     res, t0, raw = {}, time.time(), []
     while time.time() - t0 < 25 and len(res) < len(want):
@@ -122,9 +129,17 @@ def probe(mdtok, items):
             for f in json.loads(m[1:]):
                 i = f.get("i")
                 if i in want:
-                    d = f.get("d") or {}
-                    res[i] = (d.get("errorText") or d.get("errorCode")
-                              or f"OK {json.dumps(d)[:60]}")
+                    d = f.get("d")
+                    # d is a dict on entitlement replies but a plain STRING
+                    # on router errors -- treating it as a dict raised and
+                    # got swallowed, which printed as '(no reply)'
+                    if isinstance(d, dict):
+                        res[i] = (d.get("errorText") or d.get("errorCode")
+                                  or f"OK {json.dumps(d)[:60]}")
+                    else:
+                        s = f.get("s")
+                        res[i] = (f"OK s={s}" if s == 200
+                                  else f"s={s} {str(d)[:60]}")
         except Exception:                                        # noqa: BLE001
             continue
     if not res and raw:

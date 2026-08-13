@@ -1,1 +1,1 @@
-diag: live socket answers nothing -- print authorize reply and raw frames
+retest: lowercase md endpoints + dom subscribe + string-d parse fix
