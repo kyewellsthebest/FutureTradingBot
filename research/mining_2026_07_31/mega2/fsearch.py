@@ -277,7 +277,10 @@ def scan(cn):
     P = prep(cn)
     if P is None:
         return cn, [], dict(scan=0, gate=0, test=0)
+    tp = time.time()
+    print(f"    {cn}: prep {tp-t0:.0f}s", flush=True)
     byt = legs_for(P)
+    print(f"    {cn}: legs {time.time()-tp:.0f}s", flush=True)
     types = sorted(byt)
     if len(types) < 2:
         return cn, [], dict(scan=0, gate=0, test=0)
@@ -295,9 +298,36 @@ def scan(cn):
     combos = [c for tier in itertools.zip_longest(*groups)
               for c in tier if c is not None][:MAXCOMBO]
 
-    st = dict(scan=0, gate=0, test=0)
-    cand, seen = [], set()
-    for cb in combos:
+    # intra-quarter checkpoints: the host is reclaimed every hour or two,
+    # and a whole quarter at this config does not fit inside that window.
+    # The durable unit is a 100k-combo chunk (~minutes). combos is rebuilt
+    # deterministically from the cache, so an offset is a valid resume point;
+    # only the bar-set dedup memory is lost across restarts, and downstream
+    # trade-set clustering catches any duplicate that slips the seam.
+    ckp = os.path.join(os.path.dirname(STATE), "fsearch_ck", f"part_{cn}.json")
+    start, st, cand = 0, dict(scan=0, gate=0, test=0), []
+    if os.path.exists(ckp):
+        try:
+            d = json.load(open(ckp))
+            if d.get("nc") == len(combos):
+                start, st, cand = d["i"], d["st"], d["cand"]
+                print(f"    {cn}: resume at combo {start:,} "
+                      f"({len(cand)} candidates so far)", flush=True)
+        except Exception:                                        # noqa: BLE001
+            pass
+    CHUNK = 100_000
+    seen = set()
+    for ci, cb in enumerate(combos):
+        if ci < start:
+            continue
+        if ci > start and ci % CHUNK == 0:
+            json.dump({"i": ci, "nc": len(combos), "st": st, "cand": cand},
+                      open(ckp + ".tmp", "w"), default=float)
+            os.replace(ckp + ".tmp", ckp)
+            el = time.time() - t0
+            print(f"    {cn}: {ci:,}/{len(combos):,} combos, "
+                  f"{st['scan']:,} scanned, {st['test']:,} passed, "
+                  f"{el/60:.0f}m", flush=True)
         fs = tuple(x[2] for x in cb)
         if len(set(fs)) < len(fs):
             continue
@@ -357,6 +387,8 @@ def scan(cn):
     st["feat"] = nfeat
     st["combos"] = len(combos)
     st["secs"] = time.time() - t0
+    if os.path.exists(ckp):
+        os.remove(ckp)     # the quarter-level checkpoint takes over from here
     return cn, cand, st
 
 
