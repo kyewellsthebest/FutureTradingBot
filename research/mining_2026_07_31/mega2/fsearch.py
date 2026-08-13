@@ -34,7 +34,7 @@ across every OTHER quarter. The gates are unchanged.
 """
 import itertools
 import json
-import json
+import pickle
 import math
 import os
 import sys
@@ -216,21 +216,40 @@ def shape(sig, kind):
     return out
 
 
-def legs_for(P):
+def legs_for(P, cn=None):
     """Every feature gets a fair hearing, then the best survive.
 
     This is the line that was missing. Legs are SCORED -- how far each moves
     the win rate on a handful of reference brackets -- and the top PERTYPE per
     data type are kept. Truncating an unsorted list, as before, kept whichever
-    feature happened to sort first and discarded the other 95%."""
+    feature happened to sort first and discarded the other 95%.
+
+    This stage, not the combo scan, turned out to own the runtime: ~94k
+    candidate legs each fancy-indexed a (bars x 8) slice, 20+ minutes per
+    quarter and growing. Scoring is now one BLAS matvec per leg, and the
+    finished list is pickled per quarter so it is computed once ever."""
     F, n, cut = P["F"], P["n"], P["cut"]
     WT, dayspan = P["WT"], P["dayspan"]
+    lp = None
+    if cn is not None:
+        lp = os.path.join(os.path.dirname(STATE), "fsearch_ck",
+                          f"legs_{cn}_{PERTYPE}_{int(MIN_TPW)}_"
+                          f"{len(QS)}x{len(SHAPES)}.pkl")
+        if os.path.exists(lp):
+            try:
+                raw = pickle.load(open(lp, "rb"))
+                return {t: [(sc, np.unpackbits(pk)[:n].astype(bool), nm, sd, q)
+                            for sc, pk, nm, sd, q in v]
+                        for t, v in raw.items()}
+            except Exception:                                    # noqa: BLE001
+                pass
     need = MIN_TPW / 5.0 / (n / dayspan)
     ref = np.linspace(0, WT.shape[1] - 1, min(8, WT.shape[1])).astype(int)
     # slice the columns ONCE. WT[tr][:, ref] materialises (len(tr), 154) and
     # then throws away all but eight columns -- 3x slower than slicing first.
     WTr = np.ascontiguousarray(WT[:, ref])
     base = WTr[:cut].mean(axis=0)
+    WTc = WTr[:cut].astype(np.float32)      # matvec operand, built once
     out = {}
     for fn in sorted(F):
         v0 = np.asarray(F[fn], dtype=np.float64)
@@ -249,10 +268,12 @@ def legs_for(P):
                         m = sig.mean()
                         if m < need or m > MAX_FIRE:
                             continue
-                        tr = np.flatnonzero(sig[:cut])
-                        if len(tr) < 200:
+                        sigc = sig[:cut]
+                        ntr = int(sigc.sum())
+                        if ntr < 200:
                             continue
-                        sc = float(np.abs(WTr[tr].mean(axis=0) - base).max())
+                        wr = sigc.astype(np.float32) @ WTc / ntr
+                        sc = float(np.abs(wr - base).max())
                         out.setdefault(fn.split("_")[0] + "_", []).append(
                             (sc, sig, f"{fn}|{form}|{sh}", sd, float(q)))
     for t in out:
@@ -268,6 +289,11 @@ def legs_for(P):
             if len(best) >= PERTYPE:
                 break
         out[t] = best
+    if lp is not None:
+        packed = {t: [(sc, np.packbits(sig), nm, sd, q)
+                      for sc, sig, nm, sd, q in v] for t, v in out.items()}
+        pickle.dump(packed, open(lp + ".tmp", "wb"))
+        os.replace(lp + ".tmp", lp)
     return out
 
 
@@ -279,7 +305,7 @@ def scan(cn):
         return cn, [], dict(scan=0, gate=0, test=0)
     tp = time.time()
     print(f"    {cn}: prep {tp-t0:.0f}s", flush=True)
-    byt = legs_for(P)
+    byt = legs_for(P, cn)
     print(f"    {cn}: legs {time.time()-tp:.0f}s", flush=True)
     types = sorted(byt)
     if len(types) < 2:
