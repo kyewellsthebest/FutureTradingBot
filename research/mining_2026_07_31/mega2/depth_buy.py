@@ -39,8 +39,12 @@ os.makedirs(OUTDIR, exist_ok=True)
 c = db.Historical(KEY)
 DATASET = "GLBX.MDP3"
 
-WEEK_DAYS = ["2026-07-27", "2026-07-28", "2026-07-29",
-             "2026-07-30", "2026-07-31"]
+# Jul 27 was measured before the first runner died (415 joins, 22 filled,
+# 5%, med queue 4) -- re-requesting a range is re-charged, so it is not
+# bought twice; its numbers are folded into the report from the log.
+WEEK_DAYS = os.environ.get(
+    "DAYS", "2026-07-28,2026-07-29,2026-07-30,2026-07-31").split(",")
+DAY27 = dict(joins=415, fills=22, med_ahead=4)
 # only what the measurement needs is bought NOW (~$55); the NQ July mbo
 # stays unbought so the remaining ~$70 of credit is there for follow-ups
 PLAN = [
@@ -65,40 +69,46 @@ L = ["# The maker edge, measured instead of assumed", "",
      "all of July (banked for feature work).", ""]
 
 
-def fetch(sym, schema, s, e):
-    path = os.path.join(OUTDIR, f"{sym}_{schema}_{s}.dbn.zst")
-    if not os.path.exists(path):
+def fetch_arrays(sym, schema, s, e, cols):
+    """Half-day windows, numpy immediately, nothing kept in pandas: a full
+    mbo day as a DataFrame is what OOM-killed the first runner."""
+    import gc
+    parts = {k: [] for k in cols + ["ts"]}
+    day = pd.Timestamp(s)
+    for h0, h1 in ((0, 12), (12, 24)):
+        a = (day + pd.Timedelta(hours=h0)).isoformat()
+        b = (day + pd.Timedelta(hours=h1)).isoformat()
+        path = os.path.join(OUTDIR, f"{sym}_{schema}_{s}_{h0}.dbn.zst")
         t0 = time.time()
         c.timeseries.get_range(dataset=DATASET, symbols=[sym],
                                stype_in="raw_symbol", schema=schema,
-                               start=s, end=e, path=path)
-        print(f"  fetched {path} ({os.path.getsize(path)/1e6:.0f}MB, "
-              f"{time.time()-t0:.0f}s)", flush=True)
-    return path
+                               start=a, end=b, path=path)
+        df = db.DBNStore.from_file(path).to_df()
+        os.remove(path)
+        df = df[(df.index.hour >= 13) & (df.index.hour < 20)]
+        parts["ts"].append(df.index.view(np.int64).copy())
+        for k in cols:
+            parts[k].append(df[k].to_numpy().copy())
+        del df
+        gc.collect()
+        print(f"  {sym} {schema} {s} h{h0}-{h1} ok "
+              f"({time.time()-t0:.0f}s)", flush=True)
+    return {k: np.concatenate(v) if v else np.array([])
+            for k, v in parts.items()}
 
 
 # ---- the week that answers the question: MNQ, day by day ----------------
 day_rows = []
 for day in WEEK_DAYS:
-    nxt = (pd.Timestamp(day) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    pb = fetch("MNQU6", "mbp-1", day, nxt)
-    po = fetch("MNQU6", "mbo", day, nxt)
-
-    top = db.DBNStore.from_file(pb).to_df()
-    top = top[(top.index.hour >= 13) & (top.index.hour < 20)]
-    if len(top) < 1000:
+    T = fetch_arrays("MNQU6", "mbp-1", day, None,
+                     ["bid_px_00", "bid_sz_00"])
+    if len(T["ts"]) < 1000:
         print(f"  {day}: too little RTH top-of-book, skipped", flush=True)
         continue
-    bb = top["bid_px_00"].to_numpy()
-    bq = top["bid_sz_00"].to_numpy()
-    tts = top.index.view(np.int64)
-
-    o = db.DBNStore.from_file(po).to_df()
-    o = o[(o.index.hour >= 13) & (o.index.hour < 20)]
-    ots = o.index.view(np.int64)
-    act = o["action"].to_numpy()
-    opx = o["price"].to_numpy()
-    osz = o["size"].to_numpy().astype(np.float64)
+    bb, bq, tts = T["bid_px_00"], T["bid_sz_00"], T["ts"]
+    O = fetch_arrays("MNQU6", "mbo", day, None, ["action", "price", "size"])
+    ots, act = O["ts"], O["action"]
+    opx, osz = O["price"], O["size"].astype(np.float64)
 
     # sample a join once a minute at the then-best bid
     joins = np.arange(tts[0], tts[-1], 60_000_000_000)
@@ -111,6 +121,7 @@ for day in WEEK_DAYS:
         w = ((ots > t0) & (ots <= t0 + 120_000_000_000) &
              (np.abs(opx - p) < 0.01))
         if not w.any():
+            res.append(("open", 0.0, 120.0, ahead))
             continue
         wa, ws, wt = act[w], osz[w], ots[w]
         # traded volume at our price after we join
@@ -132,6 +143,8 @@ for day in WEEK_DAYS:
                         (t_fill - t0) / 1e9, ahead))
         elif np.isfinite(t_break):
             res.append(("break", -1.0, (t_break - t0) / 1e9, ahead))
+        else:
+            res.append(("open", 0.0, 120.0, ahead))
     if res:
         d = pd.DataFrame(res, columns=["out", "ticks", "secs", "ahead"])
         d["day"] = day
@@ -140,21 +153,22 @@ for day in WEEK_DAYS:
         print(f"  {day}: {len(d)} joins, {nf} filled "
               f"({nf/len(d):.0%}), med queue ahead {d['ahead'].median():.0f}",
               flush=True)
-    for f in (pb, po):
-        os.remove(f)
 
 if day_rows:
     A = pd.concat(day_rows)
     A.to_parquet(os.path.join(OUTDIR, "mnq_queue_week.parquet"))
     fills = A[A.out == "fill"]
-    pf = len(fills) / len(A)
+    dec = A[A.out != "open"]
+    pf = len(fills) / max(len(dec), 1)     # of DECIDED joins
+    popen = (A.out == "open").mean()
     # value of a maker attempt in ticks, then dollars at MNQ $0.50/tick
     val = (fills.ticks.mean() * pf) + (-1.0 * (1 - pf))
     L += [f"## The number: measured maker value",
           "",
           f"- joins sampled: **{len(A):,}** (one per minute, RTH, "
           f"Jul 27-31)",
-          f"- P(filled before the level breaks): **{pf:.1%}**",
+          f"- P(filled before the level breaks), decided joins: "
+          f"**{pf:.1%}** ({popen:.0%} of joins had no outcome in 120s)",
           f"- median queue ahead at join: {A.ahead.median():.0f} contracts",
           f"- when filled: mid 10s later averages "
           f"**{fills.ticks.mean():+.2f} ticks** vs entry",
