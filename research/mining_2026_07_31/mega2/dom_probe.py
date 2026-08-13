@@ -90,7 +90,10 @@ def probe(mdtok, items):
     c.send(f"authorize\n0\n\n{mdtok}")
     t0 = time.time()
     while time.time() - t0 < 10:
-        if '"i":0' in c.recv():
+        m = c.recv()
+        if '"i":0' in m:
+            # the reply to authorize decides everything downstream, so show it
+            print(f"authorize reply: {m[:300]}", flush=True)
             break
 
     rid, want = 10, {}
@@ -105,12 +108,14 @@ def probe(mdtok, items):
             want[rid] = (name, "id")
             c.send('md/subscribeQuote\n%d\n\n{"symbol":%d}' % (rid, cid))
 
-    res, t0 = {}, time.time()
+    res, t0, raw = {}, time.time(), []
     while time.time() - t0 < 25 and len(res) < len(want):
         try:
             m = c.recv()
         except Exception:                                        # noqa: BLE001
             break
+        if len(raw) < 12 and m not in ("h", ""):
+            raw.append(m[:200])
         if len(m) < 2 or '"i":' not in m:
             continue
         try:
@@ -122,6 +127,11 @@ def probe(mdtok, items):
                               or f"OK {json.dumps(d)[:60]}")
         except Exception:                                        # noqa: BLE001
             continue
+    if not res and raw:
+        # every request unanswered -- show what the socket DID send instead
+        print("no request got a reply; first raw frames received:", flush=True)
+        for m in raw:
+            print(f"  {m}", flush=True)
     try:
         c.close()
     except Exception:                                            # noqa: BLE001
