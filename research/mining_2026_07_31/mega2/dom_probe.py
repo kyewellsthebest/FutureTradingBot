@@ -83,7 +83,11 @@ def contracts(tok):
 
 
 def probe(mdtok, items):
-    url = f"wss://md-{HOST}.tradovateapi.com/v1/websocket"
+    # production market data lives at md.tradovateapi.com, NOT md-live --
+    # md-live accepts the connection and the authorize but owns no md/*
+    # routes, which is why every request 404'd there in both spellings
+    mdhost = "md" if HOST == "live" else f"md-{HOST}"
+    url = f"wss://{mdhost}.tradovateapi.com/v1/websocket"
     c = websocket.create_connection(
         url, timeout=25, sslopt={"cert_reqs": ssl.CERT_REQUIRED})
     c.recv()

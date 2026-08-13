@@ -1,1 +1,1 @@
-retest: lowercase md endpoints + dom subscribe + string-d parse fix
+retest: production md host is md.tradovateapi.com, not md-live
