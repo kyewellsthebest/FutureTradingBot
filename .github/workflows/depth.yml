@@ -9,6 +9,9 @@ on:
     paths: ['data/depth/.probe', 'data/depth/.buy']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   depth:
     runs-on: ubuntu-latest
