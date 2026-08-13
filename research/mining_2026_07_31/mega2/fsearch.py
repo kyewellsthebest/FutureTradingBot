@@ -418,7 +418,7 @@ def scan(cn):
     return cn, cand, st
 
 
-def evaluate(cn, cands):
+def evaluate(cn, cands, csig=None):
     """Every candidate on a quarter it has never seen.
 
     THE BRACKET HAS TO BE REBUILT, NOT LOOKED UP. The ladder is derived from
@@ -437,7 +437,30 @@ def evaluate(cn, cands):
     n = len(B["c"])
     dayspan = len(np.unique(B["ts"] // fuse.DAY_NS))
     out, cache, sigs, fcache = {}, {}, {}, {}
+    # chunked resume, same reason as scan(): a validation quarter over tens
+    # of thousands of candidates outlives the host's reclaim window
+    vckp = os.path.join(os.path.dirname(STATE), "fsearch_ck",
+                        f"pval_{cn}.json")
+    start = 0
+    if csig and os.path.exists(vckp):
+        try:
+            d = json.load(open(vckp))
+            if d.get("sig") == csig:
+                start = d["i"]
+                out = {int(k): v for k, v in d["out"].items()}
+                print(f"    val {cn}: resume at {start:,}", flush=True)
+        except Exception:                                        # noqa: BLE001
+            pass
+    t0 = time.time()
     for j, c in enumerate(cands):
+        if j < start:
+            continue
+        if csig and j > start and j % 2000 == 0:
+            json.dump({"sig": csig, "i": j, "out": out},
+                      open(vckp + ".tmp", "w"), default=float)
+            os.replace(vckp + ".tmp", vckp)
+            print(f"    val {cn}: {j:,}/{len(cands):,} "
+                  f"({(time.time()-t0)/60:.0f}m)", flush=True)
         if c["home"] == cn:
             continue
         key = (c["stop"], c["tgt"], c["side"])
@@ -493,6 +516,8 @@ def evaluate(cn, cands):
             continue
         v = r[idx] - COST + MAKER
         out[j] = dict(dol=float(v.mean()), tpw=len(idx) / dayspan * 5)
+    if csig and os.path.exists(vckp):
+        os.remove(vckp)      # quarter-level val checkpoint takes over
     return cn, out
 
 
@@ -534,6 +559,14 @@ def main():
     print(f"\n{len(allc):,} candidates passed train AND held-out test. "
           f"Validating across quarters...", flush=True)
 
+    MAXVAL = int(os.environ.get("MAX_VAL", "20000"))
+    if len(allc) > MAXVAL:
+        # the held-out test segment, not train, ranks who gets validated --
+        # still selection, but selection on the least-fitted number we have
+        allc.sort(key=lambda c: -(c["test"]["dol"] * c["test"]["tpw"]))
+        print(f"validation capped: top {MAXVAL:,} of {len(allc):,} "
+              f"by held-out $/wk", flush=True)
+        allc = allc[:MAXVAL]
     res = {i: {} for i in range(len(allc))}
     if allc:
         # validation checkpoints are only valid against the exact candidate
@@ -555,7 +588,7 @@ def main():
                     continue
             vtodo.append(cn)
         with ProcessPoolExecutor(max_workers=WORKERS) as ex:
-            futs = {ex.submit(evaluate, cn, allc): cn for cn in vtodo}
+            futs = {ex.submit(evaluate, cn, allc, csig): cn for cn in vtodo}
             for f in futs:
                 cn, out = f.result()
                 for j, v in out.items():
