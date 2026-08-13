@@ -20,8 +20,8 @@ jobs:
       - run: pip install databento pandas pyarrow
       - name: swap (mbo days OOM-killed the first runner)
         run: |
-          sudo fallocate -l 8G /swapfile && sudo chmod 600 /swapfile
-          sudo mkswap /swapfile && sudo swapon /swapfile
+          sudo fallocate -l 8G /mnt/swap2 && sudo chmod 600 /mnt/swap2
+          sudo mkswap /mnt/swap2 && sudo swapon /mnt/swap2
       - name: cost check (free)
         env:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
