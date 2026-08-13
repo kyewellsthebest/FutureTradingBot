@@ -1,1 +1,1 @@
-probe both demo and live md hosts: portal shows L1+L2 paid, md-demo still refuses all 24
+retest live md host after 2FA device approval (dom-recorder-001 approved by user)
