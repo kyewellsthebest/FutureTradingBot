@@ -52,7 +52,9 @@ def auth():
     print(f"hasMarketData={j.get('hasMarketData')!r} "
           f"hasLive={j.get('hasLive')!r} hasFunded={j.get('hasFunded')!r} "
           f"experience={j.get('experience')!r} "
-          f"userStatus={j.get('userStatus')!r}", flush=True)
+          f"userStatus={j.get('userStatus')!r} "
+          f"mdAccessToken={'YES' if j.get('mdAccessToken') else 'MISSING'}",
+          flush=True)
     return j["accessToken"], j.get("mdAccessToken") or j["accessToken"]
 
 
@@ -80,6 +82,34 @@ def contracts(tok):
         for c in got:
             out.append((c["name"], c.get("id")))
     return out
+
+
+def entitlements(tok):
+    """Ask REST what this account actually owns. The forum's canonical cause
+    for 'Symbol is inaccessible' on EVERY symbol is a missing Contract
+    Library add-on -- an account-level plugin, invisible from the md socket,
+    enumerable here."""
+    h = {"Authorization": f"Bearer {tok}"}
+    for ep in ("userPlugin/list", "marketDataSubscription/list",
+               "tradovateSubscription/list"):
+        try:
+            r = requests.get(f"https://{HOST}.tradovateapi.com/v1/{ep}",
+                             headers=h, timeout=30)
+            j = r.json()
+        except Exception as e:                                   # noqa: BLE001
+            print(f"{ep}: failed {type(e).__name__}: {e}", flush=True)
+            continue
+        if not isinstance(j, list):
+            print(f"{ep}: {str(j)[:200]}", flush=True)
+            continue
+        print(f"{ep}: {len(j)} entries", flush=True)
+        for x in j[:20]:
+            keep = {k: x.get(k) for k in
+                    ("pluginName", "planPrice", "autorenewal", "active",
+                     "startDate", "expirationDate", "cancelledRenewal",
+                     "planCategories", "entitlementId", "timestamp")
+                    if k in x}
+            print(f"  {keep}", flush=True)
 
 
 def probe(mdtok, items):
@@ -162,6 +192,7 @@ def main():
     if not all([U, P, CID, SEC]):
         sys.exit("TRADOVATE_USER/PASS/CID/SEC must all be set")
     tok, mdtok = auth()
+    entitlements(tok)
     items = contracts(tok)
     print(f"\nREST knows {len(items)} contracts: "
           f"{', '.join(n for n, _ in items)}\n", flush=True)
