@@ -6,7 +6,7 @@ name: Databento depth data
 on:
   push:
     branches: [claude/hello-vc2ivo]
-    paths: ['data/depth/.probe', 'data/depth/.buy']
+    paths: ['data/depth/.probe', 'data/depth/.buy', 'data/depth/.pilot']
   workflow_dispatch:
 
 permissions:
@@ -34,8 +34,13 @@ jobs:
         env:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
         run: python research/mining_2026_07_31/mega2/depth_buy.py
+      - name: book-feature pilot (only if staged)
+        if: hashFiles('data/depth/.pilot') != ''
+        env:
+          DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
+        run: python research/mining_2026_07_31/mega2/depth_pilot.py
       - name: commit derived results
-        if: hashFiles('data/depth/.buy') != ''
+        if: always()
         run: |
           git config user.name "Claude" && git config user.email "noreply@anthropic.com"
           git add -A data/depth research/DEPTH.md || true
