@@ -17,9 +17,22 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - run: pip install requests websocket-client
+      # Both environments, read-only market data. The dealer portal shows L1
+      # and L2 paid, yet md-demo refuses every symbol -- paid CME entitlements
+      # may only be wired to the live market-data host. No orders are placed;
+      # this only asks the md socket for quotes/depth.
       - env:
           TRADOVATE_USER: ${{ secrets.TRADOVATE_USER }}
           TRADOVATE_PASS: ${{ secrets.TRADOVATE_PASS }}
           TRADOVATE_CID:  ${{ secrets.TRADOVATE_CID }}
           TRADOVATE_SEC:  ${{ secrets.TRADOVATE_SEC }}
+          TV_HOST: demo
+        run: python research/mining_2026_07_31/mega2/dom_probe.py
+      - if: always()
+        env:
+          TRADOVATE_USER: ${{ secrets.TRADOVATE_USER }}
+          TRADOVATE_PASS: ${{ secrets.TRADOVATE_PASS }}
+          TRADOVATE_CID:  ${{ secrets.TRADOVATE_CID }}
+          TRADOVATE_SEC:  ${{ secrets.TRADOVATE_SEC }}
+          TV_HOST: live
         run: python research/mining_2026_07_31/mega2/dom_probe.py
