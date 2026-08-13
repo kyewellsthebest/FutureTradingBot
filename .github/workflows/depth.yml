@@ -1,0 +1,36 @@
+name: Databento depth data
+
+# Two-stage: cost check (free) always runs; the buy stage only runs when
+# data/depth/.buy contains a plan line, so nothing is purchased until the
+# printed costs have been reviewed.
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ['data/depth/.probe', 'data/depth/.buy']
+  workflow_dispatch:
+
+jobs:
+  depth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install databento pandas pyarrow
+      - name: cost check (free)
+        env:
+          DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
+        run: python research/mining_2026_07_31/mega2/depth_cost.py
+      - name: buy and analyze (only if a plan is staged)
+        if: hashFiles('data/depth/.buy') != ''
+        env:
+          DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
+        run: python research/mining_2026_07_31/mega2/depth_buy.py
+      - name: commit derived results
+        if: hashFiles('data/depth/.buy') != ''
+        run: |
+          git config user.name "Claude" && git config user.email "noreply@anthropic.com"
+          git add -A data/depth research/DEPTH.md || true
+          git diff --cached --quiet || git commit -m "depth: derived queue metrics from Databento purchase"
+          git push origin claude/hello-vc2ivo
