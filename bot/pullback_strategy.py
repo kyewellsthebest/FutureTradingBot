@@ -178,14 +178,14 @@ def get_decision_log() -> list:
 # ============================================================================
 DEFAULT_SIZE = 1                  # 1 MNQ default for live -- conservative; bump via FIB_N_MNQ env if scaling on a funded account
 IMPULSE_PTS = float(os.environ.get("STRAT_IMPULSE_PTS", "5.0"))
-IMPULSE_WINDOW_BARS = int(os.environ.get("STRAT_IMPULSE_BARS", "4"))
+IMPULSE_WINDOW_BARS = int(os.environ.get("STRAT_IMPULSE_BARS", "6"))
 PULLBACK_PCT = float(os.environ.get("STRAT_PULL_PCT", "0.618"))
-STOP_PTS = float(os.environ.get("STRAT_STOP_PTS", "6.0"))
+STOP_PTS = float(os.environ.get("STRAT_STOP_PTS", "10.0"))
 # TARGET_PTS: set explicitly via env so it can't silently drift between
 # deploys. After bake-off the optimal was 18pt, but the user runs 12pt
 # in production for tighter management. Always set STRAT_TARGET_PTS in
 # Railway to lock the value.
-TARGET_PTS = float(os.environ.get("STRAT_TARGET_PTS", "12.0"))
+TARGET_PTS = float(os.environ.get("STRAT_TARGET_PTS", "20.0"))
 
 # INVERSE MODE — when enabled, FADE the impulse at the retracement instead
 # of going with it. Validated +$1,952/day on 1 MNQ over 69 days of Dec'25-

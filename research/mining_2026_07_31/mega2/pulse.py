@@ -32,7 +32,7 @@ OUT = os.path.join(fuse.ROOT, "research",
 TRAIN = 0.60
 COMM = 1.24
 TV = float(os.environ.get("PTV", "2.0"))   # $/pt of the micro
-SLIP = 0.25       # one tick on stop exits
+SLIP = float(os.environ.get('PSLIP', '0.25'))  # ONE TICK, in points: 0.25 NQ/ES, 1.0 YM
 DELAY_NS = 250_000_000   # order placement latency: no fills inside it
 COOL_NS = 60_000_000_000
 GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
@@ -55,10 +55,11 @@ if os.environ.get("PTOP"):
     # placebo scope: only the deployment cell and its fade twin need the
     # stale-signal control; 64 cells of placebo is 5 hours of no new info
     GRID = [c for c in GRID
-            if c["w"] == 6 and c["retr"] == 0.618
+            if c["w"] == 6 and c["retr"] == 0.618 and c["d"] == 1
             and abs(c["S"] - 10.0 * PSCALE) < 1e-9
             and abs(c["T"] - 20.0 * PSCALE) < 1e-9
-            and abs(c["imp"] - 5.0 * PSCALE) < 1e-9]
+            and abs(c["imp"] - float(os.environ.get("PTOP_IMP", "5"))
+                    * PSCALE) < 1e-9] or GRID[:1]
 
 
 def quarter(cn):
