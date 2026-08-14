@@ -371,8 +371,31 @@ async function pollBasket() {
     }
     if (p.reset_at) foot.push(`stats since reset ${String(p.reset_at).slice(0, 10)}`);
     if (p.commit) foot.push(p.commit.slice(0, 7));
+
+    // liveness: engine cycle age, bar feed health, crash surfacing
+    const d = p.diag || {};
+    const ban = $("ops-banner");
+    if (d.crash && d.crash_age_s != null && d.crash_age_s < 6 * 3600) {
+      ban.hidden = false; ban.className = "ops-banner bad";
+      ban.textContent = "BOT CRASH " +
+        `${Math.round(d.crash_age_s / 60)}m ago: ` +
+        (d.crash.split("\n").filter(Boolean).pop() || "").slice(0, 160);
+    } else if (d.cycle_age_s != null && d.cycle_age_s > 300) {
+      ban.hidden = false; ban.className = "ops-banner warn";
+      ban.textContent = `ENGINE STALLED — no cycle for ${Math.round(d.cycle_age_s / 60)}m`;
+    } else ban.hidden = true;
+    const dl = [];
+    if (d.cycle_age_s != null) dl.push(`cycle ${Math.round(d.cycle_age_s)}s ago`);
+    if (d.bar_source) dl.push(`bars: ${d.bar_source}` +
+      (d.bar_source === "polygon" ? (d.polygon_key_set ? " (key ok)" : " (NO KEY)") : ""));
+    if (d.tradovate_success_count != null)
+      dl.push(`fetch ok ${d.tradovate_success_count} / fail ${d.tradovate_failure_count ?? 0}`);
+    if (d.last_tradovate_success_age_s != null)
+      dl.push(`last bar ${Math.round(d.last_tradovate_success_age_s)}s`);
+    if (d.heartbeat && d.cycle_age_s == null)
+      dl.push(`boot: ${d.heartbeat.split(" ")[0] || ""} ${Math.round((d.heartbeat_age_s || 0) / 60)}m ago`);
+    if (dl.length) foot.push(dl.join(" · "));
     $("ops-foot").textContent = foot.join(" · ");
-    $("ops-banner").hidden = true;
   } catch (e) { /* keep last */ }
 }
 
