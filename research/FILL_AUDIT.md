@@ -1,8 +1,8 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-14 19:01:22Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-14 19:25:29Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 63
+## Orders today: 66
 
 | time (UTC) | contract | action | type | status | qty | text |
 |---|---|---|---|---|---|---|
@@ -16,17 +16,17 @@ Generated 2026-08-14 19:01:22Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
-| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 | basket:s1 |
 | 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 | basket:s1 |
 | 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 | basket:s2 |
 | 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |  |
 | 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |  |
 | 2026-08-13 23:10:24 | ZNU6 | Buy | ? | Canceled | 1 | basket:s4 |
-| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
-| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
 | 2026-08-13 23:15:13 | ZNU6 | Buy | ? | Canceled | 1 | basket:s3 |
+| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
 | 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Filled | 1 |  |
 | 2026-08-13 23:25:31 | ZBU6 | Buy | ? | Filled | 1 | basket:s1 |
 | 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Canceled | 1 |  |
@@ -45,9 +45,9 @@ Generated 2026-08-14 19:01:22Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-13 23:47:33 | ZNU6 | Buy | ? | Filled | 1 | basket:s4 |
 | 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Canceled | 1 |  |
 | 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Filled | 1 |  |
-| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
-| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-14 00:00:37 | ZBU6 | Sell | ? | Filled | 1 | basket:s0 |
+| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
 | 2026-08-14 00:01:59 | ZBU6 | Buy | ? | Filled | 1 | basket:s0-WEEKLY-BREAKER |
 | 2026-08-14 16:03:44 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy84 nogate |
 | 2026-08-14 16:14:17 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps1 s16:13 o- g- e- |
@@ -69,6 +69,9 @@ Generated 2026-08-14 19:01:22Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-14 18:40:00 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy337 at18:34 ps2 o18:34 R18:34:UnknownReason: Access   |
 | 2026-08-14 18:49:44 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps0 o- R- |
 | 2026-08-14 18:59:46 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy337 at18:56 ps3 o18:56 R18:56:UnknownReason: Access   |
+| 2026-08-14 19:09:48 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 cy616 at19:02 ps2 o19:02 R19:02:UnknownReason: Access   |
+| 2026-08-14 19:11:56 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps1 o- R- |
+| 2026-08-14 19:21:58 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy336 at19:12 ps0 o19:12 R19:12:UnknownReason: Access   |
 
 ## Fills today: 12
 
@@ -94,5 +97,5 @@ Generated 2026-08-14 19:01:22Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: {'ZNU': '2026-08-14 00:01:06', 'ZBU': '2026-08-14 00:01:59'}
-- pulse-symbol orders placed (MNQ/MES/MYM): 20
-- latest: 2026-08-14 18:59:46 MNQU6 Buy None -> Canceled
+- pulse-symbol orders placed (MNQ/MES/MYM): 23
+- latest: 2026-08-14 19:21:58 MNQU6 Buy None -> Canceled

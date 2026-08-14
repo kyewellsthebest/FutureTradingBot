@@ -51,16 +51,6 @@ def _payload() -> str:
         blob = json.loads((data_dir() / "dashboard_data.json").read_text())
         rt = blob.get("bot_runtime") or blob
         parts.append(f"sf{rt.get('signals_fired', '?')}")
-        parts.append(f"cy{rt.get('cycle', '?')}")
-        fib = blob.get("fib") or {}
-        at = fib.get("active_trade")
-        if at and isinstance(at, dict):
-            ets = str(at.get("entry_ts", ""))[11:16] or "?"
-            parts.append(f"at{ets}")
-        else:
-            parts.append("at0")
-        ps = fib.get("pending_setups")
-        parts.append(f"ps{len(ps) if isinstance(ps, list) else '?'}")
     except Exception:
         parts.append("noblob")
     try:
@@ -78,17 +68,15 @@ def _payload() -> str:
             ln = rej[-1]
             m = re.match(r"\S+ (\d\d:\d\d)", ln)
             when = m.group(1) if m else "?"
-            reason = ln.split("]")[-1].strip()[:22]
-            parts.append(f"R{when}:{reason}")
+            parts.append(f"R{when}:{ln.split(']')[-1].strip()[:10]}")
         else:
             parts.append("R-")
-        # the errors at open-minute are NOT rejections (R- proved it):
-        # carry the last ERROR line's message text -- that's the
-        # exception inside the forwarding body
-        errs = [ln for ln in tail.splitlines() if " ERROR " in ln]
-        if errs:
-            msg = errs[-1].split(" ERROR ", 1)[-1]
-            parts.append("E:" + msg.strip()[-34:])
+        # did the OSO->plain fallback run, and what did it return?
+        fb = [ln for ln in tail.splitlines()
+              if "fallback placeorder RESULT" in ln
+              or "plain LIMIT fallback" in ln]
+        parts.append("F:" + fb[-1].split("]")[-1].strip()[:24]
+                     if fb else "F-")
     except Exception:
         parts.append("nolog")
     return " ".join(parts)[:64]
