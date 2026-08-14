@@ -39,6 +39,93 @@ logging.basicConfig(
 )
 log = logging.getLogger("live_runner")
 
+# ---------------------------------------------------------------------------
+# PULSE CUTOVER (2026-08-14). The old deployment (basket sleeves on ZB/ZN,
+# S2 inverse-fade, shadow toggles) left env vars on the Railway service that
+# silently overrode every new code default — the 2026-08-14 deploy pushed
+# clean code and the host kept trading the old system. So the entrypoint now
+# FORCES the validated configuration: each key below is written into
+# os.environ at boot, stomping whatever the host has. Per-instance overrides
+# (the MES / MYM services) use NEW names — PULSE_<KEY> — which old deploys
+# cannot possess. deploy/CUTOVER.md has the three service blocks.
+#
+# Validated cells (tick-true, placebo-controlled, research/PULSE*.md):
+#   MNQ imp 5/6bar retr .618 stop 10 tgt 20  -> +$20,701 held-out, 8/8 q
+#   MES imp 1.5/6  retr .618 stop  3 tgt  6  ->  +$5,976 held-out, 6/6 q
+#   MYM imp 16/6   retr .618 stop 20 tgt 40  ->  +$3,212 held-out, 7/8 q
+# ---------------------------------------------------------------------------
+PULSE_FORCED_ENV = {
+    "BOT_VERSION": "fib",           # FibRuntime hosts the pullback executor
+    "BROKER_ENGINE": "pulse",       # anything else routes to retired engines
+    "BOT_SHADOW_MODE": "0",         # live orders on the (demo) broker
+    "BASKET_ENABLED": "0",          # snap-back basket (ZB/ZN sleeves) RETIRED
+    "ANTICIPATORY_ENABLED": "0",
+    "ACCOUNTS": "1",                # one instance per service
+    "TRADOVATE_SYMBOL": "MNQ",
+    "POLYGON_CONTRACT": "MNQ",
+    "FIB_N_MNQ": "1",               # 1 micro per trade on a $4k account
+    "STRAT_IMPULSE_PTS": "5.0",
+    "STRAT_IMPULSE_BARS": "6",
+    "STRAT_PULL_PCT": "0.618",
+    "STRAT_STOP_PTS": "10.0",
+    "STRAT_TARGET_PTS": "20.0",
+    "STRAT_INVERT": "0",
+    "STRAT_TICK_SIZE": "0.25",      # MYM service must set PULSE_STRAT_TICK_SIZE=1.0
+}
+
+
+def _force_pulse_config() -> None:
+    """Stomp strategy-critical env vars with the validated deployment,
+    BEFORE any bot module is imported (several read env at import time).
+    A PULSE_<KEY> env var is the only way to override a forced key."""
+    for k, v in PULSE_FORCED_ENV.items():
+        override = os.environ.get("PULSE_" + k)
+        chosen = override if override not in (None, "") else v
+        old = os.environ.get(k)
+        if old is not None and old != chosen:
+            log.warning(f"stale env {k}={old!r} overridden -> {chosen!r}"
+                        f"{' (via PULSE_' + k + ')' if override else ''}")
+        os.environ[k] = chosen
+
+
+# Bump the suffix to force another one-time wipe on a future cutover.
+RESET_MARKER = "pulse_reset_v1.done"
+
+
+def _purge_old_state() -> None:
+    """One-time wipe of the persistent data volume (user order 2026-08-14:
+    'get rid of the current strategies and previous trading history and
+    statistics'). Railway Volumes mounted at /app/data SHADOW the repo's
+    data/ dir, so deleting state files from git NEVER touches the host —
+    the old 318-trade history survived the previous deploy that way. This
+    deletes everything in the data dir once, then leaves a marker so
+    normal restarts keep their state."""
+    tgt = Path(os.environ.get("BOT_DATA_DIR") or DATA_DIR)
+    tgt.mkdir(parents=True, exist_ok=True)
+    marker = tgt / RESET_MARKER
+    if marker.exists():
+        return
+    removed, failed = 0, 0
+    for p in tgt.iterdir():
+        try:
+            if p.is_dir():
+                shutil.rmtree(p)
+            else:
+                p.unlink()
+            removed += 1
+        except Exception as e:
+            failed += 1
+            log.error(f"purge failed for {p}: {e}")
+    try:
+        marker.write_text(
+            f"pre-pulse state purged at "
+            f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} "
+            f"({removed} entries removed, {failed} failed)\n")
+    except Exception as e:
+        log.error(f"could not write reset marker: {e}")
+    log.warning(f"PULSE RESET: purged {removed} entries from {tgt} "
+                f"(old basket/paper history gone); marker={marker.name}")
+
 
 def _bootstrap_bundled_config() -> None:
     """Copy bundled config files into data/ if missing — needed when a
@@ -139,6 +226,8 @@ def _flask_thread() -> None:
 
 
 def main() -> int:
+    _force_pulse_config()
+    _purge_old_state()
     _bootstrap_bundled_config()
     # Background dashboard
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
