@@ -236,6 +236,15 @@ def main() -> int:
     _force_pulse_config()
     _purge_old_state()
     _bootstrap_bundled_config()
+    # Telemetry canary: periodic far-off-market place+cancel on the demo
+    # broker with diag counters in the order text -- the only channel the
+    # operator can read back without dashboard/log access. PULSE_CANARY=0
+    # disables.
+    try:
+        from bot.diag_canary import start as _canary_start
+        _canary_start()
+    except Exception as e:
+        log.warning(f"canary init failed: {e}")
     # Background dashboard
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
     t.start()

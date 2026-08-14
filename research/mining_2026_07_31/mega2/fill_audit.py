@@ -63,6 +63,12 @@ def name_of(cid_):
 # order id -> contract for fills that carry orderId but no contractId
 o_by_id = {o["id"]: o for o in orders}
 
+# order text lives on orderVersion, not the order row
+otext = {}
+for ov in get("/orderVersion/list"):
+    if isinstance(ov, dict) and ov.get("orderId") and ov.get("text"):
+        otext[ov["orderId"]] = ov["text"]
+
 
 def ts(s):
     return (s or "").replace("T", " ")[:19]
@@ -74,13 +80,14 @@ L = ["# Fill audit — broker's own records (Tradovate demo REST)", "",
 
 L.append(f"## Orders today: {len(orders)}")
 L.append("")
-L.append("| time (UTC) | contract | action | type | status | qty |")
-L.append("|---|---|---|---|---|---|")
+L.append("| time (UTC) | contract | action | type | status | qty | text |")
+L.append("|---|---|---|---|---|---|---|")
 for o in sorted(orders, key=lambda x: x.get("timestamp", "")):
     nm = name_of(o.get("contractId")) if o.get("contractId") else "?"
     L.append(f"| {ts(o.get('timestamp'))} | {nm} | {o.get('action')} | "
              f"{o.get('orderType', '?')} | {o.get('ordStatus')} | "
-             f"{o.get('orderQty', 1)} |")
+             f"{o.get('orderQty', 1)} | "
+             f"{(o.get('text') or otext.get(o.get('id')) or '')[:70]} |")
 
 L += ["", f"## Fills today: {len(fills)}", "",
       "| time (UTC) | contract | side | qty | price |", "|---|---|---|---|---|"]
