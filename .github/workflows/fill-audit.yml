@@ -8,6 +8,12 @@ on:
   push:
     branches: [claude/hello-vc2ivo]
     paths: ['data/fill_audit/.run']
+  schedule:
+    # 20min and 90min into each RTH session, plus just after close --
+    # the standing scorecard: real orders/fills vs canary telemetry
+    - cron: '50 13 * * 1-5'
+    - cron: '0 15 * * 1-5'
+    - cron: '5 20 * * 1-5'
   workflow_dispatch:
 
 permissions:
