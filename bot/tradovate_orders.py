@@ -868,8 +868,14 @@ class TradovateOrders:
             #   - entry is a resting LIMIT at the strategy's entry px
             #     (the validated fill model), never a market chase
             #   - requires BROKER_OSO_FALLBACK_PLAIN=1
-            _ft = f"{result.error} {result.response}"
-            if ("access" in _ft.lower()
+            # Trigger on ANY permanent API rejection of the OSO itself
+            # (failureReason from Tradovate) -- never on the internal
+            # safety caps (drift_*/no_account_id), which mean "the trade
+            # shouldn't happen", not "the account can't do brackets".
+            _err = str(result.error or "")
+            _api_reject = bool(_err) and "drift" not in _err \
+                and _err != "no_account_id"
+            if (_api_reject
                     and os.environ.get("BROKER_OSO_FALLBACK_PLAIN", "0")
                     == "1" and entry_price is not None):
                 logger.warning(

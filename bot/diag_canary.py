@@ -68,15 +68,16 @@ def _payload() -> str:
             ln = rej[-1]
             m = re.match(r"\S+ (\d\d:\d\d)", ln)
             when = m.group(1) if m else "?"
-            parts.append(f"R{when}:{ln.split(']')[-1].strip()[:10]}")
+            parts.append(f"R{when}:{ln.split(']')[-1].strip()[:30]}")
         else:
             parts.append("R-")
         # did the OSO->plain fallback run, and what did it return?
         fb = [ln for ln in tail.splitlines()
-              if "fallback placeorder RESULT" in ln
-              or "plain LIMIT fallback" in ln]
-        parts.append("F:" + fb[-1].split("]")[-1].strip()[:24]
-                     if fb else "F-")
+              if "fallback placeorder RESULT" in ln]
+        if fb:
+            parts.append("F:" + fb[-1].split("RESULT]")[-1].strip()[:16])
+        else:
+            parts.append("F-")
     except Exception:
         parts.append("nolog")
     return " ".join(parts)[:64]
