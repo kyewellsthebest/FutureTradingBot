@@ -1,54 +1,55 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-14 15:48:37Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-14 16:06:32Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 43
+## Orders today: 44
 
-| time (UTC) | contract | action | type | status | qty |
-|---|---|---|---|---|---|
-| 2026-08-13 22:10:21 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 22:10:21 | ZNU6 | Buy | ? | Filled | 1 |
-| 2026-08-13 22:10:21 | ZNU6 | Sell | ? | Filled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:10:24 | ZNU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:15:13 | ZNU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Filled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Buy | ? | Filled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Filled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:25:31 | ZBU6 | Buy | ? | Filled | 1 |
-| 2026-08-13 23:30:21 | ZNU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:30:21 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:30:21 | ZNU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:38:36 | ZBU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:38:36 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:38:36 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Buy | ? | Filled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Filled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Buy | ? | Filled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Canceled | 1 |
-| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Filled | 1 |
-| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |
-| 2026-08-14 00:00:37 | ZBU6 | Sell | ? | Filled | 1 |
-| 2026-08-14 00:01:59 | ZBU6 | Buy | ? | Filled | 1 |
+| time (UTC) | contract | action | type | status | qty | text |
+|---|---|---|---|---|---|---|
+| 2026-08-13 22:10:21 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 22:10:21 | ZNU6 | Buy | ? | Filled | 1 | basket:s4 |
+| 2026-08-13 22:10:21 | ZNU6 | Sell | ? | Filled | 1 |  |
+| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:15:10 | ZBU6 | Sell | ? | Canceled | 1 | basket:s1 |
+| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:15:10 | ZBU6 | Sell | ? | Canceled | 1 | basket:s2 |
+| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:15:10 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 | basket:s1 |
+| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:48:23 | ZBU6 | Sell | ? | Canceled | 1 | basket:s2 |
+| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 22:48:23 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:10:24 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:10:24 | ZNU6 | Buy | ? | Canceled | 1 | basket:s4 |
+| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:15:13 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:15:13 | ZNU6 | Buy | ? | Canceled | 1 | basket:s3 |
+| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Filled | 1 |  |
+| 2026-08-13 23:25:31 | ZBU6 | Buy | ? | Filled | 1 | basket:s1 |
+| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Filled | 1 |  |
+| 2026-08-13 23:25:31 | ZBU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:25:31 | ZBU6 | Buy | ? | Filled | 1 | basket:s2 |
+| 2026-08-13 23:30:21 | ZNU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 23:30:21 | ZNU6 | Sell | ? | Canceled | 1 | basket:s5 |
+| 2026-08-13 23:30:21 | ZNU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 23:38:36 | ZBU6 | Sell | ? | Canceled | 1 | basket:s0 |
+| 2026-08-13 23:38:36 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 23:38:36 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-13 23:47:33 | ZNU6 | Buy | ? | Filled | 1 | basket:s3 |
+| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Filled | 1 |  |
+| 2026-08-13 23:47:33 | ZNU6 | Buy | ? | Filled | 1 | basket:s4 |
+| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Canceled | 1 |  |
+| 2026-08-13 23:47:33 | ZNU6 | Sell | ? | Filled | 1 |  |
+| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-14 00:00:37 | ZBU6 | Buy | ? | Canceled | 1 |  |
+| 2026-08-14 00:00:37 | ZBU6 | Sell | ? | Filled | 1 | basket:s0 |
+| 2026-08-14 00:01:59 | ZBU6 | Buy | ? | Filled | 1 | basket:s0-WEEKLY-BREAKER |
+| 2026-08-14 16:03:44 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy84 nogate |
 
 ## Fills today: 12
 
@@ -74,4 +75,5 @@ Generated 2026-08-14 15:48:37Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: {'ZNU': '2026-08-14 00:01:06', 'ZBU': '2026-08-14 00:01:59'}
-- pulse-symbol orders placed (MNQ/MES/MYM): 0
+- pulse-symbol orders placed (MNQ/MES/MYM): 1
+- latest: 2026-08-14 16:03:44 MNQU6 Buy None -> Canceled
