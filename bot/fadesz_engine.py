@@ -62,7 +62,7 @@ COMMISSION_RT = 1.50
 def strategy_mode() -> str:
     """fadesz (default) | off. BROKER_ENGINE=stack/mirror fall back to
     legacy engines handled in fib_main."""
-    return os.environ.get("BROKER_ENGINE", "fadesz").strip().lower()
+    return os.environ.get("BROKER_ENGINE", "pulse").strip().lower()
 
 
 class FadeszEngine:

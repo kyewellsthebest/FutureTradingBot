@@ -76,7 +76,7 @@ def _is_shadow_mode() -> bool:
     that hid 88 paper trades from TradersPost is exactly the symptom.
 
     Returns True if shadow mode is on (paper only, no broker call)."""
-    return os.environ.get("BOT_SHADOW_MODE", "1") == "1"
+    return os.environ.get("BOT_SHADOW_MODE", "0") == "1"
 N_MNQ = int(os.environ.get("FIB_N_MNQ", str(DEFAULT_SIZE)))
 # Execution cost overrides (Lucid 50K Pro / Tradovate prop-firm defaults).
 # These override the paper account's legacy market-order constants. Tune

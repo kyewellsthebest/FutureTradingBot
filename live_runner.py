@@ -105,7 +105,7 @@ def _bot_thread(account_id: str = "1") -> None:
                 rt = Runtime()
             else:
                 from bot.fib_main import FibRuntime
-                mode = "SHADOW" if os.environ.get("BOT_SHADOW_MODE", "1") == "1" else "LIVE"
+                mode = "SHADOW" if os.environ.get("BOT_SHADOW_MODE", "0") == "1" else "LIVE"
                 log.info(f"[acct {account_id}] starting Fib 50% bot ({mode} mode)")
                 rt = FibRuntime(account_id=account_id)
             _hb("entering_run_loop")
