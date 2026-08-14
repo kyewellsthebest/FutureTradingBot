@@ -5,6 +5,9 @@ name: Broker fill audit
 # cutover took (basket silent, MNQ orders flowing) and later as the
 # daily shadow-week scorecard.
 on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ['data/fill_audit/.run']
   workflow_dispatch:
 
 permissions:
