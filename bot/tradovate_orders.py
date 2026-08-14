@@ -854,6 +854,62 @@ class TradovateOrders:
                 f"{str(result.response)[:300]!r} -- REFUSING TRADE "
                 f"rather than open without bracket. Check the response "
                 f"body above to debug the bracket format.")
+            # ACCESS-DENIED FALLBACK (2026-08-14, opt-in). This demo
+            # account's API access PERMANENTLY denies /order/placeoso
+            # ('UnknownReason: Access is denied') while plain
+            # /order/placeorder succeeds (20/20 canary placements). The
+            # naked-market fallback above was removed after the 107pt
+            # incident -- but that predates BROKER_INSTANT_CLOSE
+            # (default ON): every paper stop/target/timeout now
+            # liquidates the broker position within seconds via the
+            # flat-safe liquidateposition path. Fallback rules:
+            #   - fires ONLY on access-denial (permanent), never on
+            #     transient/bracket-format failures
+            #   - entry is a resting LIMIT at the strategy's entry px
+            #     (the validated fill model), never a market chase
+            #   - requires BROKER_OSO_FALLBACK_PLAIN=1
+            _ft = ""
+            if isinstance(result.response, dict):
+                _ft = str(result.response.get("failureText", ""))
+            if ("access" in _ft.lower()
+                    and os.environ.get("BROKER_OSO_FALLBACK_PLAIN", "0")
+                    == "1" and entry_price is not None):
+                logger.warning(
+                    "[placeoso->plain LIMIT fallback] OSO denied for "
+                    "this account; resting LIMIT entry, bot-managed "
+                    "exits (BROKER_INSTANT_CLOSE liquidates on every "
+                    "paper exit)")
+                plain_body = {
+                    "accountSpec": self._account_spec(),
+                    "accountId": int(account_id),
+                    "action": action,
+                    "symbol": symbol,
+                    "orderQty": int(qty),
+                    "orderType": "Limit",
+                    "price": float(entry_price),
+                    "isAutomated": True,
+                }
+                if setup_ref:
+                    plain_body["text"] = setup_ref[:64]
+                p_status, p_resp = self.session._rest(
+                    "POST", "/order/placeorder", body=plain_body)
+                logger.info(f"[fallback placeorder RESULT] "
+                            f"status={p_status} resp={str(p_resp)[:300]!r}")
+                p_result = self._parse_order_response(p_status, p_resp)
+                _audit({
+                    "kind": "placeorder_oso_fallback",
+                    "side": side, "qty": qty, "symbol": symbol,
+                    "entry_price": float(entry_price),
+                    "setup_ref": setup_ref,
+                    "request_body": plain_body,
+                    "http_status": p_status,
+                    "response": p_resp if isinstance(p_resp, dict)
+                    else {"_raw": str(p_resp)[:300]},
+                    "parsed_ok": p_result.ok,
+                    "parsed_order_id": p_result.order_id,
+                })
+                if p_result.ok:
+                    return p_result
         else:
             # Verify the bracket children IDs are present. placeoso
             # should return oso1Id and oso2Id pointing at the stop and
