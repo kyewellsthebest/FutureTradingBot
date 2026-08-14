@@ -113,12 +113,16 @@ _DEFAULT_PARAMS = {
     # edit these 6 numbers. To restore env-driven control, swap each value
     # back to e.g. float(os.environ.get("STRAT_STOP_PTS", "5.0")).
     "1": {
-        "IMPULSE_PTS":         2.0,
-        "IMPULSE_WINDOW_BARS": 3,
-        "PULLBACK_PCT":        0.118,
-        "STOP_PTS":            5.0,
-        "TARGET_PTS":          44.0,
-        "INVERT":              True,
+        # VALIDATED PULSE CELL (2026-08-14): impulse->0.618 pullback->2:1
+        # bracket, tick-true, placebo-controlled, 8/8 quarters green held
+        # out (+$20,701, 142/wk, DD $393). Env-driven so per-instance
+        # Railway config (MES/MYM cells) overrides cleanly.
+        "IMPULSE_PTS":         float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
+        "IMPULSE_WINDOW_BARS": int(os.environ.get("STRAT_IMPULSE_BARS", "6")),
+        "PULLBACK_PCT":        float(os.environ.get("STRAT_PULL_PCT", "0.618")),
+        "STOP_PTS":            float(os.environ.get("STRAT_STOP_PTS", "10.0")),
+        "TARGET_PTS":          float(os.environ.get("STRAT_TARGET_PTS", "20.0")),
+        "INVERT":              os.environ.get("STRAT_INVERT", "0") == "1",
     },
 }
 
