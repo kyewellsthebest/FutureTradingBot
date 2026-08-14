@@ -56,9 +56,16 @@ log = logging.getLogger("live_runner")
 # ---------------------------------------------------------------------------
 PULSE_FORCED_ENV = {
     "BOT_VERSION": "fib",           # FibRuntime hosts the pullback executor
-    "BROKER_ENGINE": "pulse",       # anything else routes to retired engines
+    # "mirror" is the ONLY mode that both runs the pullback strategy AND
+    # forwards its trades to the broker (fib_main's forwarding gate is
+    # literally `if engine_mode() != "mirror": return`). The first cutover
+    # used "pulse" here: strategy ran, 27 paper trades booked, ZERO broker
+    # orders -- silently. "mirror" also skips every legacy engine.
+    "BROKER_ENGINE": "mirror",
     "BOT_SHADOW_MODE": "0",         # live orders on the (demo) broker
     "BASKET_ENABLED": "0",          # snap-back basket (ZB/ZN sleeves) RETIRED
+    "TRADERSPOST_LIVE": "false",    # stale webhook pointed at expired MNQM2026
+    "STRAT_COOLDOWN_SECS": "60",    # validated; stale env had 10 (4x rate)
     "ANTICIPATORY_ENABLED": "0",
     "ACCOUNTS": "1",                # one instance per service
     "TRADOVATE_SYMBOL": "MNQ",

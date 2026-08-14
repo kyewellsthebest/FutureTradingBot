@@ -1702,7 +1702,7 @@ def api_pulse():
     except Exception:
         pass
     return jsonify({
-        "engine": os.environ.get("BROKER_ENGINE", "pulse"),
+        "engine": os.environ.get("BROKER_ENGINE", "mirror"),
         "shadow": os.environ.get("BOT_SHADOW_MODE", "0") == "1",
         "diag": diag,
         "symbol": sym,
