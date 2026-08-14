@@ -26,38 +26,55 @@ import time
 
 logger = logging.getLogger("diag_canary")
 
-CANARY_EVERY_S = int(os.environ.get("PULSE_CANARY_EVERY_S", "1200"))
-FIRST_DELAY_S = 180
+CANARY_EVERY_S = int(os.environ.get("PULSE_CANARY_EVERY_S", "600"))
+FIRST_DELAY_S = 120
+
+
+def _last_ts(tail: str, pat: str) -> str:
+    """hh:mm of the last log line containing pat, or '-'."""
+    hits = [ln for ln in tail.splitlines() if pat in ln]
+    if not hits:
+        return "-"
+    m = re.match(r"\S+ (\d\d:\d\d)", hits[-1])
+    return m.group(1) if m else "?"
 
 
 def _payload() -> str:
-    """Compact diag string for the order text field (keep it short)."""
+    """Compact diag string for the order text field (<=64 chars).
+
+    sf/cy: signals fired + cycle this process; at: active paper trade
+    (entry hh:mm) or 0; ps: pending setups; s/o/g/e: hh:mm of the last
+    [SETUP], [LIVE OPEN], [broker gate, and ERROR log lines."""
     parts = ["diag"]
     try:
         from bot.account_ctx import data_dir
         blob = json.loads((data_dir() / "dashboard_data.json").read_text())
         rt = blob.get("bot_runtime") or blob
-        sf = rt.get("signals_fired")
-        cy = rt.get("cycle")
-        if sf is not None:
-            parts.append(f"sf{sf}")
-        if cy is not None:
-            parts.append(f"cy{cy}")
+        parts.append(f"sf{rt.get('signals_fired', '?')}")
+        parts.append(f"cy{rt.get('cycle', '?')}")
+        fib = blob.get("fib") or {}
+        at = fib.get("active_trade")
+        if at and isinstance(at, dict):
+            ets = str(at.get("entry_ts", ""))[11:16] or "?"
+            parts.append(f"at{ets}")
+        else:
+            parts.append("at0")
+        ps = fib.get("pending_setups")
+        parts.append(f"ps{len(ps) if isinstance(ps, list) else '?'}")
     except Exception:
         parts.append("noblob")
     try:
         logp = os.environ.get("BOT_LOG_FILE", "/data/bot.log")
         with open(logp, "rb") as f:
-            f.seek(max(0, os.path.getsize(logp) - 40_000))
+            f.seek(max(0, os.path.getsize(logp) - 60_000))
             tail = f.read().decode(errors="replace")
-        hits = re.findall(r"\[broker[^\n]*", tail)
-        if hits:
-            parts.append(hits[-1][:40])
-        else:
-            parts.append("nogate")
+        parts.append("s" + _last_ts(tail, "[SETUP]"))
+        parts.append("o" + _last_ts(tail, "[LIVE OPEN]"))
+        parts.append("g" + _last_ts(tail, "[broker gate"))
+        parts.append("e" + _last_ts(tail, " ERROR "))
     except Exception:
         parts.append("nolog")
-    return " ".join(parts)[:120]
+    return " ".join(parts)[:64]
 
 
 def _once() -> None:
