@@ -1455,18 +1455,31 @@ def api_broker_stats():
                           "win_rate": trades_by_day.get(k, {}).get("win_rate", 0),
                           "pnl": round(v, 2)}
                          for k, v in sorted(dled.items())]
-                # TODAY from the post-cutoff ledger, not the broker's
-                # realizedPnL: the broker's number spans the whole trade
-                # date, so it kept showing pre-cutover losses after the
-                # reset hid those trades from every other view.
-                try:
-                    ny_now = pd.Timestamp.now(tz=NY_TZ)
-                    td_now = ((ny_now + pd.Timedelta(days=1)).date()
-                              if ny_now.hour >= 18 else ny_now.date())
-                    realized = round(dled.get(td_now.isoformat(), 0.0), 2)
-                except Exception:
-                    pass
                 pnl_source = "broker_ledger" + pnl_source_suffix
+            # TODAY from the post-cutoff ledger, not the broker's
+            # realizedPnL: the broker's number spans the whole trade
+            # date, so it kept showing pre-cutover losses after the
+            # reset hid those trades from every other view. Runs even
+            # with an empty post-cutoff ledger (0 trades -> $0, not
+            # the broker's stale day figure).
+            try:
+                ny_now = pd.Timestamp.now(tz=NY_TZ)
+                td_now = ((ny_now + pd.Timedelta(days=1)).date()
+                          if ny_now.hour >= 18 else ny_now.date())
+                tk = td_now.isoformat()
+                tot = 0.0
+                for r in post:
+                    td = r.get("tradeDate") or {}
+                    try:
+                        key = (f"{td['year']:04d}-{td['month']:02d}"
+                               f"-{td['day']:02d}")
+                    except Exception:
+                        key = str(r.get("timestamp", ""))[:10]
+                    if key == tk:
+                        tot += float(r.get("delta") or 0)
+                realized = round(tot, 2)
+            except Exception:
+                pass
     except Exception as e:
         logger.debug(f"ledger override: {e!r}")
 
