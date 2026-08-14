@@ -12,6 +12,7 @@ held-out 40%; the cell is picked on train alone; the pick's held-out and
 cross-quarter records are what gets believed.
 """
 import os
+import pickle
 import sys
 
 import numpy as np
@@ -144,8 +145,18 @@ def main():
     else:
         cons = sorted((c for c, v in meta.items() if v["sym"] == PSYM
                        and v["n"] > 3_000_000), key=lambda c: meta[c]["t0"])
-    per = {}
+    tag = f"{PSYM}_{'F' if os.environ.get('FINE') else 'B'}"           f"{'_P' if PLACEBO else ''}"
+    ckp = os.path.join(fuse.ROOT, "data", f"pulse_ck_{tag}.pkl")
+    per, done = {}, set()
+    if os.path.exists(ckp):
+        try:
+            per, done = pickle.load(open(ckp, "rb"))
+            print(f"  resume: {sorted(done)}", flush=True)
+        except Exception:                                        # noqa: BLE001
+            per, done = {}, set()
     for cn in cons:
+        if cn in done:
+            continue
         data = quarter(cn)
         n = len(data[3])
         cut = int(n * TRAIN)
@@ -162,6 +173,9 @@ def main():
             r.setdefault("outs", []).extend(ob)
             r.setdefault("pnls", []).append(b)
             r.setdefault("ets", []).append(eb)
+        done.add(cn)
+        pickle.dump((per, done), open(ckp + ".tmp", "wb"))
+        os.replace(ckp + ".tmp", ckp)
         print(f"  {cn} done ({days:.0f}d)", flush=True)
 
     wk_all = sum((meta[c]["t1"] - meta[c]["t0"]) / fuse.DAY_NS
