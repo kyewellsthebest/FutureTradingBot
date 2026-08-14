@@ -76,6 +76,10 @@ PULSE_FORCED_ENV = {
     # on this account while plain REST placement succeeds (18 canary
     # orders on 2026-08-14). Force the REST path the canary proved.
     "BROKER_WS_ORDER_SUBMIT": "false",
+    # This account's API access denies /order/placeoso outright (REST
+    # and WS both: 'Access is denied') while plain placeorder works.
+    # Fallback: resting LIMIT entry, exits enforced by instant-close.
+    "BROKER_OSO_FALLBACK_PLAIN": "1",
     "ANTICIPATORY_ENABLED": "0",
     "ACCOUNTS": "1",                # one instance per service
     "TRADOVATE_SYMBOL": "MNQ",
