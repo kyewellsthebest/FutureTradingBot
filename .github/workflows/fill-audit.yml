@@ -1,0 +1,37 @@
+name: Broker fill audit
+
+# Pull today's orders/fills/positions from Tradovate demo REST — the
+# broker's own record of what the bot did. Used to verify the pulse
+# cutover took (basket silent, MNQ orders flowing) and later as the
+# daily shadow-week scorecard.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install requests
+      - name: audit
+        env:
+          TRADOVATE_USER: ${{ secrets.TRADOVATE_USER }}
+          TRADOVATE_PASS: ${{ secrets.TRADOVATE_PASS }}
+          TRADOVATE_CID:  ${{ secrets.TRADOVATE_CID }}
+          TRADOVATE_SEC:  ${{ secrets.TRADOVATE_SEC }}
+        run: python research/mining_2026_07_31/mega2/fill_audit.py
+      - name: commit result
+        run: |
+          git config user.name "Claude" && git config user.email "noreply@anthropic.com"
+          git add research/FILL_AUDIT.md || true
+          git diff --cached --quiet || git commit -m "fill audit: broker-truth snapshot"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin ${GITHUB_REF_NAME} && git push origin ${GITHUB_REF_NAME} && break
+            sleep 5
+          done
