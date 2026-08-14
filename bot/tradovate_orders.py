@@ -868,9 +868,7 @@ class TradovateOrders:
             #   - entry is a resting LIMIT at the strategy's entry px
             #     (the validated fill model), never a market chase
             #   - requires BROKER_OSO_FALLBACK_PLAIN=1
-            _ft = ""
-            if isinstance(result.response, dict):
-                _ft = str(result.response.get("failureText", ""))
+            _ft = f"{result.error} {result.response}"
             if ("access" in _ft.lower()
                     and os.environ.get("BROKER_OSO_FALLBACK_PLAIN", "0")
                     == "1" and entry_price is not None):
