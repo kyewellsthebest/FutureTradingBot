@@ -52,3 +52,19 @@ Caveats that matter: open interest is yesterday's, the dealer sign convention is
 - **gamma walls** nearest spot: 8,100, 8,000, 7,900
 - 22,067 contracts with live gamma and open interest
 
+## 2026-08-14
+
+### I:NDX — spot 30,060
+
+- **net dealer gamma** $+5.09 bn per 1% move — **LONG: range suppressed, fade the extremes**
+- **flip level** none in ±10%
+- **gamma walls** nearest spot: 30,100, 30,000, 29,900
+- 6,445 contracts with live gamma and open interest
+
+### I:SPX — spot 7,880
+
+- **net dealer gamma** $+94.48 bn per 1% move — **LONG: range suppressed, fade the extremes**
+- **flip level** none in ±10%
+- **gamma walls** nearest spot: 7,900, 7,850, 7,800
+- 22,036 contracts with live gamma and open interest
+
