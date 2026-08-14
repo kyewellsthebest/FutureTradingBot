@@ -46,7 +46,11 @@ SIGNAL_EVENT_TTL_SECONDS = 20 * 60
 # FULL RESET 2026-07-28 (user request, zb_duo_v1 go-live): all trade
 # history, stats, charts and the per-bot journal start from this
 # moment; the account balance is manually reset to $4,000 alongside.
-BASKET_RESET_TS = "2026-07-31T04:30:00Z"
+# PULSE CUTOVER (2026-08-14): everything before this moment -- the basket
+# era, its fills, its ledger damage -- is hidden from every stats/trades/
+# equity view. The last basket order was 2026-08-14T00:01:59Z; the pulse
+# system's first possible entry is 13:30Z. 06:00Z cleanly separates them.
+BASKET_RESET_TS = "2026-08-14T06:00:00Z"
 
 # Instruments permanently hidden from every stats/trades view: silver was
 # cut from the basket 2026-07-29 (margin ~$6k/micro) and the user reset
@@ -1451,6 +1455,17 @@ def api_broker_stats():
                           "win_rate": trades_by_day.get(k, {}).get("win_rate", 0),
                           "pnl": round(v, 2)}
                          for k, v in sorted(dled.items())]
+                # TODAY from the post-cutoff ledger, not the broker's
+                # realizedPnL: the broker's number spans the whole trade
+                # date, so it kept showing pre-cutover losses after the
+                # reset hid those trades from every other view.
+                try:
+                    ny_now = pd.Timestamp.now(tz=NY_TZ)
+                    td_now = ((ny_now + pd.Timedelta(days=1)).date()
+                              if ny_now.hour >= 18 else ny_now.date())
+                    realized = round(dled.get(td_now.isoformat(), 0.0), 2)
+                except Exception:
+                    pass
                 pnl_source = "broker_ledger" + pnl_source_suffix
     except Exception as e:
         logger.debug(f"ledger override: {e!r}")
@@ -1603,6 +1618,58 @@ def api_broker_position():
             "raw": open_pos,
         },
         "positions": all_pos,
+    })
+
+
+@app.route("/api/pulse")
+def api_pulse():
+    """The deployed pulse strategy, read from the FORCED env config
+    (live_runner stomps these at boot), so the dashboard reports what
+    the process is actually running -- not what a config file claims."""
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone.utc)
+    hm = now.hour * 60 + now.minute
+    in_session = now.weekday() < 5 and (13 * 60 + 30) <= hm < 20 * 60
+    nxt = now.replace(hour=13, minute=30, second=0, microsecond=0)
+    if hm >= 13 * 60 + 30:
+        nxt += _dt.timedelta(days=1)
+    while nxt.weekday() >= 5:
+        nxt += _dt.timedelta(days=1)
+    sym = os.environ.get("TRADOVATE_SYMBOL", "MNQ")
+    validated = {
+        "MNQ": {"held_out_usd": 20701, "trades_per_wk": 142,
+                "green_quarters": "8/8", "max_dd_usd": 393},
+        "MES": {"held_out_usd": 5976, "trades_per_wk": 136,
+                "green_quarters": "6/6", "max_dd_usd": 340},
+        "MYM": {"held_out_usd": 3212, "trades_per_wk": 125,
+                "green_quarters": "7/8", "max_dd_usd": 398},
+    }.get(sym, {})
+    reset_at = None
+    try:
+        from bot.account_ctx import data_dir as _dd
+        mp = _dd() / "pulse_reset_v1.done"
+        if mp.exists():
+            reset_at = _dt.datetime.fromtimestamp(
+                mp.stat().st_mtime, _dt.timezone.utc).isoformat()
+    except Exception:
+        pass
+    return jsonify({
+        "engine": os.environ.get("BROKER_ENGINE", "pulse"),
+        "shadow": os.environ.get("BOT_SHADOW_MODE", "0") == "1",
+        "symbol": sym,
+        "params": {
+            "impulse_pts": float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
+            "impulse_bars": int(os.environ.get("STRAT_IMPULSE_BARS", "6")),
+            "pull_pct": float(os.environ.get("STRAT_PULL_PCT", "0.618")),
+            "stop_pts": float(os.environ.get("STRAT_STOP_PTS", "10.0")),
+            "target_pts": float(os.environ.get("STRAT_TARGET_PTS", "20.0")),
+        },
+        "session": {"window_utc": "13:30-20:00",
+                    "in_session": in_session,
+                    "next_open_utc": nxt.isoformat()},
+        "reset_at": reset_at,
+        "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA"),
+        "validated": validated,
     })
 
 
