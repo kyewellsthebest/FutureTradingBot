@@ -21,9 +21,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fuse  # noqa: E402
 
 PSYM = os.environ.get("PSYM", "NQ")
+# PLACEBO: trade the identical machinery on 30-minute-stale signals. A real
+# timing edge collapses to ~zero here; a plumbing leak stays profitable.
+PLACEBO = int(os.environ.get("PLACEBO", "0")) and 30
 PSCALE = float(os.environ.get("PSCALE", "1.0"))   # point scale vs NQ
 OUT = os.path.join(fuse.ROOT, "research",
-                   "PULSE.md" if PSYM == "NQ" else f"PULSE_{PSYM}.md")
+                   ("PULSE.md" if PSYM == "NQ" else f"PULSE_{PSYM}.md")
+                   if not PLACEBO else f"PULSE_{PSYM}_PLACEBO.md")
 TRAIN = 0.60
 COMM = 1.24
 TV = float(os.environ.get("PTV", "2.0"))   # $/pt of the micro
@@ -62,11 +66,13 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
     for i in range(max(lo, w + 1), hi):
         if not rth[i] or bt[i] < last_x + COOL_NS:
             continue
-        move = bc[i] - bc[i - w]
+        if i - PLACEBO - w < 0:
+            continue
+        move = bc[i - PLACEBO] - bc[i - PLACEBO - w]
         if abs(move) < imp:
             continue
         up = move > 0
-        limit = bc[i] - r * move            # retracement of the impulse
+        limit = bc[i - PLACEBO] - r * move  # retracement of the impulse
         # direction: d=+1 continuation (with the impulse), d=-1 fade
         side = (1 if up else -1) * d
         j0 = np.searchsorted(ts, bt[i] + 60_000_000_000 + DELAY_NS)
@@ -97,7 +103,11 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
         if t_at < s_at:
             gain, o = T * TV, "t"
         elif s_at < 10**9:
-            gain, o = -(S + SLIP) * TV, "s"
+            # gap-aware: if the trigger tick is past the stop, that print --
+            # not the stop price -- is the honest exit
+            xp = rest[s_at]
+            ex = min(xp, stop) if side > 0 else max(xp, stop)
+            gain, o = (side * (ex - entry) - SLIP) * TV, "s"
         else:
             # timeout exits cross the spread: one tick charged
             gain, o = (side * (rest[-1] - entry) - SLIP) * TV, "o"
