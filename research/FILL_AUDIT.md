@@ -1,8 +1,8 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-14 16:17:21Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-14 17:32:32Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 45
+## Orders today: 53
 
 | time (UTC) | contract | action | type | status | qty | text |
 |---|---|---|---|---|---|---|
@@ -51,6 +51,14 @@ Generated 2026-08-14 16:17:21Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-14 00:01:59 | ZBU6 | Buy | ? | Filled | 1 | basket:s0-WEEKLY-BREAKER |
 | 2026-08-14 16:03:44 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy84 nogate |
 | 2026-08-14 16:14:17 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps1 s16:13 o- g- e- |
+| 2026-08-14 16:24:19 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy329 at16:19 ps1 s16:18 o16:19 g16:19 e16:19 |
+| 2026-08-14 16:34:21 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy610 at0 ps4 s16:34 o- g- e16:34 |
+| 2026-08-14 16:44:23 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy890 at0 ps4 s16:44 o- g- e16:44 |
+| 2026-08-14 16:54:25 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 cy1171 at16:47 ps3 s16:47 o16:47 g16:47 e16:47 |
+| 2026-08-14 16:58:46 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy56 at16:56 ps0 s16:56 o16:56 g16:56 e16:56 |
+| 2026-08-14 17:08:49 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy337 at0 ps1 s17:08 o16:56 g16:56 e16:56 |
+| 2026-08-14 17:18:51 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 cy617 at17:11 ps2 s17:11 o17:11 g17:11 e17:11 |
+| 2026-08-14 17:28:53 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 cy898 at0 ps2 s17:26 o17:23 g17:23 e17:23 |
 
 ## Fills today: 12
 
@@ -76,5 +84,5 @@ Generated 2026-08-14 16:17:21Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: {'ZNU': '2026-08-14 00:01:06', 'ZBU': '2026-08-14 00:01:59'}
-- pulse-symbol orders placed (MNQ/MES/MYM): 2
-- latest: 2026-08-14 16:14:17 MNQU6 Buy None -> Canceled
+- pulse-symbol orders placed (MNQ/MES/MYM): 10
+- latest: 2026-08-14 17:28:53 MNQU6 Buy None -> Canceled

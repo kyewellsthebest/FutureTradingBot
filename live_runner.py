@@ -66,6 +66,12 @@ PULSE_FORCED_ENV = {
     "BASKET_ENABLED": "0",          # snap-back basket (ZB/ZN sleeves) RETIRED
     "TRADERSPOST_LIVE": "false",    # stale webhook pointed at expired MNQM2026
     "STRAT_COOLDOWN_SECS": "60",    # validated; stale env had 10 (4x rate)
+    # Fire only when price is within 1pt of the limit (the cross), like
+    # the validated fill model -- pre-crossed setups stay pending as a
+    # resting limit. Unset, the executor booked fills 5-12pt through the
+    # level; the order client rejected every one (drift_beyond_stop) and
+    # paper ate instant -$20.50 stops all afternoon (2026-08-14).
+    "STRAT_FIRE_DRIFT_GATE_PT": "1.0",
     "ANTICIPATORY_ENABLED": "0",
     "ACCOUNTS": "1",                # one instance per service
     "TRADOVATE_SYMBOL": "MNQ",
