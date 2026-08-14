@@ -20,16 +20,21 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fuse  # noqa: E402
 
-OUT = os.path.join(fuse.ROOT, "research", "PULSE.md")
+PSYM = os.environ.get("PSYM", "NQ")
+PSCALE = float(os.environ.get("PSCALE", "1.0"))   # point scale vs NQ
+OUT = os.path.join(fuse.ROOT, "research",
+                   "PULSE.md" if PSYM == "NQ" else f"PULSE_{PSYM}.md")
 TRAIN = 0.60
 COMM = 1.24
-TV = 2.0          # $ per point, MNQ
+TV = float(os.environ.get("PTV", "2.0"))   # $/pt of the micro
 SLIP = 0.25       # one tick on stop exits
 DELAY_NS = 250_000_000   # order placement latency: no fills inside it
 COOL_NS = 60_000_000_000
 GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
         for imp in (5.0, 8.0) for w in (4, 6) for r in (0.5, 0.618)
         for S in (6.0, 10.0) for T in (12.0, 20.0) for d in (1, -1)]
+GRID = [dict(c, imp=c["imp"] * PSCALE, S=c["S"] * PSCALE,
+             T=c["T"] * PSCALE) for c in GRID]
 
 
 def quarter(cn):
@@ -105,7 +110,11 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
 
 def main():
     meta = fuse.tape_meta()
-    cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
+    if PSYM == "NQ":
+        cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
+    else:
+        cons = sorted((c for c, v in meta.items() if v["sym"] == PSYM
+                       and v["n"] > 3_000_000), key=lambda c: meta[c]["t0"])
     per = {}
     for cn in cons:
         data = quarter(cn)
