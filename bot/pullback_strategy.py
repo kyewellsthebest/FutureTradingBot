@@ -1220,8 +1220,11 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
                 s.last_block_reason = news_blackout
                 s.last_block_at = now
         if state.pending_setups:
+            # 'event' collides with _log_decision's positional arg -- the
+            # TypeError killed the WHOLE engine tick for the entire length
+            # of every news blackout (83 dead ticks on 2026-08-14 alone).
             _log_decision("entry_blocked", reason="news_blackout",
-                           event=news_blackout,
+                           blackout=news_blackout,
                            pending_count=len(state.pending_setups))
         return None
 

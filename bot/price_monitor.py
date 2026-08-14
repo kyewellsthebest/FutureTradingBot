@@ -547,7 +547,8 @@ class PriceMonitor:
                                f"range [{PRICE_MIN},{PRICE_MAX}]")
             return
         with self._lock:
-            self._price = c
+            prev_source = self.last_source  # was unbound: NameError killed
+            self._price = c                 # every AM-bar callback
             self._ts = ts_utc
             self.last_source = "polygon_ws_am"
         try:
