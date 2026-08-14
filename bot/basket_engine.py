@@ -56,10 +56,13 @@ GATE_DEFAULTS = {"vix_med": 17.93, "aaii_bb": 0.116279,
 
 
 def basket_enabled() -> bool:
-    """Default ON (user order 2026-07-24: 'get the bot working and
-    trading properly'). Off only via BASKET_ENABLED=0 or the disabled
-    flag file. The kill-switch is separate and handled inside run()."""
-    if os.environ.get("BASKET_ENABLED", "1").strip() == "0":
+    """RETIRED — default OFF (user order 2026-08-14: retire all old
+    strategies; only the validated pulse cells trade). The basket was the
+    thing still trading ZB/ZN after the pulse cutover, because this
+    default was ON and env vars survive redeploys. Re-enable only by
+    explicitly setting BASKET_ENABLED=1 (live_runner force-writes it to
+    0 unless PULSE_BASKET_ENABLED overrides)."""
+    if os.environ.get("BASKET_ENABLED", "0").strip() != "1":
         return False
     return not DISABLED_FLAG.exists()
 
