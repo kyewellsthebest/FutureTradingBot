@@ -15,7 +15,7 @@ mechanisms defeated it:
 
 Rev 2 makes the entrypoint self-enforcing. On boot, `live_runner.py` now:
 
-- **Force-writes** every strategy-critical env var (engine=pulse,
+- **Force-writes** every strategy-critical env var (engine=mirror,
   shadow=0, basket=0, symbol=MNQ, the validated MNQ params). Whatever
   stale values the service has are stomped and logged.
 - **Wipes the data volume once** (marker file `pulse_reset_v1.done`):
@@ -46,7 +46,7 @@ the 318-trade history.
 
 Zero env vars needed. Code forces the validated cell:
 impulse 5.0pt / 6 bars, pullback 0.618, stop 10, target 20, 1 micro,
-engine pulse, shadow OFF, basket OFF, symbol MNQ.
+engine mirror, shadow OFF, basket OFF, symbol MNQ.
 Validated: +$20,701 held-out, 142 tr/wk, 8/8 quarters green, DD $393.
 
 ## Service 2 (duplicate the service) — MES

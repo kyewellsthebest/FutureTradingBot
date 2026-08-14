@@ -60,9 +60,10 @@ COMMISSION_RT = 1.50
 
 
 def strategy_mode() -> str:
-    """fadesz (default) | off. BROKER_ENGINE=stack/mirror fall back to
-    legacy engines handled in fib_main."""
-    return os.environ.get("BROKER_ENGINE", "pulse").strip().lower()
+    """Anything except fadesz/off runs the pullback path. Default
+    "mirror": the pullback strategy PLUS broker forwarding (fib_main's
+    forwarding gate requires engine_mode()=="mirror" exactly)."""
+    return os.environ.get("BROKER_ENGINE", "mirror").strip().lower()
 
 
 class FadeszEngine:
