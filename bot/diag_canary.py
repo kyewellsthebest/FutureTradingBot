@@ -68,10 +68,20 @@ def _payload() -> str:
         with open(logp, "rb") as f:
             f.seek(max(0, os.path.getsize(logp) - 60_000))
             tail = f.read().decode(errors="replace")
-        parts.append("s" + _last_ts(tail, "[SETUP]"))
         parts.append("o" + _last_ts(tail, "[LIVE OPEN]"))
-        parts.append("g" + _last_ts(tail, "[broker gate"))
-        parts.append("e" + _last_ts(tail, " ERROR "))
+        # the actual reason text of the last order rejection/skip --
+        # timestamps alone left us guessing which check was refusing
+        rej = [ln for ln in tail.splitlines()
+               if "order REJECTED" in ln or "placeoso SKIP" in ln
+               or "placeoso REST" in ln and "status=2" not in ln]
+        if rej:
+            ln = rej[-1]
+            m = re.match(r"\S+ (\d\d:\d\d)", ln)
+            when = m.group(1) if m else "?"
+            reason = ln.split("]")[-1].strip()[:26]
+            parts.append(f"R{when}:{reason}")
+        else:
+            parts.append("R-")
     except Exception:
         parts.append("nolog")
     return " ".join(parts)[:64]
