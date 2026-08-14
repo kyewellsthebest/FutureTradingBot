@@ -41,7 +41,7 @@ bracket size (costs don't eat the edge), and real intraday impulse flow.
 | MES | $1.25 | 1 tick | ✓ validated #2 |
 | MYM | $0.50 | 1 tick | ✓ validated #3 |
 | M2K (RTY) | $0.50 | 1-2 ticks | ✗ tested, 0/8 — tape too thin |
-| MCL (oil) | $1.00 | 1-2 ticks | cost-comparable — TESTING NOW |
+| MCL (oil) | $1.00 | 1-2 ticks | ✗ tested, 0/3 green, -$1,946 — family is equity-specific |
 | MGC (gold) | $1.00 | 1-2 ticks | comparable, but only 2 dense
 quarters on disk — cannot meet the 8-quarter validation bar |
 | M6E etc (FX) | $1.25 | 1 tick | comparable; no tick data on disk |
