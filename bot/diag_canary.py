@@ -78,10 +78,17 @@ def _payload() -> str:
             ln = rej[-1]
             m = re.match(r"\S+ (\d\d:\d\d)", ln)
             when = m.group(1) if m else "?"
-            reason = ln.split("]")[-1].strip()[:26]
+            reason = ln.split("]")[-1].strip()[:22]
             parts.append(f"R{when}:{reason}")
         else:
             parts.append("R-")
+        # the errors at open-minute are NOT rejections (R- proved it):
+        # carry the last ERROR line's message text -- that's the
+        # exception inside the forwarding body
+        errs = [ln for ln in tail.splitlines() if " ERROR " in ln]
+        if errs:
+            msg = errs[-1].split(" ERROR ", 1)[-1]
+            parts.append("E:" + msg.strip()[-34:])
     except Exception:
         parts.append("nolog")
     return " ".join(parts)[:64]
