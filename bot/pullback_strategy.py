@@ -546,6 +546,20 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
       STOP_PTS_COUNTER_TREND (e.g. 10.0) -- the wider stop used when
         the new setup opposes the current strong-trend bias.
     """
+    # RTH gate (2026-08-14): the pulse cells were validated ONLY on
+    # 13:30-20:00 UTC (US cash session). Overnight/globex trading is
+    # unvalidated exposure, so new setups outside the window are refused.
+    # STRAT_RTH_ONLY=0 disables (e.g. for research replays).
+    if os.environ.get("STRAT_RTH_ONLY", "1") == "1":
+        try:
+            ts_ = pd.Timestamp(now)
+            ts_ = ts_.tz_convert("UTC") if ts_.tzinfo else ts_.tz_localize("UTC")
+            hm_ = ts_.hour * 60 + ts_.minute
+            if not (13 * 60 + 30 <= hm_ < 20 * 60):
+                return None
+        except Exception:
+            pass  # fail-open like the other session guards
+
     p = params or {}
     imp_pts    = p.get("IMPULSE_PTS",        IMPULSE_PTS)
     imp_window = p.get("IMPULSE_WINDOW_BARS", IMPULSE_WINDOW_BARS)
