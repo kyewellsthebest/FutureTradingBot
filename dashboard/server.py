@@ -1666,9 +1666,45 @@ def api_pulse():
                 mp.stat().st_mtime, _dt.timezone.utc).isoformat()
     except Exception:
         pass
+    # ---- liveness diagnostics: enough to tell "no setups yet" apart
+    # from "engine dead / feed dead" straight from the Strategy card ----
+    diag = {}
+    try:
+        from bot.account_ctx import data_dir as _dd3
+        dd = _dd3()
+        blob = dd / "dashboard_data.json"
+        if blob.exists():
+            diag["cycle_age_s"] = round(time.time() - blob.stat().st_mtime, 1)
+        crash = dd / "bot_crash.txt"
+        if crash.exists():
+            diag["crash_age_s"] = round(time.time() - crash.stat().st_mtime, 1)
+            diag["crash"] = crash.read_text()[:400]
+        hb = dd / "bot_heartbeat.txt"
+        if hb.exists():
+            diag["heartbeat"] = hb.read_text()[:200].strip()
+            diag["heartbeat_age_s"] = round(time.time() - hb.stat().st_mtime, 1)
+    except Exception as e:
+        diag["error"] = repr(e)
+    try:
+        from bot.tradovate_bars import get_stats
+        st = get_stats()
+        diag["bar_source"] = os.environ.get("BOT_BAR_SOURCE", "polygon")
+        diag["polygon_key_set"] = bool(os.environ.get("POLYGON_API")
+                                       or os.environ.get("POLYGON_API_KEY"))
+        for k in ("tradovate_success_count", "tradovate_failure_count",
+                  "polygon_fallback_count"):
+            if st.get(k) is not None:
+                diag[k] = st[k]
+        for k in ("last_tradovate_success_ts", "last_polygon_fallback_ts"):
+            if st.get(k):
+                diag[k.replace("_ts", "_age_s")] = round(
+                    time.time() - st[k], 1)
+    except Exception:
+        pass
     return jsonify({
         "engine": os.environ.get("BROKER_ENGINE", "pulse"),
         "shadow": os.environ.get("BOT_SHADOW_MODE", "0") == "1",
+        "diag": diag,
         "symbol": sym,
         "params": {
             "impulse_pts": float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
