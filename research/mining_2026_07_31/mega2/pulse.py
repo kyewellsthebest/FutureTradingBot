@@ -39,6 +39,14 @@ GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
         for S in (6.0, 10.0) for T in (12.0, 20.0) for d in (1, -1)]
 GRID = [dict(c, imp=c["imp"] * PSCALE, S=c["S"] * PSCALE,
              T=c["T"] * PSCALE) for c in GRID]
+if os.environ.get("PTOP"):
+    # placebo scope: only the deployment cell and its fade twin need the
+    # stale-signal control; 64 cells of placebo is 5 hours of no new info
+    GRID = [c for c in GRID
+            if c["w"] == 6 and c["retr"] == 0.618
+            and abs(c["S"] - 10.0 * PSCALE) < 1e-9
+            and abs(c["T"] - 20.0 * PSCALE) < 1e-9
+            and abs(c["imp"] - 5.0 * PSCALE) < 1e-9]
 
 
 def quarter(cn):
