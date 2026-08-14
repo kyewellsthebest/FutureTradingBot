@@ -312,129 +312,69 @@ const mkt = (r) => MKT[r] || { name: r, color: "#9aa1b5", dp: 2 };
 const fmtPx = (v, dp) => (v == null || isNaN(v)) ? "—" :
   Number(v).toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
 
-let basketRunning = false;
-const opsOpen = new Set();          // expanded instrument rows
+let basketRunning = false;          // legacy flag, other code checks it
 
 async function pollBasket() {
+  // The basket era is over: this card now shows the deployed pulse
+  // strategy (validated impulse-pullback), straight from /api/pulse.
   try {
-    const r = await fetch(af("/api/basket"));
-    const b = await r.json();
-    basketRunning = !!(b && b.running);
-    const card = $("ops-card");
-    if (!basketRunning) {
-      $("ops-list").innerHTML =
-        `<div class="muted small" style="padding:10px 4px">Basket engine not running yet.</div>`;
-      $("ops-sub").textContent = "";
-      $("ops-foot").textContent = "";
-      return;
-    }
+    const r = await fetch(af("/api/pulse"));
+    const p = await r.json();
+    if (!p || !p.params) return;
+    const M = mkt(p.symbol || "MNQ");
+    const s = p.session || {};
+    const v = p.validated || {};
 
-    // header line
-    const nOpen = (b.instruments || []).reduce((a, i) => a + (i.in_trade || 0), 0);
-    $("ops-sub").textContent =
-      `${(b.sleeves || []).length} bots · day ${fmtUsd(b.day_pnl, true)}` +
-      (nOpen ? ` · open ${fmtUsd2(b.open_pnl, true)}` : "");
+    $("ops-sub").textContent = p.shadow ? "SHADOW — no orders" :
+      `LIVE · ${p.engine || "pulse"} engine`;
 
-    // banner (kill / breaker / stale gates)
-    const ban = $("ops-banner");
-    if (b.killed) {
-      ban.hidden = false; ban.className = "ops-banner bad";
-      ban.textContent = "KILL-SWITCH TRIPPED — all trading halted until manually reset";
-    } else if (b.halted_today) {
-      ban.hidden = false; ban.className = "ops-banner warn";
-      ban.textContent = "Daily breaker hit (−$1,000) — flat until tomorrow's session";
-    } else if (b.gates && b.gates.fresh === false) {
-      ban.hidden = false; ban.className = "ops-banner mute";
-      ban.textContent = "Regime data stale — gated bots are safely OFF";
-    } else ban.hidden = true;
-
-    // market rows
-    const sleevesBy = {};
-    (b.sleeves || []).forEach((s) => (sleevesBy[s.instr] ||= []).push(s));
-    $("ops-list").innerHTML = (b.instruments || []).map((m) => {
-      const M = mkt(m.instr);
-      const live = m.px_src === "polygon-live";
-      let state, cls = "mute";
-      if (m.in_trade) {
-        const op = m.open_pnl;
-        const sides = (m.positions || []).map((p) => p.side === "long" ? "LONG" : "SHORT");
-        state = (m.in_trade === 1 ? sides[0] : `${m.in_trade} open`) +
-                (op != null ? ` ${fmtUsd2(op, true)}` : "");
-        cls = op > 0 ? "pos" : op < 0 ? "neg" : "on";
-      } else if (m.armed) {
-        state = "order waiting"; cls = "on";
-      } else if (m.watching) {
-        state = `${m.watching} watching`;
-      } else {
-        state = "standby";
-      }
-      const openCls = opsOpen.has(m.instr) ? "" : "hidden";
-      const detail = (sleevesBy[m.instr] || []).map((s) => {
-        const st = s.state;
-        let chip, ccls = "mute";
-        if (st === "long" || st === "short") {
-          chip = st.toUpperCase() + (s.entry_px != null ? ` @ ${fmtPx(s.entry_px, M.dp)}` : "");
-          ccls = st === "long" ? "pos" : "neg";
-        } else if (st === "armed") {
-          chip = `limit ${fmtPx(s.limit_px, M.dp)} (${s.ttl} bars)`; ccls = "on";
-        } else if (st === "gated") {
-          chip = "off — wrong regime";
-        } else chip = "watching";
-        const prox = st === "watching" ? Math.max(2, Math.min(100, s.prox || 0)) : 0;
-        return `<div class="sl-row">
-          <div class="sl-desc">${s.desc}</div>
-          <div class="sl-right">
-            ${st === "watching" ? `<div class="sl-prox"><i style="width:${prox}%"></i></div>` : ""}
-            <span class="sl-chip ${ccls}">${chip}</span>
-          </div>
-        </div>`;
-      }).join("");
-      return `<div class="mk-block">
-        <div class="mk-row" data-r="${m.instr}">
-          <span class="mk-dot" style="background:${M.color}"></span>
-          <div class="mk-name">${M.name}<span class="mk-sym">${m.symbol || ""}</span></div>
-          <div class="mk-price">${fmtPx(m.px, M.dp)}
-            <span class="mk-src ${live ? "live" : ""}" title="${live ? "Polygon live" : "last bar"}"></span>
-          </div>
-          <span class="mk-state ${cls}">${state}</span>
-          <span class="mk-arrow">${opsOpen.has(m.instr) ? "▾" : "▸"}</span>
-        </div>
-        <div class="mk-detail ${openCls}">${detail}</div>
-      </div>`;
-    }).join("");
-
-    $("ops-foot").textContent =
-      `Prices: ${(b.instruments || []).some((i) => i.px_src === "polygon-live")
-        ? "Polygon live feed" : "last 5-min bar (Polygon feed connecting…)"}` +
-      ` · total P&L since launch ${fmtUsd(b.cum_pnl, true)}`;
-
-    // Open Trades KPI (replaces single-position view when basket runs)
-    const el = $("kpi-pos"), sub = $("kpi-pos-sub"), ico = $("kpi-pos-ico");
-    if (nOpen) {
-      el.textContent = `${nOpen} open`;
-      paint(el, b.open_pnl || 0);
-      ico.textContent = (b.open_pnl || 0) >= 0 ? "▲" : "▼";
-      sub.textContent = `open P&L ${fmtUsd2(b.open_pnl, true)}`;
+    let state, cls;
+    if (s.in_session) {
+      state = "IN SESSION — hunting setups"; cls = "pos";
     } else {
-      el.textContent = "FLAT";
-      el.classList.remove("pos-t", "neg-t");
-      ico.textContent = "▣";
-      sub.textContent = b.halted_today ? "halted today" : "no open trades";
+      let when = "";
+      if (s.next_open_utc) {
+        const ms = new Date(s.next_open_utc) - Date.now();
+        if (ms > 0) {
+          const h = Math.floor(ms / 3600000), m = Math.round(ms % 3600000 / 60000);
+          when = ` in ${h ? h + "h " : ""}${m}m`;
+        }
+      }
+      state = `session opens${when}`; cls = "mute";
     }
-    reveal(el);
+
+    const chips = [
+      ["impulse", `${p.params.impulse_pts}pt / ${p.params.impulse_bars}min`],
+      ["pullback", `${p.params.pull_pct}`],
+      ["stop", `${p.params.stop_pts}pt`],
+      ["target", `${p.params.target_pts}pt`],
+      ["size", "1 micro"],
+      ["session", `${s.window_utc || "13:30-20:00"} UTC`],
+    ];
+    $("ops-list").innerHTML = `<div class="mk-block">
+      <div class="mk-row">
+        <span class="mk-dot" style="background:${M.color}"></span>
+        <div class="mk-name">Impulse pullback<span class="mk-sym">${p.symbol || ""}</span></div>
+        <span class="mk-state ${cls}">${state}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 4px 2px">
+        ${chips.map(([k, val]) =>
+          `<span class="sl-chip mute">${k}&nbsp;<b>${val}</b></span>`).join("")}
+      </div>
+    </div>`;
+
+    const foot = [];
+    if (v.held_out_usd) {
+      foot.push(`validated ${fmtUsd(v.held_out_usd, true)} held-out · ` +
+        `${v.trades_per_wk}/wk · ${v.green_quarters} quarters green · ` +
+        `backtest max DD ${fmtUsd(v.max_dd_usd)}`);
+    }
+    if (p.reset_at) foot.push(`stats since reset ${String(p.reset_at).slice(0, 10)}`);
+    if (p.commit) foot.push(p.commit.slice(0, 7));
+    $("ops-foot").textContent = foot.join(" · ");
+    $("ops-banner").hidden = true;
   } catch (e) { /* keep last */ }
 }
-
-$("ops-list").addEventListener("click", (e) => {
-  const row = e.target.closest(".mk-row");
-  if (!row) return;
-  const r = row.dataset.r;
-  if (opsOpen.has(r)) opsOpen.delete(r); else opsOpen.add(r);
-  const det = row.parentElement.querySelector(".mk-detail");
-  if (det) det.classList.toggle("hidden");
-  const ar = row.querySelector(".mk-arrow");
-  if (ar) ar.textContent = opsOpen.has(r) ? "▾" : "▸";
-});
 
 /* ---------- position ---------- */
 async function pollPosition() {

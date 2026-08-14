@@ -56,8 +56,10 @@ if os.environ.get("PTOP"):
     # stale-signal control; 64 cells of placebo is 5 hours of no new info
     GRID = [c for c in GRID
             if c["w"] == 6 and c["retr"] == 0.618 and c["d"] == 1
-            and abs(c["S"] - 10.0 * PSCALE) < 1e-9
-            and abs(c["T"] - 20.0 * PSCALE) < 1e-9
+            and abs(c["S"] - float(os.environ.get("PTOP_S", "10"))
+                    * PSCALE) < 1e-9
+            and abs(c["T"] - float(os.environ.get("PTOP_T", "20"))
+                    * PSCALE) < 1e-9
             and abs(c["imp"] - float(os.environ.get("PTOP_IMP", "5"))
                     * PSCALE) < 1e-9] or GRID[:1]
 
