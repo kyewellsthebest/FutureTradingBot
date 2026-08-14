@@ -26,13 +26,16 @@ import pandas as pd
 KEY = os.environ.get("DATABENTO_KEY")
 if not KEY:
     sys.exit("DATABENTO_KEY not set")
-MAX_SPEND = float(os.environ.get("MAX_SPEND", "45"))
+MAX_SPEND = float(os.environ.get("MAX_SPEND", "15"))
 OUTDIR = "data/depth"
 os.makedirs(OUTDIR, exist_ok=True)
 c = db.Historical(KEY)
 DATASET = "GLBX.MDP3"
 SYM, SCHEMA = "NQU6", "mbp-1"
-S, E = "2026-07-01", "2026-08-01"
+# July's full-month run completed and lost its results to a push race;
+# re-buying the month would overrun the remaining credit. One week keeps
+# the question answered inside what's left.
+S, E = "2026-07-27", "2026-08-01"
 
 cost = c.metadata.get_cost(dataset=DATASET, symbols=[SYM],
                            stype_in="raw_symbol", schema=SCHEMA,

@@ -45,4 +45,7 @@ jobs:
           git config user.name "Claude" && git config user.email "noreply@anthropic.com"
           git add -A data/depth research/DEPTH.md || true
           git diff --cached --quiet || git commit -m "depth: derived queue metrics from Databento purchase"
-          git push origin claude/hello-vc2ivo
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break
+            sleep 5
+          done
