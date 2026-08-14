@@ -72,6 +72,10 @@ PULSE_FORCED_ENV = {
     # level; the order client rejected every one (drift_beyond_stop) and
     # paper ate instant -$20.50 stops all afternoon (2026-08-14).
     "STRAT_FIRE_DRIFT_GATE_PT": "1.0",
+    # placeoso via the user-WS returns 'UnknownReason: Access is denied'
+    # on this account while plain REST placement succeeds (18 canary
+    # orders on 2026-08-14). Force the REST path the canary proved.
+    "BROKER_WS_ORDER_SUBMIT": "false",
     "ANTICIPATORY_ENABLED": "0",
     "ACCOUNTS": "1",                # one instance per service
     "TRADOVATE_SYMBOL": "MNQ",
