@@ -37,8 +37,11 @@ def quarter(cn):
     close = pd.Series(px, index=idx).resample("1min").last().ffill()
     bt = close.index.view(np.int64)
     bc = close.values
-    # map each bar end to its tick position
-    bpos = np.searchsorted(ts, bt, side="right")
+    # map each bar END to its tick position. Resample labels bars by START
+    # time; using the label raw handed the strategy the bar's own close 60
+    # seconds early -- a look-ahead that manufactured +$51k of held-out
+    # profit before the audit caught it. The bar closes at label + 1 minute.
+    bpos = np.searchsorted(ts, bt + 60_000_000_000, side="right")
     rth = (close.index.hour * 60 + close.index.minute >= 13 * 60 + 30) & \
           (close.index.hour < 20)
     return ts, px, bt, bc, bpos, rth
@@ -60,7 +63,8 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
         limit = bc[i] - r * move            # retracement of the impulse
         # direction: d=+1 continuation (with the impulse), d=-1 fade
         side = (1 if up else -1) * d
-        j0, j1 = bpos[i], np.searchsorted(ts, bt[i] + hold)
+        j0 = bpos[i]
+        j1 = np.searchsorted(ts, bt[i] + 60_000_000_000 + hold)
         seg = px[j0:j1]
         if not len(seg):
             continue
@@ -91,7 +95,7 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
         else:
             gain = side * (rest[-1] - entry) * TV
         pnl.append(gain - COMM)
-        last_x = bt[i] + hold
+        last_x = bt[i] + 60_000_000_000 + hold
     return np.array(pnl)
 
 
