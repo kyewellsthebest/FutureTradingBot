@@ -1,8 +1,8 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-14 18:02:13Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-14 18:21:30Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 56
+## Orders today: 58
 
 | time (UTC) | contract | action | type | status | qty | text |
 |---|---|---|---|---|---|---|
@@ -62,6 +62,8 @@ Generated 2026-08-14 18:02:13Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-14 17:40:39 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps1 s17:38 o- g- e- |
 | 2026-08-14 17:50:42 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 cy337 at17:40 ps0 s17:38 o17:40 g17:40 e17:40 |
 | 2026-08-14 18:00:44 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 cy618 at0 ps4 s18:00 o17:52 g17:52 e17:52 |
+| 2026-08-14 18:10:46 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 cy899 at18:02 ps3 s18:02 o18:02 g18:02 e18:02 |
+| 2026-08-14 18:13:31 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 cy56 at0 ps0 o- R- |
 
 ## Fills today: 12
 
@@ -87,5 +89,5 @@ Generated 2026-08-14 18:02:13Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: {'ZNU': '2026-08-14 00:01:06', 'ZBU': '2026-08-14 00:01:59'}
-- pulse-symbol orders placed (MNQ/MES/MYM): 13
-- latest: 2026-08-14 18:00:44 MNQU6 Buy None -> Canceled
+- pulse-symbol orders placed (MNQ/MES/MYM): 15
+- latest: 2026-08-14 18:13:31 MNQU6 Buy None -> Canceled
