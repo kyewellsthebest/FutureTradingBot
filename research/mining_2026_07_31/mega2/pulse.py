@@ -25,6 +25,7 @@ TRAIN = 0.60
 COMM = 1.24
 TV = 2.0          # $ per point, MNQ
 SLIP = 0.25       # one tick on stop exits
+DELAY_NS = 250_000_000   # order placement latency: no fills inside it
 COOL_NS = 60_000_000_000
 GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
         for imp in (5.0, 8.0) for w in (4, 6) for r in (0.5, 0.618)
@@ -51,7 +52,7 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
     imp, w, r = cell["imp"], cell["w"], cell["retr"]
     S, T, hold, d = cell["S"], cell["T"], cell["hold"] * 60_000_000_000, \
         cell["d"]
-    pnl, last_x = [], -10**18
+    pnl, outs, ets, last_x = [], [], [], -10**18
     n = len(bc)
     for i in range(max(lo, w + 1), hi):
         if not rth[i] or bt[i] < last_x + COOL_NS:
@@ -63,7 +64,7 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
         limit = bc[i] - r * move            # retracement of the impulse
         # direction: d=+1 continuation (with the impulse), d=-1 fade
         side = (1 if up else -1) * d
-        j0 = bpos[i]
+        j0 = np.searchsorted(ts, bt[i] + 60_000_000_000 + DELAY_NS)
         j1 = np.searchsorted(ts, bt[i] + 60_000_000_000 + hold)
         seg = px[j0:j1]
         if not len(seg):
@@ -89,14 +90,17 @@ def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
         s_at = si[0] if len(si) else 10**9
         t_at = ti[0] if len(ti) else 10**9
         if t_at < s_at:
-            gain = T * TV
+            gain, o = T * TV, "t"
         elif s_at < 10**9:
-            gain = -(S + SLIP) * TV
+            gain, o = -(S + SLIP) * TV, "s"
         else:
-            gain = side * (rest[-1] - entry) * TV
+            # timeout exits cross the spread: one tick charged
+            gain, o = (side * (rest[-1] - entry) - SLIP) * TV, "o"
         pnl.append(gain - COMM)
+        outs.append(o)
+        ets.append(ts[j0 + f])
         last_x = bt[i] + 60_000_000_000 + hold
-    return np.array(pnl)
+    return np.array(pnl), outs, np.array(ets, dtype=np.int64)
 
 
 def main():
@@ -109,14 +113,17 @@ def main():
         cut = int(n * TRAIN)
         days = max((data[2][-1] - data[2][0]) / fuse.DAY_NS, 1)
         for cell in GRID:
-            a = run(*data, cell, 0, cut)
-            b = run(*data, cell, cut, n)
+            a, _, _ = run(*data, cell, 0, cut)
+            b, ob, eb = run(*data, cell, cut, n)
             k = tuple(sorted(cell.items()))
             r = per.setdefault(k, dict(cell=cell, tra=0.0, trn=0, tea=0.0,
                                        ten=0, q=[]))
             r["tra"] += float(a.sum()); r["trn"] += len(a)
             r["tea"] += float(b.sum()); r["ten"] += len(b)
             r["q"].append((cn, float(b.sum()), len(b)))
+            r.setdefault("outs", []).extend(ob)
+            r.setdefault("pnls", []).append(b)
+            r.setdefault("ets", []).append(eb)
         print(f"  {cn} done ({days:.0f}d)", flush=True)
 
     wk_all = sum((meta[c]["t1"] - meta[c]["t0"]) / fuse.DAY_NS
@@ -142,6 +149,27 @@ def main():
           "quarter:", ""]
     for cn, p, nn in best["q"]:
         L.append(f"- {cn}: ${p:+,.0f} on {nn}")
+    o = pd.Series(best["outs"]).value_counts(normalize=True)
+    ap = np.concatenate(best["pnls"])
+    et = np.concatenate(best["ets"])
+    daily = pd.Series(ap, index=pd.to_datetime(et)).resample("D").sum()
+    daily = daily[daily != 0]
+    eq = daily.cumsum()
+    dd = float((eq - eq.cummax()).min())
+    wins = ap > 0
+    L += ["", "## Anatomy (held-out, top cell)", "",
+          f"- outcomes: target {o.get('t', 0):.0%}, stop {o.get('s', 0):.0%},"
+          f" timeout {o.get('o', 0):.0%}",
+          f"- win rate {wins.mean():.1%}, avg win "
+          f"${ap[wins].mean() if wins.any() else 0:+.2f}, avg loss "
+          f"${ap[~wins].mean() if (~wins).any() else 0:+.2f}",
+          f"- {len(daily)} trading days: {float((daily > 0).mean()):.0%} "
+          f"green, best ${daily.max():+,.0f}, worst ${daily.min():+,.0f}",
+          f"- **max drawdown ${abs(dd):,.0f}** "
+          f"({abs(dd)/4100:.1%} of the $4,100 account)",
+          "", "Random-walk baseline for a 10/20 bracket is 33.3% "
+          "target-first; the bar above breakeven-with-costs is ~35.5%. "
+          "The measured rate against those two numbers IS the edge.", ""]
     open(OUT, "w").write("\n".join(L) + "\n")
     print("wrote", OUT, flush=True)
 
