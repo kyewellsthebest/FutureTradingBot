@@ -1,0 +1,266 @@
+{
+  "as_of": "2026-05-05T12:13:49.248091+00:00",
+  "cycle": 1,
+  "bot_version": "v11",
+  "price": null,
+  "price_ts": null,
+  "monitor_error": "no price (state refreshed)",
+  "account": {
+    "balance": 50000.0,
+    "starting_balance": 50000.0,
+    "realized_pnl": 0.0,
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate": 0.0,
+    "trades_today": 0,
+    "peak_balance": 50000.0,
+    "max_drawdown": 0.0,
+    "last_trade_close_time": null,
+    "last_trade_was_winner": false,
+    "open_position": null
+  },
+  "today": {
+    "trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate": 0.0,
+    "net_pnl": 0
+  },
+  "recent_trades": [],
+  "starting_balance": 50000.0,
+  "dollars_per_point": 60.0,
+  "recent_signal_events": [],
+  "v11": {
+    "summary": {
+      "count": 117,
+      "long_count": 95,
+      "short_count": 22,
+      "median_wr": 0.5187165775401069,
+      "median_pf": 1.4285821672441825,
+      "median_sharpe": 0.1360762802823488,
+      "total_mining_net_1mnq": 348722.0329877332,
+      "z_windows": [
+        15,
+        20,
+        30,
+        45,
+        60,
+        90,
+        120
+      ],
+      "time_contexts": [
+        "pm_full",
+        "t_1300_1330",
+        "t_1330_1530",
+        "t_1400_1430",
+        "t_1430_1500",
+        "t_1500_1530",
+        "t_1530_1600"
+      ]
+    },
+    "z_scores": {
+      "15": -0.535,
+      "20": -0.63,
+      "30": -0.473,
+      "45": -0.748,
+      "60": -0.952,
+      "90": -0.875,
+      "120": -1.037
+    },
+    "ny_bucket": "07:10 ET",
+    "last_bar_ts": "2026-04-08T11:10:00+00:00",
+    "atr": 17.87,
+    "closest_to_trigger": [
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1500_1530_RR2_7wide_04185",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1500_1530_RR2_wide_04184",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1530_1600_RR2_7wide_04190",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_22_x_t_1530_1600_RR2_wide_04189",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.2,
+        "z_current": -1.037,
+        "distance": 1.163,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_20_x_t_1530_1600_RR2_7wide_02430",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.0,
+        "z_current": -0.748,
+        "distance": 1.252,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1500_1530_RR2_wide_01304",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1500_1530_RR2_7wide_01305",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1530_1600_RR2_7wide_01310",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_20_20_x_t_1530_1600_RR2_wide_01309",
+        "side": "LONG",
+        "z_window": 20,
+        "z_threshold": 2.0,
+        "z_current": -0.63,
+        "distance": 1.37,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1530_1600_RR2_7wide_02510",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1530_1600_RR2_wide_02509",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_45_22_x_t_1500_1530_RR2_wide_02504",
+        "side": "LONG",
+        "z_window": 45,
+        "z_threshold": 2.2,
+        "z_current": -0.748,
+        "distance": 1.452,
+        "fired": false,
+        "time_ctx": "t_1500_1530"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1400_1430_RR2_wide_04254",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1400_1430"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1400_1430_RR2_7wide_04255",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1400_1430"
+      },
+      {
+        "name": "V11SA_LONG_sa_long_120_25_x_t_1530_1600_RR2_7wide_04270",
+        "side": "LONG",
+        "z_window": 120,
+        "z_threshold": 2.5,
+        "z_current": -1.037,
+        "distance": 1.463,
+        "fired": false,
+        "time_ctx": "t_1530_1600"
+      }
+    ],
+    "bars_processed": 0,
+    "signals_fired": 0,
+    "signals_blocked": 0,
+    "recent_fires": [],
+    "base_size": 25
+  },
+  "lucid_account": {
+    "account_id": 1,
+    "started_at": "2026-05-01T02:50:19.082620+00:00",
+    "balance": 50000.0,
+    "starting_balance": 50000.0,
+    "peak_eod_high": 50000.0,
+    "trail_floor": 48000.0,
+    "trail_locked": false,
+    "buffer_to_trail": 2000.0,
+    "today_pnl": 0.0,
+    "today_date": null,
+    "cum_pnl": 0.0,
+    "n_trading_days": 0,
+    "today_share_of_total": 0.0,
+    "consistency_ok": true,
+    "dll_remaining": 1200.0,
+    "dll_hit": false,
+    "payout_eligible": false,
+    "payout_reason": "profit $+0 < $500 target",
+    "take_home_at_split": 0.0,
+    "profit_target": 500.0,
+    "min_days_to_payout": 3,
+    "max_mnq": 40,
+    "consistency_pct": 0.4,
+    "profit_split": 0.9,
+    "blown": false,
+    "blow_reason": null
+  },
+  "funded_accounts": {
+    "n_failed": 0,
+    "active_account_id": 1,
+    "total_runs": 1,
+    "history": []
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "balance": 50000.0,
+  "starting_balance": 50000.0,
+  "open_position": null,
+  "trades_today": 0,
+  "last_trade_date": null,
+  "last_trade_close_time": null,
+  "last_trade_was_winner": false,
+  "total_trades": 0,
+  "wins": 0,
+  "losses": 0,
+  "realized_pnl": 0.0,
+  "peak_balance": 50000.0,
+  "max_drawdown": 0.0
+}
