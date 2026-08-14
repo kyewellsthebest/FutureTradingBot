@@ -232,7 +232,9 @@ MICROSCALP_WINDOW_DAYS = 30
 # the broker LIMIT sits at the nearest tick (29683.25 or 29683.50) and
 # only fills there. That ~0.04-0.20pt offset compounds across 200 trades
 # into the paper-vs-broker leak the user is seeing.
-TICK_SIZE = 0.25
+# symbol-aware: MNQ/MES tick 0.25, MYM tick 1.0. Wrong tick size on YM
+# would place off-tick orders the exchange rejects.
+TICK_SIZE = float(os.environ.get("STRAT_TICK_SIZE", "0.25"))
 
 
 def _tick_round(px: float, side: str, role: str) -> float:
