@@ -1,0 +1,146 @@
+"""The original pullback-after-impulse family, re-tried the honest way.
+
+The 2025 ship (impulse 5pts/4bars, limit at 0.618, 6/12 bracket) printed
++21%/mo on bar-wick fills and -$711/day on tick replay. This tests the
+FAMILY tick-true from the start, both ways round (the 80% stop-first rate
+of continuation is itself a hypothesis: the fade of the same setup), with
+fills that only count when the tape trades THROUGH the limit, a tick of
+slippage on every stop, and targets that only count on strict penetration.
+
+Grid is 64 cells (not millions). Per NQ quarter: train on first 60%,
+held-out 40%; the cell is picked on train alone; the pick's held-out and
+cross-quarter records are what gets believed.
+"""
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fuse  # noqa: E402
+
+OUT = os.path.join(fuse.ROOT, "research", "PULSE.md")
+TRAIN = 0.60
+COMM = 1.24
+TV = 2.0          # $ per point, MNQ
+SLIP = 0.25       # one tick on stop exits
+COOL_NS = 60_000_000_000
+GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
+        for imp in (5.0, 8.0) for w in (4, 6) for r in (0.5, 0.618)
+        for S in (6.0, 10.0) for T in (12.0, 20.0) for d in (1, -1)]
+
+
+def quarter(cn):
+    ts, px, _ = fuse.load_tape(fuse.tape_meta()[cn]["path"])
+    idx = pd.to_datetime(ts)
+    close = pd.Series(px, index=idx).resample("1min").last().ffill()
+    bt = close.index.view(np.int64)
+    bc = close.values
+    # map each bar end to its tick position
+    bpos = np.searchsorted(ts, bt, side="right")
+    rth = (close.index.hour * 60 + close.index.minute >= 13 * 60 + 30) & \
+          (close.index.hour < 20)
+    return ts, px, bt, bc, bpos, rth
+
+
+def run(ts, px, bt, bc, bpos, rth, cell, lo, hi):
+    imp, w, r = cell["imp"], cell["w"], cell["retr"]
+    S, T, hold, d = cell["S"], cell["T"], cell["hold"] * 60_000_000_000, \
+        cell["d"]
+    pnl, last_x = [], -10**18
+    n = len(bc)
+    for i in range(max(lo, w + 1), hi):
+        if not rth[i] or bt[i] < last_x + COOL_NS:
+            continue
+        move = bc[i] - bc[i - w]
+        if abs(move) < imp:
+            continue
+        up = move > 0
+        limit = bc[i] - r * move            # retracement of the impulse
+        # direction: d=+1 continuation (with the impulse), d=-1 fade
+        side = (1 if up else -1) * d
+        j0, j1 = bpos[i], np.searchsorted(ts, bt[i] + hold)
+        seg = px[j0:j1]
+        if not len(seg):
+            continue
+        # fill only when the tape trades THROUGH the limit
+        if up:
+            hitf = np.flatnonzero(seg < limit)
+        else:
+            hitf = np.flatnonzero(seg > limit)
+        if not len(hitf):
+            continue
+        f = hitf[0]
+        entry = limit
+        rest = seg[f:]
+        stop = entry - side * S
+        tgt = entry + side * T
+        if side > 0:
+            si = np.flatnonzero(rest <= stop)
+            ti = np.flatnonzero(rest > tgt)      # strict penetration
+        else:
+            si = np.flatnonzero(rest >= stop)
+            ti = np.flatnonzero(rest < tgt)
+        s_at = si[0] if len(si) else 10**9
+        t_at = ti[0] if len(ti) else 10**9
+        if t_at < s_at:
+            gain = T * TV
+        elif s_at < 10**9:
+            gain = -(S + SLIP) * TV
+        else:
+            gain = side * (rest[-1] - entry) * TV
+        pnl.append(gain - COMM)
+        last_x = bt[i] + hold
+    return np.array(pnl)
+
+
+def main():
+    meta = fuse.tape_meta()
+    cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
+    per = {}
+    for cn in cons:
+        data = quarter(cn)
+        n = len(data[3])
+        cut = int(n * TRAIN)
+        days = max((data[2][-1] - data[2][0]) / fuse.DAY_NS, 1)
+        for cell in GRID:
+            a = run(*data, cell, 0, cut)
+            b = run(*data, cell, cut, n)
+            k = tuple(sorted(cell.items()))
+            r = per.setdefault(k, dict(cell=cell, tra=0.0, trn=0, tea=0.0,
+                                       ten=0, q=[]))
+            r["tra"] += float(a.sum()); r["trn"] += len(a)
+            r["tea"] += float(b.sum()); r["ten"] += len(b)
+            r["q"].append((cn, float(b.sum()), len(b)))
+        print(f"  {cn} done ({days:.0f}d)", flush=True)
+
+    wk_all = sum((meta[c]["t1"] - meta[c]["t0"]) / fuse.DAY_NS
+                 for c in cons) / 7 * (1 - TRAIN)
+    L = ["# Pullback-after-impulse, tick-true, both directions", "",
+         "The 2025 ship's family (impulse -> retracement limit -> bracket) "
+         "with honest fills: entry only when the tape trades through the "
+         "limit, one tick slippage on stops, strict penetration on targets, "
+         f"${COMM}/side commission. 64 cells, 8 NQ quarters.", "",
+         "| imp | w | retr | S | T | dir | train $ | **held-out $** | "
+         "ho trades | ho tr/wk | green q |", "|" + "---|" * 11]
+    rows = sorted(per.values(), key=lambda r: -r["tra"])
+    for r in rows[:10]:
+        c = r["cell"]
+        g = sum(1 for _, p, _ in r["q"] if p > 0)
+        L.append(f"| {c['imp']} | {c['w']} | {c['retr']} | {c['S']} | "
+                 f"{c['T']} | {'cont' if c['d'] > 0 else 'FADE'} | "
+                 f"{r['tra']:+,.0f} | **{r['tea']:+,.0f}** | {r['ten']} | "
+                 f"{r['ten']/wk_all:.0f} | {g}/{len(r['q'])} |")
+    best = rows[0]
+    L += ["", f"Top-by-train cell held-out: **${best['tea']:+,.0f}** over "
+          f"{best['ten']} trades ({best['ten']/wk_all:.0f}/wk). Per "
+          "quarter:", ""]
+    for cn, p, nn in best["q"]:
+        L.append(f"- {cn}: ${p:+,.0f} on {nn}")
+    open(OUT, "w").write("\n".join(L) + "\n")
+    print("wrote", OUT, flush=True)
+
+
+if __name__ == "__main__":
+    main()
