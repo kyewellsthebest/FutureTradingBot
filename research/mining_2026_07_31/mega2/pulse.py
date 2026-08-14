@@ -39,6 +39,17 @@ GRID = [dict(imp=imp, w=w, retr=r, S=S, T=T, hold=10, d=d)
         for S in (6.0, 10.0) for T in (12.0, 20.0) for d in (1, -1)]
 GRID = [dict(c, imp=c["imp"] * PSCALE, S=c["S"] * PSCALE,
              T=c["T"] * PSCALE) for c in GRID]
+if os.environ.get("FINE"):
+    # the deployment cell's neighborhood, continuation only, fine steps:
+    # answers "does a nearer/farther stop, deeper/shallower pullback, or a
+    # different patience win more" without touching the shipped parameters
+    GRID = [dict(imp=imp * PSCALE, w=6, retr=r, S=S * PSCALE,
+                 T=T * PSCALE, hold=h, d=1)
+            for imp in (4.0, 5.0, 6.5, 8.0)
+            for r in (0.382, 0.5, 0.618, 0.786)
+            for S in (8.0, 10.0, 12.0, 14.0)
+            for T in (16.0, 20.0, 24.0, 28.0)
+            for h in (5, 10, 20)]
 if os.environ.get("PTOP"):
     # placebo scope: only the deployment cell and its fade twin need the
     # stale-signal control; 64 cells of placebo is 5 hours of no new info
