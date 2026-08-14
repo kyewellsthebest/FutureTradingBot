@@ -5,7 +5,7 @@
     "hooks": [
      {
       "type": "command",
-      "command": "pgrep -f 'python -u fsearch' >/dev/null 2>&1 || (nohup bash research/mining_2026_07_31/mega2/sweep2.sh >> data/msweep2.log 2>&1 & disown) ; true"
+      "command": "pgrep -f 'python -u research/mining_2026_07_31/mega2/pulse' >/dev/null 2>&1 || true"
      }
     ]
    }
