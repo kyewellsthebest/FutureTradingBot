@@ -164,8 +164,14 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
                 break
             t_fill, wd = best
             fidx = wd["fc_idx"]
+            # limit: rests AT the level, fills at it (zero entry cost).
+            # stop: a triggered market order fills WORSE than the
+            # trigger -- long fills higher, short fills lower. The sign
+            # was inverted here (2026-08-15), handing the stop
+            # archetype a free tick in its favour and inflating exactly
+            # the cells that topped the first-quarter board.
             entry = wd["lvl"] + (0 if arch == "limit"
-                                 else -wd["side"] * slip)
+                                 else wd["side"] * slip)
             side = wd["side"]
             stop = entry - side * S
             tgt = entry + side * T
