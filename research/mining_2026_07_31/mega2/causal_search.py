@@ -30,6 +30,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fuse            # noqa: E402
 import causal_engine as ce  # noqa: E402
 
+# CAUSAL_ANCHOR=range sweeps the LIVE strategy's level definition
+# (fib of the wick range, close-minus-open impulse) instead of
+# close-to-close. Separate checkpoint + report.
+ANCHOR = os.environ.get("CAUSAL_ANCHOR", "close")
+
 TRAIN = 0.60
 GRID = [dict(arch=a, imp=float(i), w=w, retr=r, S=float(S), T=float(T),
              hold_s=h, policy=p, tick=0.25, tv=2.0)
@@ -41,6 +46,7 @@ GRID = [dict(arch=a, imp=float(i), w=w, retr=r, S=float(S), T=float(T),
         for T in (5, 10, 20, 30, 40)
         for h in (300, 600, 1200)
         for p in ("first", "deep")]
+GRID = [dict(c, anchor=ANCHOR) for c in GRID]
 
 _G = {}
 
@@ -49,19 +55,22 @@ def _init_quarter(path):
     ts, px, _ = fuse.load_tape(path)
     o = np.argsort(ts, kind="stable")
     ts, px = ts[o], px[o]
-    bt, bc, rth = ce.bars_of(ts, px)
+    bt, bo, bh, bl, bc, rth = ce.bars_ohlc(ts, px)
     _G.update(ts=ts, px=px, bt=bt, bc=bc, rth=rth,
+              bo=bo, bh=bh, bl=bl,
               mi=ce.MinuteIndex(ts, px, bt),
               cut=int(len(bc) * TRAIN), n=len(bc))
 
 
 def _one(cell):
+    if cell.get("anchor") == "range":
+        cell = dict(cell, bo=_G["bo"], bh=_G["bh"], bl=_G["bl"])
     a = ce.run_cell(_G["ts"], _G["px"], _G["bt"], _G["bc"], _G["rth"],
                     0, _G["cut"], cell, mindex=_G["mi"])
     b = ce.run_cell(_G["ts"], _G["px"], _G["bt"], _G["bc"], _G["rth"],
                     _G["cut"], _G["n"], cell, mindex=_G["mi"])
     key = tuple(sorted((k, v) for k, v in cell.items()
-                       if k not in ("tick", "tv")))
+                       if k not in ("tick", "tv", "bo", "bh", "bl")))
     return (key, sum(t[4] for t in a), len(a),
             sum(t[4] for t in b), len(b))
 
@@ -69,7 +78,7 @@ def _one(cell):
 def main():
     meta = fuse.tape_meta()
     cons = [c for c in fuse.NQ_CONTRACTS if c in meta]
-    ckp = os.path.join(fuse.ROOT, "data", "causal_search_ck.pkl")
+    ckp = os.path.join(fuse.ROOT, "data", f"causal_search_ck_{ANCHOR}.pkl")
     per, done = {}, set()
     if os.path.exists(ckp):
         try:
@@ -100,7 +109,7 @@ def main():
     ho_all = np.array([v["tea"] for _, v in per.items()])
     wk = 215 / 5
     L = ["# Exhaustive causal family search "
-         f"({len(GRID):,} cells, NQ, train-pick discipline)", "",
+         f"({len(GRID):,} cells, NQ, anchor={ANCHOR}, train-pick discipline)", "",
          "Both archetypes, every parameter variation, audited causal "
          "engine (research/VALIDATOR_AUDIT.md). Held-out = last 40% of "
          "each quarter, never used for selection.", "",
@@ -130,7 +139,7 @@ def main():
           f"all-cell p99 ${p99:+,.0f} -> "
           f"{'**SURVIVOR — run placebo + cross-market**' if survives else '**NOISE — no causal edge in this family on NQ**'}",
           ""]
-    out = os.path.join(fuse.ROOT, "research", "CAUSAL_SEARCH.md")
+    out = os.path.join(fuse.ROOT, "research", f"CAUSAL_SEARCH_{ANCHOR}.md")
     open(out, "w").write("\n".join(L) + "\n")
     print("wrote", out, flush=True)
 
