@@ -59,10 +59,16 @@ class MinuteIndex:
                 self.mmax[m] = seg.max()
         self.bt = bt
 
-    def first_beyond(self, t_from, t_to, lvl, below):
-        """First tick index with ts in [t_from, t_to) and px strictly
-        beyond lvl (below=True: px < lvl). Returns -1 if none."""
+    def first_beyond(self, t_from, t_to, lvl, below, inclusive=False):
+        """First tick index with ts in [t_from, t_to) and px beyond lvl
+        (below=True: px < lvl, or <= when inclusive). -1 if none."""
         ts, px = self.ts, self.px
+
+        def _hit(seg):
+            if below:
+                return np.flatnonzero(seg <= lvl if inclusive else seg < lvl)
+            return np.flatnonzero(seg >= lvl if inclusive else seg > lvl)
+
         j0 = np.searchsorted(ts, t_from)
         j1 = np.searchsorted(ts, t_to)
         if j0 >= j1:
@@ -71,26 +77,26 @@ class MinuteIndex:
         m1 = np.searchsorted(self.bt, ts[j1 - 1], side="right") - 1
         # partial first minute
         a, b = max(j0, self.pos[m0]), min(j1, self.end[m0])
-        seg = px[a:b]
-        hit = np.flatnonzero(seg < lvl if below else seg > lvl)
+        hit = _hit(px[a:b])
         if len(hit):
             return a + hit[0]
         # whole minutes
         if m1 > m0:
             mm = self.mmin[m0 + 1:m1] if below else self.mmax[m0 + 1:m1]
-            cand = np.flatnonzero(mm < lvl if below else mm > lvl)
+            if below:
+                cand = np.flatnonzero(mm <= lvl if inclusive else mm < lvl)
+            else:
+                cand = np.flatnonzero(mm >= lvl if inclusive else mm > lvl)
             if len(cand):
                 m = m0 + 1 + cand[0]
                 a, b = self.pos[m], min(j1, self.end[m])
-                seg = px[a:b]
-                hit = np.flatnonzero(seg < lvl if below else seg > lvl)
+                hit = _hit(px[a:b])
                 if len(hit):
                     return a + hit[0]
             # partial last minute
             a, b = max(j0, self.pos[m1]), j1
-            if a < b and m1 > m0:
-                seg = px[a:b]
-                hit = np.flatnonzero(seg < lvl if below else seg > lvl)
+            if a < b:
+                hit = _hit(px[a:b])
                 if len(hit):
                     return a + hit[0]
         return -1
@@ -115,10 +121,16 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
     lock_until = -10**18
     nofill_until = -10**18
 
+    # --- fill-rule switches (deep-dive / sensitivity analysis) ---
+    entry_touch = bool(cell.get("entry_touch", False))
+    target_touch = bool(cell.get("target_touch", False))
+    lockout = cell.get("lockout", "window")   # window | exit | none
+
     def fc_of(wd):
         frm = max(wd["arm"], nofill_until)
         if wd["fc_from"] != frm:
-            j = mi.first_beyond(frm, wd["exp"], wd["lvl"], wd["below"])
+            j = mi.first_beyond(frm, wd["exp"], wd["lvl"], wd["below"],
+                                inclusive=entry_touch)
             wd["fc"] = int(ts[j]) if j >= 0 else None
             wd["fc_idx"] = j
             wd["fc_from"] = frm
@@ -179,7 +191,7 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
                                  below=(side > 0))
             # stop fires at <= stop for long: use first print < stop+eps
             jt = mi.first_beyond(t_fill, wd["exp"], tgt,
-                                 below=(side < 0))
+                                 below=(side < 0), inclusive=target_touch)
             s_t = int(ts[js]) if js >= 0 else None
             t_t = int(ts[jt]) if jt >= 0 else None
             if t_t is not None and (s_t is None or t_t < s_t):
@@ -197,7 +209,14 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
                 exit_ns = int(ts[min(kend, n - 1)])
             trades.append((t_fill, side, float(entry), reason,
                            float(gain - comm)))
-            lock_until = wd["exp"] + COOL_NS
-            nofill_until = max(exit_ns, wd["exp"]) + COOL_NS
+            if lockout == "window":
+                lock_until = wd["exp"] + COOL_NS
+                nofill_until = max(exit_ns, wd["exp"]) + COOL_NS
+            elif lockout == "exit":
+                # realistic single-position bot: flat after the exit,
+                # 60s cooldown, then free to fill any live window
+                nofill_until = exit_ns + COOL_NS
+            # lockout == "none": windows resolve independently
+            # (multi-position; isolates the single-position constraint)
             windows = [x for x in windows if x is not wd]
     return trades
