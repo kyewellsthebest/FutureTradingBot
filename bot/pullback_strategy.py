@@ -158,6 +158,20 @@ def get_decision_log() -> list:
     return list(_DECISION_LOG)
 
 
+def _vf() -> bool:
+    """Validated-fills mode (default ON, 2026-08-15): the executor runs
+    the EXACT arithmetic of the tick-true validation (pulse.py) instead
+    of the legacy range-retracement/touch-fill variant. The bot-exact
+    Friday simulation measured the legacy variant at -$22 vs the
+    validated math's +$137 on the same tape -- same family, different
+    formulas. STRAT_VALIDATED_FILLS=0 restores legacy behaviour."""
+    return os.environ.get("STRAT_VALIDATED_FILLS", "1") == "1"
+
+
+VALIDATED_WINDOW_S = 600   # fill+hold window from the signal bar close
+VALIDATED_COOL_S = 60      # cooldown after the window (pulse.py COOL_NS)
+
+
 # ============================================================================
 # Strategy parameters (validated OOS-positive on NQ tick data + 24-mo OHLC)
 #
@@ -572,6 +586,53 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
     trend_thr  = p.get("STRONG_TREND_THRESHOLD_PTS")
     counter_stop_pts = p.get("STOP_PTS_COUNTER_TREND")
 
+    if _vf():
+        # EXACT validated arithmetic (pulse.py): the impulse is the
+        # CLOSE-TO-CLOSE move over imp_window bars, and the limit rests
+        # at the retracement of THAT move measured from the signal
+        # close: limit = close - retr * move. (Legacy used the window's
+        # high-low range -- a different level entirely.)
+        if bars is None or len(bars) < imp_window + 1:
+            return None
+        closes = bars["close"].to_numpy()
+        move = float(closes[-1]) - float(closes[-(imp_window + 1)])
+        if abs(move) < imp_pts:
+            return None
+        orig_side = "LONG" if move > 0 else "SHORT"
+        side = ("SHORT" if orig_side == "LONG" else "LONG") if invert \
+            else orig_side
+        pullback_entry = float(closes[-1]) - pull_pct * move
+        window = bars.iloc[-imp_window:]
+        impulse_high = float(window["high"].max())
+        impulse_low = float(window["low"].min())
+        if side == "LONG":
+            stop_px = pullback_entry - stop_pts
+            target_px = pullback_entry + tgt_pts
+        else:
+            stop_px = pullback_entry + stop_pts
+            target_px = pullback_entry - tgt_pts
+        pullback_entry = _tick_round(pullback_entry, orig_side, "entry")
+        stop_px = _tick_round(stop_px, side, "stop")
+        target_px = _tick_round(target_px, side, "target")
+        try:
+            ph_ts = window.iloc[window["high"].values.argmax()].name
+            pl_ts = window.iloc[window["low"].values.argmin()].name
+        except Exception:
+            ph_ts = pl_ts = None
+        return FibSetup(
+            detected_at=now,
+            side=side,
+            orig_side=orig_side,
+            impulse_high=impulse_high,
+            impulse_low=impulse_low,
+            pullback_entry=pullback_entry,
+            stop_px_val=stop_px,
+            target_px_val=target_px,
+            expires_at=now + timedelta(seconds=VALIDATED_WINDOW_S),
+            pivot_high_ts=ph_ts,
+            pivot_low_ts=pl_ts,
+        )
+
     if bars is None or len(bars) < imp_window:
         return None
     window = bars.iloc[-imp_window:]
@@ -862,6 +923,32 @@ def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
     # Same look-ahead bias guard: exit only fires AFTER trade entry.
     if now <= trade.entry_ts:
         return None
+    if _vf():
+        # EXACT validated exits (pulse.py): decisions on the PRINT, not
+        # a synthetic bid/ask touch. Stops are gap-aware (exit at the
+        # trigger print when it's past the stop); targets require
+        # STRICT penetration; timeout at the SIGNAL WINDOW's end, not
+        # entry+hold (the validated window runs from the signal bar
+        # close). close_trade() adds the 1-tick stop slip.
+        px_ = (bid + ask) / 2.0
+        if trade.side == "LONG":
+            if px_ <= trade.stop_px:
+                return min(px_, trade.stop_px), "stop"
+            if px_ > trade.target_px:
+                return trade.target_px, "target"
+        else:
+            if px_ >= trade.stop_px:
+                return max(px_, trade.stop_px), "stop"
+            if px_ < trade.target_px:
+                return trade.target_px, "target"
+        try:
+            wend = trade.setup.detected_at + timedelta(
+                seconds=VALIDATED_WINDOW_S)
+        except Exception:
+            wend = trade.entry_ts + timedelta(seconds=MAX_HOLD_SECS)
+        if now >= wend:
+            return px_, "timeout"
+        return None
     # Microscalp guard: hold target for MIN_TARGET_HOLD_SECONDS.
     hold_s = trade.hold_seconds(now)
     if trade.side == "LONG":
@@ -898,7 +985,9 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
     # paper has historically ignored. This makes paper P&L track broker
     # P&L far more tightly. Set the env vars to 0 to disable.
     adj_exit_px = exit_px
-    slip_value = get_effective_stop_slip()
+    # validated: stop slip is ONE TICK of the traded contract (0.25
+    # MNQ/MES, 1.0 MYM), exactly what the validation charged
+    slip_value = TICK_SIZE if _vf() else get_effective_stop_slip()
     if reason == "stop" and slip_value > 0:
         # Stop-market triggers at stop_px then fills at the NEXT bid/ask.
         # That fill is always WORSE than stop_px on the trader's side.
@@ -906,23 +995,34 @@ def close_trade(trade: ActiveTrade, exit_px: float, reason: str,
             adj_exit_px = exit_px - slip_value
         else:
             adj_exit_px = exit_px + slip_value
-    if reason == "timeout" and PAPER_SPREAD_PTS > 0:
-        # Timeout exit is a flatten MARKET -> pays half-spread.
-        half = PAPER_SPREAD_PTS / 2.0
-        if trade.side == "LONG":
-            adj_exit_px = exit_px - half
-        else:
-            adj_exit_px = exit_px + half
+    if reason == "timeout":
+        if _vf():
+            # validated timeout cost: ONE FULL TICK for crossing the
+            # spread (pulse.py charges SLIP on timeout exits)
+            _tick = TICK_SIZE
+            adj_exit_px = exit_px - _tick if trade.side == "LONG" \
+                else exit_px + _tick
+        elif PAPER_SPREAD_PTS > 0:
+            # Timeout exit is a flatten MARKET -> pays half-spread.
+            half = PAPER_SPREAD_PTS / 2.0
+            if trade.side == "LONG":
+                adj_exit_px = exit_px - half
+            else:
+                adj_exit_px = exit_px + half
     pnl_pts = (trade.entry_px - adj_exit_px) if trade.side == "SHORT" \
               else (adj_exit_px - trade.entry_px)
     # Every entry pays half-spread (we crossed to take the LIMIT).
     # Skip for target exits since the LIMIT fills at the level by def.
+    # VALIDATED MODE: entries are resting-limit fills AT the level --
+    # zero entry cost, exactly as validated.
     spread_cost_pts = 0.0
-    if PAPER_SPREAD_PTS > 0:
+    if not _vf() and PAPER_SPREAD_PTS > 0:
         spread_cost_pts = PAPER_SPREAD_PTS / 2.0  # entry side only
     pnl_pts -= spread_cost_pts
-    pnl_usd = pnl_pts * trade.n_mnq * 2.0   # $2/pt per MNQ; commissions
-                                            # handled in the account layer
+    # $/pt of the traded micro: 2.0 MNQ, 5.0 MES, 0.5 MYM
+    _dpp = float(os.environ.get("STRAT_DOLLARS_PER_PT", "2.0"))
+    pnl_usd = pnl_pts * trade.n_mnq * _dpp   # commissions handled in
+                                             # the account layer
     return {
         "ts": now,  # alias for exit_ts -- dashboard publish uses t.get("ts")
         "entry_ts": trade.entry_ts, "exit_ts": now,
@@ -1089,6 +1189,12 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     # 3. DETECT new setup from latest 1-min bar history
     new_setup = None if atr_blocked else detect_pullback_setup(bars_setup, now, params=params)
+    if new_setup is not None and _vf():
+        # validated cooldown: after a fill, no new signal windows until
+        # the filled window's end + 60s (pulse.py last_x + COOL_NS)
+        _lock = getattr(state, "pulse_lock_until", None)
+        if _lock is not None and now < _lock:
+            new_setup = None
     if new_setup is not None and htf_filter_enabled and htf_history_ready:
         # HTF trend filter: require setup direction to MATCH the trend.
         # FLAT trend means no setups (chop is poison for pullbacks).
@@ -1229,6 +1335,11 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
         return None
 
     for setup in state.pending_setups:
+        if _vf():
+            # validated mode: the tick engine owns fills (strict
+            # through-print). Bar-path touch-fires would book entries
+            # the fill model never counts.
+            break
         if setup.used: continue
         # Skip setups whose broker LIMIT was canceled (fib_main's
         # anticipatory cancel path marks fire_attempted=True). Without
@@ -1367,6 +1478,12 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
     if state.last_trade_close_ts is not None:
         if (now - state.last_trade_close_ts).total_seconds() < COOLDOWN_SECS:
             return False
+    if _vf():
+        # validated cooldown: no fires until the last filled window's
+        # end + 60s, matching pulse.py's last_x + COOL_NS exactly
+        _lock = getattr(state, "pulse_lock_until", None)
+        if _lock is not None and now < _lock:
+            return False
     # Lucid trading window
     if _in_lucid_closed_window(now):
         return False
@@ -1436,6 +1553,19 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
         if setup.is_invalidated(now):
             continue
         approach = getattr(setup, 'orig_side', None) or setup.side
+        if _vf():
+            # validated fill (pulse.py): the tape trades STRICTLY
+            # THROUGH the level -- the resting limit fills at the level
+            # on the first through-print, however deep it runs. No
+            # drift gate: for continuation the level is always behind
+            # the signal close, so pre-crossed windows cannot arm.
+            if approach == "LONG" and live_price < setup.pullback_entry:
+                fired = setup
+                break
+            if approach == "SHORT" and live_price > setup.pullback_entry:
+                fired = setup
+                break
+            continue
         if use_arming and not setup.entry_armed:
             if approach == "LONG" and live_price > setup.pullback_entry:
                 setup.entry_armed = True
@@ -1503,6 +1633,9 @@ def try_fire_on_tick(state: FibStrategyState, lucid: LucidState,
     state.active_trade = new_trade
     fired.used = True
     state.recent_used_setups.append(_setup_key(fired))
+    if _vf():
+        state.pulse_lock_until = fired.detected_at + timedelta(
+            seconds=VALIDATED_WINDOW_S + VALIDATED_COOL_S)
     _log_decision("trade_opened",
                    side=fired.side, qty=size_to_use,
                    entry_px=entry_px, live_px=live_price,

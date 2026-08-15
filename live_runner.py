@@ -72,6 +72,11 @@ PULSE_FORCED_ENV = {
     # level; the order client rejected every one (drift_beyond_stop) and
     # paper ate instant -$20.50 stops all afternoon (2026-08-14).
     "STRAT_FIRE_DRIFT_GATE_PT": "1.0",
+    # The executor runs the EXACT validated arithmetic (close-to-close
+    # levels, strict through-print fills/exits, window-anchored
+    # timeouts). Bot-exact Friday sim: legacy -$22 vs validated +$137.
+    "STRAT_VALIDATED_FILLS": "1",
+    "STRAT_DOLLARS_PER_PT": "2.0",  # MES service: 5.0, MYM service: 0.5
     # placeoso via the user-WS returns 'UnknownReason: Access is denied'
     # on this account while plain REST placement succeeds (18 canary
     # orders on 2026-08-14). Force the REST path the canary proved.
