@@ -1,0 +1,41 @@
+name: Friday session replay
+
+# Fetch the last session's ticks from Polygon (all three validated
+# markets) and replay the deployed cells: "what would it have paid".
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ['data/friday_replay/.run']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas pyarrow
+      - name: fetch Friday ticks (Polygon, 3 markets)
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+        run: |
+          for t in MNQU6 MESU6 MYMU6; do
+            TICKER=$t DAYS=3 python -m research.download_week_ticks || true
+          done
+          ls -la data/tick/week/ || true
+      - name: replay validated cells
+        run: python research/mining_2026_07_31/mega2/friday_replay.py
+      - name: commit report
+        run: |
+          git config user.name "Claude" && git config user.email "noreply@anthropic.com"
+          git add research/FRIDAY_REPLAY.md || true
+          git diff --cached --quiet || git commit -m "Friday replay: what the validated book would have paid"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break
+            sleep 5
+          done
