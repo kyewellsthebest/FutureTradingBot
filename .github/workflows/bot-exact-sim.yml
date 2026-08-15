@@ -1,0 +1,45 @@
+name: Bot-exact Friday simulation
+
+on:
+  push:
+    branches: [claude/hello-vc2ivo]
+    paths: ['data/friday_replay/.run2']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install pandas pyarrow numpy
+      - name: fetch Friday ticks (3 markets)
+        env:
+          POLYGON_API: ${{ secrets.POLYGON_API }}
+        run: |
+          for t in MNQU6 MESU6 MYMU6; do
+            TICKER=$t DAYS=3 python -m research.download_week_ticks || true
+          done
+      - name: upload tapes to release (for local convergence iteration)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view week-ticks \
+            || gh release create week-ticks -t "Week ticks (per-day)" -n "per-day tick parquets"
+          gh release upload week-ticks data/tick/week/*_20260814.parquet --clobber || true
+      - name: run the real bot code over the tape
+        run: python research/mining_2026_07_31/mega2/bot_exact_sim.py
+      - name: commit report
+        run: |
+          git config user.name "Claude" && git config user.email "noreply@anthropic.com"
+          git add research/BOT_EXACT_FRIDAY.md || true
+          git diff --cached --quiet || git commit -m "bot-exact Friday sim: the real executor code over the real tape"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break
+            sleep 5
+          done
