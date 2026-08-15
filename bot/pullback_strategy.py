@@ -610,15 +610,18 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
         window = bars.iloc[-imp_window:]
         impulse_high = float(window["high"].max())
         impulse_low = float(window["low"].min())
+        # round the ENTRY first, then anchor the bracket to the rounded
+        # (= filled) price -- exactly stop_pts/tgt_pts from the fill.
+        # Rounding stop/target off the raw level left the stop a
+        # quarter-tick tighter than validated (caught by the Friday
+        # convergence diff: a 14:41:03 print between the two stops).
+        pullback_entry = _tick_round(pullback_entry, orig_side, "entry")
         if side == "LONG":
             stop_px = pullback_entry - stop_pts
             target_px = pullback_entry + tgt_pts
         else:
             stop_px = pullback_entry + stop_pts
             target_px = pullback_entry - tgt_pts
-        pullback_entry = _tick_round(pullback_entry, orig_side, "entry")
-        stop_px = _tick_round(stop_px, side, "stop")
-        target_px = _tick_round(target_px, side, "target")
         try:
             ph_ts = window.iloc[window["high"].values.argmax()].name
             pl_ts = window.iloc[window["low"].values.argmin()].name
@@ -942,6 +945,17 @@ def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
         # entry+hold (the validated window runs from the signal bar
         # close). close_trade() adds the 1-tick stop slip.
         px_ = (bid + ask) / 2.0
+        # timeout FIRST: stop/target only count on prints strictly
+        # inside the window; a post-window print that also breaches a
+        # level is a timeout, not a fill (the resting exit orders are
+        # cancelled at window end)
+        try:
+            wend = trade.setup.detected_at + timedelta(
+                seconds=VALIDATED_WINDOW_S)
+        except Exception:
+            wend = trade.entry_ts + timedelta(seconds=MAX_HOLD_SECS)
+        if now >= wend:
+            return px_, "timeout"
         if trade.side == "LONG":
             if px_ <= trade.stop_px:
                 return min(px_, trade.stop_px), "stop"
@@ -952,13 +966,6 @@ def should_exit_on_tick(trade: 'ActiveTrade', bid: float, ask: float,
                 return max(px_, trade.stop_px), "stop"
             if px_ < trade.target_px:
                 return trade.target_px, "target"
-        try:
-            wend = trade.setup.detected_at + timedelta(
-                seconds=VALIDATED_WINDOW_S)
-        except Exception:
-            wend = trade.entry_ts + timedelta(seconds=MAX_HOLD_SECS)
-        if now >= wend:
-            return px_, "timeout"
         return None
     # Microscalp guard: hold target for MIN_TARGET_HOLD_SECONDS.
     hold_s = trade.hold_seconds(now)
@@ -1074,7 +1081,13 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
 
     # 1. MANAGE active trade
     if state.active_trade is not None:
-        result = should_exit(state.active_trade, last_1m_bar, now)
+        # VALIDATED MODE: tick exits only. The bar exit compares levels
+        # to the BAR's high/low, which includes prints from BEFORE the
+        # entry -- the Friday convergence run caught it booking a
+        # "target" 7s after entry off the entry bar's pre-entry impulse
+        # top (a level the tape only reached 63s later).
+        result = None if _vf() else \
+            should_exit(state.active_trade, last_1m_bar, now)
         if result is not None:
             exit_px, reason = result
             record = close_trade(state.active_trade, exit_px, reason, now)
