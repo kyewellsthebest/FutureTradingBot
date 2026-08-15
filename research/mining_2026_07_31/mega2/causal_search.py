@@ -90,7 +90,7 @@ def main():
         if cn in done:
             continue
         _init_quarter(meta[cn]["path"])
-        with Pool(6) as pool:
+        with Pool(int(os.environ.get('POOL_N', '6'))) as pool:
             for key, tra, na, tea, nb in pool.imap_unordered(
                     _one, GRID, chunksize=64):
                 r = per.setdefault(key, dict(tra=0.0, trn=0, tea=0.0,
@@ -101,6 +101,12 @@ def main():
                 r["ten"] += nb
                 r["q"].append((cn, tea, nb))
         done.add(cn)
+        # free the quarter's arrays before the next load -- the range
+        # anchor keeps 4 extra bar arrays alive per forked worker and
+        # silently OOM-killed the sweep at NQM5 without a traceback
+        _G.clear()
+        import gc
+        gc.collect()
         pickle.dump((per, done), open(ckp + ".tmp", "wb"))
         os.replace(ckp + ".tmp", ckp)
         print(f"{cn} done ({len(per)} cells)", flush=True)
