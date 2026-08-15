@@ -6126,9 +6126,18 @@ def api_download(kind: str):
 
     if kind == "bundle":
         include_verify = (request.args.get("verify", "1") == "1")
+        # SELF-DIAGNOSIS FIRST: coded verdicts (PULSE-Exx), the decision
+        # funnel, grouped error signatures, env drift -- the bundle
+        # names its own problem before anything else is read.
+        try:
+            from bot.self_diagnosis import diagnose
+            _diag = diagnose()
+        except Exception as _de:
+            _diag = {"error": repr(_de)}
         payload = {
             "kind": "diagnostic_bundle",
             "ts": datetime.now(timezone.utc).isoformat(),
+            "diagnosis": _diag,
             "health": _build_health_payload(include_verify=include_verify),
             "config": _build_config_payload(),
             "code_state": _build_code_state_payload(),
