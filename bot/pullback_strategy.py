@@ -568,6 +568,11 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
         try:
             ts_ = pd.Timestamp(now)
             ts_ = ts_.tz_convert("UTC") if ts_.tzinfo else ts_.tz_localize("UTC")
+            if _vf():
+                # validated semantics gate on the SIGNAL BAR's START
+                # (pulse.py rth[] is indexed by bar label): `now` here
+                # is the bar close, one minute after the start
+                ts_ = ts_ - pd.Timedelta(seconds=60)
             hm_ = ts_.hour * 60 + ts_.minute
             if not (13 * 60 + 30 <= hm_ < 20 * 60):
                 return None
@@ -723,7 +728,13 @@ def detect_pullback_setup(bars: pd.DataFrame, now: datetime,
 
 
 def _setup_key(setup: FibSetup) -> tuple:
-    """Dedup key — same impulse high/low/side = same setup."""
+    """Dedup key — same impulse high/low/side = same setup. Validated
+    mode: every signal bar is its own independent window (pulse.py arms
+    one per qualifying bar even at identical levels -- dedup would cut
+    the later window's fill life short), so the key includes the bar."""
+    if _vf():
+        return (round(setup.impulse_high, 1), round(setup.impulse_low, 1),
+                setup.side, str(setup.detected_at))
     return (round(setup.impulse_high, 1), round(setup.impulse_low, 1), setup.side)
 
 
@@ -1174,6 +1185,9 @@ def on_new_1m_bar(state: FibStrategyState, lucid: LucidState,
     htf_filter_enabled = (
         bool((params or {}).get("HTF_TREND_FILTER", True))
         and _HTF_FILTER_ENV
+        and not _vf()   # the validated model has NO trend filter --
+                        # it blocked every counter-trend window (all the
+                        # missing SHORTs in the Friday convergence diff)
     )
     # The filter can only apply when bars_trend has enough history for
     # the k-period fractal pivot scan. During warmup (e.g. WS-built
