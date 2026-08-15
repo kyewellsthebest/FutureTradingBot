@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0d13" />
   <title>Trading Bot</title>
-  <link rel="stylesheet" href="/static/styles.css?v=3" />
+  <link rel="stylesheet" href="/static/styles.css?v=4" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" defer></script>
 </head>
 <body>
@@ -25,6 +25,21 @@
     </div>
     <button class="btn-pause" id="btn-pause" type="button" data-paused="0">Pause</button>
   </header>
+
+  <!-- ─── BOOK: the three deployed instances ───────────────────── -->
+  <div class="book-strip" id="book-strip">
+    <a class="bchip" href="?account=1" data-acct="1"><span class="bsym">MNQ</span>&nbsp;Nasdaq</a>
+    <a class="bchip" href="?account=2" data-acct="2"><span class="bsym">MES</span>&nbsp;S&amp;P</a>
+    <a class="bchip" href="?account=3" data-acct="3"><span class="bsym">MYM</span>&nbsp;Dow</a>
+  </div>
+  <script>
+    (function () {
+      var a = new URLSearchParams(location.search).get("account") || "1";
+      document.querySelectorAll("#book-strip .bchip").forEach(function (c) {
+        if (c.dataset.acct === a) c.classList.add("on");
+      });
+    })();
+  </script>
 
   <!-- ─── TAB NAV ──────────────────────────────────────────────── -->
   <nav class="tabs" id="tabs">

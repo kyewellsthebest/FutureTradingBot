@@ -6,7 +6,9 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const account = localStorage.getItem("hftbot.account") || "1";
+const account = new URLSearchParams(location.search).get("account")
+  || localStorage.getItem("hftbot.account") || "1";
+try { localStorage.setItem("hftbot.account", account); } catch (e) { /* private mode */ }
 const af = (u) => u + (u.includes("?") ? "&" : "?") +
   "account=" + encodeURIComponent(account) + "&source=broker";
 
@@ -65,10 +67,10 @@ document.querySelectorAll(".tab").forEach((t) =>
 
 /* ---------- lightweight-charts theming ---------- */
 const CHART_OPTS = {
-  layout: { background: { color: "transparent" }, textColor: "#656d84",
-            fontFamily: "'Inter', sans-serif", fontSize: 11 },
-  grid: { vertLines: { color: "rgba(255,255,255,0.04)" },
-          horzLines: { color: "rgba(255,255,255,0.04)" } },
+  layout: { background: { color: "transparent" }, textColor: "#5c687f",
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 10 },
+  grid: { vertLines: { color: "rgba(96,160,255,0.05)" },
+          horzLines: { color: "rgba(96,160,255,0.05)" } },
   rightPriceScale: { borderVisible: false },
   timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
   crosshair: {
