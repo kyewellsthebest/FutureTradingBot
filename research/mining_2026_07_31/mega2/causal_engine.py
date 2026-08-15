@@ -126,6 +126,9 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
     target_touch = bool(cell.get("target_touch", False))
     lockout = cell.get("lockout", "window")   # window | exit | none
 
+    def side_of(wd):
+        return wd["side"]
+
     def fc_of(wd):
         frm = max(wd["arm"], nofill_until)
         if wd["fc_from"] != frm:
@@ -176,14 +179,19 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
                 break
             t_fill, wd = best
             fidx = wd["fc_idx"]
-            # limit: rests AT the level, fills at it (zero entry cost).
-            # stop: a triggered market order fills WORSE than the
-            # trigger -- long fills higher, short fills lower. The sign
-            # was inverted here (2026-08-15), handing the stop
-            # archetype a free tick in its favour and inflating exactly
-            # the cells that topped the first-quarter board.
-            entry = wd["lvl"] + (0 if arch == "limit"
-                                 else wd["side"] * slip)
+            # limit: a resting limit fills AT its price even when the
+            # tape gaps through it (you get your price or better).
+            # stop: a triggered market order fills at the PRINT that
+            # triggered it, not at the level -- and that print is often
+            # far past the level (measured on NQU5: mean 6.5pt, p90
+            # 20.5pt, 37% of fills gapped >1pt). Pricing stop entries
+            # at level±1tick was worth ~$13/trade of pure fiction and
+            # manufactured the entire 'stop archetype edge'.
+            if arch == "limit":
+                entry = wd["lvl"]
+            else:
+                trig = float(px[wd["fc_idx"]])
+                entry = trig + side_of(wd) * slip
             side = wd["side"]
             stop = entry - side * S
             tgt = entry + side * T
