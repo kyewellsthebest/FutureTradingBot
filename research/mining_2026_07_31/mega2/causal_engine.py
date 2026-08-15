@@ -40,6 +40,23 @@ def bars_of(ts, px):
     return bt, bc, np.asarray(rth)
 
 
+def bars_ohlc(ts, px):
+    """Full OHLC bars -- needed by anchor='range', the level definition
+    the LIVE strategy actually used (fib retracement of the wick range)
+    as opposed to the close-to-close move."""
+    idx = pd.to_datetime(ts)
+    s = pd.Series(px, index=idx).resample("1min")
+    o = s.first().ffill()
+    h = s.max().ffill()
+    lo = s.min().ffill()
+    c = s.last().ffill()
+    bt = c.index.view(np.int64)
+    rth = (c.index.hour * 60 + c.index.minute >= 13 * 60 + 30) & \
+          (c.index.hour < 20)
+    return (bt, o.values, h.values, lo.values, c.values,
+            np.asarray(rth))
+
+
 class MinuteIndex:
     """Per-minute min/max of the tape for O(minutes-scanned) first-cross
     queries instead of per-tick scans."""
@@ -139,13 +156,33 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
             wd["fc_from"] = frm
         return wd["fc"]
 
+    # anchor="close": level = close - retr*(close-to-close move)
+    # anchor="range": the LIVE strategy's definition -- impulse is
+    #   close-minus-open over the window, level is the fib retracement
+    #   of the wick RANGE (high - retr*range for an up impulse). The
+    #   14,400-cell search tested only "close" and therefore never
+    #   tested the strategy actually deployed.
+    anchor = cell.get("anchor", "close")
+    bo, bh, bl = cell.get("bo"), cell.get("bh"), cell.get("bl")
+    if anchor == "range" and bo is None:
+        raise ValueError("anchor='range' needs bo/bh/bl in the cell")
+
     for i in range(max(lo, w + 1 + dly), hi):
         bclose = bt[i] + BAR_NS
         if rth[i] and bclose >= lock_until:
-            move = bc[i - dly] - bc[i - dly - w]
-            if abs(move) >= imp:
+            j = i - dly
+            if anchor == "range":
+                move = bc[j] - bo[j - w + 1]
+                hi_ = float(bh[j - w + 1:j + 1].max())
+                lo_ = float(bl[j - w + 1:j + 1].min())
+                rng = hi_ - lo_
+                raw = (hi_ - retr * rng) if move > 0 \
+                    else (lo_ + retr * rng)
+            else:
+                move = bc[j] - bc[j - w]
+                raw = bc[j] - retr * move
+            if abs(move) >= imp and (anchor != "range" or rng > 0):
                 up = move > 0
-                raw = bc[i - dly] - retr * move
                 lvl = (np.floor(raw / tick) if up
                        else np.ceil(raw / tick)) * tick
                 # approach: up-impulse level sits BELOW price -> the
