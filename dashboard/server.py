@@ -1648,15 +1648,13 @@ def api_pulse():
         nxt += _dt.timedelta(days=1)
     while nxt.weekday() >= 5:
         nxt += _dt.timedelta(days=1)
-    sym = os.environ.get("TRADOVATE_SYMBOL", "MNQ")
-    validated = {
-        "MNQ": {"held_out_usd": 20701, "trades_per_wk": 142,
-                "green_quarters": "8/8", "max_dd_usd": 393},
-        "MES": {"held_out_usd": 5976, "trades_per_wk": 136,
-                "green_quarters": "6/6", "max_dd_usd": 340},
-        "MYM": {"held_out_usd": 3212, "trades_per_wk": 125,
-                "green_quarters": "7/8", "max_dd_usd": 398},
-    }.get(sym, {})
+    # per-instance config from the book table (?account=N selects)
+    from bot.account_ctx import get_account
+    from bot.pulse_book import BOOK
+    iid = get_account()
+    cfg = BOOK.get(iid) or BOOK["1"]
+    sym = cfg["symbol"]
+    validated = cfg["validated"]
     reset_at = None
     try:
         from bot.account_ctx import data_dir as _dd
@@ -1707,12 +1705,14 @@ def api_pulse():
         "diag": diag,
         "symbol": sym,
         "params": {
-            "impulse_pts": float(os.environ.get("STRAT_IMPULSE_PTS", "5.0")),
-            "impulse_bars": int(os.environ.get("STRAT_IMPULSE_BARS", "6")),
-            "pull_pct": float(os.environ.get("STRAT_PULL_PCT", "0.618")),
-            "stop_pts": float(os.environ.get("STRAT_STOP_PTS", "10.0")),
-            "target_pts": float(os.environ.get("STRAT_TARGET_PTS", "20.0")),
+            "impulse_pts": cfg["impulse_pts"],
+            "impulse_bars": cfg["impulse_bars"],
+            "pull_pct": cfg["pull_pct"],
+            "stop_pts": cfg["stop_pts"],
+            "target_pts": cfg["target_pts"],
         },
+        "instances": {k: {"symbol": v["symbol"], "name": v["name"]}
+                      for k, v in BOOK.items()},
         "session": {"window_utc": "13:30-20:00",
                     "in_session": in_session,
                     "next_open_utc": nxt.isoformat()},

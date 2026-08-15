@@ -251,8 +251,35 @@ def _flask_thread() -> None:
     app.run(host=host, port=port, debug=False, use_reloader=False)
 
 
+def _spawn_book_children() -> None:
+    """One child process per non-primary book instance (MES/MYM). Env
+    vars are process-global, so per-market config requires per-market
+    processes. Children skip the dashboard/canary/purge-marker races
+    (their data dirs are their own) and are restarted if they die."""
+    import subprocess
+    from bot.pulse_book import book_instances, child_env
+    instances = book_instances()
+    base = str(Path(os.environ.get("BOT_DATA_DIR") or DATA_DIR))
+    for iid in instances[1:]:
+        env = {**os.environ, **child_env(iid, base)}
+        Path(env["BOT_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
+
+        def _supervise(iid=iid, env=env):
+            while True:
+                log.warning(f"[book] launching instance {iid} "
+                            f"({env['PULSE_TRADOVATE_SYMBOL']})")
+                p = subprocess.Popen([sys.executable, __file__], env=env)
+                rc = p.wait()
+                log.error(f"[book] instance {iid} exited rc={rc}; "
+                          f"restarting in 30s")
+                time.sleep(30)
+        threading.Thread(target=_supervise, name=f"book-{iid}",
+                         daemon=True).start()
+
+
 def main() -> int:
     _force_pulse_config()
+    is_child = bool(os.environ.get("PULSE_CHILD"))
     _purge_old_state()
     _bootstrap_bundled_config()
     # Telemetry canary: periodic far-off-market place+cancel on the demo
@@ -264,6 +291,16 @@ def main() -> int:
         _canary_start()
     except Exception as e:
         log.warning(f"canary init failed: {e}")
+    if not is_child:
+        try:
+            _spawn_book_children()
+        except Exception as e:
+            log.error(f"book children failed to launch: {e}")
+    if is_child or os.environ.get("DASHBOARD_DISABLED") == "1":
+        # children run only the bot loop; the parent serves the one
+        # dashboard for the whole book
+        _bot_thread("1")
+        return 0
     # Background dashboard
     t = threading.Thread(target=_flask_thread, name="flask-dashboard", daemon=True)
     t.start()
