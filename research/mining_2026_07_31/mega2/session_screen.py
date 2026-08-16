@@ -221,8 +221,16 @@ def main():
                and r[6] == best[6] and r[7] == best[7]]
         if rnd:
             rev = float(rnd[0][0])
-            verdict = ("**beats its control**" if best[0] > rev + 0.25
-                       else "no better than random")
+            # "beats its control" on a LOSING cell is not a finding.
+            # Both halves have to hold: better than random AND actually
+            # profitable. Reporting only the first is how a -$1.33 row
+            # ends up wearing a word that reads like a win.
+            if best[0] <= rev + 0.25:
+                verdict = "no better than random"
+            elif best[0] <= 0:
+                verdict = "beats random, still loses money"
+            else:
+                verdict = "**beats random AND profitable**"
             L.append(f"| {sname} | {best[5]} {best[6]:.0f}/{best[7]:.0f} "
                      f"| {best[2]:.2%} | ${best[0]:+.2f} | ${rev:+.2f} | "
                      f"{verdict} |")
