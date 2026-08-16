@@ -93,9 +93,10 @@ def run(path, sym):
     n = len(bp)
     ok = np.isfinite(bp) & present
 
-    cum = np.concatenate([[0.0], np.cumsum(tvs)])
-    res = {h: {"fill": 0, "break": 0, "open": 0,
-               "ticks": {m: [] for m in MARKS}, "wait": []}
+    res = {h: {"fill": 0, "break": 0, "open": 0, "away": 0,
+               "ticks": {m: [] for m in MARKS},
+               "drift": {m: [] for m in MARKS},
+               "half": [], "wait": []}
            for h in HORIZ}
     HMAX = max(HORIZ)
     for i in range(0, n - HMAX - max(MARKS), SAMPLE):
@@ -106,14 +107,22 @@ def run(path, sym):
         if not np.isfinite(ahead) or ahead <= 0:
             continue
         end = i + HMAX
-        # first second at which the best bid has dropped below our price
         seg_bp = bp[i + 1:end + 1]
+        # first second at which the best bid has dropped below our price
         brk = np.flatnonzero(seg_bp < p)
         t_break = int(brk[0]) + 1 if len(brk) else 10 ** 9
-        # first second at which trades through the bid cover the queue
-        need = cum[i + 1] + ahead
-        rel = np.searchsorted(cum[i + 2:end + 2], need) + 1
-        t_fill = int(rel) if rel <= HMAX else 10 ** 9
+        # Our order rests AT p. It can only be filled by trades that
+        # happen AT p -- i.e. while the best bid is still p. Counting
+        # volume that traded at OTHER prices was the bug: when the
+        # market rallied away, trades at higher prices were credited to
+        # our stale bid below, manufacturing a free fill in every rising
+        # market. Same error class as the wrong-side-of-book fills that
+        # killed the INVERSE FADE: volume that traded somewhere else
+        # cannot fill an order here.
+        elig = np.where(seg_bp == p, tvs[i + 1:end + 1], 0.0)
+        c = np.cumsum(elig)
+        hit = np.flatnonzero(c >= ahead)
+        t_fill = int(hit[0]) + 1 if len(hit) else 10 ** 9
         for h in HORIZ:
             r = res[h]
             f_ok = t_fill <= h
@@ -125,12 +134,29 @@ def run(path, sym):
                 r["fill"] += 1
                 r["wait"].append(t_fill)
                 j = i + t_fill
+                # Buying at the bid and marking against the MID books
+                # half the spread as instant profit. That is real maker
+                # revenue, but it is NOT an edge and it is NOT what
+                # adverse selection means -- and on NQ the spread is
+                # heavy-tailed (median 3 ticks, max 434), so its MEAN is
+                # dominated by moments nobody could actually rest in.
+                # The two are separated here and reported separately.
+                r["half"].append((mid[i] - p) / TICK)
                 for m in MARKS:
                     k = j + m
                     if k < n and np.isfinite(mid[k]):
                         r["ticks"][m].append((mid[k] - p) / TICK)
+                        # how the market MOVED after we committed --
+                        # this is the adverse selection on its own
+                        r["drift"][m].append((mid[k] - mid[i]) / TICK)
             elif b_ok:
                 r["break"] += 1
+            elif seg_bp[:h].size and np.nanmax(seg_bp[:h]) > p:
+                # the market rallied away and never traded back to our
+                # price. Not a loss -- but not an entry either, and a
+                # strategy that assumes this entry happened is trading a
+                # position it does not own.
+                r["away"] += 1
             else:
                 r["open"] += 1
     return res, int(ok.sum())
@@ -169,56 +195,89 @@ def main():
         res, nsec = run(f, sym)
         log(f"## {sym} ({nsec:,} seconds with a live book)")
         log()
+        log("The half-spread column is a MEDIAN: NQ's spread is "
+            "heavy-tailed (median 3 ticks, max 434) and its mean is set "
+            "by moments no order could have rested through. Drift is "
+            "shown as median/mean, and the MEAN is the one that matters "
+            "-- P&L adds, so the average is what the account accrues, "
+            "while a median of 0.00 only says price usually sat still.")
+        log()
         log("| wait allowed | attempts | filled | level left first | "
-            "no outcome | median wait | mark +10s | mark +30s | "
-            "mark +60s |")
-        log("|" + "---|" * 9)
+            "rallied away | no outcome | median wait | half-spread earned | "
+            "drift +10s med/mean | +30s | +60s |")
+        log("|" + "---|" * 11)
         for h in HORIZ:
             r = res[h]
-            tot = r["fill"] + r["break"] + r["open"]
+            tot = r["fill"] + r["break"] + r["open"] + r["away"]
             if not tot:
                 continue
             pf = r["fill"] / tot
             wait = (np.median(r["wait"]) if r["wait"] else float("nan"))
-            marks = []
+            half = (np.median(r["half"]) if r["half"] else float("nan"))
+            dr = []
             for m in MARKS:
-                v = r["ticks"][m]
-                marks.append(f"{np.mean(v):+.3f}" if v else "n/a")
+                v = r["drift"][m]
+                # median AND mean. The median says what usually happens;
+                # the MEAN is what the account actually accrues, because
+                # P&L adds. A median of exactly 0.000 only means price
+                # most often did not move, and would hide the adverse
+                # selection entirely.
+                dr.append(f"{np.median(v):+.2f}/{np.mean(v):+.2f}"
+                          if v else "n/a")
             log(f"| {h}s | {tot:,} | **{pf:.1%}** | "
-                f"{r['break']/tot:.1%} | {r['open']/tot:.1%} | "
-                f"{wait:.0f}s | " + " | ".join(f"{x} tk" for x in marks) +
-                " |")
+                f"{r['break']/tot:.1%} | {r['away']/tot:.1%} | "
+                f"{r['open']/tot:.1%} | "
+                f"{wait:.0f}s | {half:+.3f} tk | "
+                + " | ".join(f"{x} tk" for x in dr) + " |")
         log()
         # the number that decides it
         h = HORIZ[-1]
         r = res[h]
-        tot = r["fill"] + r["break"] + r["open"]
-        if tot and r["ticks"][MARKS[1]]:
+        tot = r["fill"] + r["break"] + r["open"] + r["away"]
+        if tot and r["drift"][MARKS[1]]:
             pf = r["fill"] / tot
-            adv = float(np.mean(r["ticks"][MARKS[1]]))
-            per_fill = adv * TICK * TV
+            half = float(np.median(r["half"]))
+            drift = float(np.mean(r["drift"][MARKS[1]]))
+            net_tk = half + drift
+            per_fill = net_tk * TICK * TV
             log(f"At a {h}-second patience, **{pf:.1%}** of resting bids "
-                f"fill. When one does, the mid {MARKS[1]}s later sits "
-                f"**{adv:+.3f} ticks** from our price -- that is the "
-                f"adverse selection, and it is the half of the number "
-                f"`DEPTH.md` could not measure.")
+                f"fill, in a median of "
+                f"{np.median(r['wait']):.0f} seconds.")
             log()
-            log(f"A filled maker entry is therefore worth "
-                f"**${per_fill:+.2f}** gross before the "
-                f"${COMM_RT:.2f} commission a maker still pays. "
-                + ("The entry side pays for itself, so a maker strategy "
-                   "is worth designing around a signal."
-                   if per_fill > 0 else
-                   "The entry side is negative on its own: resting orders "
-                   "get filled precisely when the price is leaving. A "
-                   "signal would have to overcome that before it earns "
-                   "anything."))
+            log(f"A filled entry earns the half-spread it rested "
+                f"across -- median **{half:+.3f} ticks** -- and then the "
+                f"market moves **{drift:+.3f} ticks on average** in the "
+                f"{MARKS[1]}s after we are committed. That second number "
+                f"IS the adverse selection, and it is the half "
+                f"`DEPTH.md` could not measure. "
+                + ("It is negative, which is the expected direction: a "
+                   "resting bid is filled preferentially when the price "
+                   "is about to fall."
+                   if drift < 0 else
+                   "It is positive here, which is NOT the textbook "
+                   "direction and is a reason to distrust it before "
+                   "building on it."))
             log()
-            log(f"And the fill rate is the harder wall. At {pf:.1%}, "
-                f"{1-pf:.0%} of intended entries never happen, so a "
-                f"strategy needing N trades a day must generate "
-                f"{1/max(pf,1e-9):.0f}x that many signals."
-                if pf < 0.5 else "")
+            log(f"Net of both, a filled maker entry is worth "
+                f"**{net_tk:+.3f} ticks = ${per_fill:+.2f}** before the "
+                f"${COMM_RT:.2f} commission a maker still pays, so the "
+                f"round trip stands at "
+                f"**${per_fill - COMM_RT:+.2f}** before any signal is "
+                f"applied.")
+            log()
+            log("Two cautions that decide how much of this transfers:")
+            log()
+            log("1. **This is NQ, not MNQ.** We trade the micro. NQ rests "
+                "2 lots at the touch and quotes 3 ticks wide; MNQ has a "
+                "deeper retail queue and a tighter spread, so neither "
+                "the fill rate nor the half-spread carries over. "
+                "`DEPTH.md`'s 6.6% came from MNQ order-by-order data and "
+                "is the number that applies to our execution.")
+            log("2. **Half-spread captured is not edge.** It is the "
+                "compensation for providing liquidity, and it is exactly "
+                "what is lost again when the exit has to cross. A maker "
+                "in and out earns it twice and a maker-in/taker-out "
+                "earns it once; neither is a prediction about direction.")
             log()
     open(OUT, "w").write("\n".join(L) + "\n")
     print("wrote", OUT)
