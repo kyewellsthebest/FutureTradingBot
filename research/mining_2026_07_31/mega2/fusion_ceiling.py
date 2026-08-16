@@ -62,7 +62,20 @@ USD_PT = 2.00                                   # MNQ
 COST_RT = 1.99                                  # measured, from the user's fills
 WARM = 250                                      # bars of feature warm-up
 CONTRACTS = os.environ.get("CONTRACTS", ",".join(fuse.NQ_CONTRACTS)).split(",")
+SKIP_SHIFT = os.environ.get("SKIP_SHIFT", "") not in ("", "0")
 L = []
+
+
+def floor_of(n, h):
+    """Three standard errors on the number of INDEPENDENT observations.
+
+    An h-bar forward return measured at every bar overlaps its h-1
+    neighbours, so n out-of-sample bars carry about n/h independent
+    outcomes. Using 3/sqrt(n) at h=400 would quote a noise floor twenty
+    times tighter than the data supports, which is exactly how a long
+    horizon manufactures a finding. This is the correction B2 asks for.
+    """
+    return 3.0 / np.sqrt(max(n / max(h, 1), 1.0))
 
 
 def log(s=""):
@@ -254,14 +267,17 @@ def main():
             r = res[(lab, h, "real")]
             s = res[(lab, h, "shuffled")]
             d = r["ic"] - s["ic"]
-            flag = "**" if abs(d) > 3.0 / np.sqrt(max(r["n"], 1)) else ""
+            flag = "**" if abs(d) > floor_of(r["n"], h) else ""
             log(f"| {lab} | {nc} | {r['ic']:+.4f} | {s['ic']:+.4f} | "
                 f"{flag}{d:+.4f}{flag} | {r['turn']*bpd/2:.0f} | "
                 f"${r['gross']*bpd:+.0f} | **${r['net']*bpd*5:+,.0f}** |")
         log()
-        log(f"Noise floor at this sample size is ±{3/np.sqrt(res[(SETS[0][0], h, 'real')]['n']):.4f} "
-            f"(3 standard errors on {res[(SETS[0][0], h, 'real')]['n']:,} "
-            f"out-of-sample bars); bolded gaps clear it. One MNQ, "
+        _n0 = res[(SETS[0][0], h, "real")]["n"]
+        log(f"Noise floor at this sample size is ±{floor_of(_n0, h):.4f} "
+            f"(3 standard errors on {_n0/max(h,1):,.0f} INDEPENDENT "
+            f"outcomes — {_n0:,} out-of-sample bars, but an {h}-bar forward "
+            f"return overlaps its {h-1} neighbours); bolded gaps clear it. "
+            f"One MNQ, "
             f"${COST_RT:.2f} a round turn, cost charged on how much the "
             f"position CHANGES rather than once per opinion.")
         log()
@@ -281,6 +297,14 @@ def main():
         "cross-market information and is a bug in the join.")
     log()
     dshift, blab, bh = best
+    if SKIP_SHIFT:
+        log("_Skipped in this run (`SKIP_SHIFT=1`): rebuilding the shifted "
+            "matrices costs more than the whole horizon sweep, and there is "
+            "nothing to kill unless a real−shuffled gap clears its noise "
+            "floor first. If one does, re-run without the flag._")
+        log()
+        _finish(t0, bpd)
+        return
     print(f"\nstream-shift control on: {blab} h={bh}", flush=True)
     Xs, names_s, Ys, Ts, _ = assemble(True)
     assert names_s == names
@@ -300,7 +324,7 @@ def main():
             # than three standard errors is not an effect, so it can neither
             # be killed by the shift nor survive it, and calling it either way
             # is how a study talks itself into a finding.
-            floor = 3.0 / np.sqrt(max(sh["n"], 1))
+            floor = floor_of(sh["n"], h)
             v = ("nothing to kill (below the ±%.4f noise floor)" % floor
                  if abs(d_real) < floor
                  else "**real cross-market effect**" if d_sh < d_real / 2
@@ -308,6 +332,10 @@ def main():
             log(f"| {lab} | {h} | {d_real:+.4f} | {d_sh:+.4f} | {v} |")
             print(f"  shift {lab:32s} h={h:<3d} d={d_sh:+.4f}", flush=True)
 
+    _finish(t0, bpd)
+
+
+def _finish(t0, bpd):
     log()
     log("## What this decides")
     log()
