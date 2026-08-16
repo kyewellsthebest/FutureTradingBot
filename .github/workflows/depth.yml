@@ -35,8 +35,10 @@ jobs:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
           # The credit is ~$48 with no real money behind it. This cap is
           # the entire safety story, so it is set here explicitly rather
-          # than left to a default in the script.
-          MAX_SPEND: '42'
+          # than left to a default in the script. The staged plan priced
+          # at $32.51 on the free endpoint, so 35 is just enough headroom
+          # for a small price drift and not enough for a mistake.
+          MAX_SPEND: '35'
         run: python research/mining_2026_07_31/mega2/depth_buy_book.py
       - name: book-feature pilot (only if staged)
         if: hashFiles('data/depth/.pilot') != ''

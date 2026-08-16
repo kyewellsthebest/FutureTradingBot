@@ -1,0 +1,27 @@
+# A1: four weeks of NQ top of book, for the book_ic.py predictor harness.
+#
+# Priced on the free metadata endpoint, run 31933115521, 2026-08-16:
+#
+#   NQU6  mbp-1   4wk (Jul 20-Aug 14)   19.39 GB    $32.51   <- staged
+#   NQU6  mbp-10  2wk (Aug 3-14)        60.96 GB    $28.39
+#   ESU6  mbp-10  4wk (Jul 20-Aug 14)   71.92 GB    $33.49
+#   MNQU6 mbp-1   4wk (Jul 20-Aug 14)   48.73 GB    $81.69   over budget
+#
+# Why top of book for four weeks rather than ten levels for two:
+#
+# The gate this data has to satisfy is sign stability across >= 75% of
+# weeks. Two weeks gives two blocks, which cannot express 75% of anything
+# -- it would buy more depth at the cost of the test that decides whether
+# the depth means anything. Four weekly blocks can.
+#
+# And the pilot's only measured signals -- quote rate at IC -0.084, spread
+# at -0.056 -- both live at level 1. Depth beyond L1 is an untested bet;
+# the sample size to settle the imbalance question is not.
+#
+# MNQU6 is the contract we actually trade, but its mbp-1 feed is 2.5x the
+# size of NQ's for the same window and does not fit. NQ is where the price
+# is discovered and MNQ tracks it, so the book question is better asked of
+# NQ anyway.
+#
+# format: SYMBOL SCHEMA START END   (END exclusive)
+NQU6 mbp-1 2026-07-20 2026-08-15
