@@ -92,7 +92,16 @@ def sim(sec, px, hrs, slip, be_min, be_pt, rng, randomise=False):
                 stp = q["entry"]
             tgt = q["entry"] + TGT * s
             if (p - stp) * s <= 0:
-                out.append(((stp - slip * s - q["entry"]) * s * PT - FEES,
+                # GAP-AWARE. You get the WORSE of the stop level and the
+                # market. This matters most the moment the breakeven
+                # rule fires: if the trade is already 50 points under
+                # water at minute 20, moving the stop "to entry" does
+                # not let you exit at entry -- that price is behind the
+                # market and there is nobody there. Booking it at entry
+                # turned a -$100 loss into -$2 and made a driftless
+                # random walk print +$43/day, which is impossible.
+                ex = min(p, stp) if s > 0 else max(p, stp)
+                out.append(((ex - slip * s - q["entry"]) * s * PT - FEES,
                             "stop"))
                 del pos[li]
                 armed[li] = True
