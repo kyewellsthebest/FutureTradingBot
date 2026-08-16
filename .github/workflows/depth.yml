@@ -31,6 +31,12 @@ jobs:
         run: python research/mining_2026_07_31/mega2/depth_cost.py
       - name: buy top-of-book and reduce to a 1s tape (only if staged)
         if: hashFiles('data/depth/.buy') != ''
+        # Deliberately below the job's 300, so an overrun fails THIS step
+        # and still lets the commit step run. A job-level timeout kills
+        # the whole job, `if: always()` included, and every downloaded
+        # day would be lost -- bytes Databento has already charged for
+        # and would charge for again.
+        timeout-minutes: 240
         env:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
           # The credit is ~$48 with no real money behind it. This cap is

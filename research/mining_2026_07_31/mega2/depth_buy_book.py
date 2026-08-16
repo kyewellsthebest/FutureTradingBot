@@ -181,12 +181,28 @@ def reduce_chunk(path):
 
 
 def buy(sym, schema, s, e):
+    """Each day is written as soon as it is reduced.
+
+    Databento bills on download, so a job that dies on day 18 of 20 with
+    everything held in memory has spent the full purchase and kept
+    nothing -- and re-buying the same range is charged again. Writing per
+    day turns a timeout into a partial result: the days already paid for
+    survive, and the plan can be restaged for only the missing ones.
+    """
     days = pd.bdate_range(s, pd.Timestamp(e) - pd.Timedelta(days=1))
     frames = []
     first = True
     for day in days:
         ds = day.strftime("%Y-%m-%d")
+        dpath = os.path.join(OUTDIR, f"{sym}_1s_{ds}.parquet")
+        if os.path.exists(dpath):
+            # already bought and reduced on an earlier attempt -- never
+            # re-request it, that is a second charge for the same bytes
+            frames.append(pd.read_parquet(dpath))
+            print(f"  {ds}: already on disk, skipped", flush=True)
+            continue
         got = 0
+        dayparts = []
         for h0 in range(0, 24, CHUNK_H):
             path = os.path.join(OUTDIR, f"_{sym}_{ds}_{h0}.dbn.zst")
             a = (day + pd.Timedelta(hours=h0)).isoformat()
@@ -214,11 +230,17 @@ def buy(sym, schema, s, e):
                 sys.exit(f"first chunk failed to reduce ({err}); aborting "
                          "before buying the rest of the window")
             if part is not None and len(part):
-                frames.append(part)
+                dayparts.append(part)
                 got += len(part)
             gc.collect()
+        if got:
+            day_df = pd.concat(dayparts, ignore_index=True)
+            day_df.to_parquet(dpath, index=False)
+            frames.append(day_df)
+            del day_df
         print(f"  {ds}: {got:,} seconds ({time.time()-t0:.0f}s last chunk)",
               flush=True)
+        gc.collect()
     if not frames:
         print(f"  {sym}: nothing retrieved", flush=True)
         return None
@@ -236,6 +258,13 @@ def buy(sym, schema, s, e):
     days_n = A["sec"].floordiv(86400).nunique()
     print(f"wrote {out}: {len(A):,} seconds across {days_n} days "
           f"({os.path.getsize(out)/1e6:.1f} MB)", flush=True)
+    # the per-day files exist only so a dead run does not lose paid-for
+    # bytes. Once the merged tape is on disk they are pure duplication.
+    for day in days:
+        dpath = os.path.join(OUTDIR,
+                             f"{sym}_1s_{day.strftime('%Y-%m-%d')}.parquet")
+        if os.path.exists(dpath):
+            os.remove(dpath)
     return A
 
 
