@@ -29,11 +29,15 @@ jobs:
         env:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
         run: python research/mining_2026_07_31/mega2/depth_cost.py
-      - name: buy and analyze (only if a plan is staged)
+      - name: buy top-of-book and reduce to a 1s tape (only if staged)
         if: hashFiles('data/depth/.buy') != ''
         env:
           DATABENTO_KEY: ${{ secrets.DATABENTO_KEY }}
-        run: python research/mining_2026_07_31/mega2/depth_buy.py
+          # The credit is ~$48 with no real money behind it. This cap is
+          # the entire safety story, so it is set here explicitly rather
+          # than left to a default in the script.
+          MAX_SPEND: '42'
+        run: python research/mining_2026_07_31/mega2/depth_buy_book.py
       - name: book-feature pilot (only if staged)
         if: hashFiles('data/depth/.pilot') != ''
         env:
@@ -43,7 +47,7 @@ jobs:
         if: always()
         run: |
           git config user.name "Claude" && git config user.email "noreply@anthropic.com"
-          git add -A data/depth research/DEPTH.md || true
+          git add -A data/depth research/DEPTH.md research/DEPTH_PILOT.md || true
           git diff --cached --quiet || git commit -m "depth: derived queue metrics from Databento purchase"
           for i in 1 2 3 4 5; do
             git pull --rebase origin claude/hello-vc2ivo && git push origin claude/hello-vc2ivo && break
