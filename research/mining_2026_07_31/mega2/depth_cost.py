@@ -21,10 +21,16 @@ c = db.Historical(KEY)
 
 DATASET = "GLBX.MDP3"
 # NQU6 is the front month across July 2026; ESU6 priced for comparison.
+# The last three windows are the A1 candidates: four weeks of top of book
+# for the IC harness. The credit is down to ~$48 with no money behind it,
+# so the exact window is chosen from these printed prices, not guessed.
 WINDOWS = [
     ("2026-07-27", "2026-08-01", "1 week (Jul 27-31)"),
     ("2026-07-01", "2026-08-01", "July 2026"),
     ("2026-06-01", "2026-08-01", "Jun+Jul 2026"),
+    ("2026-07-20", "2026-08-15", "A1: 4wk (Jul 20-Aug 14)"),
+    ("2026-07-27", "2026-08-15", "A1: 3wk (Jul 27-Aug 14)"),
+    ("2026-08-03", "2026-08-15", "A1: 2wk (Aug 3-14)"),
 ]
 SYMS = ["NQU6", "MNQU6", "ESU6"]
 
