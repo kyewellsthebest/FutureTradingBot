@@ -113,8 +113,11 @@ def reduce_chunk(path):
         del df
         return None
     ts = df.index.view(np.int64)
-    act = df["action"].to_numpy().astype("U1")
-    side = df["side"].to_numpy().astype("U1")
+    # action/side come back as str in current databento-python, but have
+    # been categorical and bytes in other versions. Normalising through
+    # str is cheap; guessing wrong after the bytes are paid for is not.
+    act = df["action"].astype(str).str[0].to_numpy().astype("U1")
+    side = df["side"].astype(str).str[0].to_numpy().astype("U1")
     sz = df["size"].to_numpy().astype(np.float64)
     bpx = df["bid_px_00"].to_numpy().astype(np.float64)
     apx = df["ask_px_00"].to_numpy().astype(np.float64)
@@ -180,6 +183,7 @@ def reduce_chunk(path):
 def buy(sym, schema, s, e):
     days = pd.bdate_range(s, pd.Timestamp(e) - pd.Timedelta(days=1))
     frames = []
+    first = True
     for day in days:
         ds = day.strftime("%Y-%m-%d")
         got = 0
@@ -188,17 +192,27 @@ def buy(sym, schema, s, e):
             a = (day + pd.Timedelta(hours=h0)).isoformat()
             b = (day + pd.Timedelta(hours=h0 + CHUNK_H)).isoformat()
             t0 = time.time()
+            err = None
             try:
                 c.timeseries.get_range(dataset=DATASET, symbols=[sym],
                                        stype_in="raw_symbol", schema=schema,
                                        start=a, end=b, path=path)
                 part = reduce_chunk(path)
             except Exception as exc:                          # noqa: BLE001
-                print(f"  {ds} h{h0}: {str(exc)[:100]}", flush=True)
+                err = exc
+                print(f"  {ds} h{h0}: {str(exc)[:200]}", flush=True)
                 part = None
             finally:
                 if os.path.exists(path):
                     os.remove(path)
+            # If the very first chunk cannot be parsed, every later one
+            # will fail the same way -- and each is billed on download.
+            # Stop at one chunk's cost instead of the whole window's.
+            if first and part is not None and len(part):
+                first = False
+            elif first and err is not None:
+                sys.exit(f"first chunk failed to reduce ({err}); aborting "
+                         "before buying the rest of the window")
             if part is not None and len(part):
                 frames.append(part)
                 got += len(part)
