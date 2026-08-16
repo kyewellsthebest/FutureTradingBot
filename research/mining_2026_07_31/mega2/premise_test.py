@@ -72,8 +72,8 @@ def main():
         close = pd.Series(px, index=idx).resample("1min").last().ffill()
         bt = close.index.view(np.int64)
         bc = close.values
-        rth = ((close.index.hour * 60 + close.index.minute
-                >= 13 * 60 + 30) & (close.index.hour < 20)).to_numpy()
+        rth = np.asarray((close.index.hour * 60 + close.index.minute
+                          >= 13 * 60 + 30) & (close.index.hour < 20))
         n_sig = 0
         for i in range(W + 1, len(bc)):
             if not rth[i]:
@@ -103,9 +103,9 @@ def main():
         # baseline: same number of random RTH starts, same bracket,
         # direction drawn 50/50 (the signal's own long/short mix is
         # near-even, and a random-time test must not inherit drift)
-        rth_ticks = np.flatnonzero(
-            ((idx.hour * 60 + idx.minute >= 13 * 60 + 30)
-             & (idx.hour < 20)).to_numpy())
+        rth_ticks = np.flatnonzero(np.asarray(
+            (idx.hour * 60 + idx.minute >= 13 * 60 + 30)
+            & (idx.hour < 20)))
         if len(rth_ticks) and n_sig:
             picks = rng.choice(rth_ticks, size=min(n_sig, len(rth_ticks)),
                                replace=False)
