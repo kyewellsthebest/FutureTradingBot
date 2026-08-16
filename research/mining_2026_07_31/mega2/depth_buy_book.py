@@ -274,9 +274,25 @@ def main():
     plan = read_plan()
     if not plan:
         sys.exit("data/depth/.buy has no usable plan line")
-    total = price(plan)
-    print(f"\nproceeding with ${total:.2f} of purchases\n", flush=True)
+    # A finished purchase leaves its merged tape in the repo, but .buy
+    # stays staged too -- so any later push touching the depth paths
+    # would re-trigger this job and re-download the whole window at full
+    # price. The existing output is the stop.
+    todo = []
     for sym, schema, s, e in plan:
+        done = os.path.join(OUTDIR, f"{sym}_book_1s.parquet")
+        if os.path.exists(done):
+            print(f"skip {sym} {schema} {s}..{e}: {done} already exists "
+                  f"({os.path.getsize(done)/1e6:.1f} MB). Delete it to "
+                  f"deliberately re-buy.", flush=True)
+            continue
+        todo.append((sym, schema, s, e))
+    if not todo:
+        print("every staged purchase is already on disk -- nothing to buy.")
+        return
+    total = price(todo)
+    print(f"\nproceeding with ${total:.2f} of purchases\n", flush=True)
+    for sym, schema, s, e in todo:
         print(f"=== {sym} {schema} {s}..{e} ===", flush=True)
         buy(sym, schema, s, e)
 
