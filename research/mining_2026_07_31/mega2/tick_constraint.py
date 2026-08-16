@@ -37,6 +37,7 @@ import pandas as pd
 
 ROOT = os.environ.get("M2_REPO", "/home/user/FutureTradingBot")
 RAW = os.path.join(ROOT, "data", "tick", "raw")
+MULTI = os.path.join(ROOT, "data", "tick", "multi")
 OUT = os.path.join(ROOT, "research", "INSTRUMENT_CHOICE.md")
 NS = 1_000_000_000
 
@@ -64,7 +65,7 @@ def sigma_for(path):
     idx = pd.to_datetime(ts)
     tod = idx.hour * 60 + idx.minute
     keep = np.asarray((tod >= 13 * 60 + 30) & (idx.hour < 20))
-    if keep.sum() < 200_000:
+    if keep.sum() < 100_000:
         return None
     ts, px = ts[keep], px[keep]
     day = ts // (86400 * NS)
@@ -73,7 +74,7 @@ def sigma_for(path):
         sec = ts // (h * NS)
         s = pd.Series(px).groupby(sec).last()
         dd = pd.Series(day).groupby(sec).last()
-        v = s.diff().values
+        v = s.diff().to_numpy().copy()
         v[dd.diff().values != 0] = np.nan       # never across a day break
         out[h] = float(np.nanstd(v))
     out["px"] = float(np.median(px))
@@ -83,14 +84,21 @@ def sigma_for(path):
 def main():
     rows = []
     for fam in SPEC:
-        fs = sorted(glob.glob(os.path.join(RAW, f"{fam}*.parquet")))
+        # NQ lives in raw/, every foreign contract in multi/
+        fs = sorted(glob.glob(os.path.join(RAW, f"{fam}*.parquet")) +
+                    glob.glob(os.path.join(MULTI, f"{fam}*.parquet")))
         if not fs:
+            print(f"  {fam}: no tape on disk", flush=True)
             continue
         got = None
         for f in fs:                     # first contract with enough tape
             try:
                 got = sigma_for(f)
-            except Exception:            # noqa: BLE001
+            except Exception as exc:     # noqa: BLE001
+                # never swallow silently -- an empty results table with
+                # no error message is how a broken measurement passes
+                # for a finished one
+                print(f"  {os.path.basename(f)}: FAILED {exc}", flush=True)
                 got = None
             if got:
                 print(f"  {os.path.basename(f)}: sigma1={got[1]:.3f}",
