@@ -146,11 +146,24 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
     def side_of(wd):
         return wd["side"]
 
+    # market_entry: ignore the level entirely and take the first print
+    # after the signal bar closes. This is the ~100% fill-rate version --
+    # a market order does not need price to come to it -- and it removes
+    # every fill assumption from the test at the price of crossing the
+    # spread. If a family is negative here, no order type rescues it,
+    # because this is the only entry whose fill nobody can dispute.
+    market_entry = bool(cell.get("market_entry"))
+
     def fc_of(wd):
         frm = max(wd["arm"], nofill_until)
         if wd["fc_from"] != frm:
-            j = mi.first_beyond(frm, wd["exp"], wd["lvl"], wd["below"],
-                                inclusive=entry_touch)
+            if market_entry:
+                j = int(np.searchsorted(ts, frm))
+                if j >= n or ts[j] >= wd["exp"]:
+                    j = -1
+            else:
+                j = mi.first_beyond(frm, wd["exp"], wd["lvl"], wd["below"],
+                                    inclusive=entry_touch)
             wd["fc"] = int(ts[j]) if j >= 0 else None
             wd["fc_idx"] = j
             wd["fc_from"] = frm
