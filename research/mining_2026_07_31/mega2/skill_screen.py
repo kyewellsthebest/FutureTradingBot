@@ -152,7 +152,8 @@ def main():
             fires = np.flatnonzero(arr != 0)
             for (S, T) in BRACKETS:
                 key = (name, S, T)
-                a = acc.setdefault(key, {"t": 0, "s": 0, "o": 0})
+                a = acc.setdefault(key, {"t": 0, "s": 0, "o": 0,
+                                         "opnl": 0.0})
                 for i in fires:
                     side = int(arr[i])
                     t0 = int(bt[i]) + 60_000_000_000
@@ -172,7 +173,13 @@ def main():
                     elif st is not None:
                         a["s"] += 1
                     else:
+                        # closed at the market at the horizon, not left
+                        # flat. Booking a timeout at zero hides every
+                        # loser that drifted against us without going
+                        # the full stop distance.
                         a["o"] += 1
+                        je = min(np.searchsorted(ts, tend), len(ts) - 1)
+                        a["opnl"] += side * (float(px[je]) - entry)
         del ts, px, sz, mi
         import gc
         gc.collect()
@@ -185,9 +192,9 @@ def main():
             continue
         pt = d["t"] / n
         # entry pays half a tick crossing the spread
-        ev = (d["t"] * T * TV - d["s"] * S * TV
+        ev = (d["t"] * T * TV - d["s"] * S * TV + d["opnl"] * TV
               - n * (TICK / 2) * TV) / n - COMM
-        rows.append((ev, pt, name, S, T, n))
+        rows.append((ev, pt, name, S, T, n, d["o"] / n))
     rows.sort(reverse=True)
     L = ["# Skill screen: does any signal family predict direction?", "",
          "Entry at the MARKET on the signal bar's close (no limit "
@@ -195,17 +202,27 @@ def main():
          "spread + $1.24 commission. NQ, 8 quarters.", "",
          "Target for $300/week: **~38-40%** target-first on a 1:2 "
          "bracket. Zero-cost breakeven: **33.3%**.", "",
-         "| signal | bracket | n | target first | EV/trade |",
-         "|---|---|---|---|---|"]
-    for ev, pt, name, S, T, n in rows[:28]:
+         "A position reaching neither barrier is closed at the market at "
+         "the horizon and booked at that price, not left flat -- booking "
+         "timeouts at zero flatters any wide stop. The `timeout` column "
+         "is how big that bucket is.", "",
+         "| signal | bracket | n | target first | timeout | EV/trade |",
+         "|---|---|---|---|---|---|"]
+    for ev, pt, name, S, T, n, po in rows[:28]:
         L.append(f"| {name} | {S:.0f}/{T:.0f} | {n:,} | {pt:.2%} | "
-                 f"${ev:+.2f} |")
-    good = [r for r in rows if r[0] > 0]
-    L += ["", f"**Positive-EV combinations: {len(good)} of {len(rows)}**",
-          ""]
-    for ev, pt, name, S, T, n in good[:15]:
+                 f"{po:.0%} | ${ev:+.2f} |")
+    # a cell must beat RANDOM in its own bracket, not merely be positive
+    ctl = {(r[3], r[4]): r[0] for r in rows if r[2] == "RANDOM"}
+    good = [r for r in rows if r[0] > 0 and r[2] != "RANDOM"
+            and r[0] > ctl.get((r[3], r[4]), -1e9) + 0.25]
+    L += ["", f"**Positive-EV combinations that also beat the RANDOM "
+          f"control in their own bracket by $0.25: {len(good)} of "
+          f"{len(rows)}**", ""]
+    for ev, pt, name, S, T, n, po in good[:15]:
         L.append(f"- {name} {S:.0f}/{T:.0f}: {pt:.2%} target-first, "
-                 f"${ev:+.2f}/trade over {n:,} signals")
+                 f"{po:.0%} timed out, ${ev:+.2f}/trade vs "
+                 f"${ctl.get((S, T), float('nan')):+.2f} random, over "
+                 f"{n:,} signals")
     L.append("")
     out = os.path.join(fuse.ROOT, "research", "SKILL_SCREEN.md")
     open(out, "w").write("\n".join(L) + "\n")

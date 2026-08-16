@@ -134,14 +134,22 @@ def main():
                         ti = np.searchsorted(-cmin, -tl)
                     for h, hi_ in zip(HORIZONS, hz_idx):
                         a = acc.setdefault((name, S, T, h),
-                                           {"t": 0, "s": 0, "o": 0})
+                                           {"t": 0, "s": 0, "o": 0,
+                                            "opnl": 0.0})
                         s_ok, t_ok = si < hi_, ti < hi_
                         if t_ok and (not s_ok or ti < si):
                             a["t"] += 1
                         elif s_ok:
                             a["s"] += 1
                         else:
+                            # neither barrier reached: the position is
+                            # closed at the market when the clock runs
+                            # out, NOT left flat. Booking it at zero
+                            # hides every loser that drifted against us
+                            # without travelling the full stop distance.
                             a["o"] += 1
+                            k_ = min(hi_, len(seg) - 1)
+                            a["opnl"] += side * (float(seg[k_]) - entry)
         del ts, px, sz
         import gc
         gc.collect()
@@ -154,10 +162,10 @@ def main():
             continue
         tpd = n / max(days, 1)
         pt = d["t"] / n
-        gross = (d["t"] * T * TV - d["s"] * S * TV
+        gross = (d["t"] * T * TV - d["s"] * S * TV + d["opnl"] * TV
                  - n * 0.125 * TV) / n          # half-tick spread
         rows.append((gross - 1.24, gross - 0.36, pt, tpd, name, S, T,
-                     h, n))
+                     h, n, d["o"] / n))
     rows.sort(key=lambda r: -r[1])
     L = ["# High-frequency screen: 15-second bars, tight brackets", "",
          f"NQ, 8 quarters ({days} RTH sessions), market entry at the "
@@ -165,15 +173,35 @@ def main():
          "the membership rate.", "",
          "**Success bar (set before running): net >= $1.00/trade at "
          ">= 100 trades/day.**", "",
+         "A position reaching neither barrier is closed at the market at "
+         "the horizon and booked at that price. An earlier version booked "
+         "it at zero, which flatters any wide stop by hiding the losers "
+         "that drifted without travelling the full stop distance; the "
+         "`timeout` column is how big that bucket is.", "",
          "| signal | bracket | horizon | trades/day | target first | "
-         "EV @ $1.24 | EV @ $0.36 |", "|" + "---|" * 7]
-    for ev1, ev2, pt, tpd, name, S, T, h, n in rows[:25]:
+         "timeout | EV @ $1.24 | EV @ $0.36 |", "|" + "---|" * 8]
+    for ev1, ev2, pt, tpd, name, S, T, h, n, po in rows[:25]:
         L.append(f"| {name} | {S:.0f}/{T:.0f} | {h}s | {tpd:.0f} | "
-                 f"{pt:.1%} | ${ev1:+.2f} | ${ev2:+.2f} |")
-    hits = [r for r in rows if r[0] >= 1.0 and r[3] >= 100]
-    hitsm = [r for r in rows if r[1] >= 1.0 and r[3] >= 100]
+                 f"{pt:.1%} | {po:.0%} | ${ev1:+.2f} | ${ev2:+.2f} |")
+    # A cell must beat the RANDOM control at its OWN bracket and horizon.
+    # Positive EV means nothing if a coin flip in the same geometry is
+    # positive too -- that is how the session screen produced a false
+    # positive before the timeout fix.
+    ctl = {(r[5], r[6], r[7]): r[1] for r in rows if r[4] == "RANDOM"}
+
+    def beats(r):
+        return r[1] > ctl.get((r[5], r[6], r[7]), -1e9) + 0.25
+
+    hits = [r for r in rows
+            if r[0] >= 1.0 and r[3] >= 100 and r[4] != "RANDOM"
+            and beats(r)]
+    hitsm = [r for r in rows
+             if r[1] >= 1.0 and r[3] >= 100 and r[4] != "RANDOM"
+             and beats(r)]
     L += ["", f"**Meeting the bar at retail $1.24: {len(hits)}**",
-          f"**Meeting the bar at membership $0.36: {len(hitsm)}**", ""]
+          f"**Meeting the bar at membership $0.36: {len(hitsm)}**",
+          "", "Both counts additionally require beating the RANDOM "
+          "control at the same bracket and horizon by $0.25.", ""]
     for r in (hitsm or hits)[:10]:
         L.append(f"- {r[4]} {r[5]:.0f}/{r[6]:.0f} {r[7]}s: "
                  f"{r[3]:.0f} trades/day, {r[2]:.1%} target-first, "
