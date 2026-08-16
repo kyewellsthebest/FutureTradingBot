@@ -204,6 +204,15 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
                 below = up
                 side = (1 if up else -1) if arch == "limit" \
                     else (-1 if up else 1)
+                # resting_limit: the fade taken as a GENUINE passive
+                # order. For an up-impulse we sell, and the order rests
+                # ABOVE the market waiting for price to come back UP to
+                # it -- so the tape must approach from the other side.
+                # This one legitimately fills AT its price; what it pays
+                # for that is a fill rate well below 100%, because price
+                # often never returns.
+                if cell.get("resting_limit"):
+                    below = not up
                 windows.append(dict(arm=bclose + DELAY_NS,
                                     exp=bclose + hold_ns,
                                     lvl=float(lvl), below=below,
@@ -237,7 +246,8 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
             # 20.5pt, 37% of fills gapped >1pt). Pricing stop entries
             # at level±1tick was worth ~$13/trade of pure fiction and
             # manufactured the entire 'stop archetype edge'.
-            if arch == "limit":
+            if arch == "limit" or cell.get("resting_limit"):
+                # a real resting limit does fill at its own price
                 entry = wd["lvl"]
             elif cell.get("entry_at_level"):
                 # DIAGNOSTIC ONLY -- the assumption under test, never a
