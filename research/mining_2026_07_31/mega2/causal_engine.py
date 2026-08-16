@@ -226,6 +226,15 @@ def run_cell(ts, px, bt, bc, rth, lo, hi, cell, mindex=None):
             # manufactured the entire 'stop archetype edge'.
             if arch == "limit":
                 entry = wd["lvl"]
+            elif cell.get("entry_at_level"):
+                # DIAGNOSTIC ONLY -- the assumption under test, never a
+                # tradable model. Prices an against-the-impulse entry AT
+                # the level, as though a sell order resting below the
+                # market could wait there for a better price. It cannot:
+                # it is either a stop (fills at the trigger print) or a
+                # marketable limit (fills now, at the bid). Switching
+                # this on shows how much of a result is that fiction.
+                entry = wd["lvl"]
             else:
                 trig = float(px[wd["fc_idx"]])
                 entry = trig + side_of(wd) * slip
