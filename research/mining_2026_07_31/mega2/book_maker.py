@@ -75,6 +75,10 @@ def log(s=""):
 
 def run(path, sym):
     A = pd.read_parquet(path).sort_values("sec").reset_index(drop=True)
+    # crossed/locked quotes: 0.009% of the tape, nearly all inside the
+    # 21:00 UTC maintenance halt. A negative spread would let a "join
+    # the bid" attempt rest above the offer.
+    A = A[A["ask_px"] > A["bid_px"]].reset_index(drop=True)
     full = np.arange(int(A["sec"].iloc[0]), int(A["sec"].iloc[-1]) + 1)
     A = A.set_index("sec").reindex(full)
     present = A["bid_px"].notna().values

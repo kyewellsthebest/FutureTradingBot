@@ -102,6 +102,17 @@ def load(path):
     single easiest way to manufacture an IC here.
     """
     A = pd.read_parquet(path).sort_values("sec").reset_index(drop=True)
+    # Drop crossed/locked quotes before anything reads them. They are
+    # 0.009% of the NQ tape and sit almost entirely in the 21:00 UTC
+    # maintenance halt, but a negative spread makes the microprice --
+    # which weights each side by the size on the OTHER side -- land
+    # outside the book entirely, and one absurd feature value can move
+    # a rank correlation.
+    bad = A["ask_px"] <= A["bid_px"]
+    if bad.any():
+        print(f"    dropping {int(bad.sum()):,} crossed/locked seconds "
+              f"({bad.mean():.4%})", flush=True)
+        A = A[~bad].reset_index(drop=True)
     full = np.arange(int(A["sec"].iloc[0]), int(A["sec"].iloc[-1]) + 1)
     A = A.set_index("sec").reindex(full)
     present = A["bid_px"].notna().values
