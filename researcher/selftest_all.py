@@ -285,6 +285,35 @@ def test_plausibility():
                  "actually produced", not f, "; ".join(f))
 
 
+def test_pooled():
+    """The cross-market combiner, which is now the primary instrument.
+
+    If this is wrong the searcher does not merely miss things, it
+    reports weak-and-broad artifacts with the authority of twenty-three
+    markets behind them -- a more convincing lie than anything the
+    per-market path could produce.
+    """
+    from researcher import pooled as P
+    f = P.selftest(verbose=False)
+    return check("pooled cross-market test: finds broad weak effects, "
+                 "refuses single loud markets, discounts correlation",
+                 not f, "; ".join(f))
+
+
+def test_surrogate():
+    from researcher import surrogate as S
+    f = S.selftest(verbose=False)
+    return check("map of the search space recovers real structure and "
+                 "invents none", not f, "; ".join(f))
+
+
+def test_diagnosis():
+    from researcher import diagnose as D
+    f = D.selftest(verbose=False)
+    return check("differential diagnosis tells the known failure modes "
+                 "apart", not f, "; ".join(f))
+
+
 def test_validators():
     from researcher import validate as V
     rng = np.random.default_rng(0)
@@ -331,6 +360,9 @@ def main():
     test_validators()
     test_plausibility()
     test_overlap()
+    test_pooled()
+    test_surrogate()
+    test_diagnosis()
     print("\n" + "=" * 66)
     if FAIL:
         print(f"{len(FAIL)} FAILED:")

@@ -206,6 +206,19 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
     </div>
     <div style="height:14px"></div>
     <div class="card">
+      <h2><span class="e">🔬</span>what it has worked out about the market</h2>
+      <div id="learned"><div class="sk sk-line" style="width:70%"></div>
+        <div class="sk sk-card"></div></div>
+      <div class="mini">
+        These are claims about <b>the market</b>, not about the search —
+        measured across every test on record, in units of a <u>round trip</u>
+        (1.00 = one full cost of trading). A negative number means that
+        corner of the space <b>loses</b> that much per trade on average. The
+        sample size is attached to every line so you can judge it yourself.
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
       <h2><span class="e">🧠</span>what it changed about its own search</h2>
       <div id="adapts"><div class="sk sk-line" style="width:65%"></div>
         <div class="sk sk-card"></div></div>
@@ -356,6 +369,31 @@ async function tick(){
   const LBL = {hold:'⏳ Holding trades for longer', bar:'📈 Raised the bar it has to beat',
     horizon:'🎯 Worked out where the edge would pay, and went there',
     closed:'🚪 Closed a line of enquiry, with a number'};
+  // FACTS ABOUT THE MARKET, ranked by size of effect. Rendered before
+  // the adaptations because "short holds lose a third of a round trip
+  // over 18,400 tests" is a stronger thing to know than "effort in this
+  // family was reduced".
+  const LR = s.learned || [];
+  const NICE = {hold:'⏳ hold length', dir:'🧭 direction', exit:'🚪 exit style',
+    cond:'🌦️ condition', shape:'📐 shape', market:'🏷️ market',
+    tier:'🔬 data tier', rr_shape:'⚖️ target vs stop', family:'🗂️ family',
+    subfamily:'🗂️ family', kind:'🧩 kind', side:'↕️ side', mech:'⚙️ mechanism',
+    stop_x:'🛑 stop width', dim:'📅 dimension'};
+  $('#learned').innerHTML = LR.length ? LR.map(x=>{
+    const good = x.effect > 0;
+    return `<div class="item">
+      <div class="t">${esc(NICE[x.attr]||x.attr)} = <b>${esc(x.value)}</b></div>
+      <div class="chg"><b style="color:${good?'var(--pos)':'var(--neg)'}">
+        ${good?'+':''}${Number(x.effect).toFixed(3)} round trips per trade</b>
+        vs average &nbsp;<span class="pill">${num(x.n)} tests</span>
+        <span class="pill">${x.t}σ</span></div>
+    </div>`;}).join('')
+    : `<div class="empty">🔬 <b>Nothing established yet.</b><br><br>
+       A claim appears here once one corner of the search space has been
+       measured enough times to separate it from average with confidence.
+       An empty list is honest — the alternative would be reporting the
+       noise of a few hundred tests as a fact about the market.</div>`;
+
   // GROUP BY KIND. One deduction per family is correct bookkeeping and
   // wrong reading: fifteen cards all headed "Worked out where the edge
   // would pay" bury the four DIFFERENT things it worked out under one
@@ -477,10 +515,31 @@ async function tick(){
     // says "best thing found" and these are not findings.
     const mark = x.killed ? '☠️' : (x.stale || x.code_stale) ? '🕗'
                : over ? '⚠️' : (MEDAL[i]||'');
+    // A cross-market result is a different and much stronger kind of
+    // evidence than one market's number, and the row should say so
+    // before any of its figures are read.
+    const tag = x.pooled
+      ? `<div class="gap" style="margin:2px 0 8px"><span class="pill ok">🌍
+          MEASURED IN ${x.k||'?'} MARKETS AT ONCE</span> — one mechanism,
+          judged on all of them together, not a lucky single market.</div>`
+      : '';
     return `<div class="lb rank${window.__lbNew && i===0 ? ' flash':''}">
       <div class="rk">${mark}</div>
       <div class="bd">
         <div class="nm">${esc(x.what)}</div>
+        ${tag}
+        ${x.pooled ? `
+        <div class="mt">
+          <div><div class="l">🌍 markets tested</div>
+               <div class="v">${x.k ?? pend}</div></div>
+          <div><div class="l">🤝 agreed on direction</div>
+               <div class="v">${x.agree==null?pend:(x.agree*100).toFixed(0)+'%'}</div></div>
+          <div><div class="l">💵 round trips / trade</div>
+               <div class="v" style="color:${(x.cu||0)>0?'var(--pos)':'var(--neg)'}">
+               ${x.cu==null?pend:(x.cu>0?'+':'')+Number(x.cu).toFixed(3)}</div></div>
+          <div><div class="l">📊 trades pooled</div>
+               <div class="v">${x.n==null?pend:num(x.n)}</div></div>
+        </div>` : `
         <div class="mt">
           <div><div class="l">📅 trades / week</div>
                <div class="v">${x.per_week==null?pend:Number(x.per_week).toFixed(1)}</div></div>
@@ -491,7 +550,7 @@ async function tick(){
                <div class="v">${pct(x.win_rate)}</div></div>
           <div><div class="l">⚖️ risk / reward</div>
                <div class="v">${x.rr==null?pend:Number(x.rr).toFixed(2)}</div></div>
-        </div>
+        </div>`}
         ${foot}
       </div></div>`;}).join('')
     : `<div class="empty">⏳ <b>Nothing scored yet.</b><br><br>

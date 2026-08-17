@@ -457,6 +457,7 @@ def api_state():
         "tiers": cached_tiers(),
         "backup": STATE["backup"],
         "adaptations": adaptations(),
+        "learned": learned_facts(),
         "survivors": survivors(),
         "near": near_misses(),
         "ledger": led,
@@ -522,10 +523,31 @@ def near_misses(k=15):
                         "per_week": r.get("per_week"),
                         "bar": r["bar_at_test"], "passed": r["passed"],
                         "tier": (r["hyp"] or {}).get("tier"),
+                        # pooled rows are a different KIND of result and
+                        # must not be rendered as if they were one
+                        # market's dollars per trade
+                        "pooled": bool(r.get("pooled")),
+                        "cu": r.get("cu"), "k": r.get("k"),
+                        "agree": r.get("agree"),
                         "stale": r.get("stale"), "killed": r.get("killed"),
                         "code_stale": r.get("code_stale"),
                         "kill_reasons": r.get("kill_reasons") or []})
         return out
+    except Exception:                                         # noqa: BLE001
+        return []
+
+
+def learned_facts():
+    """What the searcher has worked out about the market itself.
+
+    Distinct from adaptations, which record what it CHANGED. These are
+    claims about the world with a number and a sample size attached, so
+    they can be argued with.
+    """
+    try:
+        from researcher.memory import Memory
+        m = Memory(str(RDIR / "memory.json"))
+        return m.learned()
     except Exception:                                         # noqa: BLE001
         return []
 

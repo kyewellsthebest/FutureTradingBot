@@ -295,6 +295,21 @@ class Memory:
     def insights(self):
         return self.d.get("insights", {}) or {}
 
+    # WHAT IT HAS COME TO KNOW, as distinct from what it has changed.
+    #
+    # Everything else in this file records a DECISION the searcher made
+    # in response to failure -- hold longer here, spend less effort
+    # there. None of it records a fact about the market. The surrogate's
+    # statements are the first thing in the system that does: "holds
+    # under ninety seconds lose 0.31 of a round trip, over 18,400
+    # tests". A number, a direction and a sample size, checkable by
+    # anyone who wants to.
+    def set_learned(self, rows):
+        self.d["learned"] = list(rows or [])
+
+    def learned(self):
+        return self.d.get("learned", []) or []
+
     def target_horizon(self, family):
         """The horizon this family's own numbers point at.
 

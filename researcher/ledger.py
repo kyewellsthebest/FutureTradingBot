@@ -44,6 +44,16 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _num(v, default=0.0):
+    """float() that survives None and junk. Used on result fields that
+    legitimately do not exist for every kind of result."""
+    try:
+        f = float(v)
+        return f if f == f else default        # NaN -> default
+    except (TypeError, ValueError):
+        return default
+
+
 # THE AUTHORITATIVE LIVE TRIAL COUNT.
 #
 # The console's headline number used to be mirrored by hand in the search
@@ -138,8 +148,13 @@ class Ledger:
             f = self.d["families"].setdefault(
                 family, {"n": 0, "best_z": -99.0, "sum_edge": 0.0})
             f["n"] += 1
-            f["best_z"] = max(f["best_z"], float(result.get("z", -99)))
-            f["sum_edge"] += float(result.get("edge", 0.0))
+            # `float(None)` raises, and a pooled result deliberately has
+            # no single-market edge in dollars -- its currency is round
+            # trips per trade. Reading these defensively rather than
+            # assuming every result has every field.
+            f["best_z"] = max(f["best_z"], _num(result.get("z"), -99.0))
+            f["sum_edge"] += _num(result.get("edge"),
+                                  _num(result.get("cu"), 0.0))
         # NOT a survivor yet. Clearing the bar only makes something a
         # CANDIDATE; it still has to survive the delay control, the
         # empirical null, period stability, the stale placebo and the
@@ -341,8 +356,12 @@ class Ledger:
                 r = rec.get("result") or {}
                 if not r:
                     continue
-                z = float(r.get("z", 0) or 0)
-                net = float(r.get("net", 0) or 0)
+                z = _num(r.get("z"))
+                # A pooled mechanism has no dollars-per-trade: its
+                # currency is round trips per trade, because that is the
+                # only unit comparable across markets whose ticks differ
+                # by sixty times. Rank on whichever it has.
+                net = _num(r.get("net"), _num(r.get("cu")))
                 # net-positive first, then by z. A net-negative cell can
                 # still be listed if nothing pays, but it ranks below.
                 # `st` drove admission; the row reports the two kinds of
@@ -380,6 +399,13 @@ class Ledger:
                         "family": rec.get("family"),
                         "z": r.get("z"), "net": r.get("net"),
                         "gross": r.get("edge"), "n": r.get("n"),
+                        # cross-market rows carry a different currency:
+                        # round trips per trade, and how many markets
+                        # agreed. Rendering those as "$/trade" would be
+                        # a category error on the front page.
+                        "cu": r.get("cu"), "k": r.get("k"),
+                        "agree": r.get("agree"),
+                        "pooled": bool(r.get("pooled")),
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),
                         "per_week": r.get("per_week"),
                         "bar_at_test": rec.get("bar_at_test"),
@@ -391,9 +417,10 @@ class Ledger:
                         "killed": bool(killed),
                         "kill_reasons": (rec.get("killed") or {}).get(
                             "reasons", []) if killed else [],
-                        "passed": bool(r.get("z", 0) >= (rec.get("bar_at_test") or 99)
-                                       and r.get("net", 0) > 0
-                                       and not killed and not st)})
+                        "passed": bool(
+                            _num(r.get("z")) >= (rec.get("bar_at_test") or 99)
+                            and _num(r.get("net"), _num(r.get("cu"))) > 0
+                            and not killed and not st)})
         return out
 
     def halt(self, why):

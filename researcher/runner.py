@@ -59,7 +59,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from researcher.ledger import Ledger            # noqa: E402
+from researcher.ledger import Ledger
+from researcher import pooled as PO          # noqa: E402
+from researcher import surrogate as SG
+from researcher import diagnose as DG            # noqa: E402
 from researcher import hypotheses as HY         # noqa: E402
 from researcher.features import FeatureLibrary  # noqa: E402
 from researcher.memory import Memory, classify  # noqa: E402
@@ -168,6 +171,14 @@ def stage(what):
     LIVE["stage"] = what
     LIVE["stage_t"] = time.time()
 _SHARED = __import__("threading").Lock()
+
+# THE SHARED SLATE. Market-agnostic mechanisms are drawn ONCE per cycle
+# and every market is asked the same question, so the answers can be
+# pooled. Drawing them per market -- which is what happened before --
+# meant MNQ and ES were each tested on their own private random sample
+# and no two markets ever answered the same question, which is why the
+# breadth of this dataset was never actually used as evidence.
+SLATE = {"hyps": [], "book": None, "surrogate": None}
 WORKERS = int(os.environ.get("RESEARCH_WORKERS",
                              str(max(1, (os.cpu_count() or 2) - 1))))
 T2_RES = [60, 15, 300]
@@ -407,6 +418,8 @@ def _eval_dest(d, h, tv, cost, delay=0):
     gross = per + cost
     return {"z": round(float(z), 3), "gz": round(float(gross / (se + 1e-12)), 3),
             "edge": round(float(gross), 4), "net": round(float(per), 4),
+            "sd": round(float(var ** 0.5), 5),
+            "cu": round(float(gross) / cost, 5) if cost else None,
             "n": int(n), "eff_n": int(n), "overlap": 1.0, "delay": delay,
             "win_rate": round(p, 4),
             "rr": round(rw / rk, 3) if rk else 0.0,
@@ -621,6 +634,13 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
         span = max((idx[-1] - idx[0]).total_seconds() / 86400.0, 1.0)
         return {"z": round(z, 3), "gz": round(gz, 3),
                 "edge": round(float(gross.mean()), 4),
+                # cross-market pooling needs the dispersion, not just
+                # the mean: the pooled standard error is built from it
+                "sd": round(float(gross.std(ddof=1)), 5),
+                # gross edge in units of THIS market's round trip, so
+                # results are comparable across instruments whose ticks
+                # differ by 60x. Pooling and the surrogate both read it.
+                "cu": round(float(gross.mean()) / cost, 5) if cost else None,
                 "net": round(float(net.mean()), 4), "n": int(len(net)),
                 "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
                 "win_rate": round(float(len(wins) / len(net)), 4),
@@ -688,6 +708,8 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
 
     return {"z": round(z, 3), "gz": round(gz, 3),
             "edge": round(float(pnl.mean() * tv), 4),
+            "sd": round(float((pnl * tv).std(ddof=1)), 5),
+            "cu": round(float(pnl.mean() * tv) / cost, 5) if cost else None,
             "net": round(float(net.mean()), 4), "n": int(len(net)),
             "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
             "win_rate": round(win_rate, 4), "rr": round(rr, 3),
@@ -885,29 +907,14 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         say("flow_hypotheses", market=sym, tier=tier, n=len(fh),
             mechanisms=sorted({h["mech"] for h in fh}))
 
-    # RECURRING PRICE BEHAVIOUR, sampled fresh every cycle. This is the
-    # family that keeps the space from running out: the full cross
-    # product of shape x parameter x direction x exit x condition is
-    # ~15,000 per market, and drawing at random each cycle covers it
-    # evenly over weeks while the ledger's fingerprints guarantee
-    # nothing is ever tested twice.
-    if "high" in srch.columns:
-        rng_s = np.random.default_rng(
-            (led.d["trials"] * 7919 + len(srch)) % (2**32))
-        sh = HY.from_shapes(rng_s, cap=700, extra_conds=ctx_conds)
-        hyps += sh
+    # THE SHARED SLATE. Recurring price behaviour and destinations, drawn
+    # ONCE per cycle in main() so that every market answers the same
+    # question and the answers can be combined. Previously each market
+    # drew its own private random sample, so no two markets ever tested
+    # the same mechanism and the breadth of this dataset -- the single
+    # most valuable thing it has -- was never used as evidence.
+    slate = [dict(h) for h in SLATE["hyps"]] if "high" in srch.columns else []
 
-    # DESTINATIONS. The only family where the exit is measured rather
-    # than chosen: find where price keeps travelling, find what precedes
-    # the journey, then learn the point at which the journey has failed.
-    if "high" in srch.columns:
-        rng_d = np.random.default_rng(
-            (led.d["trials"] * 6151 + len(srch) * 13) % (2**32))
-        dh = HY.from_destinations(
-            rng_d, list(ctx_conds) + ["squeeze", "expansion", "run_up",
-                                      "run_dn", "inside", "outside"],
-            cap=350)
-        hyps += dh
 
     fmult = mem.hold_multiplier("feature/d1")
     if fmult != 1.0:
@@ -929,6 +936,53 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
                            f"not stopped, since a family is not disproved "
                            f"by its members failing"))
     hyps.sort(key=lambda h: -led.family_prior(h["_family"]))
+    # ORDER BY WHAT THE MAP SAYS. Same budget, spent on the most
+    # promising and the least understood candidates first rather than in
+    # family order. Nothing is dropped and nothing is cheapened; see
+    # surrogate.py for why ordering cannot manufacture significance.
+    sur = SLATE.get("surrogate")
+    if sur is not None and sur.n >= 200:
+        fams = {id(h): h.get("_family") for h in hyps}
+        hyps = sur.order(hyps, fams,
+                         rng=np.random.default_rng(led.d["trials"] % 7919))
+
+    # ---- the shared slate, measured here but JUDGED ONCE, globally.
+    #
+    # These do not each cost a trial. One mechanism is one hypothesis
+    # however many markets it is measured in, and charging 23 trials for
+    # 23 measurements of the same idea is what was driving the bar up
+    # while destroying the power to see anything broad and weak.
+    book = SLATE.get("book")
+    n_slate = 0
+    t_slate = time.time()
+    slate_budget = float(os.environ.get("RESEARCH_SLATE_S", "120"))
+    for h in slate:
+        if os.path.exists(STOP):
+            break
+        # Bounded: a slow market must not delay the pooled verdict for
+        # every other market. Whatever was measured still pools; a
+        # mechanism simply has fewer markets behind it, and the market
+        # floor in pooled.py already refuses to answer below five.
+        if time.time() - t_slate > slate_budget:
+            say("slate_timeboxed", market=sym, tier=tier, measured=n_slate,
+                of=len(slate))
+            break
+        fam = h.pop("_family", None)
+        hh = dict(h)
+        hh["market"] = sym
+        hh["tier"] = tier
+        try:
+            r = evaluate(srch, hh, tv, cost, feats, bar_s)
+        except Exception:                                     # noqa: BLE001
+            continue
+        if not r:
+            continue
+        n_slate += 1
+        if book is not None:
+            with _SHARED:
+                book.add(h, sym, r, cost, family=fam)
+    if n_slate:
+        say("slate_measured", market=sym, tier=tier, mechanisms=n_slate)
 
     done = 0
     cands = []
@@ -1198,12 +1252,27 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
         rd = evaluate(srch, h, tv, cost, fe, bar_s, delay=1)
         kept_frac = (rd["net"] / r["net"]) if (rd and r["net"]) else 0.0
         if not rd or rd["net"] <= 0 or kept_frac < 0.5:
+            # NAME THE CAUSE, do not just record the death. The delay
+            # control says "this failed"; the battery says which of the
+            # known failure modes it is, by perturbing one thing at a
+            # time and reading the pattern of what moves.
+            dx = None
+            try:
+                dx = DG.diagnose(evaluate, srch, h, tv, cost, bar_s, fe)
+            except Exception:                                 # noqa: BLE001
+                pass
             say("KILLED_by_delay_control", market=sym, tier=tier,
                 immediate_net=r["net"], delayed_net=(rd or {}).get("net"),
                 kept=round(kept_frac, 3), what=HY.describe(h),
+                diagnosis=(dx or {}).get("cause"),
+                because=(dx or {}).get("what_it_means"),
                 why="entering one bar later destroys it -- bid-ask "
                     "bounce inside the signal bar's own print, not a "
                     "prediction")
+            if dx:
+                rec = led.d["tested"].get(led.fingerprint(h))
+                if isinstance(rec, dict):
+                    rec["diagnosis"] = dx
             mem.note(fam, "wrong_sign", rd)
             led.kill(h, ["entering one bar later destroys it -- bid-ask "
                          "bounce inside the signal bar's own print"])
@@ -1277,6 +1346,47 @@ def main():
         _HIST_CTX["cycle"] = cycle
         t0 = time.time()
         points, mrows, vols = {}, {}, {}
+
+        # ---- draw this cycle's shared slate of MECHANISMS.
+        # One slate, every market, so the answers combine. Unseen only:
+        # the pooled fingerprint is what the ledger remembers, so a
+        # mechanism is asked once and never again.
+        stage("drawing this cycle's mechanisms")
+        rng_s = np.random.default_rng((cycle * 7919 + led.d["trials"]) % 2**32)
+        slate = HY.from_shapes(rng_s, cap=int(os.environ.get(
+            "RESEARCH_SLATE", "180")))
+        rng_d = np.random.default_rng((cycle * 6151 + led.d["trials"]) % 2**32)
+        slate += HY.from_destinations(
+            rng_d, ["squeeze", "expansion", "run_up", "run_dn",
+                    "inside", "outside"], cap=80)
+        fresh = []
+        for h in slate:
+            # The probe must fingerprint IDENTICALLY to what will be
+            # recorded after judging, or the ledger never recognises the
+            # mechanism again and every cycle re-tests the same slate
+            # while the trial count climbs.
+            probe = {k: v for k, v in h.items() if k != "_family"}
+            probe["market"] = "POOLED"
+            probe["tier"] = 0
+            if not led.seen(probe):
+                fresh.append(h)
+        SLATE["hyps"] = fresh
+        SLATE["book"] = PO.PooledBook()
+        say("slate_drawn", cycle=cycle, mechanisms=len(fresh),
+            note="one slate for every market, judged once on the pooled "
+                 "evidence")
+
+        # ---- refit the map of the space from everything measured so far
+        stage("fitting the map of the search space")
+        try:
+            sur = SG.Surrogate().fit(SG.from_ledger(led))
+            SLATE["surrogate"] = sur if sur.n >= 200 else None
+            if SLATE["surrogate"] is not None:
+                mem.set_learned(sur.learned())
+                say("map_fitted", rows=sur.n,
+                    statements=len(sur.learned()))
+        except Exception as exc:                              # noqa: BLE001
+            say("map_failed", err=str(exc)[:160])
         # PARALLEL ACROSS MARKETS. Markets are independent -- each
         # sweep reads its own tape and writes only its own results --
         # so the only shared state is the ledger and the memory, and
@@ -1323,14 +1433,77 @@ def main():
                 bar=round(led.bar(), 2))
             gc.collect()
 
+        # ---- JUDGE THE SLATE, once, on all the evidence at once.
+        #
+        # This is the step the searcher never had. Every market has now
+        # answered the same questions; here those answers are combined
+        # into one verdict per mechanism, with correlated markets
+        # discounted and disagreement between markets penalised.
+        #
+        # One mechanism costs ONE trial no matter how many markets
+        # measured it, because it is one hypothesis. That is both
+        # honest and a large gain: the bar rises far more slowly, and a
+        # weak-but-universal effect -- the shape a real edge actually
+        # has -- becomes visible for the first time.
+        if not os.path.exists(STOP) and SLATE.get("book") is not None:
+            stage("combining every market's answer")
+            try:
+                verdicts = SLATE["book"].test(DT.effective_n)
+            except Exception as exc:                          # noqa: BLE001
+                verdicts = []
+                say("pool_failed", err=str(exc)[:160])
+            pooled_cands = []
+            for v in verdicts:
+                h = dict(v["hyp"])
+                h["market"] = "POOLED"
+                h["tier"] = 0
+                if led.seen(h):
+                    continue
+                res = {"z": round(v["z"], 3), "gz": round(v["z"], 3),
+                       "cu": round(v["mean_cost_units"], 5),
+                       "edge": None, "net": None,
+                       "n": v["n_total"], "eff_n": int(v["effective_n"]),
+                       "markets": v["markets"], "k": v["k"],
+                       "agree": v["agree"], "tau2": round(v["tau2"], 6),
+                       "per_market": v["per_market"], "pooled": True}
+                led.record(h, res, family=v.get("family"))
+                bar = led.bar()
+                # A pooled mechanism must clear the bar, pay for itself
+                # and point the same way nearly everywhere. The last of
+                # those is what a single loud market can never satisfy.
+                if (v["z"] >= bar and v["mean_cost_units"] > 0
+                        and v["agree"] >= PO.MIN_AGREE):
+                    pooled_cands.append((h, v, res, bar))
+            say("pool_judged", cycle=cycle, mechanisms=len(verdicts),
+                candidates=len(pooled_cands),
+                best_z=round(verdicts[0]["z"], 2) if verdicts else None,
+                bar=round(led.bar(), 2))
+            for h, v, res, bar in pooled_cands[:6]:
+                say("POOLED_CANDIDATE", z=round(v["z"], 2), bar=round(bar, 2),
+                    markets=v["k"], agree=v["agree"],
+                    cost_units=round(v["mean_cost_units"], 3),
+                    what=HY.describe(h))
+                mem.adapt("pooled", v.get("family") or "mechanism",
+                          before="untested across markets",
+                          after=f"{v['z']:.2f}σ pooled over {v['k']} markets",
+                          why=(f"agreed in sign in {v['agree']:.0%} of them "
+                               f"and paid {v['mean_cost_units']:.2f} round "
+                               f"trips per trade on average"))
+            SLATE["book"] = None
+            # FORCED. The pooled verdict is the most valuable output of
+            # a cycle -- one hypothesis carrying every market's evidence
+            # -- and a throttled save silently dropped all 113 of them
+            # on the first integration run.
+            led.save(force=True)
+
         # ---- tier 2: NQ tick, one contract per cycle, 60-second bars.
         # This is where "merge the deep data" actually happens. It runs
         # after the breadth sweep because it is ~40x the compute, and
         # one contract at a time because 4.7 GB of tick data will not
         # fit alongside anything else on a box with no swap.
         if not os.path.exists(STOP):
-            res_probe = T2_RES[0]
-            cs = DT.tier2_sources(res_probe)
+            res_probe = T2_RES[0] if T2_RES else None
+            cs = DT.tier2_sources(res_probe) if res_probe else []
             if not cs:
                 # LOUD. A tier that is absent looks identical to a tier
                 # that found nothing, and the second is a result while
