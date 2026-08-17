@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RESEARCH · console</title>
+<style>
+/* Same skin as the PULSE console: dark surfaces, mono chrome, grid texture. */
+:root{
+  --bg:#05070b; --s1:#0b1017; --s2:#0e141d; --s3:#141b27;
+  --border:rgba(96,160,255,.10); --hot:rgba(96,176,255,.28);
+  --t1:#e8eef8; --t2:#93a1bb; --muted:#5c687f;
+  --accent:#3987e5; --accent2:#9085e9;
+  --pos:#199e70; --pos-t:#3fd39b; --neg:#e66767; --neg-t:#f08d8d; --warn:#e9b05a;
+  --r:8px; --pad:14px;
+  --mono:'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:Inter,-apple-system,system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 500px at 50% -200px,rgba(57,135,229,.08),transparent 60%),
+    repeating-linear-gradient(0deg,transparent 0 23px,rgba(96,160,255,.028) 23px 24px),
+    repeating-linear-gradient(90deg,transparent 0 23px,rgba(96,160,255,.028) 23px 24px),
+    var(--bg);
+  color:var(--t1);min-height:100vh;padding-bottom:40px;overflow-x:hidden
+}
+.top{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;
+  justify-content:space-between;padding:12px var(--pad);
+  background:rgba(5,7,11,.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--hot)
+}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--pos-t);box-shadow:0 0 10px var(--pos-t);
+  animation:pulse 2s infinite}
+.dot.off{background:var(--neg-t);box-shadow:0 0 10px var(--neg-t)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.btn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--s3);color:var(--t2);border:1px solid var(--border);
+  border-radius:6px;padding:7px 12px;cursor:pointer
+}
+.btn:hover{border-color:var(--hot);color:var(--t1)}
+.wrap{max-width:1100px;margin:0 auto;padding:var(--pad);
+  display:flex;flex-direction:column;gap:var(--pad)}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  padding:var(--pad)}
+.card h2{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:600}
+.alert{border-color:var(--warn);background:linear-gradient(0deg,
+  rgba(233,176,90,.07),rgba(233,176,90,.07)),var(--s1)}
+.alert h2{color:var(--warn)}
+.alert p{font-size:13px;line-height:1.65;color:var(--t1)}
+.verdict .line{font-size:20px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
+.verdict .detail{font-size:13.5px;line-height:1.7;color:var(--t2);max-width:78ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:12px}
+.stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.stat .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
+.stat .sub{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);
+  font-weight:600}
+td{padding:8px;border-bottom:1px solid rgba(96,160,255,.05);color:var(--t2);
+  vertical-align:top}
+td.mono{font-family:var(--mono);color:var(--t1)}
+tr:last-child td{border-bottom:none}
+.feed{font-family:var(--mono);font-size:11.5px;line-height:1.7;
+  max-height:420px;overflow-y:auto}
+.ev{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid rgba(96,160,255,.04)}
+.ev time{color:var(--muted);flex:none}
+.ev .tag{flex:none;min-width:150px;color:var(--accent)}
+.ev .tag.bad{color:var(--neg-t)} .ev .tag.good{color:var(--pos-t)}
+.ev .tag.warn{color:var(--warn)}
+.ev .body{color:var(--t2);word-break:break-word}
+.note{font-size:12px;color:var(--muted);line-height:1.65;margin-top:10px;
+  padding-top:10px;border-top:1px solid var(--border)}
+code{font-family:var(--mono);background:var(--s3);padding:1px 5px;border-radius:4px;
+  font-size:.92em;color:var(--t1)}
+@media(max-width:640px){.ev{flex-wrap:wrap}.ev .tag{min-width:0}}
+</style>
+
+<div class="top">
+  <div class="brand"><span class="dot" id="dot"></span><span>research · console</span></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn" id="toggle">stop</button>
+    <span class="btn" id="clock" style="cursor:default"></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="alerts"></div>
+
+  <div class="card verdict">
+    <h2>where the search stands</h2>
+    <div class="line" id="vline">connecting…</div>
+    <div class="detail" id="vdetail"></div>
+  </div>
+
+  <div class="card">
+    <h2>ledger</h2>
+    <div class="grid" id="stats"></div>
+    <div class="note" id="barnote"></div>
+  </div>
+
+  <div class="card">
+    <h2>what it has learned — failure profiles by family</h2>
+    <div style="overflow-x:auto"><table id="fams">
+      <thead><tr><th>family</th><th>tested</th><th>cost-bound</th>
+      <th>no signal</th><th>thin</th><th>hold ×</th><th>lesson</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="note">
+      A failure that is <b>cost-bound</b> is the valuable one: directionally right,
+      but the move is smaller than the round trip. The licensed response is to hold
+      longer — cost is fixed per trade while move size grows as √time — and that is
+      arithmetic, not a fitted preference. <b>No signal</b> is the honest majority
+      and licenses nothing. <b>Thin</b> means the bucket is rare, not wrong.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>self-calibration — how much of what it finds survives held-back data</h2>
+    <div id="shrink" style="font-size:13.5px;line-height:1.7;color:var(--t2)"></div>
+  </div>
+
+  <div class="card">
+    <h2>live feed</h2>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const num = n => (n==null?'—':Number(n).toLocaleString());
+
+const TAGS = {
+  CANDIDATE:'warn', VAULT_RESULT:'good', KILLED_by_delay_control:'bad',
+  HALT_selftest_failed:'bad', crash:'bad', below_empirical_bar:'warn',
+  tier2_load_failed:'bad', tier3_load_failed:'bad'
+};
+
+function stat(k, v, sub){
+  return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>`
+       + (sub?`<div class="sub">${sub}</div>`:'') + `</div>`;
+}
+
+async function tick(){
+  let s;
+  try { s = await (await fetch('/api/state')).json(); }
+  catch(e){ $('#dot').className='dot off'; return; }
+
+  $('#clock').textContent = (s.t||'').replace('T',' ').replace('+00:00','Z');
+  $('#dot').className = 'dot ' + (s.alive ? 'on' : 'off');
+  $('#toggle').textContent = s.stopped ? 'start' : 'stop';
+
+  // ── alerts. Storage loss inverts the whole safety property, so it is
+  // the first thing on the page, not a footnote.
+  let a = '';
+  if (s.state_loss) a += `<div class="card alert"><h2>state loss</h2>
+    <p>${esc(s.state_loss.note)}</p></div>`;
+  if (s.storage && s.storage.warning) a += `<div class="card alert">
+    <h2>storage is not durable</h2><p>${esc(s.storage.warning)}</p>
+    <p style="margin-top:8px;color:var(--t2)">current path
+    <code>${esc(s.storage.path)}</code></p></div>`;
+  if (s.error) a += `<div class="card alert"><h2>search crashed — retrying</h2>
+    <p style="font-family:var(--mono);font-size:11.5px;white-space:pre-wrap">${
+      esc(s.error.tb)}</p></div>`;
+  $('#alerts').innerHTML = a;
+
+  const v = s.verdict || {};
+  $('#vline').textContent = v.line || '—';
+  $('#vdetail').textContent = v.detail || '';
+
+  const L = s.ledger || {};
+  $('#stats').innerHTML =
+      stat('hypotheses tested', num(L.trials))
+    + stat('significance bar', (L.current_bar_sigma ?? '—') + 'σ',
+           'rises as √(2 ln N)')
+    + stat('survivors', num(L.survivors ?? 0))
+    + stat('vault looks spent', num(L.vault_used ?? 0), 'one per idea, ever')
+    + stat('cycle', num(s.cycle));
+
+  $('#barnote').innerHTML = `The bar is not a setting. The largest of N pure-noise
+    results grows like √(2 ln N), so a fixed threshold guarantees a false positive
+    eventually — the longer you search, the more convincing the lie. This bar rises
+    with the trial count instead, which is why running longer cannot manufacture a
+    finding here. Feature-selection trials count toward it too.`;
+
+  const fams = (s.learning && s.learning.families) || [];
+  $('#fams tbody').innerHTML = fams.length ? fams.map(f =>
+    `<tr><td class="mono">${esc(f.family)}</td><td class="mono">${num(f.n)}</td>
+     <td class="mono" style="color:${f.cost_bound?'var(--warn)':'inherit'}">${
+       num(f.cost_bound)}</td>
+     <td class="mono">${num(f.no_signal)}</td><td class="mono">${num(f.thin)}</td>
+     <td class="mono">${f.hold_x}×</td><td>${esc(f.lesson)}</td></tr>`).join('')
+    : `<tr><td colspan="7" style="color:var(--muted)">no family has failed
+       enough times yet to license a lesson</td></tr>`;
+
+  const sh = (s.learning && s.learning.shrinkage) || {};
+  $('#shrink').innerHTML = sh.known
+    ? `Median ratio <b style="font-family:var(--mono);color:var(--t1)">${
+        sh.median_ratio}</b> across ${sh.n} vault touches — ${esc(sh.note)}.
+       The bar a candidate must clear is divided by this, so the system's
+       own measured overfitting raises its own threshold.`
+    : `<span style="color:var(--warn)">UNKNOWN</span> — ${esc(sh.note ||
+        'no candidate has reached the vault yet')}. This deliberately does not
+       default to 1.0: a calibration that quietly claims "we do not overfit"
+       would be the most dangerous number on this page.`;
+
+  try {
+    const f = await (await fetch('/api/feed')).json();
+    $('#feed').innerHTML = (f.feed||[]).map(e => {
+      const {t, msg, ...rest} = e;
+      const cls = TAGS[msg] || '';
+      return `<div class="ev"><time>${esc((t||'').slice(11,19))}</time>
+        <span class="tag ${cls}">${esc(msg)}</span>
+        <span class="body">${esc(JSON.stringify(rest).slice(1,-1))}</span></div>`;
+    }).join('') || '<div style="color:var(--muted)">waiting for first event…</div>';
+  } catch(e){}
+}
+
+$('#toggle').onclick = async () => {
+  const stop = $('#toggle').textContent === 'stop';
+  await fetch(stop ? '/api/stop' : '/api/start', {method:'POST'});
+  tick();
+};
+
+tick(); setInterval(tick, 4000);
+</script>

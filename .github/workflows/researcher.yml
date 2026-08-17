@@ -26,9 +26,17 @@ name: researcher
 # every hypothesis, so it stops within seconds rather than at the end of
 # a six-hour leg.
 
+# NO SCHEDULE, deliberately. Railway is the 24/7 searcher now
+# (research_service.py). Running both on a timer would be TWO searchers
+# with two separate ledgers, each counting only its own trials -- so both
+# bars would sit lower than the combined search justifies, and the pair
+# would manufacture a false positive faster than either alone. Multiple
+# testing does not care which machine did the testing.
+#
+# This workflow stays as a manual burst: a way to throw a few extra
+# hours of compute at the same shared state when you want it, not a
+# competing daemon.
 on:
-  schedule:
-    - cron: '17 */6 * * *'      # four legs a day
   workflow_dispatch:
     inputs:
       hours:
