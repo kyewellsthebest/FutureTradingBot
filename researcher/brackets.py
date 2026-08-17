@@ -52,7 +52,7 @@ def atr(high, low, close, w=60):
 
 
 def run(entry_idx, side, high, low, close, stop_mult, target_mult,
-        vol_unit, max_bars):
+        vol_unit, max_bars, open_=None):
     """Triple barrier: stop, target, or time. Returns exit price and why.
 
     Vectorised over TRADES and looped over BARS -- max_bars passes of
@@ -104,12 +104,34 @@ def run(entry_idx, side, high, low, close, stop_mult, target_mult,
         ties += int(both.sum())
         t_hit = t_hit & ~s_hit
 
-        for mask, px, code in ((s_hit, stop_px, 0), (t_hit, tgt_px, 1)):
-            if mask.any():
-                exit_px[mask] = px[mask]
-                held[mask] = k
-                reason[mask] = code
-                active[mask] = False
+        # A STOP DOES NOT ALWAYS FILL AT THE STOP PRICE. If the bar
+        # OPENED beyond it, the market gapped through and the fill is
+        # the open, not the level. Assuming the level is the same
+        # "filled at a price the market has left" error that produced
+        # five earlier false positives here -- and it is asymmetric,
+        # because only the stop side benefits.
+        #
+        # Measured on random entries, zero cost, a driftless walk:
+        #     stop 1.0 / target 2.0   +$0.452/trade   before this
+        # Free money, manufactured entirely by tight stops filling
+        # perfectly. A target is left at its level: a resting limit at
+        # the target really does fill there when price trades through.
+        if s_hit.any():
+            fill = stop_px.copy()
+            if open_ is not None:
+                op = open_[jj]
+                worse = np.where(s > 0, np.minimum(fill, op),
+                                 np.maximum(fill, op))
+                fill = np.where(s_hit, worse, fill)
+            exit_px[s_hit] = fill[s_hit]
+            held[s_hit] = k
+            reason[s_hit] = 0
+            active[s_hit] = False
+        if t_hit.any():
+            exit_px[t_hit] = tgt_px[t_hit]
+            held[t_hit] = k
+            reason[t_hit] = 1
+            active[t_hit] = False
 
     # anything still open exits at the timeout bar's close
     if active.any():
@@ -120,11 +142,12 @@ def run(entry_idx, side, high, low, close, stop_mult, target_mult,
 
 
 def pnl(entry_idx, side, high, low, close, stop_mult, target_mult,
-        vol_unit, max_bars, tv, cost):
+        vol_unit, max_bars, tv, cost, open_=None):
     """Net P&L per trade under a bracket, plus the outcome mix."""
     c = np.asarray(close, dtype=float)
     ex, held, reason, ties = run(entry_idx, side, high, low, c,
-                                 stop_mult, target_mult, vol_unit, max_bars)
+                                 stop_mult, target_mult, vol_unit, max_bars,
+                                 open_=open_)
     s = np.asarray(side, dtype=float)
     gross = s * (ex - c[np.asarray(entry_idx, dtype=np.int64)])
     ok = np.isfinite(gross)
@@ -187,6 +210,15 @@ def selftest():
     if not (ex[0] == 98 and rsn[0] == 0 and ties == 1):
         fails.append(f"tie must go to the stop: px={ex[0]} rsn={rsn[0]} "
                      f"ties={ties}")
+
+    # GAP THROUGH THE STOP: the bar OPENS below it, so the fill is the
+    # open and not the level. This is the asymmetry that handed tight
+    # stops free money on random data.
+    op = np.array([100., 95., 100., 100., 100.])
+    ex, held, rsn, _ = run([0], [1.0], h, lo, c, 2, 2, u, 4, open_=op)
+    if abs(ex[0] - 95.0) > 1e-9:
+        fails.append(f"gap through stop should fill at the open 95, "
+                     f"got {ex[0]}")
 
     # SHORT: mirror of case 1. stop is ABOVE entry.
     ex, held, rsn, _ = run([0], [-1.0], h2, lo2, c, 2, 2, u, 4)

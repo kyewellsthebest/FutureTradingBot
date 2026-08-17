@@ -171,6 +171,20 @@ def tier2(path, bar_s=60, rth_only=True):
         px = t.column("price").to_numpy().astype(np.float64)
         sz = t.column("size").to_numpy().astype(np.float64)
         del t
+        # SORT BY TIME. 85.3% of rows in these files are out of
+        # chronological order, and the aggregation below takes close as
+        # ("px", "last") -- the last row in FILE order. Unsorted, that
+        # is a RANDOM trade from inside the bar while high and low stay
+        # correct.
+        #
+        # The damage was invisible and large. Selecting bars whose close
+        # sat in the top 20% of their range then selected a randomly
+        # high print, and the next bar reverted to the true price:
+        # -10.2 points on NQ 60s against an unconditional -0.03. That
+        # became a "strategy" worth $21.01 a trade at 96% wins, and it
+        # was a corrupt tape rather than a market effect.
+        order = np.argsort(ts, kind="stable")
+        ts, px, sz = ts[order], px[order], sz[order]
         b = ts // (bar_s * NS)
         g = pd.DataFrame({"b": b, "px": px, "sz": sz})
         a = g.groupby("b").agg(close=("px", "last"), high=("px", "max"),

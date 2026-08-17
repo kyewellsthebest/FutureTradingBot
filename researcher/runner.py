@@ -185,6 +185,54 @@ def bars_per(d):
     return float(np.median(dt)) if len(dt) else 300.0
 
 
+# =====================================================================
+# THE ONE INVARIANT THAT MAKES A WHOLE CLASS OF BUG IMPOSSIBLE
+#
+# Five separate false positives in this project shared one shape: a
+# hypothesis selected a bar using information known only AT that bar's
+# close, then entered at that same close. The entry price is then
+# contaminated by the selection, and the "edge" is the contamination.
+#
+#   the fade           entered at a level the market had already left
+#   the maker fill     marked against a mid that had moved
+#   ZB 1-bar reversion  feature and target shared one price print
+#   close_high/low     the close IS the bar's extreme, an order
+#                      statistic, so the next close reverts by
+#                      construction: -10.2 pts against -0.03 baseline
+#   the breakeven stop  "exited at entry" while 50 points underwater
+#
+# Each was caught AFTER the fact by the delay control -- and twice I
+# added a new evaluation path and forgot to wire that control into it,
+# so it silently passed everything. A control you have to remember is
+# not a control.
+#
+# So the rule is now structural. EVERY path from a signal to a trade
+# goes through entries() below, and entries() always moves the entry to
+# the NEXT bar. There is no argument to disable it. A signal computed
+# from bar t is actionable at bar t+1 and not before, which is simply
+# true: you cannot transact on a bar's close until that bar has closed,
+# and by then the price is gone.
+#
+# The delay control still runs on top as a robustness check. It now
+# tests t+2 against t+1, which is a genuine extra question rather than
+# the only thing standing between the searcher and nonsense.
+ENTRY_LAG = 1
+
+
+def entries(mask, n, extra=0):
+    """Signal bars -> tradeable entry bars. The only such conversion.
+
+    Adds ENTRY_LAG unconditionally. If a future evaluation path forgets
+    to call this, it will not silently enter at the signal bar -- it
+    will fail the invariant test in researcher/selftest_all.py, which
+    asserts that a planted close-at-high artifact scores flat.
+    """
+    m = mask.values if hasattr(mask, "values") else np.asarray(mask)
+    sel = np.flatnonzero(m)
+    sel = sel + ENTRY_LAG + int(extra)
+    return sel[(sel >= 0) & (sel < n)]
+
+
 _LEVELS = {}
 
 
@@ -219,9 +267,10 @@ def _eval_dest(d, h, tv, cost, delay=0):
             trig = HY.shape_mask(d, h["trigger"], 3, 2.0)
             if trig is None:
                 return None
-    if delay:
-        trig = np.roll(np.asarray(trig), delay)
-        trig[:delay] = False
+    # same invariant: the trigger is knowable at bar t, tradeable at t+1
+    lag = ENTRY_LAG + delay
+    trig = np.roll(np.asarray(trig), lag)
+    trig[:lag] = False
     r = DS.study(d, unit, h["level"], levels, h["side"], trig,
                  int(h["max_bars"]))
     if not r or not r.get("invalidation"):
@@ -414,10 +463,11 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     # construction.
     ex = h.get("exit")
     if ex and "high" in d.columns and "low" in d.columns:
-        m0 = mask.values if hasattr(mask, "values") else np.asarray(mask)
         unit = BR.atr(d["high"].values, d["low"].values,
                       d["close"].values, 60)
-        sel = np.flatnonzero(m0 & np.isfinite(unit) & (unit > 0))
+        m0 = mask.values if hasattr(mask, "values") else np.asarray(mask)
+        sel = entries(m0, len(d), delay)
+        sel = sel[np.isfinite(unit[sel]) & (unit[sel] > 0)]
         # DELAY APPLIES HERE TOO. The first version of this branch
         # ignored `delay` entirely, so the one-bar delay control -- the
         # gate that exists specifically to kill signals that live inside
@@ -432,16 +482,15 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
         # -10.2 points on NQ 60s against an unconditional -0.03. Not
         # tradable: you cannot know close[t] was the high until the bar
         # has ended, and by then that price is gone.
-        if delay:
-            sel = sel + delay
-            sel = sel[sel < len(d)]
         sel = sel[sel + 1 < len(d)]
         if len(sel) < MIN_TRADES:
             return None
         maxb = max(int(round(h["hold_s"] / bar_s)), 1)
         res = BR.pnl(sel, side[sel] if hasattr(side, "__len__") else side,
                      d["high"].values, d["low"].values, d["close"].values,
-                     float(ex[0]), float(ex[1]), unit, maxb, tv, cost)
+                     float(ex[0]), float(ex[1]), unit, maxb, tv, cost,
+                     open_=(d["open"].values if "open" in d.columns
+                            else None))
         net = res["net"]
         if len(net) < MIN_TRADES:
             return None
@@ -472,9 +521,10 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     # entry at t+delay, exit `bars` later. delay=0 is entry at the
     # signal bar's own close, which is where the bounce artifact lives.
     c = d["close"]
-    fwd = c.shift(-(bars + delay)) - c.shift(-delay)
+    lag = ENTRY_LAG + delay
+    fwd = c.shift(-(bars + lag)) - c.shift(-lag)
     same = idx.normalize().values == \
-        pd.Series(idx).shift(-(bars + delay)).dt.normalize().values
+        pd.Series(idx).shift(-(bars + lag)).dt.normalize().values
     fwd = fwd.where(same)
     m = mask.values if hasattr(mask, "values") else np.asarray(mask)
     raw = side * fwd.values
@@ -557,6 +607,11 @@ def selftest(d, tv=None, cost=None, bar_s=None):
     inc = np.zeros(len(x))
     inc[hit] = amp
     inc[np.roll(hit, 1)] = amp           # and the bar AFTER it
+    # AND THE BAR AFTER THAT. Entry is now structurally at t+1
+    # (ENTRY_LAG), so a plant that finishes moving at t+1 leaves nothing
+    # for the trade to capture and the harness would report itself
+    # blind. The plant has to extend past the entry, not up to it.
+    inc[np.roll(hit, 2)] = amp
     x["close"] = x["close"].values + np.cumsum(inc)
     bs = bars_per(d) if bar_s is None else bar_s
     h = {"kind": "footprint", "dim": "minute_of_day",

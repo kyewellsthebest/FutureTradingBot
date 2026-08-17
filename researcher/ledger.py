@@ -97,7 +97,8 @@ class Ledger:
         self.d["trials"] += 1
         self.d["tested"][fp] = {
             "t": _now(), "hyp": hyp, "result": result,
-            "bar_at_test": round(self.bar(), 2), "family": family}
+            "bar_at_test": round(self.bar(), 2), "family": family,
+            "epoch": self.DATA_EPOCH}
         if family:
             f = self.d["families"].setdefault(
                 family, {"n": 0, "best_z": -99.0, "sum_edge": 0.0})
@@ -153,6 +154,26 @@ class Ledger:
         boost = 1.0 + max(0.0, mean_edge) * 4.0
         return max(0.05, decay * boost)
 
+    # Bump when the underlying DATA changes in a way that invalidates
+    # past measurements. Entries stamped with an older epoch are not
+    # results any more -- they are measurements of a tape that no longer
+    # exists -- so they are excluded from the leaderboard and from the
+    # survivor list.
+    #
+    # 2 : tier-2 bars were built from unsorted ticks. 85.3% of rows in
+    #     the raw files are out of chronological order and close was
+    #     taken as the last row in FILE order, making every close a
+    #     random trade from inside its bar. Everything measured on the
+    #     deep tier before the sort was a measurement of noise.
+    DATA_EPOCH = 2
+
+    def stale(self, rec):
+        return int(rec.get("epoch", 1)) < self.DATA_EPOCH
+
+    def epoch_summary(self):
+        n = sum(1 for r in self.d["tested"].values() if self.stale(r))
+        return {"epoch": self.DATA_EPOCH, "stale_entries": n}
+
     def kill(self, hyp, reasons):
         """Record that a candidate FAILED the gauntlet, permanently.
 
@@ -187,6 +208,9 @@ class Ledger:
         for fp, rec in self.d["tested"].items():
             if rec.get("killed"):
                 continue          # failed a control; not a near miss
+            if self.stale(rec):
+                continue          # measured on data that has since been
+                                  # corrected; not a result any more
             r = rec.get("result") or {}
             z = float(r.get("z", 0) or 0)
             net = float(r.get("net", 0) or 0)
