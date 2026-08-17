@@ -9,7 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" defer></script>
+  <!-- Charting library served from our own origin rather than a CDN.
+       When the CDN was unreachable the global went undefined, chart
+       setup threw, and app.js died BEFORE it fetched any figures — so a
+       blocked script blanked the balance, the P&L and every stat, not
+       just the charts. This copy (v4.1.1, same v4 API) was already
+       vendored in the repo and unused. -->
+  <script src="/static/lightweightcharts.js?v=1" defer></script>
 </head>
 <body>
 
@@ -49,6 +55,11 @@
   </nav>
 
   <main class="content">
+
+    <!-- Shown on every tab when the broker cannot be reached. A page
+         that cannot see the account must say so rather than leaving
+         stale or blank figures looking authoritative. -->
+    <div class="broker-down" id="broker-down"></div>
 
     <!-- ─── OVERVIEW ─────────────────────────────────────────── -->
     <section class="page active" id="page-overview">

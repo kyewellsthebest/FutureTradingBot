@@ -153,7 +153,20 @@ FEAT_FLOOR = float(os.environ.get("FEAT_FLOOR", "4.10"))
 # every single hypothesis and read by the service directly, so the count
 # on screen is the count right now.
 LIVE = {"trials": 0, "tested": 0, "market": "", "tier": 0,
-        "candidates": 0, "killed": 0, "started": None}
+        "candidates": 0, "killed": 0, "started": None,
+        # WHAT IT IS DOING RIGHT NOW, not just what it last scored.
+        # market/tier are only set when a hypothesis is recorded, so
+        # every setup phase -- loading tapes, growing features, saving a
+        # 144 MB ledger -- rendered as "starting..." with a frozen
+        # counter and a healthy green dot. Ten minutes of that is
+        # indistinguishable from a dead process. stage is written at
+        # each phase so a stall always names itself.
+        "stage": "booting", "stage_t": 0.0}
+
+
+def stage(what):
+    LIVE["stage"] = what
+    LIVE["stage_t"] = time.time()
 _SHARED = __import__("threading").Lock()
 WORKERS = int(os.environ.get("RESEARCH_WORKERS",
                              str(max(1, (os.cpu_count() or 2) - 1))))
@@ -197,13 +210,22 @@ def history_point(secs=None):
                     hist = json.load(open(hp)) or []
                 except Exception:                             # noqa: BLE001
                     hist = []
+            # Under the ledger's own lock: this samples from a dict that
+            # every worker thread is inserting into, and iterating it
+            # unlocked raises "dictionary changed size during iteration"
+            # -- silently, into the try/except, so the graphs would just
+            # stop gaining points with no error anywhere.
+            with led._lock:
+                trials = led.d["trials"]
+                distinct = len(led.d["tested"])
+                nkilled = sum(1 for r in led.d["tested"].values()
+                              if r.get("killed"))
             row = {
                 "t": now(), "cycle": _HIST_CTX.get("cycle", 0),
-                "trials": led.d["trials"],
+                "trials": trials,
                 "bar": round(led.bar(), 3),
-                "distinct": len(led.d["tested"]),
-                "killed": sum(1 for r in led.d["tested"].values()
-                              if r.get("killed")),
+                "distinct": distinct,
+                "killed": nkilled,
                 "survivors": len(led.d.get("survivors", [])),
                 "adaptations": len(mem.d.get("adaptations", [])),
                 "families": len(mem.d.get("families", {})),
@@ -801,6 +823,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         return None, f"selftest failed on {sym} tier{tier}: harness blind"
 
     # ---- layer 1: grow the vocabulary (search set only, never vault)
+    stage(f"{sym} tier {tier}: building features")
     lib = libs.setdefault(f"{sym}/t{tier}", FeatureLibrary(keep=20))
     y = fwd_for_features(srch, 1)
     before = len(lib.scores)
@@ -1045,7 +1068,8 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
             and not rec.get("killed")
         # a third job: rows measured on a tape that has since been
         # corrected need measuring again, not filtering away.
-        need_rescore = bool(r) and led.stale(rec)
+        need_rescore = bool(r) and led.outdated(rec) \
+            and not rec.get("rescored")
         if not (need_metrics or need_check or need_rescore):
             continue
         h = dict(row["hyp"] or {})
@@ -1089,9 +1113,10 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
         # fields onto a stale result, and re-stamp. Without this a row
         # invalidated by a data fix stays flagged forever even after it
         # has been measured again on good data.
-        if led.stale(rec):
+        if led.outdated(rec):
             rec["result"] = r = dict(fresh)
             rec["epoch"] = led.DATA_EPOCH
+            rec["code_epoch"] = led.CODE_EPOCH
             rec["rescored"] = True
         elif need_metrics:
             for key in ("win_rate", "rr", "per_week", "gz",
@@ -1216,14 +1241,17 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
 
 def main():
     os.makedirs(RDIR, exist_ok=True)
+    stage("loading the ledger")
     led = Ledger(os.path.join(RDIR, "ledger.json"))
     mem = Memory(os.path.join(RDIR, "memory.json"))
+    stage("ledger loaded (%s entries)" % len(led.d["tested"]))
     once = os.environ.get("RESEARCH_ONCE") == "1"
     LIVE["trials"] = led.d["trials"]
     LIVE["started"] = now()
     say("boot", trials=led.d["trials"], bar=round(led.bar(), 2),
         feat_floor=FEAT_FLOOR, shrinkage=mem.shrinkage())
 
+    stage("loading tier-1 data for %d markets" % len(SPEC))
     data = DT.tier1(set(SPEC))
     if not data:
         say("no_data")
@@ -1280,11 +1308,12 @@ def main():
             if err:
                 led.halt(err)
                 say("HALT_selftest_failed", why=err)
-                led.save()
+                led.save(force=True)
                 mem.save()
                 return
             done, cands, kept = out
             gauntlet(sym, 1, cands, led, mem, libs, tv, cost)
+            stage(f"{sym}: saving the ledger")
             led.save()
             mem.save()
             say("cycle_market", cycle=cycle, market=sym, tier=1, tested=done,
@@ -1397,6 +1426,7 @@ def main():
         # the hypothesis is already counted, and this only fills in
         # fields on the stored result.
         try:
+            stage("re-checking older results against current controls")
             filled = backfill_metrics(led, data)
             if filled:
                 say("backfilled_metrics", rows=filled)
@@ -1444,6 +1474,7 @@ def main():
 
         history_point(secs=round(time.time() - t0))
 
+        led.save(force=True)
         json.dump({"t": now(), "cycle": cycle, "summary": led.summary(),
                    "learning": mem.summary(), "insight": ins},
                   open(STATUS, "w"), indent=1)
@@ -1453,7 +1484,7 @@ def main():
         if once:
             break
         time.sleep(int(os.environ.get("RESEARCH_SLEEP", "30")))
-    led.save()
+    led.save(force=True)
     mem.save()
     say("exit", **led.summary())
 

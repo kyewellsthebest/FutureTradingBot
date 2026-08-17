@@ -429,20 +429,28 @@ async function tick(){
       const why = (x.kill_reasons||[])[0] || 'failed one of the controls';
       foot = `<div class="gap">☠️ <b>Killed by a control.</b> ${esc(why)}
            &nbsp;·&nbsp; ${where}</div>`;
+    } else if (x.code_stale) {
+      foot = `<div class="gap">🕗 <b>Measured by an older version of the
+           engine</b> — before the checks that would have caught it, so the
+           number above is not trustworthy and this is <u>not</u> a finding.
+           It is queued to be measured again; the same idea scores near zero
+           under the current engine.
+           &nbsp;·&nbsp; ${where}</div>`;
     } else if (x.stale) {
       foot = `<div class="gap">🕗 <b>Measured on a tape that has since been
-           corrected</b>, so this number no longer stands. Kept on the board
-           only because nothing newer has scored yet.
+           corrected</b>, so this number no longer stands. Queued to be
+           measured again.
            &nbsp;·&nbsp; ${where}</div>`;
     } else if (over) {
-      // z ABOVE the bar means it cleared the strength test and was then
-      // killed by a control -- the earlier version rendered that as
-      // "88.15 of the 5.72 it needed, 100% of the way", which reads as a
-      // winner on the same screen that says zero strategies found.
-      foot = `<div class="gap">⚠️ <b>Strong enough (${z.toFixed(2)} vs
-           ${bar.toFixed(2)}) but killed by a control.</b> Almost always
-           the one-bar delay test: the edge lives inside a single price
-           print, so it cannot be traded.
+      // z ABOVE the bar means it cleared the strength test. It does NOT
+      // mean a control killed it -- the earlier wording asserted that,
+      // and asserting a control fired when the ledger holds no record of
+      // one is inventing a reassurance. Say only what is known.
+      foot = `<div class="gap">⚠️ <b>Cleared the strength bar
+           (${z.toFixed(2)} vs ${bar.toFixed(2)}) but has not passed the
+           full gauntlet</b>, so it is not a strategy. Clearing the bar is
+           the first of six checks, and the one most easily cleared by
+           luck.
            &nbsp;·&nbsp; ${where}</div>`;
     } else {
       foot = `<div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
@@ -451,7 +459,12 @@ async function tick(){
            &nbsp;·&nbsp; ${prog.toFixed(0)}% of the way
            &nbsp;·&nbsp; ${where}</div>`;
     }
-    const mark = x.killed ? '☠️' : x.stale ? '🕗' : over ? '⚠️' : (MEDAL[i]||'');
+    // Medals are for rows the current engine actually measured. An
+    // outdated or killed row still gets shown -- something is better
+    // than a blank tab -- but it must not wear a medal, because a medal
+    // says "best thing found" and these are not findings.
+    const mark = x.killed ? '☠️' : (x.stale || x.code_stale) ? '🕗'
+               : over ? '⚠️' : (MEDAL[i]||'');
     return `<div class="lb rank${window.__lbNew && i===0 ? ' flash':''}">
       <div class="rk">${mark}</div>
       <div class="bd">
@@ -505,18 +518,25 @@ async function live(){
     if (shown === null) shown = target;
     document.getElementById('lp').style.background =
       l.alive ? 'var(--pos)' : 'var(--muted)';
-    const where = l.market ? `${esc(l.market)} · tier ${l.tier}` : 'starting…';
-    // SAY SO WHEN THE NUMBER IS STANDING STILL. A frozen counter with no
-    // explanation is indistinguishable from a broken page. Long gaps are
-    // normal — loading a deep tape or growing features can take minutes
-    // without scoring anything — but the screen should admit it.
-    const age = l.last_trial_age_s;
-    const idle = (age != null && age > 45)
-      ? ` &nbsp;·&nbsp; <b style="color:var(--warn,#e9b05a)">⏳ ${
-          age > 120 ? Math.round(age/60)+' min' : Math.round(age)+'s'
-        } since the last one</b> (loading data or building features)` : '';
+    // SAY WHAT IT IS DOING, always. "starting…" with a frozen counter and
+    // a healthy green dot looked identical to a dead process for ten
+    // minutes; the stage is written at every phase precisely so that a
+    // stall names itself instead of hiding.
+    const mins = (s) => s > 120 ? Math.round(s/60)+' min' : Math.round(s)+'s';
+    const where = l.market ? `${esc(l.market)} · tier ${l.tier}`
+                           : esc(l.stage || 'starting…');
+    let note = '';
+    if (l.never_scored) {
+      note = ` &nbsp;·&nbsp; <b style="color:#e9b05a">⏳ ${
+        esc(l.stage||'starting')}${l.stage_age_s > 20
+          ? ' — ' + mins(l.stage_age_s) : ''}</b>`;
+    } else if (l.last_trial_age_s != null && l.last_trial_age_s > 45) {
+      note = ` &nbsp;·&nbsp; <b style="color:#e9b05a">⏳ ${
+        mins(l.last_trial_age_s)} since the last one</b> — ${
+        esc(l.stage || 'working')}`;
+    }
     $('#bigsub').innerHTML = `<b>${esc(where)}</b> &nbsp;·&nbsp; bar
-      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session${idle}`;
+      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session${note}`;
   }catch(e){}
 }
 function paint(){

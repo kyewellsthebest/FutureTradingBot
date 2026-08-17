@@ -120,7 +120,7 @@ class Ledger:
         self.d["tested"][fp] = {
             "t": _now(), "hyp": hyp, "result": result,
             "bar_at_test": round(self.bar(), 2), "family": family,
-            "epoch": self.DATA_EPOCH}
+            "epoch": self.DATA_EPOCH, "code_epoch": self.CODE_EPOCH}
         if family:
             f = self.d["families"].setdefault(
                 family, {"n": 0, "best_z": -99.0, "sum_edge": 0.0})
@@ -141,7 +141,7 @@ class Ledger:
             self.d["survivors"].append(
                 {"t": _now(), "fp": self.fingerprint(hyp), "hyp": hyp,
                  "result": result, "note": note})
-            self._save()
+            self._save(force=True)      # a survivor is never lost to a throttle
         return fp
 
     # ---------- the sealed vault ----------
@@ -208,6 +208,36 @@ class Ledger:
     EPOCH_SCOPE = {
         2: (2,),        # deep tick tier only
     }
+
+    # THE OTHER KIND OF STALENESS, and the one that actually bit.
+    #
+    # DATA_EPOCH covers the tape changing underneath a measurement.
+    # CODE_EPOCH covers the MEASUREMENT ITSELF being superseded: a row
+    # scored before ENTRY_LAG existed was allowed to enter at the bar it
+    # was selected on, and a row scored before the delay control existed
+    # was never asked whether its edge survives entering one bar later.
+    # Those are not weak results, they are not results.
+    #
+    # This was not hypothetical. A ledger built by the current engine
+    # holds 907 close_low/close_high rows whose best z is 0.92; the
+    # deployed ledger, built partly before the fix, holds the same family
+    # at z = 8.52 paying $7.14 a trade. Same idea, same market, same
+    # bar -- the only difference is which version measured it. Without
+    # this stamp the leaderboard ranks the pre-fix artifacts first, and
+    # they are the most convincing thing on the screen.
+    #
+    # 2 : entries must clear ENTRY_LAG (no entering on the selection
+    #     bar), the one-bar delay control, honest stop fills, and the
+    #     full round-trip cost including the spread.
+    CODE_EPOCH = 2
+
+    def code_stale(self, rec):
+        """Measured by an engine version whose controls have since changed."""
+        return int(rec.get("code_epoch") or 1) < self.CODE_EPOCH
+
+    def outdated(self, rec):
+        """Either kind of staleness. Not presentable as a finding."""
+        return self.stale(rec) or self.code_stale(rec)
 
     def stale(self, rec):
         """Was this measured on a tape that has since been corrected?
@@ -276,10 +306,13 @@ class Ledger:
                 killed = bool(rec.get("killed"))
                 if killed and not allow_killed:
                     continue      # failed a control; not a near miss
-                st = self.stale(rec)
+                # A row re-scored by backfill carries current numbers and
+                # has been through the current controls, so it counts as
+                # current whatever epoch it was born in.
+                st = self.outdated(rec) and not rec.get("rescored")
                 if st and not allow_stale:
-                    continue      # measured on data that has since been
-                                  # corrected; not a result any more
+                    continue      # measured on data, or by an engine,
+                                  # that has since been corrected
                 r = rec.get("result") or {}
                 if not r:
                     continue
@@ -287,6 +320,9 @@ class Ledger:
                 net = float(r.get("net", 0) or 0)
                 # net-positive first, then by z. A net-negative cell can
                 # still be listed if nothing pays, but it ranks below.
+                # `st` drove admission; the row reports the two kinds of
+                # staleness separately so the console can say which one
+                # applies instead of blaming the tape for a code change.
                 rows.append(((1 if net > 0 else 0), z, fp, rec, st, killed))
             rows.sort(key=lambda t: (t[0], t[1]), reverse=True)
             # DEDUPE IDENTICAL MEASUREMENTS. Two hypotheses can describe
@@ -323,7 +359,10 @@ class Ledger:
                         "per_week": r.get("per_week"),
                         "bar_at_test": rec.get("bar_at_test"),
                         "checked": bool(rec.get("checked")),
-                        "stale": st,
+                        "stale": self.stale(rec) and not rec.get("rescored"),
+                        "code_stale": self.code_stale(rec)
+                                      and not rec.get("rescored"),
+                        "outdated": st,
                         "killed": bool(killed),
                         "kill_reasons": (rec.get("killed") or {}).get(
                             "reasons", []) if killed else [],
@@ -334,7 +373,7 @@ class Ledger:
 
     def halt(self, why):
         self.d["halts"].append({"t": _now(), "why": why})
-        self.save()
+        self.save(force=True)
 
     def bump(self, n):
         """Add n trials atomically. Feature scoring is search too."""
@@ -343,15 +382,76 @@ class Ledger:
             LIVE_TRIALS["n"] = self.d["trials"]
             LIVE_TRIALS["t"] = time.time()
 
-    def save(self):
-        with self._lock:
-            return self._save()
+    # ---------- persistence ----------
+    #
+    # THIS FILE OUTGREW ITS FORMAT AND STALLED THE SEARCH.
+    #
+    # At 212,673 entries the ledger is ~144 MB written with indent=1.
+    # save() ran after every market -- 23 times a cycle -- and each call
+    # held the lock that every worker thread needs in order to record a
+    # trial. Measured: 6.8s per save on four cores, so over two minutes
+    # per cycle spent serialising with all workers blocked, and worse on
+    # a two-core container where the 1.5 GB in-memory expansion is also
+    # competing for RAM. The console showed a live green dot, no errors,
+    # and a counter that had not moved in ten minutes.
+    #
+    # Three changes: write compact (6.8s -> 1.7s, 144 MB -> 104 MB),
+    # throttle to at most one write per SAVE_EVERY_S unless forced, and
+    # compact the oldest entries down to the fields that are actually
+    # needed once a hypothesis is old and unremarkable.
+    SAVE_EVERY_S = float(os.environ.get("LEDGER_SAVE_S", "120"))
+    # entries kept in full; older ones are reduced to a stub
+    KEEP_FULL = int(os.environ.get("LEDGER_KEEP_FULL", "60000"))
 
-    def _save(self):
+    def save(self, force=False):
+        with self._lock:
+            return self._save(force=force)
+
+    def _save(self, force=False):
+        now_s = time.time()
+        if not force and (now_s - getattr(self, "_last_save", 0.0)
+                          < self.SAVE_EVERY_S):
+            return False
+        self._compact()
         tmp = self.path + ".tmp"
         with open(tmp, "w") as fh:
-            json.dump(self.d, fh, indent=1)
+            json.dump(self.d, fh, separators=(",", ":"))
         os.replace(tmp, self.path)
+        self._last_save = time.time()
+        self.save_secs = round(self._last_save - now_s, 2)
+        return True
+
+    def _compact(self):
+        """Reduce old, unremarkable entries to a stub.
+
+        The ledger must remember every fingerprint forever -- that is
+        what stops a hypothesis being retested and the bar being gamed.
+        It does NOT have to remember the full hypothesis and result of
+        the 150,000th losing cell. Anything killed, anything a human
+        might still want to see on the leaderboard, and everything
+        recent is kept whole; the rest keeps only what `seen`, the trial
+        count and the family stats need.
+        """
+        t = self.d["tested"]
+        excess = len(t) - self.KEEP_FULL
+        if excess <= 0:
+            return 0
+        done = 0
+        for fp, rec in t.items():
+            if done >= excess:
+                break
+            if "hyp" not in rec or rec.get("killed"):
+                continue
+            r = rec.get("result") or {}
+            # keep anything that could still be shown or re-checked
+            if abs(float(r.get("z", 0) or 0)) >= 2.0:
+                continue
+            t[fp] = {"t": rec.get("t"), "stub": True,
+                     "epoch": rec.get("epoch"),
+                     "code_epoch": rec.get("code_epoch"),
+                     "family": rec.get("family")}
+            done += 1
+        return done
 
     def summary(self) -> dict:
         fam = sorted(self.d["families"].items(),

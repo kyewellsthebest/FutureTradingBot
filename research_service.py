@@ -284,8 +284,11 @@ def api_live():
             lv["trials"] = LIVE_TRIALS["n"]
         lv["last_trial_age_s"] = (round(time.time() - LIVE_TRIALS["t"], 1)
                                   if LIVE_TRIALS["t"] else None)
+        lv["never_scored"] = not LIVE_TRIALS["t"]
     except Exception:                                         # noqa: BLE001
         pass
+    if lv.get("stage_t"):
+        lv["stage_age_s"] = round(time.time() - lv["stage_t"], 1)
     import math
     n = max(lv.get("trials", 0), 1)
     lv["bar"] = round(max(3.0, math.sqrt(2.0 * math.log(n)) + 0.8), 2)
@@ -455,6 +458,7 @@ def near_misses(k=15):
                         "bar": r["bar_at_test"], "passed": r["passed"],
                         "tier": (r["hyp"] or {}).get("tier"),
                         "stale": r.get("stale"), "killed": r.get("killed"),
+                        "code_stale": r.get("code_stale"),
                         "kill_reasons": r.get("kill_reasons") or []})
         return out
     except Exception:                                         # noqa: BLE001

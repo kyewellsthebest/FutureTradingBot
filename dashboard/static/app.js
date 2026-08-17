@@ -23,12 +23,39 @@ const fmtUsd2 = (v, sign) => {
   return (v < 0 ? "-" : (sign ? "+" : "")) + "$" +
     Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+/* Anything from the API that reaches innerHTML goes through this. The
+   values here are commit hashes and feed names rather than user input,
+   but "the data source is trusted" is exactly the assumption that stops
+   being true later. */
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const paint = (el, v) => {
   el.classList.remove("pos-t", "neg-t");
   if (v > 0) el.classList.add("pos-t");
   if (v < 0) el.classList.add("neg-t");
 };
 const reveal = (el) => { if (el) el.classList.add("done"); };
+/* A dead endpoint must LOOK dead. Every skeleton on this page is
+   revealed by adding "done", so a path that returns early -- broker not
+   configured, fetch threw -- leaves the whole page shimmering as though
+   it were still loading. It is not loading; it has failed, and on a
+   dashboard that fronts a live account those two states must never look
+   the same. */
+const revealAll = (text) => {
+  document.querySelectorAll(".skel:not(.done)").forEach((el) => {
+    if (text !== undefined && el.textContent.trim() === "") el.textContent = text;
+    el.classList.add("done");
+  });
+};
+function brokerDown(why) {
+  revealAll("—");
+  const b = $("broker-down");
+  if (b) { b.textContent = why; b.classList.add("on"); }
+}
+function brokerUp() {
+  const b = $("broker-down");
+  if (b) b.classList.remove("on");
+}
 /* Lightweight-charts renders unix timestamps in UTC on the axis. Shift
    every point by the viewer's own UTC offset so the axis (and crosshair
    time tag) read in LOCAL time — Australian time on the user's phone —
@@ -195,7 +222,14 @@ async function pollStats() {
     const r = await fetch(af("/api/broker/stats"));
     const s = await r.json();
     loadDone();
-    if (!s || s.configured === false) return;
+    if (!s || s.configured === false) {
+      brokerDown(s && s.configured === false
+        ? "Broker not connected — no credentials on this deployment. "
+          + "Nothing below is live."
+        : "Broker returned nothing. Figures below may be stale.");
+      return;
+    }
+    brokerUp();
 
     const bal = s.net_liq ?? s.balance;
     $("kpi-balance").textContent = fmtUsd(bal);
@@ -269,7 +303,11 @@ async function pollStats() {
     } else if (firstStats) $("daily-skel").classList.add("done");
 
     firstStats = false;
-  } catch (e) { loadDone(); }
+  } catch (e) {
+    loadDone();
+    brokerDown("Could not reach the dashboard API (" + (e && e.message
+      ? e.message : "network error") + "). Figures may be stale.");
+  }
 }
 
 function drawDonut(wins, losses, flat, wr) {
@@ -365,13 +403,18 @@ async function pollBasket() {
       </div>
     </div>`;
 
+    // ONE FACT PER CHIP. These used to be joined into a single run-on
+    // sentence of eleven values separated by middots, which on a phone
+    // is a four-line wall of 11px grey text that nobody reads. Same
+    // facts, each its own scannable unit.
     const foot = [];
     if (v.held_out_usd) {
-      foot.push(`validated ${fmtUsd(v.held_out_usd, true)} held-out · ` +
-        `${v.trades_per_wk}/wk · ${v.green_quarters} quarters green · ` +
-        `backtest max DD ${fmtUsd(v.max_dd_usd)}`);
+      foot.push(`held-out ${fmtUsd(v.held_out_usd, true)}`);
+      foot.push(`${v.trades_per_wk}/wk`);
+      foot.push(`${v.green_quarters} quarters green`);
+      foot.push(`backtest max DD ${fmtUsd(v.max_dd_usd)}`);
     }
-    if (p.reset_at) foot.push(`stats since reset ${String(p.reset_at).slice(0, 10)}`);
+    if (p.reset_at) foot.push(`since reset ${String(p.reset_at).slice(0, 10)}`);
     if (p.commit) foot.push(p.commit.slice(0, 7));
 
     // liveness: engine cycle age, bar feed health, crash surfacing
@@ -396,8 +439,9 @@ async function pollBasket() {
       dl.push(`last bar ${Math.round(d.last_tradovate_success_age_s)}s`);
     if (d.heartbeat && d.cycle_age_s == null)
       dl.push(`boot: ${d.heartbeat.split(" ")[0] || ""} ${Math.round((d.heartbeat_age_s || 0) / 60)}m ago`);
-    if (dl.length) foot.push(dl.join(" · "));
-    $("ops-foot").textContent = foot.join(" · ");
+    dl.forEach((x) => foot.push(x));
+    $("ops-foot").innerHTML = foot
+      .map((x) => `<span class="foot-chip">${esc(String(x))}</span>`).join("");
   } catch (e) { /* keep last */ }
 }
 
@@ -547,9 +591,20 @@ async function pollEngine() {
   } catch (e) { /* leave as is */ }
 }
 
-/* ---------- boot ---------- */
-waitForLW(() => {
-  makeCharts();
+/* ---------- boot ----------
+ *
+ * THE FIGURES DO NOT WAIT FOR THE CHARTS.
+ *
+ * Every poll used to sit inside waitForLW(), which retries every 120ms
+ * FOREVER if the charting library never arrives. So one blocked script
+ * tag meant the dashboard never fetched the balance, the P&L, the
+ * position or the trade list — not one request — and every value stayed
+ * a shimmering skeleton. It looked like a page still loading; it was a
+ * page that had given up before it started. A charting library is a
+ * nice-to-have on a screen whose job is to tell you what your account
+ * is doing.
+ */
+function startPolling() {
   pollStats(); pollBasket(); pollPosition(); pollTrades(); pollPause(); pollEngine();
   setInterval(pollStats, 10000);
   setInterval(pollBasket, 7000);
@@ -557,4 +612,31 @@ waitForLW(() => {
   setInterval(pollTrades, 30000);
   setInterval(pollPause, 15000);
   setInterval(pollEngine, 30000);
-});
+}
+startPolling();
+
+// Charts attach if and when the library shows up, and give up out loud
+// rather than retrying into eternity.
+(function attachCharts(waited) {
+  if (window.LightweightCharts) {
+    LW = window.LightweightCharts;
+    try { makeCharts(); fitCharts(); }
+    catch (e) { chartsUnavailable("charts failed to start: " + e.message); }
+    return;
+  }
+  if (waited > 10000) { chartsUnavailable("charting library did not load"); return; }
+  setTimeout(() => attachCharts(waited + 150), 150);
+})(0);
+
+function chartsUnavailable(why) {
+  ["equity-skel", "daily-skel"].forEach((id) => {
+    const el = $(id);
+    if (el) {
+      el.classList.add("done");
+      el.classList.remove("chart-skel");
+      el.innerHTML = `<div class="chart-none">📉 ${esc(why)}.<br>
+        The figures above are live and unaffected.</div>`;
+      el.style.display = "flex";
+    }
+  });
+}

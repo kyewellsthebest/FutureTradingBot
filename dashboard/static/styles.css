@@ -181,17 +181,34 @@ body {
 .pos-t { color: var(--pos-text); text-shadow: 0 0 14px rgba(63, 211, 155, .35); }
 .neg-t { color: var(--neg-text); text-shadow: 0 0 14px rgba(240, 141, 141, .3); }
 
-/* skeleton shimmer */
-.skel {
+/* skeleton shimmer
+ *
+ * SCOPED TO :not(.done), AND THAT IS THE WHOLE POINT. app.js reveals a
+ * loaded value by adding the class "done" -- reveal() does nothing else
+ * and there were ten call sites -- but no rule for .done was ever
+ * written. So every KPI on this dashboard stayed grey and shimmering
+ * forever: the numbers WERE fetched and WERE written into the element,
+ * and then painted in color:transparent behind a shimmer, which reads as
+ * a dashboard that never finishes loading.
+ *
+ * The reveal is done by scoping rather than by overriding, because
+ * paint() colours these same elements green or red and a
+ * `color: inherit !important` on the revealed state would win against
+ * it and flatten every P&L figure to plain white.
+ */
+.skel:not(.done) {
   position: relative; overflow: hidden; border-radius: 4px;
   background: var(--surface-3); color: transparent !important; min-width: 60px;
 }
-.skel::after {
+.skel:not(.done)::after {
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(90deg, transparent, rgba(96,160,255,.10), transparent);
   animation: shimmer 1.4s infinite;
 }
 @keyframes shimmer { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+
+/* the chart overlays are hidden outright once their series is drawn */
+.chart-skel.done, .trade-skel.done { display: none !important; }
 
 /* ── strategy card ────────────────────────────────────────── */
 .ops-banner {
@@ -332,3 +349,92 @@ body {
 .kv .row:last-child { border-bottom: none; }
 .kv .row span:first-child { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .kv .row span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ── broker-unreachable banner ────────────────────────────── */
+.broker-down {
+  display: none;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  line-height: 1.55; letter-spacing: .02em;
+  padding: 11px 12px; border-radius: 6px;
+  background: rgba(230, 103, 103, .10); color: var(--neg-text);
+  border: 1px solid rgba(240, 141, 141, .40);
+}
+.broker-down.on { display: block; }
+
+/* ── strategy footer facts ────────────────────────────────── */
+.foot-chip {
+  display: inline-block; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .04em; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 7px; margin: 0 5px 5px 0;
+}
+
+/* ── mobile ───────────────────────────────────────────────────
+ * The stylesheet had exactly one media query in it, for widening a
+ * two-column grid on tablets. Everything else was sized for a desktop
+ * and merely happened to fit a phone. These are the places it does not.
+ */
+@media (max-width: 460px) {
+  :root { --pad: 12px; }
+
+  /* Three instance chips and three tabs do not fit 360px, and a wrapped
+     tab row shoves the whole page down and breaks the underline. Let
+     them scroll sideways instead of wrapping, with no visible bar. */
+  .book-strip, .tabs {
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .book-strip::-webkit-scrollbar, .tabs::-webkit-scrollbar { display: none; }
+  .bchip, .tab { flex: none; white-space: nowrap; }
+
+  /* Tap targets. 44px is the accessibility floor; the tabs were 32 and
+     the instance chips 27, which is why switching accounts on a phone
+     takes two goes. */
+  .tab { padding: 12px 13px 13px; min-height: 44px; }
+  .bchip {
+    display: inline-flex; align-items: center;
+    min-height: 38px; padding: 8px 13px;
+  }
+  .btn-pause { min-height: 42px; padding: 9px 15px; }
+  .seg button { min-height: 34px; padding: 7px 11px; }
+
+  /* The header must survive a long instance name without pushing the
+     pause button off the edge. */
+  .topbar { gap: 8px; }
+  .brand { overflow: hidden; }
+  .brand-name { overflow: hidden; text-overflow: ellipsis; }
+  .btn-pause { flex: none; }
+
+  /* Charts at 240px eat two thirds of a phone screen. */
+  .chart-wrap { height: 200px; }
+  .chart-wrap.sm { height: 150px; }
+
+  /* The donut left ~150px for its legend, so every legend label wrapped
+     onto three lines next to a mostly-empty circle. */
+  .donut-row { gap: 14px; }
+  .donut-wrap { width: 96px; height: 96px; }
+  .donut-big { font-size: 18px; }
+  #donut circle { stroke-width: 14; }
+
+  .kpi-value { font-size: 23px; }
+  .kpi-spark { width: 74px; height: 34px; }
+  .card { padding: 12px; }
+
+  /* Long values in the Tools key/value rows were squeezing their labels
+     to one character per line rather than wrapping. */
+  .kv .row { flex-wrap: wrap; gap: 2px 10px; }
+  .kv .row span:last-child { overflow-wrap: anywhere; }
+}
+
+/* Small phones: stop forcing two columns into 300-odd pixels. */
+@media (max-width: 361px) {
+  .kpi-grid, .chip-grid, .btn-row { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 21px; }
+}
+
+/* charts unavailable — stated, not shimmered */
+.chart-none {
+  font-family: var(--mono); font-size: 11px; line-height: 1.6;
+  color: var(--muted); text-align: center; padding: 0 14px;
+  align-self: center;
+}
