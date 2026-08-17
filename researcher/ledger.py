@@ -81,6 +81,19 @@ class Ledger:
             except Exception:                                 # noqa: BLE001
                 self.d["halts"].append(
                     {"t": _now(), "why": "ledger unreadable, restarted"})
+        # COMPACT IMMEDIATELY, before anything else allocates. Loading a
+        # large ledger is the high-water mark of this process's memory
+        # and the reason it was being OOM-killed on restart; shrinking
+        # here means the peak is paid once rather than held forever.
+        self._last_save = 0.0
+        self._saved_trials = int(self.d.get("trials", 0))
+        try:
+            n = self._compact()
+            if n:
+                print(f"[ledger] compacted {n:,} old entries "
+                      f"({len(self.d['tested']):,} total)", flush=True)
+        except Exception:                                     # noqa: BLE001
+            pass
         # seed the live mirror so the console shows the real total the
         # instant the process comes back, not 0 until the first trial
         LIVE_TRIALS["n"] = max(LIVE_TRIALS["n"], int(self.d["trials"]))
@@ -136,10 +149,16 @@ class Ledger:
         return fp
 
     def confirm(self, hyp, result, note=""):
-        """Record something that survived the WHOLE gauntlet."""
+        """Record something that survived the WHOLE gauntlet.
+
+        `return fp` here referenced a name that does not exist in this
+        scope -- a NameError primed to fire on the single most important
+        event this system can produce, and unreachable until then.
+        """
+        fp = self.fingerprint(hyp)
         with self._lock:
             self.d["survivors"].append(
-                {"t": _now(), "fp": self.fingerprint(hyp), "hyp": hyp,
+                {"t": _now(), "fp": fp, "hyp": hyp,
                  "result": result, "note": note})
             self._save(force=True)      # a survivor is never lost to a throttle
         return fp
@@ -233,6 +252,8 @@ class Ledger:
 
     def code_stale(self, rec):
         """Measured by an engine version whose controls have since changed."""
+        if not isinstance(rec, dict) or rec.get("stub"):
+            return False
         return int(rec.get("code_epoch") or 1) < self.CODE_EPOCH
 
     def outdated(self, rec):
@@ -245,6 +266,8 @@ class Ledger:
         Scoped by tier: an entry is only stale if one of the epochs it
         predates actually touched the tape it was measured on.
         """
+        if not isinstance(rec, dict) or rec.get("stub"):
+            return False        # a stub carries no result to be stale
         e = int(rec.get("epoch") or 1)
         if e >= self.DATA_EPOCH:
             return False
@@ -260,7 +283,7 @@ class Ledger:
         return False
 
     def epoch_summary(self):
-        n = sum(1 for r in self.d["tested"].values() if self.stale(r))
+        n = sum(1 for r in self.d["tested"].values() if self.stale(r))  # noqa
         return {"epoch": self.DATA_EPOCH, "stale_entries": n}
 
     def kill(self, hyp, reasons):
@@ -275,7 +298,7 @@ class Ledger:
         """
         with self._lock:
             rec = self.d["tested"].get(self.fingerprint(hyp))
-            if rec is not None:
+            if isinstance(rec, dict) and not rec.get("stub"):
                 rec["killed"] = {"t": _now(), "reasons": list(reasons)[:6]}
 
     def near_misses(self, k=20):
@@ -303,6 +326,8 @@ class Ledger:
         def gather(allow_stale, allow_killed):
             rows = []
             for fp, rec in self.d["tested"].items():
+                if not isinstance(rec, dict) or rec.get("stub"):
+                    continue        # compacted away; nothing to rank
                 killed = bool(rec.get("killed"))
                 if killed and not allow_killed:
                     continue      # failed a control; not a near miss
@@ -399,9 +424,13 @@ class Ledger:
     # throttle to at most one write per SAVE_EVERY_S unless forced, and
     # compact the oldest entries down to the fields that are actually
     # needed once a hypothesis is old and unremarkable.
-    SAVE_EVERY_S = float(os.environ.get("LEDGER_SAVE_S", "120"))
+    SAVE_EVERY_S = float(os.environ.get("LEDGER_SAVE_S", "60"))
+    # Also flush after this many new trials, so a crash costs bounded
+    # WORK rather than bounded time. A throttle alone means a process
+    # that dies every 90s never persists anything.
+    SAVE_EVERY_N = int(os.environ.get("LEDGER_SAVE_N", "1500"))
     # entries kept in full; older ones are reduced to a stub
-    KEEP_FULL = int(os.environ.get("LEDGER_KEEP_FULL", "60000"))
+    KEEP_FULL = int(os.environ.get("LEDGER_KEEP_FULL", "15000"))
 
     def save(self, force=False):
         with self._lock:
@@ -409,8 +438,10 @@ class Ledger:
 
     def _save(self, force=False):
         now_s = time.time()
-        if not force and (now_s - getattr(self, "_last_save", 0.0)
-                          < self.SAVE_EVERY_S):
+        due_time = now_s - self._last_save >= self.SAVE_EVERY_S
+        due_work = (self.d["trials"] - self._saved_trials
+                    >= self.SAVE_EVERY_N)
+        if not (force or due_time or due_work):
             return False
         self._compact()
         tmp = self.path + ".tmp"
@@ -418,38 +449,50 @@ class Ledger:
             json.dump(self.d, fh, separators=(",", ":"))
         os.replace(tmp, self.path)
         self._last_save = time.time()
+        self._saved_trials = self.d["trials"]
         self.save_secs = round(self._last_save - now_s, 2)
         return True
 
     def _compact(self):
-        """Reduce old, unremarkable entries to a stub.
+        """Reduce old, unremarkable entries to a one-key stub.
+
+        THIS IS A MEMORY FIX, NOT A TIDINESS FIX. Measured on a real
+        ledger: the average full record is 3,462 bytes of Python
+        objects, so 212,673 of them is 736 MB resident -- before
+        json.load's own transient copy during startup. On a small
+        container that is an OOM kill, and an OOM kill looks exactly
+        like what was on screen: the round counter back to 1 every few
+        minutes, the trial count sliding backwards to the last save, and
+        a learning graph that climbs and then falls off a cliff.
 
         The ledger must remember every fingerprint forever -- that is
-        what stops a hypothesis being retested and the bar being gamed.
-        It does NOT have to remember the full hypothesis and result of
-        the 150,000th losing cell. Anything killed, anything a human
-        might still want to see on the leaderboard, and everything
-        recent is kept whole; the rest keeps only what `seen`, the trial
-        count and the family stats need.
+        what stops a hypothesis being retested and the rising bar being
+        gamed. It does NOT need the full hypothesis and result of the
+        150,000th losing cell. A stub is 265 bytes, so the same ledger
+        costs 56 MB instead of 736 MB.
+
+        Kept whole: anything killed, anything with |z| >= 2 (it could
+        still reach the leaderboard or be re-checked), and everything
+        recent.
         """
         t = self.d["tested"]
         excess = len(t) - self.KEEP_FULL
         if excess <= 0:
             return 0
         done = 0
-        for fp, rec in t.items():
+        for fp, rec in t.items():          # insertion order: oldest first
             if done >= excess:
                 break
-            if "hyp" not in rec or rec.get("killed"):
+            if not isinstance(rec, dict) or "hyp" not in rec:
+                continue                   # already a stub
+            if rec.get("killed"):
                 continue
             r = rec.get("result") or {}
-            # keep anything that could still be shown or re-checked
             if abs(float(r.get("z", 0) or 0)) >= 2.0:
                 continue
-            t[fp] = {"t": rec.get("t"), "stub": True,
-                     "epoch": rec.get("epoch"),
-                     "code_epoch": rec.get("code_epoch"),
-                     "family": rec.get("family")}
+            # Replacing a value for an existing key does not resize the
+            # dict, so mutating during iteration is safe here.
+            t[fp] = {"stub": 1}
             done += 1
         return done
 

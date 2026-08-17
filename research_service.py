@@ -224,6 +224,33 @@ def research_loop():
                                "error": str(exc)[:200]}
 
     STATE["boot"] = now()
+    # RESTART TALLY. An OOM kill is not a Python exception -- the process
+    # simply stops -- so the crash handler below never sees it and the
+    # console reports a healthy service that happens to keep starting
+    # over. Every boot is appended here, so "12 restarts in the last
+    # hour" is visible even when nothing ever raised.
+    try:
+        bl = RDIR / "boots.log"
+        bl.open("a").write(now() + "\n")
+        lines = [x.strip() for x in bl.read_text().splitlines() if x.strip()]
+        if len(lines) > 400:
+            bl.write_text("\n".join(lines[-400:]) + "\n")
+        cut = time.time() - 3600
+        recent = 0
+        for x in lines[-400:]:
+            try:
+                if datetime.fromisoformat(x).timestamp() > cut:
+                    recent += 1
+            except Exception:                                 # noqa: BLE001
+                pass
+        STATE["boots_total"] = len(lines)
+        STATE["boots_last_hour"] = recent
+        if recent > 3:
+            print(f"[RESTART LOOP] {recent} boots in the last hour — the "
+                  f"process is being killed, most likely out of memory.",
+                  flush=True)
+    except Exception:                                         # noqa: BLE001
+        pass
     # LET THE SERVER BIND FIRST. This thread immediately reads 24 CSVs
     # and a 1.59M-row parquet, and pandas holds the GIL in chunks while
     # it does. Racing that against Flask's first bind is how a perfectly
@@ -248,6 +275,21 @@ def research_loop():
             with _lock:
                 STATE["error"] = {"t": now(), "tb": tb}
                 STATE["alive"] = False
+                # A CRASH THAT ERASES ITSELF IS A CRASH YOU CANNOT FIX.
+                # The old code cleared STATE["error"] after 60s, so a
+                # process restarting every couple of minutes showed
+                # "ALL GOOD" almost all the time -- while the round
+                # counter reset to 1 and the trial count slid backwards.
+                # The tally is permanent and lives on the volume.
+                STATE.setdefault("crashes", []).append(
+                    {"t": now(), "tb": tb[-600:]})
+                STATE["crashes"] = STATE["crashes"][-20:]
+                STATE["crash_count"] = STATE.get("crash_count", 0) + 1
+            try:
+                (RDIR / "crashes.log").open("a").write(
+                    f"\n===== {now()}\n{tb}\n")
+            except Exception:                                 # noqa: BLE001
+                pass
             print("[research crashed]\n" + tb, flush=True)
             time.sleep(60)
             with _lock:
@@ -261,6 +303,22 @@ def read_json(p, default=None):
         return json.load(open(p))
     except Exception:                                         # noqa: BLE001
         return default
+
+
+def rss_mb():
+    """Resident memory, from /proc — no psutil dependency.
+
+    Worth showing because the failure it diagnoses is invisible
+    otherwise: a container killed for exceeding its memory limit leaves
+    no traceback, no log line and no error state, just a service that
+    keeps starting again.
+    """
+    try:
+        with open("/proc/self/statm") as fh:
+            pages = int(fh.read().split()[1])
+        return round(pages * os.sysconf("SC_PAGE_SIZE") / 1e6, 1)
+    except Exception:                                         # noqa: BLE001
+        return None
 
 
 @app.get("/api/live")
@@ -289,6 +347,8 @@ def api_live():
         pass
     if lv.get("stage_t"):
         lv["stage_age_s"] = round(time.time() - lv["stage_t"], 1)
+    lv["rss_mb"] = rss_mb()
+    lv["boots_last_hour"] = STATE.get("boots_last_hour")
     import math
     n = max(lv.get("trials", 0), 1)
     lv["bar"] = round(max(3.0, math.sqrt(2.0 * math.log(n)) + 0.8), 2)
@@ -389,6 +449,11 @@ def api_state():
         "error": err,
         "storage": STATE["storage"],
         "state_loss": STATE["state_loss"],
+        "restarts": {"last_hour": STATE.get("boots_last_hour"),
+                     "total": STATE.get("boots_total"),
+                     "crashes": STATE.get("crash_count", 0),
+                     "last_tb": (STATE.get("crashes") or [{}])[-1].get("tb")},
+        "rss_mb": rss_mb(),
         "tiers": cached_tiers(),
         "backup": STATE["backup"],
         "adaptations": adaptations(),

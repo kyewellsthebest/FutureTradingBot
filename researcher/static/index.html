@@ -312,6 +312,18 @@ async function tick(){
     <p>${esc(s.state_loss.note)}</p></div>`;
   if (s.storage&&s.storage.warning) a+=`<div class="card alert">
     <h2>storage not safe</h2><p>${esc(s.storage.warning)}</p></div>`;
+  // A RESTART LOOP IS THE ONE FAILURE THAT LOOKS HEALTHY. Nothing
+  // raises, so no error is set; the service simply keeps starting over,
+  // the round counter goes back to 1 and the trial count slides
+  // backwards to the last save. It has to be shouted about.
+  const R = s.restarts || {};
+  if (R.last_hour > 3) a+=`<div class="card alert">
+    <h2>⚠️ it keeps restarting — ${R.last_hour} times in the last hour</h2>
+    <p>The process is being killed and started again, so each round
+    begins from zero and any work since the last save is lost. That is
+    why the round number keeps returning to <b>1</b> and the count goes
+    <b>down</b>. Almost always the container running out of memory
+    ${s.rss_mb ? `(currently using <b>${s.rss_mb} MB</b>)` : ""}.</p></div>`;
   if (s.error) a+=`<div class="card alert"><h2>it crashed — retrying</h2>
     <p>Restarting itself. If this keeps happening, send Claude the
     diagnostic bundle from the Check tab.</p></div>`;

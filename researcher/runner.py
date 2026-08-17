@@ -219,7 +219,7 @@ def history_point(secs=None):
                 trials = led.d["trials"]
                 distinct = len(led.d["tested"])
                 nkilled = sum(1 for r in led.d["tested"].values()
-                              if r.get("killed"))
+                              if isinstance(r, dict) and r.get("killed"))
             row = {
                 "t": now(), "cycle": _HIST_CTX.get("cycle", 0),
                 "trials": trials,
@@ -1057,6 +1057,8 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
         if time.time() - t0 > budget_s:
             break
         rec = led.d["tested"].get(row["fp"]) or {}
+        if not isinstance(rec, dict) or rec.get("stub"):
+            continue
         r = rec.get("result") or {}
         # TWO INDEPENDENT JOBS, and conflating them meant neither ran.
         # The first version skipped any row that already had metrics --
