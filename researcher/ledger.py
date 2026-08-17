@@ -153,6 +153,21 @@ class Ledger:
         boost = 1.0 + max(0.0, mean_edge) * 4.0
         return max(0.05, decay * boost)
 
+    def kill(self, hyp, reasons):
+        """Record that a candidate FAILED the gauntlet, permanently.
+
+        Without this the ledger only knows a hypothesis cleared the bar,
+        and the leaderboard keeps showing it forever -- including
+        artifacts found before a control existed. The deployed console
+        was ranking "after close_low, go long" first at 97% win and RR
+        6.06, a pure order-statistic artifact, on the same screen as
+        "0 strategies found".
+        """
+        with self._lock:
+            rec = self.d["tested"].get(self.fingerprint(hyp))
+            if rec is not None:
+                rec["killed"] = {"t": _now(), "reasons": list(reasons)[:6]}
+
     def near_misses(self, k=20):
         """The best things found, whether or not they passed.
 
@@ -170,6 +185,8 @@ class Ledger:
         # means a positive net and a z approaching the bar.
         rows = []
         for fp, rec in self.d["tested"].items():
+            if rec.get("killed"):
+                continue          # failed a control; not a near miss
             r = rec.get("result") or {}
             z = float(r.get("z", 0) or 0)
             net = float(r.get("net", 0) or 0)
@@ -187,6 +204,7 @@ class Ledger:
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),
                         "per_week": r.get("per_week"),
                         "bar_at_test": rec.get("bar_at_test"),
+                        "checked": bool(rec.get("checked")),
                         "passed": bool(r.get("z", 0) >= (rec.get("bar_at_test") or 99)
                                        and r.get("net", 0) > 0)})
         return out

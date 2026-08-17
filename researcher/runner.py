@@ -882,8 +882,17 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
     for row in led.near_misses(k):
         if time.time() - t0 > budget_s:
             break
-        r = (led.d["tested"].get(row["fp"]) or {}).get("result") or {}
-        if not r or r.get("win_rate") is not None:
+        rec = led.d["tested"].get(row["fp"]) or {}
+        r = rec.get("result") or {}
+        # TWO INDEPENDENT JOBS, and conflating them meant neither ran.
+        # The first version skipped any row that already had metrics --
+        # which also skipped the control re-check on exactly the rows
+        # that needed it, since a freshly scored artifact has full
+        # metrics and has never been re-checked.
+        need_metrics = bool(r) and r.get("win_rate") is None
+        need_check = bool(r) and not rec.get("checked") \
+            and not rec.get("killed")
+        if not (need_metrics or need_check):
             continue
         h = dict(row["hyp"] or {})
         market = h.get("market", "")
@@ -919,10 +928,30 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
             continue
         if not fresh:
             continue
-        for key in ("win_rate", "rr", "per_week", "gz",
-                    "avg_win", "avg_loss"):
-            if fresh.get(key) is not None:
-                r[key] = fresh[key]
+        if need_metrics:
+            for key in ("win_rate", "rr", "per_week", "gz",
+                        "avg_win", "avg_loss"):
+                if fresh.get(key) is not None:
+                    r[key] = fresh[key]
+
+        # RE-CHECK AGAINST CONTROLS THAT DID NOT EXIST WHEN IT WAS
+        # SCORED. The ledger is permanent and lives on a volume, so an
+        # artifact found before a control was written stays at the top
+        # of the leaderboard forever unless something goes back for it.
+        try:
+            rd = evaluate(srch, h, tv, cost, feats, bs, delay=1)
+            keep = (rd["net"] / fresh["net"]) if (rd and fresh["net"]) else 0
+            if not rd or rd["net"] <= 0 or keep < 0.5:
+                led.kill(h, [f"re-checked against the delay control: "
+                             f"${fresh['net']:+.2f} becomes "
+                             f"${(rd or {}).get('net', 0):+.2f} when "
+                             f"entered one bar later ({keep:.0%} kept). "
+                             f"This was scored before that control "
+                             f"existed."])
+            else:
+                rec["checked"] = True
+        except Exception:                                     # noqa: BLE001
+            pass
         n += 1
     return n
 
@@ -959,6 +988,8 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
                     "bounce inside the signal bar's own print, not a "
                     "prediction")
             mem.note(fam, "wrong_sign", rd)
+            led.kill(h, ["entering one bar later destroys it -- bid-ask "
+                         "bounce inside the signal bar's own print"])
             continue
 
         # 2. the empirical bar, once there is calibration to raise it by
@@ -1189,12 +1220,12 @@ def main():
                           after=f"+{hz['h_star']}s (deduced)",
                           why=hz["why"])
             elif hz.get("fits"):
+                # hz["why"] already explains why it is out of reach --
+                # appending a second sentence saying the same thing
+                # produced the doubled paragraph on the console.
                 mem.adapt("closed", fam, before="searching",
                           after=f"crossing at {IN._dur(hz['h_star'])}",
-                          why=(hz["why"] + " That is beyond any horizon "
-                               "this account can hold, so the family is "
-                               "closed for a reason rather than "
-                               "abandoned for a shrug."))
+                          why=hz["why"])
         say("inferred", horizons=len(ins.get("horizons") or {}),
             reachable=sum(1 for h in (ins.get("horizons") or {}).values()
                           if h.get("fits") and h.get("reachable")),

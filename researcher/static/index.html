@@ -183,7 +183,10 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
       <h2><span class="e">🥇</span>leaderboard — closest it has come</h2>
       <div id="near"></div>
       <div class="mini">
-        ⚠️ <b>None of these passed.</b> The bar rises as the search grows, so
+        ⚠️ <b>None of these passed.</b> Rows marked ⚠️ were strong enough on
+        paper and then <u>killed by a control</u> — usually the one-bar delay
+        test, which removes anything whose edge lives inside a single price
+        print and therefore cannot be traded.<br><br> The bar rises as the search grows, so
         the best of tens of thousands of tries is <u>expected</u> to look good —
         that is exactly why it has to clear a moving target rather than a fixed
         one.<br><br>
@@ -341,9 +344,26 @@ async function tick(){
              + 'font-family:-apple-system,system-ui,sans-serif">measuring…</span>';
   const pct = v => v==null?pend:(v*100).toFixed(0)+'%';
   $('#near').innerHTML = nm.length ? nm.slice(0,10).map((x,i)=>{
-    const prog = x.bar ? Math.max(0,Math.min(100, 100*(x.z||0)/x.bar)) : 0;
+    const z = Number(x.z||0), bar = Number(x.bar||0);
+    const prog = bar ? Math.max(0, Math.min(100, 100*z/bar)) : 0;
+    // z ABOVE the bar means it cleared the strength test and was then
+    // killed by a control -- the earlier version rendered that as
+    // "88.15 of the 5.72 it needed, 100% of the way", which reads as a
+    // winner on the same screen that says zero strategies found.
+    const over = z >= bar && bar > 0;
+    const foot = over
+      ? `<div class="gap">⚠️ <b>Strong enough (${z.toFixed(2)} vs
+           ${bar.toFixed(2)}) but killed by a control.</b> Almost always
+           the one-bar delay test: the edge lives inside a single price
+           print, so it cannot be traded.
+           &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>`
+      : `<div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
+         <div class="gap"><b>${z.toFixed(2)}</b> of the
+           <b>${bar.toFixed(2)}</b> strength it needed
+           &nbsp;·&nbsp; ${prog.toFixed(0)}% of the way
+           &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>`;
     return `<div class="lb">
-      <div class="rk">${MEDAL[i]||''}</div>
+      <div class="rk">${over ? '⚠️' : (MEDAL[i]||'')}</div>
       <div class="bd">
         <div class="nm">${esc(x.what)}</div>
         <div class="mt">
@@ -357,11 +377,7 @@ async function tick(){
           <div><div class="l">⚖️ risk / reward</div>
                <div class="v">${x.rr==null?pend:Number(x.rr).toFixed(2)}</div></div>
         </div>
-        <div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
-        <div class="gap"><b>${Number(x.z||0).toFixed(2)}</b> of the
-          <b>${Number(x.bar||0).toFixed(2)}</b> strength it needed
-          &nbsp;·&nbsp; ${prog.toFixed(0)}% of the way
-          &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>
+        ${foot}
       </div></div>`;}).join('')
     : '<div class="empty">nothing scored yet</div>';
 
