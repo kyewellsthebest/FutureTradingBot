@@ -49,6 +49,7 @@ opposite of what an unbounded parameter search produces.
 import gc
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 import sys
 import time
 import traceback
@@ -64,6 +65,8 @@ from researcher.features import FeatureLibrary  # noqa: E402
 from researcher.memory import Memory, classify  # noqa: E402
 from researcher import data_tiers as DT         # noqa: E402
 from researcher import insight as IN            # noqa: E402
+from researcher import context as CTX           # noqa: E402
+from researcher import validate as VAL          # noqa: E402
 
 ROOT = os.environ.get("M2_REPO", os.getcwd())
 RDIR = os.environ.get("RESEARCH_DIR", os.path.join(ROOT, "data", "research"))
@@ -141,6 +144,9 @@ FEAT_FLOOR = float(os.environ.get("FEAT_FLOOR", "4.10"))
 # sweeps (8 contracts x 2 resolutions... plus 15s and 300s) and six book
 # sweeps before the deep space repeats -- and the feature library has
 # grown a new generation on every one of them by then.
+_SHARED = __import__("threading").Lock()
+WORKERS = int(os.environ.get("RESEARCH_WORKERS",
+                             str(max(1, (os.cpu_count() or 2) - 1))))
 T2_RES = [60, 15, 300]
 T3_RES = [5, 1, 30]
 
@@ -190,6 +196,7 @@ def _conds(d):
     k = (id(d), len(d))
     if k in _CONDS:
         return _CONDS[k]
+    extern = _EXTERN.get(k, {})
     idx = d.index
     c = d["close"]
     rv = c.diff().abs().rolling(120, min_periods=30).mean()
@@ -213,10 +220,39 @@ def _conds(d):
            "lo_vol": (rv <= rvmed).values & ok,
            "up_day": (dayret > 0).values,
            "dn_day": (dayret <= 0).values}
+    # EXTERNAL STATE, merged in. Every condition above is derived from
+    # the same price series being predicted, which is a filter with no
+    # outside information in it. These are outside information, and
+    # specifically information about CONSTRAINT -- who is hedged which
+    # way, who is crowded, when cash is scarce.
+    out.update(extern)
     if len(_CONDS) > 40:
         _CONDS.clear()
     _CONDS[k] = out
     return out
+
+
+_EXTERN = {}
+
+
+def attach_context(sym, d):
+    """Load external regime state for a tape and register its masks.
+
+    Returns the condition names now available. Failure is non-fatal and
+    LOUD: a missing context source means fewer conditions, and silently
+    having fewer conditions looks identical to having tested them.
+    """
+    try:
+        ctx = CTX.build(str(sym).split("@")[0], d.index)
+        m = CTX.masks(ctx) if ctx is not None else {}
+    except Exception as exc:                                  # noqa: BLE001
+        say("context_failed", market=sym, err=str(exc)[:160])
+        return []
+    if not m:
+        return []
+    _EXTERN[(id(d), len(d))] = m
+    _CONDS.pop((id(d), len(d)), None)
+    return sorted(m)
 
 
 # ------------------------------------------------------------ evaluation
@@ -317,9 +353,35 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     eff = max(len(net) / ov, 2.0)
     se = net.std(ddof=1) / np.sqrt(eff)
     z = float(net.mean() / (se + 1e-12))
-    return {"z": round(z, 3), "edge": round(float(pnl.mean() * tv), 4),
+
+    # GROSS z, for the empirical null. The net z is dominated by the
+    # cost: almost every cell loses close to a full round trip, so |z|
+    # of net runs to 20+ and an "empirical null" built from it would
+    # measure how reliably trading costs money, not how much noise the
+    # search manufactures. Under a true null the GROSS mean is zero, so
+    # gross z is the quantity whose distribution is the null.
+    gross = pnl * tv
+    gse = gross.std(ddof=1) / np.sqrt(eff)
+    gz = float(gross.mean() / (gse + 1e-12))
+
+    # Trade economics, for the leaderboard. Reported on NET, because
+    # that is what a trade actually returns.
+    wins = net[net > 0]
+    losses = net[net < 0]
+    win_rate = float(len(wins) / len(net)) if len(net) else 0.0
+    avg_w = float(wins.mean()) if len(wins) else 0.0
+    avg_l = float(-losses.mean()) if len(losses) else 0.0
+    rr = float(avg_w / avg_l) if avg_l > 0 else 0.0
+    span_days = max((idx[-1] - idx[0]).total_seconds() / 86400.0, 1.0)
+    per_week = float(len(net) / (span_days / 7.0))
+
+    return {"z": round(z, 3), "gz": round(gz, 3),
+            "edge": round(float(pnl.mean() * tv), 4),
             "net": round(float(net.mean()), 4), "n": int(len(net)),
-            "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay}
+            "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
+            "win_rate": round(win_rate, 4), "rr": round(rr, 3),
+            "per_week": round(per_week, 2),
+            "avg_win": round(avg_w, 3), "avg_loss": round(avg_l, 3)}
 
 
 def selftest(d, tv=None, cost=None, bar_s=None):
@@ -376,6 +438,58 @@ def feats_of(libs, sym, tier, name, tape):
         return None
 
 
+def _pnl_series(d, h, tv, cost, feats, bar_s):
+    """Per-trade net P&L in chronological order, for stability testing.
+
+    Recomputed rather than returned from evaluate() so the ordering is
+    guaranteed to be chronological -- period stability split on a
+    reordered series would silently test nothing.
+    """
+    try:
+        r = evaluate(d, h, tv, cost, feats, bar_s)
+        if not r:
+            return None
+        import numpy as _np
+        idx = d.index
+        if h.get("kind") == "flow":
+            x = HY.flow_series(d, h["mech"])
+        elif h.get("kind") == "feature":
+            x = (feats or {}).get(h["feat"])
+        else:
+            x = None
+        bars = max(int(round(h["hold_s"] / bar_s)), 1)
+        c = d["close"]
+        fwd = (c.shift(-bars) - c)
+        same = idx.normalize().values == \
+            pd.Series(idx).shift(-bars).dt.normalize().values
+        fwd = fwd.where(same).values
+        if x is not None:
+            okx = _np.isfinite(x)
+            cut = _np.nanpercentile(x[okx], 80 if h["side"] == "hi" else 20)
+            m = ((x >= cut) if h["side"] == "hi" else (x <= cut)) & okx
+            side = _np.full(len(d), 1.0 if h.get("ls") == "long" else -1.0)
+        else:
+            if h["dim"] == "minute_of_day":
+                hh, mm = (int(v) for v in str(h["bucket"]).split(":"))
+                m = (idx.hour == hh) & (idx.minute == mm)
+            elif h["dim"] == "day_of_month":
+                m = idx.day == int(h["bucket"])
+            else:
+                m = idx.dayofweek == int(h["bucket"])
+            m = _np.asarray(m)
+            if h["cond"] != "none":
+                m = m & _conds(d)[h["cond"]]
+            sgn = _np.sign(c.diff().fillna(0.0)).values
+            side = sgn if h["dir"] == "with" else -sgn
+        raw = side * fwd
+        sel = _np.flatnonzero(m & _np.isfinite(raw))
+        if len(sel) < MIN_TRADES:
+            return None
+        return raw[sel] * tv - cost
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
 def fwd_for_features(d, bars=1):
     y = (d["close"].shift(-bars) - d["close"]).values
     same = d.index.normalize().values == \
@@ -400,7 +514,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
                     base_cols=base_cols)
     # every feature scored is a trial. Not counting them would let the
     # search buy hundreds of extra looks for free and keep the bar low.
-    led.d["trials"] += max(len(lib.scores) - before, 0)
+    led.bump(max(len(lib.scores) - before, 0))
 
     memo = {}
     feats = {}
@@ -413,12 +527,17 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
 
     # ---- layer 3: what past failures license
     fam_mult = {}
+    ctx_conds = attach_context(sym, srch)
+    if ctx_conds:
+        say("context", market=sym, tier=tier, conditions=ctx_conds)
+
     deduced = {}
     for fam in list((mem.insights().get("horizons") or {})):
         th = mem.target_horizon(fam)
         if th:
             deduced[fam] = [th]
-    hyps = HY.expand(HY.find_footprints(srch), extra_holds=deduced)
+    hyps = HY.expand(HY.find_footprints(srch), extra_holds=deduced,
+                     extra_conds=ctx_conds)
     for h in hyps:
         fam_mult.setdefault(h["_family"], mem.hold_multiplier(h["_family"]))
     for fam, mult in list(fam_mult.items()):
@@ -472,6 +591,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
 
     done = 0
     cands = []
+    allz = []
     for h in hyps:
         if os.path.exists(STOP):
             break
@@ -495,7 +615,8 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         # Gross, not net -- the whole question is where the growing
         # gross curve meets the flat cost line, and netting cost off
         # first destroys exactly that.
-        if points is not None:
+        with _SHARED:
+          if points is not None:
             # IN UNITS OF THIS MARKET'S OWN COST. Pooling raw dollars
             # across markets compares ZB's $31 tick with MNQ's $0.50
             # and then judges the pool against one of them; that is the
@@ -504,14 +625,24 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
             # itself here", and that means the same thing everywhere.
             points.setdefault(fam, []).append(
                 (h["hold_s"], r["edge"] / cost if cost > 0 else 0.0))
-        if mrows is not None:
+          if mrows is not None:
             mrows.setdefault(fam, []).append((sym, r["edge"]))
+        allz.append(r.get("gz", r["z"]))
         led.record(h, r, family=fam)
         done += 1
         if mode == "confirmed":
             cands.append((dict(h), fam, r, bar, srch, vault, bar_s))
         if done >= budget:
             break
+    # THE EMPIRICAL NULL for this sweep: what |z| the same machinery
+    # reached across every cell it scored. Candidates are judged against
+    # their own siblings, which accounts for the dependence between
+    # hypotheses that a theoretical correction cannot see.
+    null99 = VAL.empirical_null(allz)
+    if null99:
+        say("empirical_null", market=sym, tier=tier, cells=len(allz),
+            p99=round(null99, 2), theoretical_bar=round(led.bar(), 2))
+    cands = [(*c, null99, mrows) for c in cands]
     return (done, cands, kept), None
 
 
@@ -524,7 +655,7 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
     it forever. On the first real run this gate would have caught a ZB
     "confirmed" result that had already reached the vault.
     """
-    for h, fam, r, bar, srch, vault, bar_s in cands:
+    for h, fam, r, bar, srch, vault, bar_s, null99, mrows in cands:
         say("CANDIDATE", market=sym, tier=tier, z=r["z"],
             bar=round(bar, 2), net=r["net"], n=r["n"], what=HY.describe(h))
 
@@ -606,13 +737,36 @@ def main():
         cycle += 1
         t0 = time.time()
         points, mrows, vols = {}, {}, {}
-        for sym, d in data.items():
+        # PARALLEL ACROSS MARKETS. Markets are independent -- each
+        # sweep reads its own tape and writes only its own results --
+        # so the only shared state is the ledger and the memory, and
+        # both are written on the main thread after the workers return.
+        #
+        # Threads rather than processes on purpose: the work is numpy
+        # and pandas, which release the GIL for the array operations
+        # that dominate, and processes would need every tape pickled
+        # to each worker. Measured, not assumed -- see the timing in
+        # the commit.
+        syms = [s for s in data if not os.path.exists(STOP)]
+        for sym in syms:
+            vols[sym] = float(data[sym]["close"].diff().abs().median() or 0.0)
+
+        def _run(sym):
+            tv, cost = SPEC[sym]
+            try:
+                return sym, sweep(sym, data[sym], led, mem, libs, 1,
+                                  tv, cost, points=points, mrows=mrows)
+            except Exception as exc:                          # noqa: BLE001
+                return sym, (None, f"sweep crashed on {sym}: "
+                                   f"{str(exc)[:200]}")
+
+        with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+            results = list(ex.map(_run, syms))
+
+        for sym, (out, err) in results:
             if os.path.exists(STOP):
                 break
             tv, cost = SPEC[sym]
-            vols[sym] = float(d["close"].diff().abs().median() or 0.0)
-            out, err = sweep(sym, d, led, mem, libs, 1, tv, cost,
-                             points=points, mrows=mrows)
             if err:
                 led.halt(err)
                 say("HALT_selftest_failed", why=err)

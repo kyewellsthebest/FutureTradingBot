@@ -80,7 +80,7 @@ def _norm(k):
     return int(k)
 
 
-def expand(footprints, cap=4000, extra_holds=None):
+def expand(footprints, cap=4000, extra_holds=None, extra_conds=None):
     """Footprints -> concrete, testable hypotheses.
 
     `extra_holds` carries horizons the learner DEDUCED rather than
@@ -94,9 +94,10 @@ def expand(footprints, cap=4000, extra_holds=None):
         fam = f"{f['dim']}/{f['metric']}"
         holds = list(HOLDS_S) + [h for h in (extra_holds or {}).get(fam, [])
                                  if h not in HOLDS_S]
+        conds = CONDS + list(extra_conds or [])
         for d in DIRECTIONS:
             for h in holds:
-                for c in CONDS:
+                for c in conds:
                     hyps.append({
                         "kind": "footprint",
                         "dim": f["dim"], "bucket": f["bucket"],

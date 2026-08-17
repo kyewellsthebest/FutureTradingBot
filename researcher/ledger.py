@@ -32,6 +32,7 @@ import hashlib
 import json
 import math
 import os
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -45,6 +46,13 @@ def _now():
 
 class Ledger:
     def __init__(self, path=None):
+        # THREAD SAFETY. Market sweeps run in parallel and all of them
+        # write here. `self.d["trials"] += 1` is a read-modify-write, so
+        # without this lock concurrent sweeps LOSE trial increments --
+        # and a trial count that is too low makes the significance bar
+        # too low, which is the one direction of error that manufactures
+        # findings rather than hiding them.
+        self._lock = threading.RLock()
         self.path = path or DEFAULT
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         self.d = {"trials": 0, "tested": {}, "survivors": [],
@@ -81,6 +89,10 @@ class Ledger:
         return max(3.0, math.sqrt(2.0 * math.log(n)) + 0.8)
 
     def record(self, hyp, result: dict, family=None):
+        with self._lock:
+            return self._record(hyp, result, family)
+
+    def _record(self, hyp, result: dict, family=None):
         fp = self.fingerprint(hyp)
         self.d["trials"] += 1
         self.d["tested"][fp] = {
@@ -102,6 +114,10 @@ class Ledger:
         return self.fingerprint(hyp) not in self.d["vault_touches"]
 
     def touch_vault(self, hyp, result):
+        with self._lock:
+            return self._touch_vault(hyp, result)
+
+    def _touch_vault(self, hyp, result):
         fp = self.fingerprint(hyp)
         if fp in self.d["vault_touches"]:
             raise RuntimeError(
@@ -156,6 +172,8 @@ class Ledger:
                         "family": rec.get("family"),
                         "z": r.get("z"), "net": r.get("net"),
                         "gross": r.get("edge"), "n": r.get("n"),
+                        "win_rate": r.get("win_rate"), "rr": r.get("rr"),
+                        "per_week": r.get("per_week"),
                         "bar_at_test": rec.get("bar_at_test"),
                         "passed": bool(r.get("z", 0) >= (rec.get("bar_at_test") or 99)
                                        and r.get("net", 0) > 0)})
@@ -165,7 +183,16 @@ class Ledger:
         self.d["halts"].append({"t": _now(), "why": why})
         self.save()
 
+    def bump(self, n):
+        """Add n trials atomically. Feature scoring is search too."""
+        with self._lock:
+            self.d["trials"] += int(n)
+
     def save(self):
+        with self._lock:
+            return self._save()
+
+    def _save(self):
         tmp = self.path + ".tmp"
         with open(tmp, "w") as fh:
             json.dump(self.d, fh, indent=1)

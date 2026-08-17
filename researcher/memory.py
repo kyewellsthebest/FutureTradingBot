@@ -53,6 +53,7 @@ THE FAILURE MODES, and what each one licenses:
 import json
 import math
 import os
+import threading
 from datetime import datetime, timezone
 
 MODES = ["thin", "no_signal", "wrong_sign", "cost_bound", "vault_killed",
@@ -91,6 +92,8 @@ class Memory:
     """Per-family failure profiles and the system's own shrinkage."""
 
     def __init__(self, path):
+        # Same hazard as the ledger: parallel sweeps all call note().
+        self._lock = threading.RLock()
         self.path = path
         self.d = {"families": {}, "vault": [], "adaptations": [],
                   "started": _now()}
@@ -153,6 +156,10 @@ class Memory:
         # A standing change that keeps being re-applied is ONE lesson
         # with a current value, not a new lesson each time the value
         # moves. So the row updates in place.
+        with self._lock:
+            return self._adapt_locked(kind, family, before, after, why)
+
+    def _adapt_locked(self, kind, family, before, after, why):
         key = f"{kind}|{family}"
         for a in self.d["adaptations"]:
             if a["key"] == key:
@@ -180,6 +187,10 @@ class Memory:
 
     # ---------- failure profiles ----------
     def note(self, family, mode, result=None):
+        with self._lock:
+            return self._note(family, mode, result)
+
+    def _note(self, family, mode, result=None):
         f = self.d["families"].setdefault(
             family, {m: 0 for m in MODES} | {"n": 0, "best_gross": 0.0,
                                              "sum_hold": 0.0, "n_hold": 0})
@@ -300,6 +311,10 @@ class Memory:
 
     # ---------- io ----------
     def save(self):
+        with self._lock:
+            return self._save()
+
+    def _save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         tmp = self.path + ".tmp"
         with open(tmp, "w") as fh:

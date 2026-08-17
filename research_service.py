@@ -373,6 +373,8 @@ def survivors():
             "what": describe(s.get("hyp", {})),
             "market": (s.get("hyp") or {}).get("market", ""),
             "z": r.get("z"), "n": r.get("n"), "net": r.get("net"),
+            "win_rate": r.get("win_rate"), "rr": r.get("rr"),
+            "per_week": r.get("per_week"),
             "confirmed": bool(v and v.get("z", 0) > 2.0
                               and v.get("net", 0) > 0),
             "vault": v or None,
@@ -397,6 +399,8 @@ def near_misses(k=15):
                         "market": (r["hyp"] or {}).get("market", ""),
                         "family": r["family"], "z": r["z"],
                         "gross": r["gross"], "net": r["net"], "n": r["n"],
+                        "win_rate": r.get("win_rate"), "rr": r.get("rr"),
+                        "per_week": r.get("per_week"),
                         "bar": r["bar_at_test"], "passed": r["passed"]})
         return out
     except Exception:                                         # noqa: BLE001
