@@ -146,7 +146,128 @@ def from_features(kept, floor, hold_mult=1.0, cap=1200):
     return hyps
 
 
+# ---------------------------------------------------------------- flow
+# ORDER-FLOW MECHANISMS. Each one is a stated reason why price should
+# move, written down BEFORE looking, and a signed quantity that measures
+# it. This is the difference between a footprint and a mechanism: a
+# footprint says "something happens here", a mechanism says "this
+# happens because someone has to do this".
+#
+# Why it matters that the reason comes first. A clock bucket that
+# survives testing is a fact with no explanation, and facts with no
+# explanation stop being true without warning. A queue that drains
+# faster than it refills breaks for a reason that does not go away when
+# other people notice it -- somebody still has to cross the spread.
+#
+# These columns exist ONLY on the book tier. They cannot be
+# reconstructed from trades at any other resolution, which is the whole
+# reason that data was bought.
+FLOW = [
+    {"name": "queue_depletion",
+     "cols": ["depl"],
+     "expr": lambda d: d["depl"],
+     "why": "The bid queue is draining faster than the ask queue "
+            "(or the reverse). A side that is being consumed and not "
+            "replaced runs out, and price has to move to the next "
+            "level. This is mechanical, not behavioural."},
+    {"name": "flow_book_agree",
+     "cols": ["imb", "tflow"],
+     "expr": lambda d: _sgn(d["imb"]) * _sgn(d["tflow"]) * d["tflow"].abs(),
+     "why": "Signed trade flow agreeing with resting book imbalance. "
+            "Aggressive buying INTO a bid-heavy book is someone who "
+            "needs the position and is not being faded; the two "
+            "measurements disagreeing is usually noise."},
+    {"name": "liquidity_withdrawal",
+     "cols": ["spread", "adds"],
+     "expr": lambda d: d["spread"] * -_sgn(d["adds"]),
+     "why": "Spread widening while adds collapse. Market makers pull "
+            "quotes when they expect to be run over; the withdrawal "
+            "leads the move rather than following it."},
+    {"name": "add_asymmetry",
+     "cols": ["adds"],
+     "expr": lambda d: d["adds"],
+     "why": "Passive size being added to one side. Somebody willing to "
+            "show size is expressing a view they are prepared to be "
+            "filled on, which is a costlier signal than a trade."},
+    {"name": "imbalance_change",
+     "cols": ["imb"],
+     "expr": lambda d: d["imb"].diff(),
+     "why": "The CHANGE in book imbalance rather than its level. A "
+            "level is a standing state that everyone can see and price "
+            "in; the change is the new information."},
+    {"name": "flow_vs_depth",
+     "cols": ["tflow", "spread"],
+     "expr": lambda d: d["tflow"] / d["spread"].replace(0, float("nan")),
+     "why": "Trade flow relative to how thin the book is. The same "
+            "order moves a thin book further, so the impact of flow "
+            "depends on the depth it lands in."},
+]
+
+
+def _sgn(s):
+    import numpy as np
+    return np.sign(s)
+
+
+FLOW_HOLDS_S = [5, 15, 60, 300]
+
+
+def from_flow(available, hold_mult=1.0, cap=600):
+    """Order-flow mechanisms -> hypotheses.
+
+    Holds are SHORT here on purpose. A queue imbalance is consumed in
+    seconds; asking whether it predicts the next hour is asking a
+    different question about a different thing, and the answer would be
+    no for reasons that say nothing about the mechanism.
+
+    Both directions are generated, as everywhere else. The mechanism
+    supplies a reason to look, never the sign -- picking the sign that
+    looked better in the search set is fitting the sign, which is the
+    most common way a backtest manufactures an edge.
+    """
+    hyps = []
+    holds = [max(int(h * hold_mult), 1) for h in FLOW_HOLDS_S]
+    for m in FLOW:
+        if not all(c in available for c in m["cols"]):
+            continue
+        for side in SIDES:
+            for ls in LONGSHORT:
+                for h in holds:
+                    hyps.append({
+                        "kind": "flow", "mech": m["name"], "side": side,
+                        "ls": ls, "hold_s": h,
+                        "_family": f"flow/{m['name']}",
+                    })
+                    if len(hyps) >= cap:
+                        return hyps
+    return hyps
+
+
+def flow_series(d, mech):
+    """Evaluate a named mechanism on a book tape."""
+    for m in FLOW:
+        if m["name"] == mech:
+            if not all(c in d.columns for c in m["cols"]):
+                return None
+            try:
+                return m["expr"](d).values.astype(float)
+            except Exception:                                 # noqa: BLE001
+                return None
+    return None
+
+
+def flow_why(mech):
+    for m in FLOW:
+        if m["name"] == mech:
+            return m["why"]
+    return ""
+
+
 def describe(h) -> str:
+    if h.get("kind") == "flow":
+        q = "high" if h["side"] == "hi" else "low"
+        return (f"when {h['mech'].replace('_', ' ')} is {q}, go "
+                f"{h['ls']}, hold {h['hold_s']}s")
     if h.get("kind") == "feature":
         q = "top" if h["side"] == "hi" else "bottom"
         return (f"when {h['feat']} is in its {q} quintile, go "

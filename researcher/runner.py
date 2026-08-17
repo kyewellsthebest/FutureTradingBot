@@ -218,8 +218,11 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     bar_s = bars_per(d) if bar_s is None else bar_s
     idx = d.index
 
-    if h.get("kind") == "feature":
-        x = feats.get(h["feat"]) if feats else None
+    if h.get("kind") in ("feature", "flow"):
+        if h["kind"] == "flow":
+            x = HY.flow_series(d, h["mech"])
+        else:
+            x = feats.get(h["feat"]) if feats else None
         if x is None:
             return None
         ok = np.isfinite(x)
@@ -396,6 +399,18 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
                       before=f"{HY.HOLDS_S}s",
                       after=f"{[int(x * mult) for x in HY.HOLDS_S]}s",
                       why=mem.lesson(fam)[0])
+    # ORDER-FLOW MECHANISMS, where the columns exist. These are the only
+    # hypotheses in the system with a reason stated before the test --
+    # everything else is a footprint, which is a place a reason might
+    # have left a mark.
+    flow_cols = set(srch.columns)
+    if {"imb", "depl", "tflow"} & flow_cols:
+        fh = HY.from_flow(flow_cols,
+                          mem.hold_multiplier("flow/queue_depletion"))
+        hyps += fh
+        say("flow_hypotheses", market=sym, tier=tier, n=len(fh),
+            mechanisms=sorted({h["mech"] for h in fh}))
+
     fmult = mem.hold_multiplier("feature/d1")
     if fmult != 1.0:
         mem.adapt("hold", "feature/d1",
