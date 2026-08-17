@@ -48,6 +48,8 @@ from pathlib import Path
 
 from flask import Flask, jsonify, send_from_directory
 
+from researcher.backup import Backup
+
 ROOT = Path(__file__).resolve().parent
 os.environ.setdefault("M2_REPO", str(ROOT))
 
@@ -75,9 +77,16 @@ STATE = {
     "error": None,
     "storage": {"path": str(RDIR), "durable": False, "warning": None},
     "state_loss": None,
+    "backup": {"mode": "off"},
 }
 FEED = deque(maxlen=400)
 _lock = threading.Lock()
+
+# Durability, belt and braces. The volume is the fast path; GitHub is the
+# recovery path and works even when the volume was never attached. Either
+# alone is enough to keep the trial count honest; neither is a silent
+# failure, because the console reports both.
+BACKUP = Backup(RDIR)
 
 
 def now():
@@ -161,6 +170,19 @@ def check_state_loss(trials):
             pass
 
 
+def push_backup():
+    """Save state to GitHub after each cycle. Never fatal."""
+    if not BACKUP.enabled:
+        return
+    try:
+        r = BACKUP.push()
+        STATE["backup"] = dict(STATE.get("backup") or {},
+                               mode="github", last_push=r)
+    except Exception as exc:                                  # noqa: BLE001
+        STATE["backup"] = dict(STATE.get("backup") or {},
+                               mode="github", error=str(exc)[:200])
+
+
 # ------------------------------------------------------------ the search
 def research_loop():
     """Run the searcher forever, in-process, capturing its event feed."""
@@ -180,11 +202,27 @@ def research_loop():
             STATE["last_event"] = line
             if msg == "cycle_done":
                 STATE["cycle"] = kw.get("cycle", STATE["cycle"])
+                push_backup()
             if "trials" in kw:
                 check_state_loss(int(kw["trials"]))
         return _say(msg, **kw)
 
     R.say = say
+
+    # RECOVERY BEFORE SEARCH. If the volume is missing or was wiped, the
+    # local ledger is an empty container and GitHub holds the real
+    # history. Restoring must happen before the first hypothesis is
+    # scored, or the searcher spends that cycle judging against a bar
+    # that has fallen back to 3.0 sigma.
+    if BACKUP.enabled:
+        try:
+            r = BACKUP.restore_if_better()
+            STATE["backup"] = {"mode": "github", "restore": r}
+            print("[backup] " + json.dumps(r)[:300], flush=True)
+        except Exception as exc:                              # noqa: BLE001
+            STATE["backup"] = {"mode": "github",
+                               "error": str(exc)[:200]}
+
     STATE["boot"] = now()
     # LET THE SERVER BIND FIRST. This thread immediately reads 24 CSVs
     # and a 1.59M-row parquet, and pandas holds the GIL in chunks while
@@ -298,6 +336,7 @@ def api_state():
         "storage": STATE["storage"],
         "state_loss": STATE["state_loss"],
         "tiers": cached_tiers(),
+        "backup": STATE["backup"],
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the

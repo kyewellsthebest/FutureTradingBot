@@ -88,15 +88,74 @@ part of the file they came from.
 
 ---
 
-## Step 3 — attach a volume  ← the one that actually matters
+## Step 3 — durable state: a volume, a GitHub token, or both
+
+There are two independent ways to keep the ledger. **Either one is
+enough.** Do the volume if the UI cooperates; do the token if it does
+not; doing both is best.
+
+### 3a — GitHub mirror (no Railway UI involved)
+
+**Variables** → add:
+
+```
+GITHUB_TOKEN = <a fine-grained PAT with Contents: read+write on
+                kyewellsthebest/FutureTradingBot>
+```
+
+Create the token at
+[github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens)
+→ *Generate new token* → *Fine-grained* → Repository access: only
+`FutureTradingBot` → Permissions → Repository permissions →
+**Contents: Read and write**.
+
+That is the whole setup. After every cycle the service writes
+`ledger.json`, `memory.json` and `status.json` to a **separate branch**
+(`research-state`, created automatically) so ledger commits never touch
+your working branch or retrigger a deploy. On boot, if the local ledger
+has fewer trials than the backup, it restores.
+
+Two guards, both tested:
+
+- **Trials only go up.** A push that would *lower* the recorded trial
+  count is refused. A container that lost its volume starts at zero
+  trials, and without this it would overwrite the only good copy of the
+  bar with an empty one.
+- **Restore only when behind.** A boot with current local state does not
+  clobber it from a stale backup.
+
+Verified end to end: push at 5,939 → push at 12,000 → volume wiped →
+push **REFUSED** → restore recovered 12,000 → normal boot at 15,000 left
+alone.
+
+### 3b — attach a volume  ← do this too if you can
 
 On the project canvas: **`⌘K` / `Ctrl+K`** → **New Volume** (or
 right-click the canvas → **Volume**). Select **this service** and set:
 
 - **Mount path:** `/data`
 
-**Leading slash required.** The field turns red for `Data` or `data` —
-Railway needs an absolute path. `/data` is valid.
+**Leading slash required** — the field turns red for `Data`. `/data` is
+valid and shows white.
+
+If the dialog will not submit even with a valid path, that is a
+[known Railway UI issue](https://station.railway.com/questions/adding-volume-isn-t-possible-in-any-conf-0dfce8fc).
+Try, in order: press **Enter** after typing (the confirm button is
+often off-canvas on a phone); type `//data` and then edit it to `/data`;
+use a desktop browser; or use the CLI:
+
+```bash
+npm i -g @railway/cli
+railway login
+railway link                       # pick project, then service
+railway volume add --mount-path /data
+```
+
+Docs: [railway volume](https://docs.railway.com/cli/volume).
+Note **one volume per service** — a service that already has one will
+refuse a second.
+
+If none of that works, 3a alone is sufficient. Skip it and move on.
 
 That is all. Railway sets `RAILWAY_VOLUME_MOUNT_PATH` automatically at
 runtime, and the service reads it and puts the ledger at

@@ -101,12 +101,18 @@ code{font-family:var(--mono);background:var(--s3);padding:1px 5px;border-radius:
   </div>
 
   <div class="card">
-    <h2>data tiers this deployment can see</h2>
+    <h2>data tiers, and where state is kept</h2>
     <div id="tiers"></div>
     <div class="note">
       An <b>absent</b> tier produces no events at all, so a console driven only by
       the event stream would render a perfectly healthy search running on a fraction
       of its data. This panel is probed directly for that reason.
+      <br><br>
+      The <b>GitHub mirror</b> is the second durability path. The volume is the fast
+      one, read and written every cycle; GitHub is written once a cycle and read only
+      when local state is missing or behind. A push that would <i>lower</i> the
+      recorded trial count is refused — a container that lost its volume must not
+      overwrite the only good copy of the bar with an empty one.
     </div>
   </div>
 
@@ -185,6 +191,30 @@ async function tick(){
   $('#vline').textContent = v.line || '—';
   $('#vdetail').textContent = v.detail || '';
 
+  const B = s.backup || {};
+  let brow = '';
+  if (B.mode === 'github') {
+    const lp = B.last_push || {}, rs = B.restore || {};
+    brow = `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0">
+      <span style="font-family:var(--mono);font-size:11px;min-width:64px;color:${
+        B.error||lp.ok===false ? 'var(--warn)':'var(--pos-t)'}">
+        ${B.error||lp.ok===false ? '● check' : '● backed up'}</span>
+      <span style="min-width:250px;font-size:13px">GitHub mirror</span>
+      <span style="font-size:12px;color:var(--muted)">${esc(
+        B.error ? B.error
+        : rs.restored ? rs.why
+        : lp.why ? lp.why
+        : lp.trials != null ? `${num(lp.trials)} trials saved`
+        : 'waiting for first cycle')}</span></div>`;
+  } else {
+    brow = `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0">
+      <span style="font-family:var(--mono);font-size:11px;min-width:64px;
+        color:var(--muted)">● off</span>
+      <span style="min-width:250px;font-size:13px">GitHub mirror</span>
+      <span style="font-size:12px;color:var(--muted)">no GITHUB_TOKEN —
+        durability rests on the volume alone</span></div>`;
+  }
+
   const T = s.tiers || [];
   $('#tiers').innerHTML = T.map(t =>
     `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0;
@@ -196,6 +226,7 @@ async function tick(){
      <span style="font-size:12px;color:${t.ok?'var(--muted)':'var(--warn)'}">${
        esc(t.detail)}</span></div>`).join('')
     || '<span style="color:var(--muted)">probing…</span>';
+  $('#tiers').innerHTML += brow;
 
   const L = s.ledger || {};
   $('#stats').innerHTML =
