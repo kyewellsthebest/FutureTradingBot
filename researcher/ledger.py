@@ -167,8 +167,45 @@ class Ledger:
     #     deep tier before the sort was a measurement of noise.
     DATA_EPOCH = 2
 
+    # WHICH TAPES EACH EPOCH ACTUALLY INVALIDATED.
+    #
+    # A data epoch says "the tape changed", but it almost never changes
+    # ALL of it. The tick-sorting bug lived in tier-2 bar construction;
+    # tier-1 five-minute bars come from a different file entirely and
+    # tier-3 book snapshots were never rebuilt. Treating an epoch bump
+    # as invalidating every past measurement wiped the leaderboard to
+    # zero rows -- 209,170 hypotheses tested and nothing to show -- while
+    # the search itself was working perfectly. That is a worse lie than
+    # showing a stale row, because it reports the search as barren when
+    # what actually happened is that the display threw its own results
+    # away.
+    #
+    # An epoch with no entry here is unscoped and does invalidate
+    # everything, which is the safe default for a change nobody has
+    # characterised.
+    EPOCH_SCOPE = {
+        2: (2,),        # deep tick tier only
+    }
+
     def stale(self, rec):
-        return int(rec.get("epoch", 1)) < self.DATA_EPOCH
+        """Was this measured on a tape that has since been corrected?
+
+        Scoped by tier: an entry is only stale if one of the epochs it
+        predates actually touched the tape it was measured on.
+        """
+        e = int(rec.get("epoch") or 1)
+        if e >= self.DATA_EPOCH:
+            return False
+        tier = (rec.get("hyp") or {}).get("tier")
+        for ep in range(e + 1, self.DATA_EPOCH + 1):
+            scope = self.EPOCH_SCOPE.get(ep)
+            if scope is None:
+                return True            # uncharacterised bump: assume all
+            if tier is None:
+                return True            # cannot tell which tape: assume so
+            if int(tier) in scope:
+                return True
+        return False
 
     def epoch_summary(self):
         n = sum(1 for r in self.d["tested"].values() if self.stale(r))
@@ -204,22 +241,57 @@ class Ledger:
         # near-misses, they are the search discovering with total
         # confidence that something loses money. Closeness to passing
         # means a positive net and a z approaching the bar.
-        rows = []
-        for fp, rec in self.d["tested"].items():
-            if rec.get("killed"):
-                continue          # failed a control; not a near miss
-            if self.stale(rec):
-                continue          # measured on data that has since been
+        #
+        # ADMISSION IS GRADED, not all-or-nothing. Something has been
+        # tested a quarter of a million times; "nothing to show" is never
+        # the honest answer, it just means every row was excluded by a
+        # filter. So: prefer clean rows, fall back to stale ones, fall
+        # back to killed ones, and label whatever gets shown. The board
+        # is empty only when the search genuinely has not run.
+        def gather(allow_stale, allow_killed):
+            rows = []
+            for fp, rec in self.d["tested"].items():
+                killed = bool(rec.get("killed"))
+                if killed and not allow_killed:
+                    continue      # failed a control; not a near miss
+                st = self.stale(rec)
+                if st and not allow_stale:
+                    continue      # measured on data that has since been
                                   # corrected; not a result any more
-            r = rec.get("result") or {}
-            z = float(r.get("z", 0) or 0)
-            net = float(r.get("net", 0) or 0)
-            # net-positive first, then by z. A net-negative cell can
-            # still be listed if nothing pays, but it ranks below.
-            rows.append(((1 if net > 0 else 0), z, fp, rec))
-        rows.sort(reverse=True)
+                r = rec.get("result") or {}
+                if not r:
+                    continue
+                z = float(r.get("z", 0) or 0)
+                net = float(r.get("net", 0) or 0)
+                # net-positive first, then by z. A net-negative cell can
+                # still be listed if nothing pays, but it ranks below.
+                rows.append(((1 if net > 0 else 0), z, fp, rec, st, killed))
+            rows.sort(key=lambda t: (t[0], t[1]), reverse=True)
+            # DEDUPE IDENTICAL MEASUREMENTS. Two hypotheses can describe
+            # the same cell by different routes and get separate
+            # fingerprints, which put the same result in first AND second
+            # place. On a board of five that is a fifth of the display
+            # spent saying one thing twice.
+            seen, uniq = set(), []
+            for row in rows:
+                r = row[3].get("result") or {}
+                sig = (round(float(r.get("z", 0) or 0), 4),
+                       round(float(r.get("net", 0) or 0), 4),
+                       r.get("n"))
+                if sig in seen:
+                    continue
+                seen.add(sig)
+                uniq.append(row)
+            return uniq
+
+        for allow_stale, allow_killed in ((False, False), (True, False),
+                                          (True, True)):
+            rows = gather(allow_stale, allow_killed)
+            if rows:
+                break
+
         out = []
-        for _, _z, fp, rec in rows[:k]:
+        for _pos, _z, fp, rec, st, killed in rows[:k]:
             r = rec.get("result") or {}
             out.append({"fp": fp, "hyp": rec.get("hyp", {}),
                         "family": rec.get("family"),
@@ -229,8 +301,13 @@ class Ledger:
                         "per_week": r.get("per_week"),
                         "bar_at_test": rec.get("bar_at_test"),
                         "checked": bool(rec.get("checked")),
+                        "stale": st,
+                        "killed": bool(killed),
+                        "kill_reasons": (rec.get("killed") or {}).get(
+                            "reasons", []) if killed else [],
                         "passed": bool(r.get("z", 0) >= (rec.get("bar_at_test") or 99)
-                                       and r.get("net", 0) > 0)})
+                                       and r.get("net", 0) > 0
+                                       and not killed and not st)})
         return out
 
     def halt(self, why):

@@ -959,7 +959,10 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
         need_metrics = bool(r) and r.get("win_rate") is None
         need_check = bool(r) and not rec.get("checked") \
             and not rec.get("killed")
-        if not (need_metrics or need_check):
+        # a third job: rows measured on a tape that has since been
+        # corrected need measuring again, not filtering away.
+        need_rescore = bool(r) and led.stale(rec)
+        if not (need_metrics or need_check or need_rescore):
             continue
         h = dict(row["hyp"] or {})
         market = h.get("market", "")
@@ -995,7 +998,18 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
             continue
         if not fresh:
             continue
-        if need_metrics:
+        # RE-STAMP THE EPOCH. This re-score just ran on the CURRENT tape,
+        # so if the row was carrying an old epoch -- a measurement of
+        # data that has since been corrected -- it is not carrying one
+        # any more. Replace the numbers wholesale rather than patching
+        # fields onto a stale result, and re-stamp. Without this a row
+        # invalidated by a data fix stays flagged forever even after it
+        # has been measured again on good data.
+        if led.stale(rec):
+            rec["result"] = r = dict(fresh)
+            rec["epoch"] = led.DATA_EPOCH
+            rec["rescored"] = True
+        elif need_metrics:
             for key in ("win_rate", "rr", "per_week", "gz",
                         "avg_win", "avg_loss"):
                 if fresh.get(key) is not None:

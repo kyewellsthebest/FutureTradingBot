@@ -424,7 +424,10 @@ def near_misses(k=15):
                         "gross": r["gross"], "net": r["net"], "n": r["n"],
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),
                         "per_week": r.get("per_week"),
-                        "bar": r["bar_at_test"], "passed": r["passed"]})
+                        "bar": r["bar_at_test"], "passed": r["passed"],
+                        "tier": (r["hyp"] or {}).get("tier"),
+                        "stale": r.get("stale"), "killed": r.get("killed"),
+                        "kill_reasons": r.get("kill_reasons") or []})
         return out
     except Exception:                                         # noqa: BLE001
         return []

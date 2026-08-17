@@ -171,9 +171,6 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
         <span class="pulse" id="lp"></span>ideas tested — live</div>
       <div class="big" id="bigcount">—</div>
       <div class="sub2" id="bigsub">connecting…</div>
-      <div style="height:14px"></div>
-      <div class="headline" id="vline"></div>
-      <div class="sub" id="vdetail"></div>
     </div>
     <div style="height:14px"></div>
     <div class="nums" id="nums"><div class="sk sk-card"></div>
@@ -315,9 +312,7 @@ async function tick(){
   $('#alerts').innerHTML=a;
 
   // ── status
-  const v=s.verdict||{}, L=s.ledger||{};
-  $('#vline').textContent = v.line||'—';
-  $('#vdetail').textContent = v.detail||'';
+  const L=s.ledger||{};
   $('#nums').innerHTML =
       num_('<span class="e">🔍</span>ideas tested', num(L.trials))
     + num_('<span class="e">🏆</span>strategies found', num(L.survivors??0))
@@ -408,19 +403,37 @@ async function tick(){
     // "88.15 of the 5.72 it needed, 100% of the way", which reads as a
     // winner on the same screen that says zero strategies found.
     const over = z >= bar && bar > 0;
-    const foot = over
-      ? `<div class="gap">⚠️ <b>Strong enough (${z.toFixed(2)} vs
+    const where = esc(x.market||x.family||'');
+    let foot;
+    if (x.killed) {
+      const why = (x.kill_reasons||[])[0] || 'failed one of the controls';
+      foot = `<div class="gap">☠️ <b>Killed by a control.</b> ${esc(why)}
+           &nbsp;·&nbsp; ${where}</div>`;
+    } else if (x.stale) {
+      foot = `<div class="gap">🕗 <b>Measured on a tape that has since been
+           corrected</b>, so this number no longer stands. Kept on the board
+           only because nothing newer has scored yet.
+           &nbsp;·&nbsp; ${where}</div>`;
+    } else if (over) {
+      // z ABOVE the bar means it cleared the strength test and was then
+      // killed by a control -- the earlier version rendered that as
+      // "88.15 of the 5.72 it needed, 100% of the way", which reads as a
+      // winner on the same screen that says zero strategies found.
+      foot = `<div class="gap">⚠️ <b>Strong enough (${z.toFixed(2)} vs
            ${bar.toFixed(2)}) but killed by a control.</b> Almost always
            the one-bar delay test: the edge lives inside a single price
            print, so it cannot be traded.
-           &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>`
-      : `<div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
+           &nbsp;·&nbsp; ${where}</div>`;
+    } else {
+      foot = `<div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
          <div class="gap"><b>${z.toFixed(2)}</b> of the
            <b>${bar.toFixed(2)}</b> strength it needed
            &nbsp;·&nbsp; ${prog.toFixed(0)}% of the way
-           &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>`;
+           &nbsp;·&nbsp; ${where}</div>`;
+    }
+    const mark = x.killed ? '☠️' : x.stale ? '🕗' : over ? '⚠️' : (MEDAL[i]||'');
     return `<div class="lb rank${window.__lbNew && i===0 ? ' flash':''}">
-      <div class="rk">${over ? '⚠️' : (MEDAL[i]||'')}</div>
+      <div class="rk">${mark}</div>
       <div class="bd">
         <div class="nm">${esc(x.what)}</div>
         <div class="mt">
@@ -436,7 +449,9 @@ async function tick(){
         </div>
         ${foot}
       </div></div>`;}).join('')
-    : '<div class="empty">nothing scored yet</div>';
+    : `<div class="empty">⏳ <b>Nothing scored yet.</b><br><br>
+       The first round is still measuring. Rows appear here the moment
+       anything gets a number — ranked best to worst, however bad.</div>`;
 
   // ── check
   $('#tiers').innerHTML = (s.tiers||[]).map(t=>`
