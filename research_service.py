@@ -50,7 +50,19 @@ from flask import Flask, jsonify, send_from_directory
 
 ROOT = Path(__file__).resolve().parent
 os.environ.setdefault("M2_REPO", str(ROOT))
-RDIR = Path(os.environ.get("RESEARCH_DIR", ROOT / "data" / "research"))
+
+# WHERE STATE LIVES. Railway sets RAILWAY_VOLUME_MOUNT_PATH automatically
+# whenever a volume is attached, so attaching one is sufficient -- no
+# second variable to set and no second chance to get it wrong. An
+# explicit RESEARCH_DIR still wins, for local runs and for anyone who
+# wants the ledger somewhere specific on the volume.
+VOL = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+if os.environ.get("RESEARCH_DIR"):
+    RDIR = Path(os.environ["RESEARCH_DIR"])
+elif VOL:
+    RDIR = Path(VOL) / "research"
+else:
+    RDIR = ROOT / "data" / "research"
 STATIC = ROOT / "researcher" / "static"
 
 app = Flask(__name__, static_folder=None)
@@ -76,30 +88,40 @@ def now():
 def check_storage():
     """Is RESEARCH_DIR somewhere that survives a restart?
 
-    There is no API that answers this, so it is inferred: a path inside
-    the app directory is definitely ephemeral on Railway, and an
-    explicitly-set path outside it is presumed to be a mounted volume.
-    Presumed, not proven -- which is why the trial high-water mark below
-    is the check that actually catches a loss.
+    Railway answers this itself: RAILWAY_VOLUME_MOUNT_PATH is set at
+    runtime whenever a volume is attached, so "is the ledger on a
+    volume" is a containment check against a value Railway supplies,
+    not a guess about paths. Note the mount may legitimately sit INSIDE
+    /app -- Railway's own docs recommend /app/data for apps writing to
+    a relative ./data -- so an earlier version that treated any path
+    under the app directory as ephemeral would have raised a false
+    alarm on a perfectly good setup.
     """
     p = str(RDIR.resolve())
-    explicit = "RESEARCH_DIR" in os.environ
-    inside_app = p.startswith(str(ROOT.resolve()))
     on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
-    durable = explicit and not inside_app
+    vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+    durable = bool(vol) and (p == str(Path(vol).resolve())
+                             or p.startswith(str(Path(vol).resolve()) + os.sep))
     warn = None
-    if on_railway and not durable:
-        warn = ("RESEARCH_DIR is not set to a mounted volume, so the "
-                "ledger will be DESTROYED on every deploy and restart. "
-                "The trial count resets to zero, the significance bar "
-                "falls from ~5 sigma back to 3.0, and this searcher "
-                "starts reporting as discoveries the noise it had "
-                "already ruled out. Add a Railway volume and set "
-                "RESEARCH_DIR to its mount path.")
+    if on_railway and not vol:
+        warn = ("NO VOLUME IS ATTACHED to this service, so the ledger "
+                "will be DESTROYED on every deploy and restart. The "
+                "trial count resets to zero, the significance bar falls "
+                "from ~5 sigma back to 3.0, and this searcher starts "
+                "reporting as discoveries the noise it had already "
+                "ruled out. Attach a Railway volume -- the mount path "
+                "is picked up automatically, no other variable needed.")
+    elif on_railway and not durable:
+        warn = (f"a volume is mounted at {vol} but the ledger is being "
+                f"written to {p}, which is outside it. That path is "
+                f"wiped on every deploy. Either unset RESEARCH_DIR so "
+                f"the volume is used automatically, or point it inside "
+                f"{vol}.")
     elif not on_railway and not durable:
         warn = ("running outside Railway with local storage -- fine for "
                 "a laptop, not for the deployed service")
-    STATE["storage"] = {"path": p, "durable": durable, "warning": warn}
+    STATE["storage"] = {"path": p, "durable": durable,
+                        "volume": vol, "warning": warn}
     if warn:
         print("[storage] " + warn, flush=True)
 
