@@ -186,6 +186,13 @@ def research_loop():
 
     R.say = say
     STATE["boot"] = now()
+    # LET THE SERVER BIND FIRST. This thread immediately reads 24 CSVs
+    # and a 1.59M-row parquet, and pandas holds the GIL in chunks while
+    # it does. Racing that against Flask's first bind is how a perfectly
+    # healthy service fails its platform healthcheck and gets restarted
+    # in a loop -- the search never gets past loading, so the logs show
+    # nothing wrong.
+    time.sleep(float(os.environ.get("RESEARCH_START_DELAY", "8")))
     STATE["alive"] = True
     while True:
         try:

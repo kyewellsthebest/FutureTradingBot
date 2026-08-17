@@ -44,17 +44,47 @@ Docs: [The Basics](https://docs.railway.com/overview/the-basics)
 
 ---
 
-## Step 2 — start command
+## Step 2 — point the service at `railway.research.json`
 
-**Settings** → **Deploy** → **Custom Start Command**:
+**Settings** → **Config-as-code** → **Railway Config File** → **Add File
+Path**:
 
 ```
-python research_service.py
+railway.research.json
 ```
 
-This is required. `railway.json` in the repo root sets the *bot's* start
-command, so without the override this service boots a second copy of the
-trading bot.
+**This step, not the Custom Start Command.** `railway.json` in the repo
+root sets the *trading bot's* start command, and
+[Railway's docs](https://docs.railway.com/config-as-code) are explicit
+that *"configuration defined in code will always override values from
+the dashboard."* So setting Custom Start Command to
+`python research_service.py` does nothing — the service still runs
+`python live_runner.py`, which on a service without Tradovate
+credentials dies, and the domain returns **"Application failed to
+respond."**
+
+`railway.research.json` carries the correct start command, healthcheck
+path and restart policy together:
+
+```json
+{
+  "deploy": {
+    "startCommand": "python research_service.py",
+    "healthcheckPath": "/api/health",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthcheckTimeout": 300
+  }
+}
+```
+
+Because it sets the healthcheck too, **Step 5 becomes unnecessary** —
+but a Custom Start Command left in the dashboard is harmless, since the
+file wins either way.
+
+To confirm it took: on the deployment details page, settings that came
+from a config file show a small **file icon**. Hover it to see which
+part of the file they came from.
 
 ---
 
@@ -64,6 +94,9 @@ On the project canvas: **`⌘K` / `Ctrl+K`** → **New Volume** (or
 right-click the canvas → **Volume**). Select **this service** and set:
 
 - **Mount path:** `/data`
+
+**Leading slash required.** The field turns red for `Data` or `data` —
+Railway needs an absolute path. `/data` is valid.
 
 That is all. Railway sets `RAILWAY_VOLUME_MOUNT_PATH` automatically at
 runtime, and the service reads it and puts the ledger at
@@ -125,13 +158,18 @@ Docs: [Public Networking](https://docs.railway.com/public-networking) ·
 
 ---
 
-## Step 5 — healthcheck
+## Step 5 — healthcheck (already handled by Step 2)
 
-**Settings** → **Deploy** → **Healthcheck Path**:
+`railway.research.json` sets `healthcheckPath: /api/health` with a
+300-second timeout, so there is nothing to do here. Setting it in the
+dashboard as well is harmless.
 
-```
-/api/health
-```
+The generous timeout is deliberate: the search thread reads 24 CSVs and
+a 1.59M-row parquet at startup, and pandas holds the GIL in chunks while
+it does. Measured on a cold start, `/api/health` answers in **1 second**
+and then in **2-28 ms** while the search runs flat out, so the timeout
+should never be reached -- it is headroom for a slower container, not a
+workaround.
 
 ---
 
