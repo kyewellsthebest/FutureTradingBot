@@ -104,6 +104,30 @@ def main():
         "p-value.")
     log()
 
+    # THE CONDITIONING VARIABLE IS ALWAYS THE EQUITY MONTH.
+    # A pension rebalances because ITS EQUITY SLEEVE moved. So the bond
+    # leg must be conditioned on how EQUITIES did, not on how bonds did.
+    # Conditioning ZN on ZN's own month return tests "if bonds rallied,
+    # buy bonds" -- a different and irrelevant hypothesis, and getting
+    # that wrong nearly retired the mechanism on a broken falsification.
+    try:
+        eq = daily(MKT["MES"][0])
+        eqm = pd.DataFrame({"px": eq})
+        eqm["ym"] = eqm.index.to_period("M")
+        eq_start = eqm.groupby("ym")["px"].first()
+    except Exception as exc:                                  # noqa: BLE001
+        print(f"equity reference failed: {exc}")
+        return
+
+    def eq_ret(asof, m):
+        """Equity month-to-date return as of `asof`, no look-ahead."""
+        if m not in eq_start.index:
+            return None
+        prior = eqm.index[(eqm["ym"] == m) & (eqm.index <= asof)]
+        if not len(prior):
+            return None
+        return float(eqm.at[prior[-1], "px"] / eq_start.at[m] - 1.0)
+
     rows = []
     for name, (fn, ppt, cost) in MKT.items():
         try:
@@ -126,8 +150,9 @@ def main():
                     continue
                 # month return measured to the entry bar, no look-ahead
                 ent_i = sub.index[max(len(sub) - 1 - hold, 0)]
-                start = sub.index[0]
-                mret = (df.at[ent_i, "px"] / df.at[start, "px"]) - 1.0
+                mret = eq_ret(ent_i, m)
+                if mret is None:
+                    continue
                 nxt = df.index[df.index > ent_i]
                 if len(nxt) < hold:
                     continue
@@ -156,8 +181,9 @@ def main():
                         continue
                     k = int(rng.integers(1, len(sub) - hold - 1))
                     ent_i = sub.index[k]
-                    start = sub.index[0]
-                    mret = (df.at[ent_i, "px"] / df.at[start, "px"]) - 1.0
+                    mret = eq_ret(ent_i, m)
+                    if mret is None:
+                        continue
                     nxt = df.index[df.index > ent_i]
                     if len(nxt) < hold:
                         continue
