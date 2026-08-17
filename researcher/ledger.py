@@ -125,6 +125,42 @@ class Ledger:
         boost = 1.0 + max(0.0, mean_edge) * 4.0
         return max(0.05, decay * boost)
 
+    def near_misses(self, k=20):
+        """The best things found, whether or not they passed.
+
+        A console that only shows what cleared the bar shows nothing for
+        weeks and looks broken. The near-misses are the honest picture of
+        what the search is actually turning up, and they carry their own
+        warning: these did NOT pass, most of them are the top of a pile
+        of noise, and the highest z out of tens of thousands of trials is
+        expected to be large even when nothing is there.
+        """
+        # RANK BY SIGNED z AMONG THINGS THAT AT LEAST PAY, not by |z|.
+        # Sorting on absolute z surfaced cells at z = -160: those are not
+        # near-misses, they are the search discovering with total
+        # confidence that something loses money. Closeness to passing
+        # means a positive net and a z approaching the bar.
+        rows = []
+        for fp, rec in self.d["tested"].items():
+            r = rec.get("result") or {}
+            z = float(r.get("z", 0) or 0)
+            net = float(r.get("net", 0) or 0)
+            # net-positive first, then by z. A net-negative cell can
+            # still be listed if nothing pays, but it ranks below.
+            rows.append(((1 if net > 0 else 0), z, fp, rec))
+        rows.sort(reverse=True)
+        out = []
+        for _, _z, fp, rec in rows[:k]:
+            r = rec.get("result") or {}
+            out.append({"fp": fp, "hyp": rec.get("hyp", {}),
+                        "family": rec.get("family"),
+                        "z": r.get("z"), "net": r.get("net"),
+                        "gross": r.get("edge"), "n": r.get("n"),
+                        "bar_at_test": rec.get("bar_at_test"),
+                        "passed": bool(r.get("z", 0) >= (rec.get("bar_at_test") or 99)
+                                       and r.get("net", 0) > 0)})
+        return out
+
     def halt(self, why):
         self.d["halts"].append({"t": _now(), "why": why})
         self.save()

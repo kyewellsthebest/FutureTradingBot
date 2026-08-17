@@ -339,6 +339,7 @@ def api_state():
         "backup": STATE["backup"],
         "adaptations": adaptations(),
         "survivors": survivors(),
+        "near": near_misses(),
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the
@@ -377,6 +378,29 @@ def survivors():
             "vault": v or None,
         })
     return out[::-1]
+
+
+def near_misses(k=15):
+    """Best-scoring hypotheses whether or not they passed.
+
+    Shown because a Strategies tab that is empty for weeks reads as a
+    broken service rather than an honest one. Each row carries the bar
+    it faced, so "z 3.1 against a bar of 5.4" is legible as the failure
+    it is rather than as a near-thing.
+    """
+    from researcher.ledger import Ledger
+    try:
+        led = Ledger(str(RDIR / "ledger.json"))
+        out = []
+        for r in led.near_misses(k):
+            out.append({"what": describe(r["hyp"]),
+                        "market": (r["hyp"] or {}).get("market", ""),
+                        "family": r["family"], "z": r["z"],
+                        "gross": r["gross"], "net": r["net"], "n": r["n"],
+                        "bar": r["bar_at_test"], "passed": r["passed"]})
+        return out
+    except Exception:                                         # noqa: BLE001
+        return []
 
 
 def describe(h):

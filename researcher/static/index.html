@@ -140,6 +140,11 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
       </div>
     </div>
     <div style="height:14px"></div>
+    <div class="card">
+      <h2>where it stopped bothering</h2>
+      <div id="effort"></div>
+    </div>
+    <div style="height:14px"></div>
     <a class="btn" id="dl-learn" href="/api/learning.pdf">
       Download the full learning report
       <span class="bs">PDF · everything it has worked out, and what it changed</span>
@@ -151,6 +156,17 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
     <div class="card">
       <h2>strategies found</h2>
       <div id="strats"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
+      <h2>closest it has come</h2>
+      <div id="near"></div>
+      <div class="mini">
+        These did <b>not</b> pass — each row shows the strength it reached and
+        the strength it needed. They are here so you can see what the search is
+        turning up rather than only what survived. Expect the best of tens of
+        thousands of tries to look good; that is why the bar rises.
+      </div>
     </div>
   </div>
 
@@ -237,13 +253,15 @@ async function tick(){
        the diagnostic bundle.</div>`;
 
   // ── learning
-  const ad = s.adaptations||[];
-  $('#adapts').innerHTML = ad.length ? ad.slice(0,12).map(x=>`
+  const adAll = s.adaptations||[];
+  const ad = adAll.filter(x=>x.kind!=='effort');
+  const eff = adAll.filter(x=>x.kind==='effort');
+  const LBL = {hold:'Holding trades for longer', bar:'Raised the bar it has to beat',
+    horizon:'Worked out where the edge would pay, and went there',
+    closed:'Closed a line of enquiry, with a number'};
+  $('#adapts').innerHTML = ad.length ? ad.slice(0,14).map(x=>`
     <div class="item">
-      <div class="t">${esc(x.kind==='hold'?'Holding trades for longer'
-        : x.kind==='bar'?'Raised the bar it has to beat'
-        : x.kind==='effort'?'Moved effort away from dead ground'
-        : x.kind)}</div>
+      <div class="t">${esc(LBL[x.kind]||x.kind)}</div>
       <div class="chg">${esc(x.before)}<span class="ar">→</span>${esc(x.after)}</div>
       <div class="d">${esc(x.why)}</div>
       <div style="margin-top:8px"><span class="pill">${esc(x.family)}</span>
@@ -255,6 +273,18 @@ async function tick(){
        This fills in as it accumulates failures it can read a reason from.
        An empty list here is honest — the alternative would be inventing a
        lesson so there was something to show.</div>`;
+
+  // Effort reallocation is bookkeeping, not insight -- it fires every
+  // cycle in every family and says the same thing each time. One
+  // summary line, not thirty cards burying the deductions.
+  $('#effort').innerHTML = eff.length
+    ? `<div class="empty"><b>${eff.length} ${eff.length===1?'area':'areas'}</b>
+       turned down to a fraction of normal effort after producing nothing.
+       Turned down, not switched off — a line of enquiry is not disproved by
+       its members failing.<br><br>
+       ${eff.slice(0,14).map(x=>`<span class="pill">${esc(x.family)}
+         ${esc(x.after)}</span>`).join(' ')}</div>`
+    : `<div class="empty">Nothing has been de-prioritised yet.</div>`;
 
   // ── strategies
   const sv = s.survivors||[];
@@ -278,6 +308,15 @@ async function tick(){
        If a real edge turns up it appears here, and it will have survived a
        one-look-only test against data the search was never allowed to see.
        </div>`;
+
+  const nm = s.near||[];
+  $('#near').innerHTML = nm.length ? nm.slice(0,10).map(x=>`
+    <div class="item"><div class="t">${esc(x.what)}</div>
+    <div class="chg">strength ${esc(x.z)} &nbsp;·&nbsp; needed ${esc(x.bar)}
+      &nbsp;·&nbsp; $${esc(x.net)}/trade &nbsp;·&nbsp; ${num(x.n)} trades</div>
+    <div style="margin-top:6px"><span class="pill">${esc(x.market||x.family||'')}</span></div>
+    </div>`).join('')
+    : '<div class="empty">nothing scored yet</div>';
 
   // ── check
   $('#tiers').innerHTML = (s.tiers||[]).map(t=>`

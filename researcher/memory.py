@@ -100,6 +100,34 @@ class Memory:
             except Exception:                                 # noqa: BLE001
                 pass
         self.d.setdefault("adaptations", [])
+        self._migrate_adaptations()
+
+    def _migrate_adaptations(self):
+        """Collapse rows written under the old (kind, family, VALUE) key.
+
+        Deployed state already contains them -- 46 rows where 24 were
+        meant -- and without this the live console keeps showing the
+        duplicates forever, since new writes dedupe correctly but old
+        rows are never revisited. Merges by (kind, family), keeps the
+        most recent value, and sums the applied counts.
+        """
+        seen, out = {}, []
+        for a in self.d["adaptations"]:
+            key = f"{a.get('kind')}|{a.get('family')}"
+            if key in seen:
+                prev = seen[key]
+                prev["applied"] = prev.get("applied", 1) + a.get("applied", 1)
+                if a.get("last", "") >= prev.get("last", ""):
+                    prev["after"] = a.get("after", prev.get("after"))
+                    prev["why"] = a.get("why", prev.get("why"))
+                    prev["last"] = a.get("last", prev.get("last"))
+                prev["first"] = min(prev.get("first", ""),
+                                    a.get("first", "")) or prev.get("first")
+                continue
+            a["key"] = key
+            seen[key] = a
+            out.append(a)
+        self.d["adaptations"] = out
 
     # ---------- proof that a lesson changed something ----------
     def adapt(self, kind, family, before, after, why):
@@ -115,11 +143,24 @@ class Memory:
         change every cycle is one adaptation that keeps being used, not
         thousands of separate lessons.
         """
-        key = f"{kind}|{family}|{after}"
+        # DEDUPE ON (kind, family) ONLY. The first version keyed on the
+        # new VALUE too, and effort weights drift every cycle -- 0.29x,
+        # 0.17x, 0.12x, 0.08x, 0.05x -- so one family produced seven
+        # near-identical rows and eleven families produced thirty-two.
+        # The ten horizon deductions, which are the only entries that
+        # figured anything out, were buried underneath them.
+        #
+        # A standing change that keeps being re-applied is ONE lesson
+        # with a current value, not a new lesson each time the value
+        # moves. So the row updates in place.
+        key = f"{kind}|{family}"
         for a in self.d["adaptations"]:
             if a["key"] == key:
                 a["applied"] += 1
                 a["last"] = _now()
+                if a["after"] != after:
+                    a["after"] = after
+                    a["why"] = why
                 return a
         a = {"key": key, "kind": kind, "family": family,
              "before": before, "after": after, "why": why,
@@ -127,9 +168,15 @@ class Memory:
         self.d["adaptations"].append(a)
         return a
 
+    # How much a lesson is worth reading, which is NOT how often it
+    # fired. Effort reallocation fires constantly and says the least;
+    # a deduced horizon fires once and changes where the search looks.
+    VALUE = {"horizon": 0, "closed": 1, "hold": 2, "bar": 3, "effort": 9}
+
     def adaptations(self):
         return sorted(self.d.get("adaptations", []),
-                      key=lambda a: -a["applied"])
+                      key=lambda a: (self.VALUE.get(a["kind"], 5),
+                                     -a["applied"]))
 
     # ---------- failure profiles ----------
     def note(self, family, mode, result=None):
