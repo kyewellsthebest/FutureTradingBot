@@ -114,6 +114,35 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
   overflow-x:auto;background:var(--s2);border-radius:8px;padding:11px;
   max-height:300px;overflow-y:auto}
 .hide{display:none}
+/* live counter */
+.big{font-family:var(--mono);font-size:44px;font-weight:700;letter-spacing:-.03em;
+  line-height:1.05;font-variant-numeric:tabular-nums}
+.big.tick{animation:bump .45s ease}
+@keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.035);
+  color:var(--pos)}100%{transform:scale(1)}}
+.sub2{font-size:13px;color:var(--muted);margin-top:6px}
+.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--pos);margin-right:7px;animation:p 1.6s infinite}
+/* skeleton loaders */
+.sk{background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);
+  background-size:200% 100%;animation:sh 1.4s infinite;border-radius:7px}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.sk-line{height:13px;margin:9px 0}
+.sk-card{height:88px;margin:10px 0}
+/* sparklines */
+.chart{width:100%;height:76px;display:block}
+.chart path{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .area{fill:url(#g1);stroke:none}
+.cg{display:grid;gap:12px}
+@media(min-width:620px){.cg{grid-template-columns:1fr 1fr}}
+.cw{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.cw .ct{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);font-weight:700}
+.cw .cv{font-family:var(--mono);font-size:19px;font-weight:700;margin:3px 0 6px}
+.cw .cd{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:6px}
+.rank{transition:transform .5s ease, opacity .4s ease}
+.flash{animation:fl 1.2s ease}
+@keyframes fl{0%{background:rgba(63,211,155,.16)}100%{background:transparent}}
 @media(min-width:620px){ .nums{grid-template-columns:repeat(4,1fr)} }
 </style>
 
@@ -137,11 +166,19 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
   <!-- ─────────────────────────── STATUS -->
   <div class="pane" id="p-status">
     <div class="card">
-      <div class="headline" id="vline">connecting…</div>
+      <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+        color:var(--muted);font-weight:700;margin-bottom:8px">
+        <span class="pulse" id="lp"></span>ideas tested — live</div>
+      <div class="big" id="bigcount">—</div>
+      <div class="sub2" id="bigsub">connecting…</div>
+      <div style="height:14px"></div>
+      <div class="headline" id="vline"></div>
       <div class="sub" id="vdetail"></div>
     </div>
     <div style="height:14px"></div>
-    <div class="nums" id="nums"></div>
+    <div class="nums" id="nums"><div class="sk sk-card"></div>
+      <div class="sk sk-card"></div><div class="sk sk-card"></div>
+      <div class="sk sk-card"></div></div>
     <div style="height:14px"></div>
     <div class="card">
       <h2><span class="e">🩺</span>is it working</h2>
@@ -152,8 +189,23 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
   <!-- ─────────────────────────── LEARNING -->
   <div class="pane hide" id="p-learning">
     <div class="card">
+      <h2><span class="e">📈</span>how much smarter it is getting</h2>
+      <div class="cg" id="charts">
+        <div class="sk sk-card"></div><div class="sk sk-card"></div>
+      </div>
+      <div class="mini">
+        Every line is cumulative and can only go up, because the ledger never
+        forgets. <b>Ground ruled out</b> is the real output — each point is an
+        idea that will never be tested again. <b>The bar</b> rising is the
+        system getting <u>harder to convince</u>, not weaker: it is what stops
+        a long search from eventually inventing a finding.
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
       <h2><span class="e">🧠</span>what it changed about its own search</h2>
-      <div id="adapts"></div>
+      <div id="adapts"><div class="sk sk-line" style="width:65%"></div>
+        <div class="sk sk-card"></div></div>
       <div class="mini">
         These are changes the bot made to how it searches, caused by what its
         failures told it — not notes it wrote down and ignored. The count is how
@@ -181,7 +233,10 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
     <div style="height:14px"></div>
     <div class="card">
       <h2><span class="e">🥇</span>leaderboard — closest it has come</h2>
-      <div id="near"></div>
+      <div id="near"><div class="sk sk-line" style="width:70%"></div>
+        <div class="sk sk-card"></div>
+        <div class="sk sk-line" style="width:55%"></div>
+        <div class="sk sk-card"></div></div>
       <div class="mini">
         ⚠️ <b>None of these passed.</b> Rows marked ⚠️ were strong enough on
         paper and then <u>killed by a control</u> — usually the one-bar delay
@@ -343,7 +398,9 @@ async function tick(){
   const pend = '<span style="font-size:12px;color:var(--muted);'
              + 'font-family:-apple-system,system-ui,sans-serif">measuring…</span>';
   const pct = v => v==null?pend:(v*100).toFixed(0)+'%';
-  $('#near').innerHTML = nm.length ? nm.slice(0,10).map((x,i)=>{
+  const key5 = nm.slice(0,5).map(x=>x.what).join('|');
+  if (window.__lb !== key5){ window.__lb = key5; window.__lbNew = true; }
+  $('#near').innerHTML = nm.length ? nm.slice(0,5).map((x,i)=>{
     const z = Number(x.z||0), bar = Number(x.bar||0);
     const prog = bar ? Math.max(0, Math.min(100, 100*z/bar)) : 0;
     // z ABOVE the bar means it cleared the strength test and was then
@@ -362,7 +419,7 @@ async function tick(){
            <b>${bar.toFixed(2)}</b> strength it needed
            &nbsp;·&nbsp; ${prog.toFixed(0)}% of the way
            &nbsp;·&nbsp; ${esc(x.market||x.family||'')}</div>`;
-    return `<div class="lb">
+    return `<div class="lb rank${window.__lbNew && i===0 ? ' flash':''}">
       <div class="rk">${over ? '⚠️' : (MEDAL[i]||'')}</div>
       <div class="bd">
         <div class="nm">${esc(x.what)}</div>
@@ -402,5 +459,98 @@ $('#toggle').onclick = async()=>{
               {method:'POST'});
   tick();
 };
-tick(); setInterval(tick, 5000);
+// ── live counter, polled every second and eased between values so the
+// number moves continuously rather than jumping once a cycle
+let shown = null, target = null, lastT = 0;
+async function live(){
+  try{
+    const l = await (await fetch('/api/live')).json();
+    if (l.trials == null) return;
+    target = l.trials;
+    if (shown === null) shown = target;
+    document.getElementById('lp').style.background =
+      l.alive ? 'var(--pos)' : 'var(--muted)';
+    const where = l.market ? `${esc(l.market)} · tier ${l.tier}` : 'starting…';
+    $('#bigsub').innerHTML = `<b>${esc(where)}</b> &nbsp;·&nbsp; bar
+      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session`;
+  }catch(e){}
+}
+function paint(){
+  if (target !== null && shown !== null && shown !== target){
+    const gap = target - shown;
+    shown += gap > 40 ? Math.ceil(gap/12) : 1;
+    if (shown > target) shown = target;
+    const el = $('#bigcount');
+    el.textContent = shown.toLocaleString();
+    const now = Date.now();
+    if (now - lastT > 400){ lastT = now;
+      el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); }
+  } else if (shown !== null){
+    $('#bigcount').textContent = shown.toLocaleString();
+  }
+  requestAnimationFrame(paint);
+}
+
+// ── sparkline
+function spark(series, colour){
+  if (!series || series.length < 2) return '<div class="sk sk-card"></div>';
+  const w = 300, h = 76, pad = 4;
+  const mn = Math.min(...series), mx = Math.max(...series);
+  const rng = (mx - mn) || 1;
+  const pts = series.map((v,i)=>{
+    const x = pad + i*(w-2*pad)/(series.length-1);
+    const y = h - pad - (v-mn)/rng*(h-2*pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;});
+  const line = 'M' + pts.join(' L');
+  const area = line + ` L${w-pad},${h-pad} L${pad},${h-pad} Z`;
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="${colour}" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="${colour}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path class="area" d="${area}"/>
+    <path d="${line}" stroke="${colour}"/></svg>`;
+}
+async function charts(){
+  let h;
+  try{ h = (await (await fetch('/api/history')).json()).history || []; }
+  catch(e){ return; }
+  if (!h.length){
+    $('#charts').innerHTML = `<div class="empty">📊 No history yet — the
+      first points appear when the opening round finishes.</div>`;
+    return; }
+  const last = h[h.length-1], first = h[0];
+  const card = (t,v,series,colour,desc)=>`<div class="cw">
+      <div class="ct">${t}</div><div class="cv">${v}</div>
+      ${spark(series,colour)}<div class="cd">${desc}</div></div>`;
+  $('#charts').innerHTML =
+      card('🔍 ground ruled out', num(last.trials),
+           h.map(x=>x.trials), '#3987e5',
+           `+${num(last.trials-first.trials)} since this history began.
+            Each one is an idea that will never be tested again.`)
+    + card('📈 bar to beat', last.bar+'σ',
+           h.map(x=>x.bar), '#e9b05a',
+           `Up from ${first.bar}σ. Rising means harder to convince —
+            that is the protection, not a problem.`)
+    + card('🧠 lessons applied', num(last.adaptations),
+           h.map(x=>x.adaptations), '#9085e9',
+           `${num(last.deduced)} horizons deduced from its own failures,
+            ${num(last.closed)} lines of enquiry closed with a number.`)
+    + card('🔤 vocabulary built', num(last.features),
+           h.map(x=>x.features), '#3fd39b',
+           `Feature combinations discovered and kept for producing
+            structure, never for producing profit.`)
+    + card('🛡️ artifacts caught', num(last.killed),
+           h.map(x=>x.killed), '#f08d8d',
+           `Results that looked strong and were killed by a control.
+            A rising line here is the immune system working.`)
+    + card('⏱️ round time', last.secs+'s',
+           h.map(x=>x.secs), '#93a1bb',
+           `Seconds per full sweep of every market and tier.`);
+}
+
+tick(); live(); charts(); paint();
+setInterval(tick, 5000);
+setInterval(live, 1000);
+setInterval(charts, 30000);
 </script>

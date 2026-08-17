@@ -147,6 +147,13 @@ FEAT_FLOOR = float(os.environ.get("FEAT_FLOOR", "4.10"))
 # sweeps (8 contracts x 2 resolutions... plus 15s and 300s) and six book
 # sweeps before the deep space repeats -- and the feature library has
 # grown a new generation on every one of them by then.
+# LIVE COUNTERS. status.json is only written once a cycle, which on a
+# six-minute cycle means the console's headline number sits frozen for
+# minutes at a time and the whole thing looks dead. These are updated on
+# every single hypothesis and read by the service directly, so the count
+# on screen is the count right now.
+LIVE = {"trials": 0, "tested": 0, "market": "", "tier": 0,
+        "candidates": 0, "killed": 0, "started": None}
 _SHARED = __import__("threading").Lock()
 WORKERS = int(os.environ.get("RESEARCH_WORKERS",
                              str(max(1, (os.cpu_count() or 2) - 1))))
@@ -857,6 +864,10 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         allz.append(r.get("gz", r["z"]))
         led.record(h, r, family=fam)
         done += 1
+        LIVE["trials"] = led.d["trials"]
+        LIVE["tested"] += 1
+        LIVE["market"] = sym
+        LIVE["tier"] = tier
         if mode == "confirmed":
             cands.append((dict(h), fam, r, bar, srch, vault, bar_s))
         if done >= budget:
@@ -1022,6 +1033,7 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
     "confirmed" result that had already reached the vault.
     """
     for h, fam, r, bar, srch, vault, bar_s, null99, mrows in cands:
+        LIVE["candidates"] += 1
         say("CANDIDATE", market=sym, tier=tier, z=r["z"],
             bar=round(bar, 2), net=r["net"], n=r["n"], what=HY.describe(h))
 
@@ -1044,6 +1056,7 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
                 note="this is a candidate to DOUBT, not to celebrate -- "
                      "every finding this large in this project has so "
                      "far been a bug, and the suspects are listed")
+            LIVE["killed"] += 1
             led.kill(h, [a for a, _b, _c in odd])
             mem.note(fam, "no_signal", r)
             continue
@@ -1108,6 +1121,8 @@ def main():
     led = Ledger(os.path.join(RDIR, "ledger.json"))
     mem = Memory(os.path.join(RDIR, "memory.json"))
     once = os.environ.get("RESEARCH_ONCE") == "1"
+    LIVE["trials"] = led.d["trials"]
+    LIVE["started"] = now()
     say("boot", trials=led.d["trials"], bar=round(led.bar(), 2),
         feat_floor=FEAT_FLOOR, shrinkage=mem.shrinkage())
 
@@ -1322,6 +1337,36 @@ def main():
                           if h.get("fits") and h.get("reachable")),
             frontier_best=[r["market"] for r in ins.get("frontier", [])[:5]])
         mem.save()
+
+        # HISTORY, for the "is it getting smarter" graphs. Appended once
+        # a cycle and capped, because an unbounded series eventually
+        # becomes the largest thing on the volume.
+        try:
+            hp = os.path.join(RDIR, "history.json")
+            hist = []
+            if os.path.exists(hp):
+                hist = json.load(open(hp))
+            hist.append({
+                "t": now(), "cycle": cycle,
+                "trials": led.d["trials"],
+                "bar": round(led.bar(), 3),
+                "distinct": len(led.d["tested"]),
+                "killed": sum(1 for r in led.d["tested"].values()
+                              if r.get("killed")),
+                "survivors": len(led.d.get("survivors", [])),
+                "adaptations": len(mem.d.get("adaptations", [])),
+                "families": len(mem.d.get("families", {})),
+                "closed": sum(1 for a in mem.d.get("adaptations", [])
+                              if a.get("kind") == "closed"),
+                "deduced": sum(1 for a in mem.d.get("adaptations", [])
+                               if a.get("kind") == "horizon"),
+                "features": sum(len(l.scores) for l in libs.values()),
+                "vault": len(led.d.get("vault_touches", {})),
+                "secs": round(time.time() - t0),
+            })
+            json.dump(hist[-500:], open(hp, "w"))
+        except Exception as exc:                              # noqa: BLE001
+            say("history_failed", err=str(exc)[:120])
 
         json.dump({"t": now(), "cycle": cycle, "summary": led.summary(),
                    "learning": mem.summary(), "insight": ins},

@@ -263,6 +263,28 @@ def read_json(p, default=None):
         return default
 
 
+@app.get("/api/live")
+def api_live():
+    """The fast endpoint. Polled every second, so it must stay cheap --
+    no file reads, no ledger scans, just the in-memory counters the
+    search updates as it goes."""
+    try:
+        from researcher import runner as R
+        lv = dict(R.LIVE)
+    except Exception:                                         # noqa: BLE001
+        lv = {}
+    import math
+    n = max(lv.get("trials", 0), 1)
+    lv["bar"] = round(max(3.0, math.sqrt(2.0 * math.log(n)) + 0.8), 2)
+    lv["alive"] = STATE["alive"] and not (RDIR / "RESEARCH_STOP").exists()
+    return jsonify(lv)
+
+
+@app.get("/api/history")
+def api_history():
+    return jsonify({"history": read_json(RDIR / "history.json", []) or []})
+
+
 @app.get("/api/health")
 def health():
     return jsonify({"ok": True, "alive": STATE["alive"], "t": now()})
