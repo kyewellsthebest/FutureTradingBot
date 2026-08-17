@@ -69,6 +69,7 @@ from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
 from researcher import brackets as BR           # noqa: E402
 from researcher import destinations as DS       # noqa: E402
+from researcher import plausible as PL          # noqa: E402
 
 ROOT = os.environ.get("M2_REPO", os.getcwd())
 RDIR = os.environ.get("RESEARCH_DIR", os.path.join(ROOT, "data", "research"))
@@ -1024,6 +1025,29 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
         say("CANDIDATE", market=sym, tier=tier, z=r["z"],
             bar=round(bar, 2), net=r["net"], n=r["n"], what=HY.describe(h))
 
+        # THE SNIFF TEST, before the controls. Every bug in this project
+        # was found by noticing a number that could not be true and
+        # reasoning back to its cause. That step is now encoded: an
+        # implausible result is not merely rejected, it points at the
+        # specific machinery most likely to be broken.
+        base = str(sym).split("@")[0]
+        tickv = None
+        if base in _SPEC_RAW:
+            pv, tick, _c = _SPEC_RAW[base]
+            tickv = pv * tick
+        odd = PL.check_result(r, h, cost, tickv)
+        if odd:
+            say("IMPLAUSIBLE", market=sym, tier=tier,
+                what=HY.describe(h),
+                flags=[{"observed": a, "means": b, "look_at": c}
+                       for a, b, c in odd],
+                note="this is a candidate to DOUBT, not to celebrate -- "
+                     "every finding this large in this project has so "
+                     "far been a bug, and the suspects are listed")
+            led.kill(h, [a for a, _b, _c in odd])
+            mem.note(fam, "no_signal", r)
+            continue
+
         # 1. BOUNCE GATE. Entering one bar later cannot hurt a real
         # prediction about the next hour, but it annihilates an artifact
         # that lives inside a single shared print: a feature built from
@@ -1281,7 +1305,19 @@ def main():
                 mem.adapt("closed", fam, before="searching",
                           after=f"crossing at {IN._dur(hz['h_star'])}",
                           why=hz["why"])
-        say("inferred", horizons=len(ins.get("horizons") or {}),
+        hz_all = ins.get("horizons") or {}
+        sysodd = PL.check_system(
+            families_total=len(hz_all),
+            families_fitting=sum(1 for h in hz_all.values()
+                                 if h.get("fits")),
+            survivors=len(led.d.get("survivors", [])),
+            candidates=None)
+        if sysodd:
+            say("SYSTEM_IMPLAUSIBLE",
+                flags=[{"observed": a, "means": b, "look_at": c}
+                       for a, b, c in sysodd])
+
+        say("inferred", horizons=len(hz_all),
             reachable=sum(1 for h in (ins.get("horizons") or {}).values()
                           if h.get("fits") and h.get("reachable")),
             frontier_best=[r["market"] for r in ins.get("frontier", [])[:5]])

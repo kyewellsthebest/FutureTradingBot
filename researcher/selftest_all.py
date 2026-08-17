@@ -278,6 +278,13 @@ def test_thread_safety():
                  if got != 16000 else "16,000 of 16,000")
 
 
+def test_plausibility():
+    from researcher import plausible as P
+    f = P.selftest(verbose=False)
+    return check("plausibility layer flags every artifact this project "
+                 "actually produced", not f, "; ".join(f))
+
+
 def test_validators():
     from researcher import validate as V
     rng = np.random.default_rng(0)
@@ -322,6 +329,7 @@ def main():
     test_feature_parser()
     test_thread_safety()
     test_validators()
+    test_plausibility()
     test_overlap()
     print("\n" + "=" * 66)
     if FAIL:
