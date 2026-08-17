@@ -68,6 +68,7 @@ from researcher import insight as IN            # noqa: E402
 from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
 from researcher import brackets as BR           # noqa: E402
+from researcher import destinations as DS       # noqa: E402
 
 ROOT = os.environ.get("M2_REPO", os.getcwd())
 RDIR = os.environ.get("RESEARCH_DIR", os.path.join(ROOT, "data", "research"))
@@ -184,6 +185,77 @@ def bars_per(d):
     return float(np.median(dt)) if len(dt) else 300.0
 
 
+_LEVELS = {}
+
+
+def _eval_dest(d, h, tv, cost, delay=0):
+    """Score a destination hypothesis as the race it actually is.
+
+    Returns the same shape of dict as everything else so the ledger,
+    the bar, the gauntlet and the leaderboard need no special case --
+    but the underlying measurement is a first passage, not a
+    fixed-horizon return, and the stop is LEARNED here rather than
+    supplied.
+    """
+    if "high" not in d.columns:
+        return None
+    k = (id(d), len(d))
+    if k not in _LEVELS:
+        if len(_LEVELS) > 30:
+            _LEVELS.clear()
+        _LEVELS[k] = (DS.build_levels(d),
+                      BR.atr(d["high"].values, d["low"].values,
+                             d["close"].values, 60))
+    levels, unit = _LEVELS[k]
+    if h["level"] not in levels:
+        return None
+    if h["trigger"] == "none":
+        trig = np.ones(len(d), dtype=bool)
+    else:
+        cs = _conds(d)
+        if h["trigger"] in cs:
+            trig = cs[h["trigger"]]
+        else:
+            trig = HY.shape_mask(d, h["trigger"], 3, 2.0)
+            if trig is None:
+                return None
+    if delay:
+        trig = np.roll(np.asarray(trig), delay)
+        trig[:delay] = False
+    r = DS.study(d, unit, h["level"], levels, h["side"], trig,
+                 int(h["max_bars"]))
+    if not r or not r.get("invalidation"):
+        return None
+    med_unit = float(np.nanmedian(unit))
+    if not np.isfinite(med_unit) or med_unit <= 0:
+        return None
+    cost_u = cost / (tv * med_unit)
+    ev = DS.expected_value(r, cost_u)
+    if not ev:
+        return None
+    p, rw, rk = r["p_trigger"], ev["reward"], ev["risk"]
+    n = r["n_trigger"]
+    # per-trade P&L in dollars, and its dispersion, so this shares the
+    # significance machinery with every other family
+    per = ev["ev_units"] * med_unit * tv
+    var = p * (1 - p) * ((rw + rk) * med_unit * tv) ** 2
+    se = (var ** 0.5) / max(n ** 0.5, 1.0)
+    z = per / (se + 1e-12)
+    gross = per + cost
+    return {"z": round(float(z), 3), "gz": round(float(gross / (se + 1e-12)), 3),
+            "edge": round(float(gross), 4), "net": round(float(per), 4),
+            "n": int(n), "eff_n": int(n), "overlap": 1.0, "delay": delay,
+            "win_rate": round(p, 4),
+            "rr": round(rw / rk, 3) if rk else 0.0,
+            "per_week": round(n / max(
+                (d.index[-1] - d.index[0]).days / 7.0, 1.0), 2),
+            "avg_win": round(rw * med_unit * tv, 3),
+            "avg_loss": round(rk * med_unit * tv, 3),
+            "lift": r["lift"], "p_base": r["p_base"],
+            "stop_units": rk,
+            "stop_why": r["invalidation"]["why"]}
+
+
 _CONDS = {}
 
 
@@ -287,6 +359,8 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     bar_s = bars_per(d) if bar_s is None else bar_s
     idx = d.index
 
+    if h.get("kind") == "dest":
+        return _eval_dest(d, h, tv, cost, delay)
     if h.get("kind") == "shape":
         m = HY.shape_mask(d, h["shape"], h.get("n", 3), h.get("k", 2.0))
         if m is None:
@@ -344,6 +418,23 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
         unit = BR.atr(d["high"].values, d["low"].values,
                       d["close"].values, 60)
         sel = np.flatnonzero(m0 & np.isfinite(unit) & (unit > 0))
+        # DELAY APPLIES HERE TOO. The first version of this branch
+        # ignored `delay` entirely, so the one-bar delay control -- the
+        # gate that exists specifically to kill signals that live inside
+        # a single price print -- silently did nothing for every
+        # bracketed hypothesis, which is now the largest family. It
+        # passed them all with kept_frac 1.00 because it was handing
+        # back the identical number.
+        #
+        # It let through "after close_high, go short": close_high
+        # selects bars where the close IS the bar's maximum, an extreme
+        # order statistic, so the next close reverts by construction --
+        # -10.2 points on NQ 60s against an unconditional -0.03. Not
+        # tradable: you cannot know close[t] was the high until the bar
+        # has ended, and by then that price is gone.
+        if delay:
+            sel = sel + delay
+            sel = sel[sel < len(d)]
         sel = sel[sel + 1 < len(d)]
         if len(sel) < MIN_TRADES:
             return None
@@ -636,6 +727,18 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         sh = HY.from_shapes(rng_s, cap=700, extra_conds=ctx_conds)
         hyps += sh
 
+    # DESTINATIONS. The only family where the exit is measured rather
+    # than chosen: find where price keeps travelling, find what precedes
+    # the journey, then learn the point at which the journey has failed.
+    if "high" in srch.columns:
+        rng_d = np.random.default_rng(
+            (led.d["trials"] * 6151 + len(srch) * 13) % (2**32))
+        dh = HY.from_destinations(
+            rng_d, list(ctx_conds) + ["squeeze", "expansion", "run_up",
+                                      "run_dn", "inside", "outside"],
+            cap=350)
+        hyps += dh
+
     fmult = mem.hold_multiplier("feature/d1")
     if fmult != 1.0:
         mem.adapt("hold", "feature/d1",
@@ -730,28 +833,89 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     return (done, cands, kept), None
 
 
-def backfill_metrics(led, data, k=40):
+def _tape_for(market):
+    """Rebuild the exact tape a stored hypothesis was tested on.
+
+    Market names carry their tape: "NQ" is tier 1, "NQ@NQU4@60s" is the
+    NQU4 contract at 60-second bars, "NQbook@5s" is the book. Evaluating
+    a tier-2 hypothesis against tier-1 five-minute bars would return a
+    number -- a wrong one, silently -- so the name has to be honoured.
+    """
+    m = str(market)
+    try:
+        if m.startswith("NQbook@"):
+            res = int(m.split("@")[1].rstrip("s"))
+            return DT.tier3(bar_s=res), "NQ"
+        if "@" in m:
+            parts = m.split("@")
+            contract, res = parts[1], int(parts[2].rstrip("s"))
+            for name, kind, path in DT.tier2_sources(res):
+                if name == contract:
+                    return DT.tier2_from(kind, path, res), "NQ"
+            return None, None
+        return None, m
+    except Exception:                                     # noqa: BLE001
+        return None, None
+
+
+def backfill_metrics(led, data, k=40, budget_s=45.0):
     """Fill trades/week, win rate and RR on older ledger entries.
 
-    Only for tier-1 hypotheses whose market tape is loaded, and only
-    where the fields are missing. Bounded to k rows a cycle so it never
-    competes with the search for time.
+    THE TWO REASONS THE FIRST VERSION NEVER FILLED ANYTHING, both of
+    which left "measuring..." on screen permanently:
+
+      1  it passed feats=None, so every FEATURE hypothesis returned None
+         immediately -- and the top of the leaderboard is almost all
+         feature hypotheses
+      2  it looked up tier-1 data by symbol, so a tier-2 hypothesis on
+         "NQ@NQU4@60s" was scored against five-minute bars, which is a
+         different tape and a different answer
+
+    Now the tape is rebuilt from the stored market name and features are
+    reconstructed from their names via FeatureLibrary.parse. Re-scoring
+    is NOT a new trial -- the hypothesis is already counted -- so only
+    the stored result gains fields and the bar is untouched.
     """
+    t0 = time.time()
     n = 0
+    cache = {}
     for row in led.near_misses(k):
+        if time.time() - t0 > budget_s:
+            break
         r = (led.d["tested"].get(row["fp"]) or {}).get("result") or {}
         if not r or r.get("win_rate") is not None:
             continue
         h = dict(row["hyp"] or {})
-        sym = str(h.get("market", "")).split("@")[0]
-        d = data.get(sym)
-        if d is None or sym not in SPEC:
+        market = h.get("market", "")
+        base = str(market).split("@")[0]
+        if base not in SPEC:
             continue
-        tv, cost = SPEC[sym]
-        srch, _ = split(d)
+        if market in cache:
+            tape = cache[market]
+        else:
+            tape, _ = _tape_for(market)
+            if tape is None:
+                tape = data.get(base)
+            cache[market] = tape
+        if tape is None or len(tape) < 1000:
+            continue
+        tv, cost = SPEC[base]
+        srch, _ = split(tape)
+        bs = bars_per(srch)
+
+        feats = None
+        if h.get("kind") == "feature":
+            spec = FeatureLibrary.parse(h.get("feat", ""))
+            if spec is None:
+                continue
+            try:
+                feats = {h["feat"]:
+                         FeatureLibrary.evaluate_spec(srch, spec, {})}
+            except Exception:                             # noqa: BLE001
+                continue
         try:
-            fresh = evaluate(srch, h, tv, cost, None, bars_per(srch))
-        except Exception:                                     # noqa: BLE001
+            fresh = evaluate(srch, h, tv, cost, feats, bs)
+        except Exception:                                 # noqa: BLE001
             continue
         if not fresh:
             continue

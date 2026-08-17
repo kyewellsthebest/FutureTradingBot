@@ -290,6 +290,44 @@ def from_shapes(rng, cap=900, extra_conds=None):
     return hyps
 
 
+DEST_LEVELS = ["prior_high", "prior_low", "prior_close", "session_open",
+               "day_high_so_far", "day_low_so_far",
+               "swing_high_20", "swing_low_20",
+               "swing_high_60", "swing_low_60",
+               "round_10_up", "round_10_dn", "round_50_up", "round_50_dn"]
+DEST_BARS = [6, 12, 24, 48, 96]
+
+
+def from_destinations(rng, triggers, cap=600):
+    """Destination / trigger / invalidation hypotheses.
+
+    Nothing here is a configuration. The destination is a level the tape
+    keeps returning to, the trigger is a state that precedes the
+    journey, and the STOP IS NOT SPECIFIED -- it is measured afterwards
+    from where eventual winners actually travelled. That last part is
+    the difference between this family and every other one: elsewhere
+    the exit is drawn from a list somebody wrote down.
+    """
+    hyps, seen = [], set()
+    trig = list(triggers) + ["none"]
+    tries = 0
+    while len(hyps) < cap and tries < cap * 8:
+        tries += 1
+        lvl = DEST_LEVELS[int(rng.integers(len(DEST_LEVELS)))]
+        side = 1 if rng.integers(2) else -1
+        tg = trig[int(rng.integers(len(trig)))]
+        mb = int(DEST_BARS[int(rng.integers(len(DEST_BARS)))])
+        key = (lvl, side, tg, mb)
+        if key in seen:
+            continue
+        seen.add(key)
+        hyps.append({"kind": "dest", "level": lvl, "side": side,
+                     "trigger": tg, "max_bars": mb,
+                     "hold_s": mb * 300,
+                     "_family": f"dest/{lvl}"})
+    return hyps
+
+
 def shape_why(name):
     return SHAPES.get(name, "")
 
@@ -395,6 +433,11 @@ EXITS = [None] + [(s, t) for s in STOPS for t in TARGETS]
 
 
 def describe(h) -> str:
+    if h.get("kind") == "dest":
+        d = "up to" if h["side"] > 0 else "down to"
+        t = "" if h["trigger"] == "none" else f" after {h['trigger'].replace('_',' ')}"
+        return (f"price travels {d} {h['level'].replace('_',' ')}"
+                f"{t}, stop learned from where winners went")
     if h.get("kind") == "shape":
         ex = h.get("exit")
         tail = (f", stop {ex[0]}x vol, target {ex[1]}x vol"

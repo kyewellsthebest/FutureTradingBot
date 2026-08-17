@@ -149,6 +149,54 @@ class FeatureLibrary:
         return v
 
     @staticmethod
+    def parse(name):
+        """Rebuild a spec from its printed name. The inverse of name().
+
+        Needed because the ledger stores hypotheses by feature NAME, and
+        re-scoring an old entry later -- to fill in trade metrics that
+        did not exist when it was first tested -- requires the feature
+        itself, on whatever tape the hypothesis was tested on. Without
+        this those rows can never be completed, and they are exactly the
+        rows that stay at the top of the leaderboard.
+
+        The grammar is closed and tiny: base | prim(sub[,param]) | a*b.
+        """
+        t = str(name).strip()
+        depth = 0
+        for i, ch in enumerate(t):                       # split on top-level *
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            elif ch == "*" and depth == 0:
+                a = FeatureLibrary.parse(t[:i])
+                b = FeatureLibrary.parse(t[i + 1:])
+                return ("mul", a, b) if a and b else None
+        if "(" not in t:
+            return ("base", t) if t else None
+        prim = t[:t.index("(")]
+        if prim not in UNARY:
+            return None
+        inner = t[t.index("(") + 1:t.rindex(")")]
+        depth, cut = 0, None
+        for i, ch in enumerate(inner):                   # last top-level comma
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            elif ch == "," and depth == 0:
+                cut = i
+        if cut is None:
+            sub, param = FeatureLibrary.parse(inner), 0
+        else:
+            sub = FeatureLibrary.parse(inner[:cut])
+            try:
+                param = int(inner[cut + 1:])
+            except ValueError:
+                return None
+        return ("un", prim, param, sub) if sub else None
+
+    @staticmethod
     def name(spec):
         k = spec[0]
         if k == "base":

@@ -104,9 +104,21 @@ class Ledger:
             f["n"] += 1
             f["best_z"] = max(f["best_z"], float(result.get("z", -99)))
             f["sum_edge"] += float(result.get("edge", 0.0))
-        if float(result.get("z", 0)) >= self.bar():
-            self.d["survivors"].append({"t": _now(), "fp": fp,
-                                        "hyp": hyp, "result": result})
+        # NOT a survivor yet. Clearing the bar only makes something a
+        # CANDIDATE; it still has to survive the delay control, the
+        # empirical null, period stability, the stale placebo and the
+        # vault. Counting it here made the console report "47 strategies
+        # found" on a cycle where all 47 were killed as artifacts -- the
+        # single most misleading thing this dashboard could say.
+        return fp
+
+    def confirm(self, hyp, result, note=""):
+        """Record something that survived the WHOLE gauntlet."""
+        with self._lock:
+            self.d["survivors"].append(
+                {"t": _now(), "fp": self.fingerprint(hyp), "hyp": hyp,
+                 "result": result, "note": note})
+            self._save()
         return fp
 
     # ---------- the sealed vault ----------
