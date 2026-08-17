@@ -63,6 +63,7 @@ from researcher import hypotheses as HY         # noqa: E402
 from researcher.features import FeatureLibrary  # noqa: E402
 from researcher.memory import Memory, classify  # noqa: E402
 from researcher import data_tiers as DT         # noqa: E402
+from researcher import insight as IN            # noqa: E402
 
 ROOT = os.environ.get("M2_REPO", os.getcwd())
 RDIR = os.environ.get("RESEARCH_DIR", os.path.join(ROOT, "data", "research"))
@@ -86,19 +87,50 @@ FEED = os.path.join(RDIR, "feed.jsonl")
 # per round trip, plus commission both ways.
 #     cost = spread_ticks * tick_value + 2 * commission_per_side
 # (micro $/point, tick size, $/tick, all-in round-trip cost)
-SPEC = {
-    "NQ":  (2.0,    0.60),   # MNQ  tick 0.25 = $0.50; user's stated
-                             #      all-in figure including slippage
-    "ES":  (5.0,    1.45),   # MES  tick 0.25 = $1.25 + $0.20 comms
-    "YM":  (0.50,   0.70),   # MYM  tick 1.0  = $0.50 + $0.20
-    "RTY": (5.0,    0.70),   # M2K  tick 0.10 = $0.50 + $0.20
-    "GC":  (10.0,   1.20),   # MGC  tick 0.10 = $1.00 + $0.20
-    "CL":  (100.0,  1.20),   # MCL  tick 0.01 = $1.00 + $0.20
-    "ZB":  (1000.0, 33.75),  # no micro. tick 1/32 = $31.25 + $2.50
-    "ZN":  (1000.0, 18.13),  # tick 1/64  = $15.63 + $2.50
-    "ZF":  (1000.0, 10.31),  # tick 1/128 = $7.81  + $2.50
-    "ZT":  (2000.0, 10.31),  # tick 1/256 = $7.81  + $2.50
+# EVERY MARKET WITH DATA, and the cost computed rather than guessed:
+#
+#     cost = tick_in_price x $/point + commission
+#
+# Every tick below was VERIFIED against the tapes -- the smallest price
+# change that actually occurs in each file -- rather than taken from
+# memory. Point values are the smallest tradeable contract, micro where
+# one exists, because that is what a $4,000 account can hold.
+#
+# One full spread per round trip is the taker assumption: you cross on
+# the way in and on the way out, which costs one spread total against
+# mid. Where a micro's tick differs from the full contract's, the
+# micro's (wider) tick is used -- conservative, and conservative on cost
+# is the only safe direction to be wrong.
+#
+# (symbol: $/point, tick in price, commission round trip)
+_SPEC_RAW = {
+    "NQ":  (2.0,        0.25,       0.10),   # MNQ
+    "ES":  (5.0,        0.25,       0.20),   # MES
+    "YM":  (0.50,       1.0,        0.20),   # MYM
+    "RTY": (5.0,        0.10,       0.20),   # M2K
+    "GC":  (10.0,       0.10,       0.20),   # MGC
+    "HG":  (2500.0,     0.0005,     0.20),   # MHG micro copper
+    "CL":  (100.0,      0.01,       0.20),   # MCL
+    "NG":  (2500.0,     0.001,      0.20),   # MNG micro henry hub
+    "HO":  (42000.0,    0.0001,     0.30),   # no micro
+    "RB":  (42000.0,    0.0001,     0.30),   # no micro
+    "ZB":  (1000.0,     0.03125,    2.50),   # no micro, tick 1/32
+    "ZN":  (1000.0,     0.015625,   2.50),   # tick 1/64
+    "ZF":  (1000.0,     0.0078125,  2.50),   # tick 1/128
+    "ZT":  (2000.0,     0.00390625, 2.50),   # tick 1/256
+    "6E":  (12500.0,    0.0001,     0.20),   # M6E
+    "6A":  (10000.0,    0.0001,     0.20),   # M6A
+    "6B":  (6250.0,     0.0001,     0.20),   # M6B
+    "6J":  (6250000.0,  0.000001,   0.20),   # M6J
+    "ZC":  (10.0,       0.125,      0.20),   # XC micro corn, $/cent
+    "ZW":  (10.0,       0.125,      0.20),   # XW micro wheat
+    "ZS":  (10.0,       0.125,      0.20),   # XK micro soybean
+    "MBT": (0.10,       5.0,        0.20),   # micro bitcoin, 0.1 BTC
+    "ETH": (0.10,       0.50,       0.20),   # micro ether, 0.1 ETH
+    # SI (silver) is PERMANENTLY EXCLUDED by standing instruction.
 }
+SPEC = {k: (pv, round(tick * pv + comm, 4))
+        for k, (pv, tick, comm) in _SPEC_RAW.items()}
 VAULT_FRAC = 0.20
 MIN_TRADES = 60
 # dispersion floor, measured by features_selftest.py as the maximum the
@@ -353,7 +385,7 @@ def fwd_for_features(d, bars=1):
 
 # ------------------------------------------------------------------ loop
 def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
-          base_cols=None):
+          base_cols=None, points=None, mrows=None):
     """One market, one tier: grow features, build hypotheses, score."""
     srch, vault = split(d)
     bar_s = bars_per(d)
@@ -381,7 +413,12 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
 
     # ---- layer 3: what past failures license
     fam_mult = {}
-    hyps = HY.expand(HY.find_footprints(srch))
+    deduced = {}
+    for fam in list((mem.insights().get("horizons") or {})):
+        th = mem.target_horizon(fam)
+        if th:
+            deduced[fam] = [th]
+    hyps = HY.expand(HY.find_footprints(srch), extra_holds=deduced)
     for h in hyps:
         fam_mult.setdefault(h["_family"], mem.hold_multiplier(h["_family"]))
     for fam, mult in list(fam_mult.items()):
@@ -406,7 +443,8 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     flow_cols = set(srch.columns)
     if {"imb", "depl", "tflow"} & flow_cols:
         fh = HY.from_flow(flow_cols,
-                          mem.hold_multiplier("flow/queue_depletion"))
+                          mem.hold_multiplier("flow/queue_depletion"),
+                          extra_holds=deduced)
         hyps += fh
         say("flow_hypotheses", market=sym, tier=tier, n=len(fh),
             mechanisms=sorted({h["mech"] for h in fh}))
@@ -452,6 +490,22 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         mem.note(fam, mode, r)
         if r is None:
             continue
+        # EVIDENCE FOR THE INFERENCE ENGINE. Gross edge against horizon,
+        # pooled per family, is what the horizon-crossing fit reads.
+        # Gross, not net -- the whole question is where the growing
+        # gross curve meets the flat cost line, and netting cost off
+        # first destroys exactly that.
+        if points is not None:
+            # IN UNITS OF THIS MARKET'S OWN COST. Pooling raw dollars
+            # across markets compares ZB's $31 tick with MNQ's $0.50
+            # and then judges the pool against one of them; that is the
+            # same "one market's economics" error that made every 6A
+            # trade score -$0.5992. A ratio of 1.0 means "paid for
+            # itself here", and that means the same thing everywhere.
+            points.setdefault(fam, []).append(
+                (h["hold_s"], r["edge"] / cost if cost > 0 else 0.0))
+        if mrows is not None:
+            mrows.setdefault(fam, []).append((sym, r["edge"]))
         led.record(h, r, family=fam)
         done += 1
         if mode == "confirmed":
@@ -551,11 +605,14 @@ def main():
             break
         cycle += 1
         t0 = time.time()
+        points, mrows, vols = {}, {}, {}
         for sym, d in data.items():
             if os.path.exists(STOP):
                 break
             tv, cost = SPEC[sym]
-            out, err = sweep(sym, d, led, mem, libs, 1, tv, cost)
+            vols[sym] = float(d["close"].diff().abs().median() or 0.0)
+            out, err = sweep(sym, d, led, mem, libs, 1, tv, cost,
+                             points=points, mrows=mrows)
             if err:
                 led.halt(err)
                 say("HALT_selftest_failed", why=err)
@@ -613,7 +670,8 @@ def main():
                 if a is not None and len(a) > 5000:
                     tv, cost = SPEC["NQ"]
                     out, err = sweep(f"NQ@{cn}", a, led, mem, libs, 2,
-                                     tv, cost, budget=400)
+                                     tv, cost, budget=400,
+                                     points=points, mrows=mrows)
                     if err:
                         say("tier2_selftest_failed", why=err)
                     else:
@@ -649,7 +707,8 @@ def main():
                                  budget=400,
                                  base_cols=["close", "vol", "n", "absret",
                                             "imb", "spread", "qrate",
-                                            "depl", "adds", "tflow"])
+                                            "depl", "adds", "tflow"],
+                                 points=points, mrows=mrows)
                 if err:
                     say("tier3_selftest_failed", why=err)
                 else:
@@ -666,8 +725,35 @@ def main():
             mem.save()
             gc.collect()
 
+        # ---- INFER. Everything above measured; this deduces.
+        # edges are already normalised to each market's own cost, so
+        # break-even is the ratio 1.0 for every family alike
+        ins = IN.build(points, {f: 1.0 for f in points}, mrows, vols, SPEC)
+        mem.set_insights(ins)
+        for fam, hz in (ins.get("horizons") or {}).items():
+            if hz.get("fits") and hz.get("reachable"):
+                # This is the inference CHANGING the search: the next
+                # cycle will test this family at the deduced horizon,
+                # which nobody put in the list.
+                mem.adapt("horizon", fam,
+                          before=f"{HY.HOLDS_S if not fam.startswith('flow/') else HY.FLOW_HOLDS_S}s",
+                          after=f"+{hz['h_star']}s (deduced)",
+                          why=hz["why"])
+            elif hz.get("fits"):
+                mem.adapt("closed", fam, before="searching",
+                          after=f"crossing at {IN._dur(hz['h_star'])}",
+                          why=(hz["why"] + " That is beyond any horizon "
+                               "this account can hold, so the family is "
+                               "closed for a reason rather than "
+                               "abandoned for a shrug."))
+        say("inferred", horizons=len(ins.get("horizons") or {}),
+            reachable=sum(1 for h in (ins.get("horizons") or {}).values()
+                          if h.get("fits") and h.get("reachable")),
+            frontier_best=[r["market"] for r in ins.get("frontier", [])[:5]])
+        mem.save()
+
         json.dump({"t": now(), "cycle": cycle, "summary": led.summary(),
-                   "learning": mem.summary()},
+                   "learning": mem.summary(), "insight": ins},
                   open(STATUS, "w"), indent=1)
         say("cycle_done", cycle=cycle, secs=round(time.time() - t0),
             **led.summary())

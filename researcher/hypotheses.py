@@ -80,13 +80,22 @@ def _norm(k):
     return int(k)
 
 
-def expand(footprints, cap=4000):
-    """Footprints -> concrete, testable hypotheses."""
+def expand(footprints, cap=4000, extra_holds=None):
+    """Footprints -> concrete, testable hypotheses.
+
+    `extra_holds` carries horizons the learner DEDUCED rather than
+    horizons anybody chose. When a family's edge-vs-horizon fit says the
+    crossing with cost sits at 110 seconds, 110 seconds gets tested --
+    that is the inference changing what is searched, which is the only
+    thing that distinguishes learning from note-taking.
+    """
     hyps = []
     for f in footprints:
         fam = f"{f['dim']}/{f['metric']}"
+        holds = list(HOLDS_S) + [h for h in (extra_holds or {}).get(fam, [])
+                                 if h not in HOLDS_S]
         for d in DIRECTIONS:
-            for h in HOLDS_S:
+            for h in holds:
                 for c in CONDS:
                     hyps.append({
                         "kind": "footprint",
@@ -212,7 +221,7 @@ def _sgn(s):
 FLOW_HOLDS_S = [5, 15, 60, 300]
 
 
-def from_flow(available, hold_mult=1.0, cap=600):
+def from_flow(available, hold_mult=1.0, cap=600, extra_holds=None):
     """Order-flow mechanisms -> hypotheses.
 
     Holds are SHORT here on purpose. A queue imbalance is consumed in
@@ -226,10 +235,12 @@ def from_flow(available, hold_mult=1.0, cap=600):
     most common way a backtest manufactures an edge.
     """
     hyps = []
-    holds = [max(int(h * hold_mult), 1) for h in FLOW_HOLDS_S]
+    base = [max(int(h * hold_mult), 1) for h in FLOW_HOLDS_S]
     for m in FLOW:
         if not all(c in available for c in m["cols"]):
             continue
+        holds = base + [h for h in (extra_holds or {}).get(
+            f"flow/{m['name']}", []) if h not in base]
         for side in SIDES:
             for ls in LONGSHORT:
                 for h in holds:

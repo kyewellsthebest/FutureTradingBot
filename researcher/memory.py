@@ -230,6 +230,27 @@ class Memory:
                 f"theoretical {theoretical:.2f} / measured shrinkage "
                 f"{r:.2f} across {s['n']} vault touches")
 
+    # ---------- inferences ----------
+    def set_insights(self, ins):
+        self.d["insights"] = ins
+
+    def insights(self):
+        return self.d.get("insights", {}) or {}
+
+    def target_horizon(self, family):
+        """The horizon this family's own numbers point at.
+
+        Returned only when the fit says gross edge actually grows with
+        horizon and the crossing is somewhere a trade could live. A
+        crossing at four days is a real inference too, but it is an
+        inference that closes the family rather than one that redirects
+        it, so it is reported and not searched.
+        """
+        h = (self.insights().get("horizons") or {}).get(family)
+        if not h or not h.get("fits") or not h.get("reachable"):
+            return None
+        return int(h["h_star"])
+
     # ---------- io ----------
     def save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
