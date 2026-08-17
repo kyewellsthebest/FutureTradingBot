@@ -273,6 +273,19 @@ def api_live():
         lv = dict(R.LIVE)
     except Exception:                                         # noqa: BLE001
         lv = {}
+    # THE HEADLINE COMES FROM THE LEDGER'S OWN COUNTER, not from the
+    # mirror the search loop keeps by hand. Feature scoring adds trials
+    # in bulk through bump() and never touched that mirror, so the number
+    # on screen sat frozen for minutes at a time while the search was
+    # running normally. This reads the value every mutation path writes.
+    try:
+        from researcher.ledger import LIVE_TRIALS
+        if LIVE_TRIALS["n"] > lv.get("trials", 0):
+            lv["trials"] = LIVE_TRIALS["n"]
+        lv["last_trial_age_s"] = (round(time.time() - LIVE_TRIALS["t"], 1)
+                                  if LIVE_TRIALS["t"] else None)
+    except Exception:                                         # noqa: BLE001
+        pass
     import math
     n = max(lv.get("trials", 0), 1)
     lv["bar"] = round(max(3.0, math.sqrt(2.0 * math.log(n)) + 0.8), 2)
@@ -282,7 +295,22 @@ def api_live():
 
 @app.get("/api/history")
 def api_history():
-    return jsonify({"history": read_json(RDIR / "history.json", []) or []})
+    """The learning series, thinned for the wire.
+
+    Sampled once a minute the file reaches a few thousand rows, and the
+    console polls this often enough that shipping all of them every time
+    would be the heaviest thing the service does. The charts are 300px
+    wide, so more than a couple of hundred points cannot be seen
+    anyway -- but the LAST point always survives the thinning, because
+    that one is the number printed above the graph.
+    """
+    h = read_json(RDIR / "history.json", []) or []
+    cap = 200
+    if len(h) > cap:
+        step = len(h) / float(cap)
+        idx = sorted({int(i * step) for i in range(cap)} | {len(h) - 1})
+        h = [h[i] for i in idx]
+    return jsonify({"history": h})
 
 
 @app.get("/api/health")

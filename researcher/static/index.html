@@ -100,7 +100,10 @@ u{text-decoration:underline;text-decoration-color:var(--accent);
 .gap{font-size:12.5px;color:var(--muted);margin-top:6px}
 .chg{font-family:var(--mono);font-size:12.5px;color:var(--t1);
   background:var(--s3);border-radius:7px;padding:8px 10px;margin:7px 0;
-  overflow-x:auto;white-space:nowrap}
+  /* wrap rather than scroll: these rows now carry a family pill and a
+     before/after pair, and eight side-scrolling strips on a phone is a
+     worse read than four wrapped lines */
+  white-space:normal;overflow-wrap:anywhere;line-height:1.7}
 .chg .ar{color:var(--accent);padding:0 6px}
 .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;
   padding:3px 8px;border-radius:20px;background:var(--s3);color:var(--muted);
@@ -131,6 +134,9 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
 .sk-card{height:88px;margin:10px 0}
 /* sparklines */
 .chart{width:100%;height:76px;display:block}
+.onept{height:76px;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:0 10px;font-size:11.5px;line-height:1.45;
+  color:var(--muted);border:1px dashed var(--border);border-radius:8px}
 .chart path{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .chart .area{fill:url(#g1);stroke:none}
 .cg{display:grid;gap:12px}
@@ -338,13 +344,27 @@ async function tick(){
   const LBL = {hold:'⏳ Holding trades for longer', bar:'📈 Raised the bar it has to beat',
     horizon:'🎯 Worked out where the edge would pay, and went there',
     closed:'🚪 Closed a line of enquiry, with a number'};
-  $('#adapts').innerHTML = ad.length ? ad.slice(0,14).map(x=>`
+  // GROUP BY KIND. One deduction per family is correct bookkeeping and
+  // wrong reading: fifteen cards all headed "Worked out where the edge
+  // would pay" bury the four DIFFERENT things it worked out under one
+  // repeated sentence. The heading is the lesson and it is said once;
+  // the families it was applied to are listed under it.
+  const byKind = {};
+  ad.forEach(x=>{ (byKind[x.kind] = byKind[x.kind] || []).push(x); });
+  const kinds = Object.entries(byKind)
+    .sort((a,b)=>b[1].length-a[1].length);
+  $('#adapts').innerHTML = ad.length ? kinds.map(([k,xs])=>`
     <div class="item">
-      <div class="t">${esc(LBL[x.kind]||x.kind)}</div>
-      <div class="chg">${esc(x.before)}<span class="ar">→</span>${esc(x.after)}</div>
-      <div class="d">${esc(x.why)}</div>
-      <div style="margin-top:8px"><span class="pill">${esc(x.family)}</span>
-        <span class="pill">applied ${x.applied}×</span></div>
+      <div class="t">${esc(LBL[k]||k)}${xs.length>1
+        ? ` <span class="pill">${xs.length} places</span>` : ''}</div>
+      <div class="d">${esc(xs[0].why)}</div>
+      ${xs.slice(0,8).map(x=>`
+        <div class="chg" style="margin-top:6px">
+          <span class="pill">${esc(x.family)}</span>
+          ${esc(x.before)}<span class="ar">→</span>${esc(x.after)}
+          <span class="pill">${x.applied}×</span></div>`).join('')}
+      ${xs.length>8 ? `<div class="d" style="margin-top:6px">
+        …and ${xs.length-8} more of the same kind.</div>` : ''}
     </div>`).join('')
     : `<div class="empty"><b>Nothing yet.</b><br><br>
        No group of ideas has failed in a way that points at a specific fix,
@@ -486,8 +506,17 @@ async function live(){
     document.getElementById('lp').style.background =
       l.alive ? 'var(--pos)' : 'var(--muted)';
     const where = l.market ? `${esc(l.market)} · tier ${l.tier}` : 'starting…';
+    // SAY SO WHEN THE NUMBER IS STANDING STILL. A frozen counter with no
+    // explanation is indistinguishable from a broken page. Long gaps are
+    // normal — loading a deep tape or growing features can take minutes
+    // without scoring anything — but the screen should admit it.
+    const age = l.last_trial_age_s;
+    const idle = (age != null && age > 45)
+      ? ` &nbsp;·&nbsp; <b style="color:var(--warn,#e9b05a)">⏳ ${
+          age > 120 ? Math.round(age/60)+' min' : Math.round(age)+'s'
+        } since the last one</b> (loading data or building features)` : '';
     $('#bigsub').innerHTML = `<b>${esc(where)}</b> &nbsp;·&nbsp; bar
-      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session`;
+      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session${idle}`;
   }catch(e){}
 }
 function paint(){
@@ -508,7 +537,13 @@ function paint(){
 
 // ── sparkline
 function spark(series, colour){
-  if (!series || series.length < 2) return '<div class="sk sk-card"></div>';
+  // A ONE-POINT SERIES IS NOT A LOADING STATE. This used to return a
+  // skeleton shimmer, so with a single reading on file every chart on
+  // the Learning tab shimmered forever and the tab read as permanently
+  // loading when it had in fact already loaded everything there was.
+  if (!series || series.length < 2)
+    return `<div class="onept">📊 one reading so far — the line starts
+      drawing on the next sample, about a minute away</div>`;
   const w = 300, h = 76, pad = 4;
   const mn = Math.min(...series), mx = Math.max(...series);
   const rng = (mx - mn) || 1;
@@ -567,5 +602,5 @@ async function charts(){
 tick(); live(); charts(); paint();
 setInterval(tick, 5000);
 setInterval(live, 1000);
-setInterval(charts, 30000);
+setInterval(charts, 15000);
 </script>

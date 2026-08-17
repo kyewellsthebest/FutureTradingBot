@@ -44,6 +44,23 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# THE AUTHORITATIVE LIVE TRIAL COUNT.
+#
+# The console's headline number used to be mirrored by hand in the search
+# loop, which meant it was only correct on the code path that remembered
+# to mirror it. Feature scoring goes through bump() in bulk and never
+# touched the mirror, so the number on screen froze for minutes at a time
+# while the search was working perfectly -- the display looked dead
+# because it was reading a copy nobody had updated.
+#
+# Every path that changes the trial count goes through _record or bump,
+# both in this file and both under the lock, so setting it here means
+# there is no path left that can forget. The API reads it without taking
+# the lock: an int assignment is atomic and a reader that is one trial
+# behind does not matter.
+LIVE_TRIALS = {"n": 0, "t": 0.0}
+
+
 class Ledger:
     def __init__(self, path=None):
         # THREAD SAFETY. Market sweeps run in parallel and all of them
@@ -64,6 +81,9 @@ class Ledger:
             except Exception:                                 # noqa: BLE001
                 self.d["halts"].append(
                     {"t": _now(), "why": "ledger unreadable, restarted"})
+        # seed the live mirror so the console shows the real total the
+        # instant the process comes back, not 0 until the first trial
+        LIVE_TRIALS["n"] = max(LIVE_TRIALS["n"], int(self.d["trials"]))
 
     # ---------- identity ----------
     @staticmethod
@@ -95,6 +115,8 @@ class Ledger:
     def _record(self, hyp, result: dict, family=None):
         fp = self.fingerprint(hyp)
         self.d["trials"] += 1
+        LIVE_TRIALS["n"] = self.d["trials"]
+        LIVE_TRIALS["t"] = time.time()
         self.d["tested"][fp] = {
             "t": _now(), "hyp": hyp, "result": result,
             "bar_at_test": round(self.bar(), 2), "family": family,
@@ -318,6 +340,8 @@ class Ledger:
         """Add n trials atomically. Feature scoring is search too."""
         with self._lock:
             self.d["trials"] += int(n)
+            LIVE_TRIALS["n"] = self.d["trials"]
+            LIVE_TRIALS["t"] = time.time()
 
     def save(self):
         with self._lock:

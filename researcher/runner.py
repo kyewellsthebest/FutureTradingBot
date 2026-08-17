@@ -165,6 +165,90 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# ---------------------------------------------------------------- history
+# THE LEARNING GRAPHS NEED POINTS MORE OFTEN THAN ONCE A CYCLE.
+#
+# History used to be appended at the end of a sweep. A full sweep of 23
+# markets across three tiers takes hours, so for most of a day the series
+# held exactly ONE point -- and a one-point series cannot be drawn. Every
+# chart on the Learning tab rendered as an empty shimmering box, which
+# reads as "still loading" forever rather than "one reading so far".
+#
+# So it is sampled on a timer as well. The cycle-end call still happens
+# and is the only one that carries a round time; the sampler fills in
+# between so the graphs move while you watch them.
+_HIST_LOCK = __import__("threading").Lock()
+_HIST_CTX = {}
+
+
+def history_point(secs=None):
+    """Append one row to the learning series. Safe to call from anywhere."""
+    led = _HIST_CTX.get("led")
+    if led is None:
+        return False
+    mem = _HIST_CTX.get("mem") or type("_", (), {"d": {}})()
+    libs = _HIST_CTX.get("libs") or {}
+    try:
+        with _HIST_LOCK:
+            hp = os.path.join(RDIR, "history.json")
+            hist = []
+            if os.path.exists(hp):
+                try:
+                    hist = json.load(open(hp)) or []
+                except Exception:                             # noqa: BLE001
+                    hist = []
+            row = {
+                "t": now(), "cycle": _HIST_CTX.get("cycle", 0),
+                "trials": led.d["trials"],
+                "bar": round(led.bar(), 3),
+                "distinct": len(led.d["tested"]),
+                "killed": sum(1 for r in led.d["tested"].values()
+                              if r.get("killed")),
+                "survivors": len(led.d.get("survivors", [])),
+                "adaptations": len(mem.d.get("adaptations", [])),
+                "families": len(mem.d.get("families", {})),
+                "closed": sum(1 for a in mem.d.get("adaptations", [])
+                              if a.get("kind") == "closed"),
+                "deduced": sum(1 for a in mem.d.get("adaptations", [])
+                               if a.get("kind") == "horizon"),
+                "features": sum(len(l.scores) for l in libs.values()),
+                "vault": len(led.d.get("vault_touches", {})),
+            }
+            # Round time only exists at the end of a round. Carrying the
+            # previous value forward keeps that line continuous instead
+            # of collapsing to zero between sweeps.
+            row["secs"] = (int(secs) if secs is not None
+                           else (hist[-1].get("secs", 0) if hist else 0))
+            row["sampled"] = secs is None
+            # Nothing moved and this is only a sample: replace the last
+            # sample rather than growing the file with a flat line.
+            if (hist and row["sampled"] and hist[-1].get("sampled")
+                    and hist[-1].get("trials") == row["trials"]):
+                hist[-1] = row
+            else:
+                hist.append(row)
+            json.dump(hist[-3000:], open(hp, "w"))
+        return True
+    except Exception as exc:                                  # noqa: BLE001
+        say("history_failed", err=str(exc)[:120])
+        return False
+
+
+def start_history_sampler(every=60):
+    import threading
+
+    def loop():
+        while True:
+            time.sleep(every)
+            try:
+                history_point()
+            except Exception:                                 # noqa: BLE001
+                pass
+    t = threading.Thread(target=loop, daemon=True, name="history")
+    t.start()
+    return t
+
+
 def say(msg, **kw):
     line = {"t": now(), "msg": msg}
     line.update(kw)
@@ -1150,11 +1234,17 @@ def main():
 
     libs = {}
     cycle = 0
+    # Hand the sampler live references so the learning graphs gain a
+    # point every minute instead of once a sweep.
+    _HIST_CTX.update(led=led, mem=mem, libs=libs, cycle=0)
+    history_point()
+    start_history_sampler(int(os.environ.get("RESEARCH_HIST_S", "60")))
     while True:
         if os.path.exists(STOP):
             say("stopped_by_file", path=STOP)
             break
         cycle += 1
+        _HIST_CTX["cycle"] = cycle
         t0 = time.time()
         points, mrows, vols = {}, {}, {}
         # PARALLEL ACROSS MARKETS. Markets are independent -- each
@@ -1352,35 +1442,7 @@ def main():
             frontier_best=[r["market"] for r in ins.get("frontier", [])[:5]])
         mem.save()
 
-        # HISTORY, for the "is it getting smarter" graphs. Appended once
-        # a cycle and capped, because an unbounded series eventually
-        # becomes the largest thing on the volume.
-        try:
-            hp = os.path.join(RDIR, "history.json")
-            hist = []
-            if os.path.exists(hp):
-                hist = json.load(open(hp))
-            hist.append({
-                "t": now(), "cycle": cycle,
-                "trials": led.d["trials"],
-                "bar": round(led.bar(), 3),
-                "distinct": len(led.d["tested"]),
-                "killed": sum(1 for r in led.d["tested"].values()
-                              if r.get("killed")),
-                "survivors": len(led.d.get("survivors", [])),
-                "adaptations": len(mem.d.get("adaptations", [])),
-                "families": len(mem.d.get("families", {})),
-                "closed": sum(1 for a in mem.d.get("adaptations", [])
-                              if a.get("kind") == "closed"),
-                "deduced": sum(1 for a in mem.d.get("adaptations", [])
-                               if a.get("kind") == "horizon"),
-                "features": sum(len(l.scores) for l in libs.values()),
-                "vault": len(led.d.get("vault_touches", {})),
-                "secs": round(time.time() - t0),
-            })
-            json.dump(hist[-500:], open(hp, "w"))
-        except Exception as exc:                              # noqa: BLE001
-            say("history_failed", err=str(exc)[:120])
+        history_point(secs=round(time.time() - t0))
 
         json.dump({"t": now(), "cycle": cycle, "summary": led.summary(),
                    "learning": mem.summary(), "insight": ins},
