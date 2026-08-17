@@ -337,7 +337,9 @@ async function tick(){
 
   const nm = s.near||[];
   const MEDAL=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-  const pct = v => v==null?'—':(v*100).toFixed(0)+'%';
+  const pend = '<span style="font-size:12px;color:var(--muted);'
+             + 'font-family:-apple-system,system-ui,sans-serif">measuring…</span>';
+  const pct = v => v==null?pend:(v*100).toFixed(0)+'%';
   $('#near').innerHTML = nm.length ? nm.slice(0,10).map((x,i)=>{
     const prog = x.bar ? Math.max(0,Math.min(100, 100*(x.z||0)/x.bar)) : 0;
     return `<div class="lb">
@@ -346,14 +348,14 @@ async function tick(){
         <div class="nm">${esc(x.what)}</div>
         <div class="mt">
           <div><div class="l">📅 trades / week</div>
-               <div class="v">${x.per_week==null?'—':Number(x.per_week).toFixed(1)}</div></div>
+               <div class="v">${x.per_week==null?pend:Number(x.per_week).toFixed(1)}</div></div>
           <div><div class="l">💵 $ / trade</div>
                <div class="v" style="color:${(x.net||0)>0?'var(--pos)':'var(--neg)'}">
-               ${x.net==null?'—':(x.net>0?'+':'')+Number(x.net).toFixed(2)}</div></div>
+               ${x.net==null?pend:(x.net>0?'+':'')+Number(x.net).toFixed(2)}</div></div>
           <div><div class="l">🎯 win rate</div>
                <div class="v">${pct(x.win_rate)}</div></div>
           <div><div class="l">⚖️ risk / reward</div>
-               <div class="v">${x.rr==null?'—':Number(x.rr).toFixed(2)}</div></div>
+               <div class="v">${x.rr==null?pend:Number(x.rr).toFixed(2)}</div></div>
         </div>
         <div class="prog"><i style="width:${prog.toFixed(0)}%"></i></div>
         <div class="gap"><b>${Number(x.z||0).toFixed(2)}</b> of the

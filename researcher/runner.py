@@ -646,6 +646,39 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     return (done, cands, kept), None
 
 
+def backfill_metrics(led, data, k=40):
+    """Fill trades/week, win rate and RR on older ledger entries.
+
+    Only for tier-1 hypotheses whose market tape is loaded, and only
+    where the fields are missing. Bounded to k rows a cycle so it never
+    competes with the search for time.
+    """
+    n = 0
+    for row in led.near_misses(k):
+        r = (led.d["tested"].get(row["fp"]) or {}).get("result") or {}
+        if not r or r.get("win_rate") is not None:
+            continue
+        h = dict(row["hyp"] or {})
+        sym = str(h.get("market", "")).split("@")[0]
+        d = data.get(sym)
+        if d is None or sym not in SPEC:
+            continue
+        tv, cost = SPEC[sym]
+        srch, _ = split(d)
+        try:
+            fresh = evaluate(srch, h, tv, cost, None, bars_per(srch))
+        except Exception:                                     # noqa: BLE001
+            continue
+        if not fresh:
+            continue
+        for key in ("win_rate", "rr", "per_week", "gz",
+                    "avg_win", "avg_loss"):
+            if fresh.get(key) is not None:
+                r[key] = fresh[key]
+        n += 1
+    return n
+
+
 def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
     """What a candidate must survive, in order, before it is believed.
 
@@ -878,6 +911,20 @@ def main():
             led.save()
             mem.save()
             gc.collect()
+
+        # ---- BACKFILL. The leaderboard reports trades/week, win rate
+        # and RR, which older ledger entries predate. The ledger never
+        # retests by design, so without this the best entries would show
+        # blanks permanently -- the top row is the top row precisely
+        # because nothing has beaten it. Re-scoring is NOT a new trial:
+        # the hypothesis is already counted, and this only fills in
+        # fields on the stored result.
+        try:
+            filled = backfill_metrics(led, data)
+            if filled:
+                say("backfilled_metrics", rows=filled)
+        except Exception as exc:                              # noqa: BLE001
+            say("backfill_failed", err=str(exc)[:160])
 
         # ---- INFER. Everything above measured; this deduces.
         # edges are already normalised to each market's own cost, so

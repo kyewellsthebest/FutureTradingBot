@@ -280,8 +280,9 @@ def tiers():
     from researcher import data_tiers as DT
     out = []
     t1 = len(DT.tier1())
-    out.append({"tier": 1, "name": "breadth · 5-minute bars, 10 markets",
-                "ok": t1 > 0, "detail": f"{t1} markets"})
+    out.append({"tier": 1,
+                "name": f"breadth · 5-minute bars, {t1} markets",
+                "ok": t1 > 0, "detail": f"{t1} markets on disk"})
     src = DT.tier2_sources(60)
     kind = src[0][1] if src else None
     out.append({"tier": 2, "name": "depth · NQ intraday bars, 8 quarters",
