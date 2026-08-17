@@ -15,3 +15,5 @@ orjson>=3.10
 # data/depth) are parquet. Without this, tier 2 and tier 3 raise on
 # read and the searcher silently runs on tier 1 alone.
 pyarrow>=15.0
+# research console PDF reports (/api/learning.pdf, /api/diagnostics.pdf)
+reportlab>=4.0

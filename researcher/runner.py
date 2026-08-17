@@ -383,12 +383,38 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         fam_mult.setdefault(h["_family"], mem.hold_multiplier(h["_family"]))
     for fam, mult in list(fam_mult.items()):
         if mult != 1.0:
+            n_changed = 0
             for h in hyps:
                 if h["_family"] == fam:
                     h["hold_s"] = int(h["hold_s"] * mult)
+                    n_changed += 1
+            # RECORD THE CHANGE, not just the lesson. A system that
+            # displays what it learned but cannot show what it did
+            # differently is a logging system wearing a learning
+            # system's clothes.
+            mem.adapt("hold", fam,
+                      before=f"{HY.HOLDS_S}s",
+                      after=f"{[int(x * mult) for x in HY.HOLDS_S]}s",
+                      why=mem.lesson(fam)[0])
     fmult = mem.hold_multiplier("feature/d1")
+    if fmult != 1.0:
+        mem.adapt("hold", "feature/d1",
+                  before=f"{HY.HOLDS_S}s",
+                  after=f"{[int(x * fmult) for x in HY.HOLDS_S]}s",
+                  why=mem.lesson("feature/d1")[0])
     hyps += HY.from_features(sorted(lib.scores.items(), key=lambda kv: -kv[1]),
                              FEAT_FLOOR, fmult)
+    for fam in {h["_family"] for h in hyps}:
+        pr = led.family_prior(fam)
+        if pr < 0.5:
+            f = led.d["families"].get(fam, {})
+            mem.adapt("effort", fam, before="1.00x",
+                      after=f"{pr:.2f}x",
+                      why=(f"{f.get('n', 0)} hypotheses tested in this "
+                           f"family, best z {f.get('best_z', 0):.2f}, "
+                           f"nothing cleared the bar -- effort reduced, "
+                           f"not stopped, since a family is not disproved "
+                           f"by its members failing"))
     hyps.sort(key=lambda h: -led.family_prior(h["_family"]))
 
     done = 0
@@ -456,6 +482,9 @@ def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
 
         # 2. the empirical bar, once there is calibration to raise it by
         ebar, why = mem.empirical_bar(bar)
+        if ebar > bar + 0.01:
+            mem.adapt("bar", "all", before=f"{bar:.2f} sigma",
+                      after=f"{ebar:.2f} sigma", why=why)
         if r["z"] < ebar:
             say("below_empirical_bar", need=round(ebar, 2), why=why,
                 what=HY.describe(h))

@@ -337,6 +337,8 @@ def api_state():
         "state_loss": STATE["state_loss"],
         "tiers": cached_tiers(),
         "backup": STATE["backup"],
+        "adaptations": adaptations(),
+        "survivors": survivors(),
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the
@@ -344,6 +346,45 @@ def api_state():
         # rendering an empty table that reads like a failure.
         "verdict": verdict(led),
     })
+
+
+def adaptations():
+    """What the searcher has changed about itself, newest-used first."""
+    m = read_json(RDIR / "memory.json", {}) or {}
+    return sorted(m.get("adaptations", []), key=lambda a: -a.get("applied", 0))
+
+
+def survivors():
+    """Candidates that cleared the bar, with their vault verdict.
+
+    A survivor with no vault entry has not been confirmed -- it cleared
+    the search set only. The console has to distinguish those, because
+    "found a strategy" and "found something that looked good on the data
+    it was chosen from" are not the same claim.
+    """
+    led = read_json(RDIR / "ledger.json", {}) or {}
+    touches = led.get("vault_touches", {}) or {}
+    out = []
+    for s in led.get("survivors", [])[-40:]:
+        r = s.get("result", {}) or {}
+        v = (touches.get(s.get("fp")) or {}).get("result") or {}
+        out.append({
+            "what": describe(s.get("hyp", {})),
+            "market": (s.get("hyp") or {}).get("market", ""),
+            "z": r.get("z"), "n": r.get("n"), "net": r.get("net"),
+            "confirmed": bool(v and v.get("z", 0) > 2.0
+                              and v.get("net", 0) > 0),
+            "vault": v or None,
+        })
+    return out[::-1]
+
+
+def describe(h):
+    try:
+        from researcher import hypotheses as HY
+        return HY.describe(h)
+    except Exception:                                         # noqa: BLE001
+        return str(h)[:160]
 
 
 def verdict(led):
@@ -387,6 +428,43 @@ def api_start():
     if f.exists():
         f.unlink()
     return jsonify({"stopped": False})
+
+
+@app.get("/api/learning.pdf")
+def api_learning_pdf():
+    from flask import Response
+    from researcher.report import learning_pdf
+    try:
+        pdf = learning_pdf(str(RDIR))
+    except Exception as exc:                                  # noqa: BLE001
+        return jsonify({"error": str(exc)[:400]}), 500
+    d = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="research-learning-'
+                               f'{d}.pdf"'})
+
+
+@app.get("/api/diagnostics.pdf")
+def api_diag_pdf():
+    from flask import Response
+    from researcher.report import diagnostics_pdf
+    try:
+        extra = {"storage": STATE["storage"].get("path"),
+                 "durable": STATE["storage"].get("durable"),
+                 "volume": STATE["storage"].get("volume"),
+                 "backup": (STATE.get("backup") or {}).get("mode"),
+                 "alive": STATE["alive"],
+                 "state_loss": bool(STATE.get("state_loss")),
+                 "tiers": ", ".join(
+                     f"{t['tier']}:{'ok' if t['ok'] else 'MISSING'}"
+                     for t in cached_tiers())}
+        pdf = diagnostics_pdf(str(RDIR), extra)
+    except Exception as exc:                                  # noqa: BLE001
+        return jsonify({"error": str(exc)[:400]}), 500
+    d = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="research-'
+                               f'diagnostics-{d}.pdf"'})
 
 
 @app.get("/")

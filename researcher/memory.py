@@ -92,12 +92,44 @@ class Memory:
 
     def __init__(self, path):
         self.path = path
-        self.d = {"families": {}, "vault": [], "started": _now()}
+        self.d = {"families": {}, "vault": [], "adaptations": [],
+                  "started": _now()}
         if os.path.exists(path):
             try:
                 self.d.update(json.load(open(path)))
             except Exception:                                 # noqa: BLE001
                 pass
+        self.d.setdefault("adaptations", [])
+
+    # ---------- proof that a lesson changed something ----------
+    def adapt(self, kind, family, before, after, why):
+        """Record that a lesson ACTUALLY CHANGED the search.
+
+        A learning system that displays lessons but does not act on them
+        is a logging system. The distinction has to be checkable, so
+        every applied change is written down with its before and after
+        and the evidence that triggered it, and the count of hypotheses
+        it has since affected is kept up to date.
+
+        Deduplicated on (kind, family, after): re-applying the same
+        change every cycle is one adaptation that keeps being used, not
+        thousands of separate lessons.
+        """
+        key = f"{kind}|{family}|{after}"
+        for a in self.d["adaptations"]:
+            if a["key"] == key:
+                a["applied"] += 1
+                a["last"] = _now()
+                return a
+        a = {"key": key, "kind": kind, "family": family,
+             "before": before, "after": after, "why": why,
+             "first": _now(), "last": _now(), "applied": 1}
+        self.d["adaptations"].append(a)
+        return a
+
+    def adaptations(self):
+        return sorted(self.d.get("adaptations", []),
+                      key=lambda a: -a["applied"])
 
     # ---------- failure profiles ----------
     def note(self, family, mode, result=None):

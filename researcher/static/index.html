@@ -1,286 +1,304 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>RESEARCH · console</title>
+<title>RESEARCH</title>
 <style>
-/* Same skin as the PULSE console: dark surfaces, mono chrome, grid texture. */
+/* Mobile first. Nothing here assumes a wide screen; the desktop layout
+   is one max-width and a couple of two-column grids on top. */
 :root{
   --bg:#05070b; --s1:#0b1017; --s2:#0e141d; --s3:#141b27;
-  --border:rgba(96,160,255,.10); --hot:rgba(96,176,255,.28);
+  --border:rgba(96,160,255,.10); --hot:rgba(96,176,255,.26);
   --t1:#e8eef8; --t2:#93a1bb; --muted:#5c687f;
-  --accent:#3987e5; --accent2:#9085e9;
-  --pos:#199e70; --pos-t:#3fd39b; --neg:#e66767; --neg-t:#f08d8d; --warn:#e9b05a;
-  --r:8px; --pad:14px;
-  --mono:'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace;
+  --accent:#3987e5; --pos:#3fd39b; --neg:#f08d8d; --warn:#e9b05a;
+  --mono:'SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
 body{
-  font-family:Inter,-apple-system,system-ui,sans-serif;
-  background:
-    radial-gradient(1200px 500px at 50% -200px,rgba(57,135,229,.08),transparent 60%),
-    repeating-linear-gradient(0deg,transparent 0 23px,rgba(96,160,255,.028) 23px 24px),
-    repeating-linear-gradient(90deg,transparent 0 23px,rgba(96,160,255,.028) 23px 24px),
-    var(--bg);
-  color:var(--t1);min-height:100vh;padding-bottom:40px;overflow-x:hidden
+  font-family:-apple-system,system-ui,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--t1);
+  min-height:100vh;overflow-x:hidden;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  font-size:16px;line-height:1.5;
 }
 .top{
-  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;
-  justify-content:space-between;padding:12px var(--pad);
-  background:rgba(5,7,11,.85);backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--hot)
+  position:sticky;top:0;z-index:50;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 0;
+  background:rgba(5,7,11,.94);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
 }
-.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);
-  font-size:13px;letter-spacing:.14em;text-transform:uppercase}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
-.dot.on{background:var(--pos-t);box-shadow:0 0 10px var(--pos-t);
-  animation:pulse 2s infinite}
-.dot.off{background:var(--neg-t);box-shadow:0 0 10px var(--neg-t)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.btn{
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-  background:var(--s3);color:var(--t2);border:1px solid var(--border);
-  border-radius:6px;padding:7px 12px;cursor:pointer
+.bar1{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:9px;font-family:var(--mono);
+  font-size:12px;letter-spacing:.16em}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--pos);box-shadow:0 0 9px var(--pos);animation:p 2.4s infinite}
+.dot.off{background:var(--neg);box-shadow:0 0 9px var(--neg)}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+/* tabs: horizontally scrollable, big touch targets */
+.tabs{display:flex;gap:2px;margin-top:12px;overflow-x:auto;
+  scrollbar-width:none;-ms-overflow-style:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:none;background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--muted);font-size:14px;font-weight:600;font-family:inherit;
+  padding:11px 14px;cursor:pointer;white-space:nowrap;
 }
-.btn:hover{border-color:var(--hot);color:var(--t1)}
-.wrap{max-width:1100px;margin:0 auto;padding:var(--pad);
-  display:flex;flex-direction:column;gap:var(--pad)}
-.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
-  padding:var(--pad)}
-.card h2{font-family:var(--mono);font-size:11px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:600}
-.alert{border-color:var(--warn);background:linear-gradient(0deg,
-  rgba(233,176,90,.07),rgba(233,176,90,.07)),var(--s1)}
+.tab[aria-selected=true]{color:var(--t1);border-bottom-color:var(--accent)}
+.wrap{padding:16px;display:flex;flex-direction:column;gap:14px;
+  max-width:760px;margin:0 auto}
+.card{background:var(--s1);border:1px solid var(--border);
+  border-radius:12px;padding:16px}
+.card h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;font-weight:700}
+.headline{font-size:22px;line-height:1.3;font-weight:650;letter-spacing:-.02em}
+.sub{font-size:14.5px;line-height:1.62;color:var(--t2);margin-top:10px}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.num{background:var(--s2);border:1px solid var(--border);border-radius:10px;
+  padding:13px}
+.num .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px}
+.num .v{font-family:var(--mono);font-size:23px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.15}
+.num .s{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.alert{border-color:var(--warn);background:rgba(233,176,90,.07)}
 .alert h2{color:var(--warn)}
-.alert p{font-size:13px;line-height:1.65;color:var(--t1)}
-.verdict .line{font-size:20px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
-.verdict .detail{font-size:13.5px;line-height:1.7;color:var(--t2);max-width:78ch}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.stat{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:12px}
-.stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.stat .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
-.stat .sub{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4}
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--muted);text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);
-  font-weight:600}
-td{padding:8px;border-bottom:1px solid rgba(96,160,255,.05);color:var(--t2);
-  vertical-align:top}
-td.mono{font-family:var(--mono);color:var(--t1)}
-tr:last-child td{border-bottom:none}
-.feed{font-family:var(--mono);font-size:11.5px;line-height:1.7;
-  max-height:420px;overflow-y:auto}
-.ev{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid rgba(96,160,255,.04)}
-.ev time{color:var(--muted);flex:none}
-.ev .tag{flex:none;min-width:150px;color:var(--accent)}
-.ev .tag.bad{color:var(--neg-t)} .ev .tag.good{color:var(--pos-t)}
-.ev .tag.warn{color:var(--warn)}
-.ev .body{color:var(--t2);word-break:break-word}
-.note{font-size:12px;color:var(--muted);line-height:1.65;margin-top:10px;
-  padding-top:10px;border-top:1px solid var(--border)}
-code{font-family:var(--mono);background:var(--s3);padding:1px 5px;border-radius:4px;
-  font-size:.92em;color:var(--t1)}
-@media(max-width:640px){.ev{flex-wrap:wrap}.ev .tag{min-width:0}}
+.alert p{font-size:14px;line-height:1.6}
+.btn{
+  display:block;width:100%;text-align:center;text-decoration:none;
+  background:var(--s3);color:var(--t1);border:1px solid var(--hot);
+  border-radius:10px;padding:15px;font-size:15px;font-weight:600;
+  font-family:inherit;cursor:pointer;margin-top:4px;
+}
+.btn:active{background:#1b2534}
+.btn.ghost{border-color:var(--border);color:var(--t2);font-weight:500}
+.btn .bs{display:block;font-size:12px;font-weight:400;color:var(--muted);
+  margin-top:4px;line-height:1.4}
+.item{padding:13px 0;border-bottom:1px solid rgba(96,160,255,.07)}
+.item:last-child{border-bottom:none}
+.item:first-child{padding-top:0}
+.item .t{font-size:15px;font-weight:600;margin-bottom:5px}
+.item .d{font-size:13.5px;color:var(--t2);line-height:1.6}
+.chg{font-family:var(--mono);font-size:12.5px;color:var(--t1);
+  background:var(--s3);border-radius:7px;padding:8px 10px;margin:7px 0;
+  overflow-x:auto;white-space:nowrap}
+.chg .ar{color:var(--accent);padding:0 6px}
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;
+  padding:3px 8px;border-radius:20px;background:var(--s3);color:var(--muted);
+  margin-right:6px}
+.pill.ok{color:var(--pos)} .pill.bad{color:var(--neg)} .pill.warn{color:var(--warn)}
+.empty{font-size:14.5px;color:var(--t2);line-height:1.65}
+.mini{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:12px;
+  padding-top:12px;border-top:1px solid var(--border)}
+pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
+  overflow-x:auto;background:var(--s2);border-radius:8px;padding:11px;
+  max-height:300px;overflow-y:auto}
+.hide{display:none}
+@media(min-width:620px){ .nums{grid-template-columns:repeat(4,1fr)} }
 </style>
 
 <div class="top">
-  <div class="brand"><span class="dot" id="dot"></span><span>research · console</span></div>
-  <div style="display:flex;gap:8px">
-    <button class="btn" id="toggle">stop</button>
-    <span class="btn" id="clock" style="cursor:default"></span>
+  <div class="bar1">
+    <div class="brand"><span class="dot" id="dot"></span><span>RESEARCH</span></div>
+    <button class="tab" id="toggle" style="border:1px solid var(--border);
+      border-radius:8px;padding:7px 13px;font-size:12px">stop</button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" data-p="status"   aria-selected="true">Status</button>
+    <button class="tab" data-p="learning" aria-selected="false">Learning</button>
+    <button class="tab" data-p="strat"    aria-selected="false">Strategies</button>
+    <button class="tab" data-p="check"    aria-selected="false">Check</button>
   </div>
 </div>
 
 <div class="wrap">
   <div id="alerts"></div>
 
-  <div class="card verdict">
-    <h2>where the search stands</h2>
-    <div class="line" id="vline">connecting…</div>
-    <div class="detail" id="vdetail"></div>
-  </div>
-
-  <div class="card">
-    <h2>data tiers, and where state is kept</h2>
-    <div id="tiers"></div>
-    <div class="note">
-      An <b>absent</b> tier produces no events at all, so a console driven only by
-      the event stream would render a perfectly healthy search running on a fraction
-      of its data. This panel is probed directly for that reason.
-      <br><br>
-      The <b>GitHub mirror</b> is the second durability path. The volume is the fast
-      one, read and written every cycle; GitHub is written once a cycle and read only
-      when local state is missing or behind. A push that would <i>lower</i> the
-      recorded trial count is refused — a container that lost its volume must not
-      overwrite the only good copy of the bar with an empty one.
+  <!-- ─────────────────────────── STATUS -->
+  <div class="pane" id="p-status">
+    <div class="card">
+      <div class="headline" id="vline">connecting…</div>
+      <div class="sub" id="vdetail"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="nums" id="nums"></div>
+    <div style="height:14px"></div>
+    <div class="card">
+      <h2>is it working</h2>
+      <div id="health"></div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>ledger</h2>
-    <div class="grid" id="stats"></div>
-    <div class="note" id="barnote"></div>
+  <!-- ─────────────────────────── LEARNING -->
+  <div class="pane hide" id="p-learning">
+    <div class="card">
+      <h2>what it changed about its own search</h2>
+      <div id="adapts"></div>
+      <div class="mini">
+        These are changes the bot made to how it searches, caused by what its
+        failures told it — not notes it wrote down and ignored. The count is how
+        many times each change has actually been applied since.
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <a class="btn" id="dl-learn" href="/api/learning.pdf">
+      Download the full learning report
+      <span class="bs">PDF · everything it has worked out, and what it changed</span>
+    </a>
   </div>
 
-  <div class="card">
-    <h2>what it has learned — failure profiles by family</h2>
-    <div style="overflow-x:auto"><table id="fams">
-      <thead><tr><th>family</th><th>tested</th><th>cost-bound</th>
-      <th>no signal</th><th>thin</th><th>hold ×</th><th>lesson</th></tr></thead>
-      <tbody></tbody></table></div>
-    <div class="note">
-      A failure that is <b>cost-bound</b> is the valuable one: directionally right,
-      but the move is smaller than the round trip. The licensed response is to hold
-      longer — cost is fixed per trade while move size grows as √time — and that is
-      arithmetic, not a fitted preference. <b>No signal</b> is the honest majority
-      and licenses nothing. <b>Thin</b> means the bucket is rare, not wrong.
+  <!-- ─────────────────────────── STRATEGIES -->
+  <div class="pane hide" id="p-strat">
+    <div class="card">
+      <h2>strategies found</h2>
+      <div id="strats"></div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>self-calibration — how much of what it finds survives held-back data</h2>
-    <div id="shrink" style="font-size:13.5px;line-height:1.7;color:var(--t2)"></div>
-  </div>
-
-  <div class="card">
-    <h2>live feed</h2>
-    <div class="feed" id="feed"></div>
+  <!-- ─────────────────────────── CHECK -->
+  <div class="pane hide" id="p-check">
+    <div class="card">
+      <h2>for Claude to audit</h2>
+      <div class="empty">Everything needed to judge whether the research model
+        is working properly: live state, every control and what it measured,
+        the errors already caught, and the complete source of every module.</div>
+      <div style="height:12px"></div>
+      <a class="btn" id="dl-diag" href="/api/diagnostics.pdf">
+        Download the diagnostic bundle
+        <span class="bs">PDF · full source + state · send this to Claude</span>
+      </a>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
+      <h2>data it can see</h2>
+      <div id="tiers"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
+      <h2>raw state</h2>
+      <pre id="raw">…</pre>
+    </div>
   </div>
 </div>
 
 <script>
 const $ = s => document.querySelector(s);
-const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const num = n => (n==null?'—':Number(n).toLocaleString());
 
-const TAGS = {
-  CANDIDATE:'warn', VAULT_RESULT:'good', KILLED_by_delay_control:'bad',
-  HALT_selftest_failed:'bad', crash:'bad', below_empirical_bar:'warn',
-  tier2_load_failed:'bad', tier3_load_failed:'bad'
-};
+document.querySelectorAll('.tabs .tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs .tab').forEach(x=>
+    x.setAttribute('aria-selected', x===b));
+  document.querySelectorAll('.pane').forEach(p=>
+    p.classList.toggle('hide', p.id !== 'p'+'-'+b.dataset.p));
+  window.scrollTo(0,0);
+});
 
-function stat(k, v, sub){
-  return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>`
-       + (sub?`<div class="sub">${sub}</div>`:'') + `</div>`;
-}
+function num_(k,v,s){return `<div class="num"><div class="k">${k}</div>
+  <div class="v">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`}
 
 async function tick(){
-  let s;
-  try { s = await (await fetch('/api/state')).json(); }
+  let s; try{ s = await (await fetch('/api/state')).json(); }
   catch(e){ $('#dot').className='dot off'; return; }
 
-  $('#clock').textContent = (s.t||'').replace('T',' ').replace('+00:00','Z');
-  $('#dot').className = 'dot ' + (s.alive ? 'on' : 'off');
-  $('#toggle').textContent = s.stopped ? 'start' : 'stop';
+  $('#dot').className='dot '+(s.alive?'on':'off');
+  $('#toggle').textContent = s.stopped?'start':'stop';
 
-  // ── alerts. Storage loss inverts the whole safety property, so it is
-  // the first thing on the page, not a footnote.
-  let a = '';
-  if (s.state_loss) a += `<div class="card alert"><h2>state loss</h2>
+  // alerts, above every tab, because these change what the numbers mean
+  let a='';
+  if (s.state_loss) a+=`<div class="card alert"><h2>memory was lost</h2>
     <p>${esc(s.state_loss.note)}</p></div>`;
-  if (s.storage && s.storage.warning) a += `<div class="card alert">
-    <h2>storage is not durable</h2><p>${esc(s.storage.warning)}</p>
-    <p style="margin-top:8px;color:var(--t2)">current path
-    <code>${esc(s.storage.path)}</code></p></div>`;
-  if (s.error) a += `<div class="card alert"><h2>search crashed — retrying</h2>
-    <p style="font-family:var(--mono);font-size:11.5px;white-space:pre-wrap">${
-      esc(s.error.tb)}</p></div>`;
-  $('#alerts').innerHTML = a;
+  if (s.storage&&s.storage.warning) a+=`<div class="card alert">
+    <h2>storage not safe</h2><p>${esc(s.storage.warning)}</p></div>`;
+  if (s.error) a+=`<div class="card alert"><h2>it crashed — retrying</h2>
+    <p>Restarting itself. If this keeps happening, send Claude the
+    diagnostic bundle from the Check tab.</p></div>`;
+  $('#alerts').innerHTML=a;
 
-  const v = s.verdict || {};
-  $('#vline').textContent = v.line || '—';
-  $('#vdetail').textContent = v.detail || '';
+  // ── status
+  const v=s.verdict||{}, L=s.ledger||{};
+  $('#vline').textContent = v.line||'—';
+  $('#vdetail').textContent = v.detail||'';
+  $('#nums').innerHTML =
+      num_('ideas tested', num(L.trials))
+    + num_('strategies found', num(L.survivors??0))
+    + num_('bar to beat', (L.current_bar_sigma??'—')+'σ','rises as it searches')
+    + num_('round', num(s.cycle));
 
-  const B = s.backup || {};
-  let brow = '';
-  if (B.mode === 'github') {
-    const lp = B.last_push || {}, rs = B.restore || {};
-    brow = `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0">
-      <span style="font-family:var(--mono);font-size:11px;min-width:64px;color:${
-        B.error||lp.ok===false ? 'var(--warn)':'var(--pos-t)'}">
-        ${B.error||lp.ok===false ? '● check' : '● backed up'}</span>
-      <span style="min-width:250px;font-size:13px">GitHub mirror</span>
-      <span style="font-size:12px;color:var(--muted)">${esc(
-        B.error ? B.error
-        : rs.restored ? rs.why
-        : lp.why ? lp.why
-        : lp.trials != null ? `${num(lp.trials)} trials saved`
-        : 'waiting for first cycle')}</span></div>`;
-  } else {
-    brow = `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0">
-      <span style="font-family:var(--mono);font-size:11px;min-width:64px;
-        color:var(--muted)">● off</span>
-      <span style="min-width:250px;font-size:13px">GitHub mirror</span>
-      <span style="font-size:12px;color:var(--muted)">no GITHUB_TOKEN —
-        durability rests on the volume alone</span></div>`;
-  }
+  const ok = s.alive && !(s.storage&&s.storage.warning) && !s.error
+             && (s.tiers||[]).every(t=>t.ok);
+  $('#health').innerHTML = ok
+    ? `<div class="empty"><span class="pill ok">● all good</span><br><br>
+       It is running, it can see all its data, and its memory is safe.
+       It checks itself every round by hiding a fake pattern in the data
+       and confirming it still finds it — if it ever goes blind it stops
+       rather than pretending it found nothing.</div>`
+    : `<div class="empty"><span class="pill warn">● needs a look</span><br><br>
+       Something above needs attention. Open the Check tab and send Claude
+       the diagnostic bundle.</div>`;
 
-  const T = s.tiers || [];
-  $('#tiers').innerHTML = T.map(t =>
-    `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0;
-       border-bottom:1px solid rgba(96,160,255,.05)">
-     <span style="font-family:var(--mono);font-size:11px;color:${
-       t.ok?'var(--pos-t)':'var(--neg-t)'};min-width:64px">
-       ${t.ok?'● ready':'● ABSENT'}</span>
-     <span style="min-width:250px;font-size:13px">${esc(t.name)}</span>
-     <span style="font-size:12px;color:${t.ok?'var(--muted)':'var(--warn)'}">${
-       esc(t.detail)}</span></div>`).join('')
-    || '<span style="color:var(--muted)">probing…</span>';
-  $('#tiers').innerHTML += brow;
+  // ── learning
+  const ad = s.adaptations||[];
+  $('#adapts').innerHTML = ad.length ? ad.slice(0,12).map(x=>`
+    <div class="item">
+      <div class="t">${esc(x.kind==='hold'?'Holding trades for longer'
+        : x.kind==='bar'?'Raised the bar it has to beat'
+        : x.kind==='effort'?'Moved effort away from dead ground'
+        : x.kind)}</div>
+      <div class="chg">${esc(x.before)}<span class="ar">→</span>${esc(x.after)}</div>
+      <div class="d">${esc(x.why)}</div>
+      <div style="margin-top:8px"><span class="pill">${esc(x.family)}</span>
+        <span class="pill">applied ${x.applied}×</span></div>
+    </div>`).join('')
+    : `<div class="empty"><b>Nothing yet.</b><br><br>
+       No group of ideas has failed in a way that points at a specific fix,
+       and nothing has reached the held-back data to calibrate against.
+       This fills in as it accumulates failures it can read a reason from.
+       An empty list here is honest — the alternative would be inventing a
+       lesson so there was something to show.</div>`;
 
-  const L = s.ledger || {};
-  $('#stats').innerHTML =
-      stat('hypotheses tested', num(L.trials))
-    + stat('significance bar', (L.current_bar_sigma ?? '—') + 'σ',
-           'rises as √(2 ln N)')
-    + stat('survivors', num(L.survivors ?? 0))
-    + stat('vault looks spent', num(L.vault_used ?? 0), 'one per idea, ever')
-    + stat('cycle', num(s.cycle));
+  // ── strategies
+  const sv = s.survivors||[];
+  $('#strats').innerHTML = sv.length ? sv.map(x=>`
+    <div class="item"><div class="t">${esc(x.what||'candidate')}</div>
+    <div class="d">${esc(x.market||'')} · strength ${esc(x.z)}σ ·
+      ${esc(x.n)} trades · net $${esc(x.net)}/trade</div>
+    <div style="margin-top:8px"><span class="pill ${x.confirmed?'ok':'warn'}">
+      ${x.confirmed?'passed held-back data':'not yet confirmed'}</span></div>
+    </div>`).join('') + `<div class="mini">
+      A survivor is a <b>candidate, not a strategy</b>. Before any money is
+      involved it still has to clear an all-cell null, be stable quarter by
+      quarter, have its stale copy lose, and reproduce trade-for-trade in the
+      live bot's own simulator.</div>`
+    : `<div class="empty"><b>None yet — and that is the expected result.</b>
+       <br><br>
+       ${num(L.trials)} ideas have been tested and ruled out. Each one is
+       recorded so the bot never spends time on it again. The bar rises the
+       longer it searches, so it cannot find something just by running for
+       more days.<br><br>
+       If a real edge turns up it appears here, and it will have survived a
+       one-look-only test against data the search was never allowed to see.
+       </div>`;
 
-  $('#barnote').innerHTML = `The bar is not a setting. The largest of N pure-noise
-    results grows like √(2 ln N), so a fixed threshold guarantees a false positive
-    eventually — the longer you search, the more convincing the lie. This bar rises
-    with the trial count instead, which is why running longer cannot manufacture a
-    finding here. Feature-selection trials count toward it too.`;
-
-  const fams = (s.learning && s.learning.families) || [];
-  $('#fams tbody').innerHTML = fams.length ? fams.map(f =>
-    `<tr><td class="mono">${esc(f.family)}</td><td class="mono">${num(f.n)}</td>
-     <td class="mono" style="color:${f.cost_bound?'var(--warn)':'inherit'}">${
-       num(f.cost_bound)}</td>
-     <td class="mono">${num(f.no_signal)}</td><td class="mono">${num(f.thin)}</td>
-     <td class="mono">${f.hold_x}×</td><td>${esc(f.lesson)}</td></tr>`).join('')
-    : `<tr><td colspan="7" style="color:var(--muted)">no family has failed
-       enough times yet to license a lesson</td></tr>`;
-
-  const sh = (s.learning && s.learning.shrinkage) || {};
-  $('#shrink').innerHTML = sh.known
-    ? `Median ratio <b style="font-family:var(--mono);color:var(--t1)">${
-        sh.median_ratio}</b> across ${sh.n} vault touches — ${esc(sh.note)}.
-       The bar a candidate must clear is divided by this, so the system's
-       own measured overfitting raises its own threshold.`
-    : `<span style="color:var(--warn)">UNKNOWN</span> — ${esc(sh.note ||
-        'no candidate has reached the vault yet')}. This deliberately does not
-       default to 1.0: a calibration that quietly claims "we do not overfit"
-       would be the most dangerous number on this page.`;
-
-  try {
-    const f = await (await fetch('/api/feed')).json();
-    $('#feed').innerHTML = (f.feed||[]).map(e => {
-      const {t, msg, ...rest} = e;
-      const cls = TAGS[msg] || '';
-      return `<div class="ev"><time>${esc((t||'').slice(11,19))}</time>
-        <span class="tag ${cls}">${esc(msg)}</span>
-        <span class="body">${esc(JSON.stringify(rest).slice(1,-1))}</span></div>`;
-    }).join('') || '<div style="color:var(--muted)">waiting for first event…</div>';
-  } catch(e){}
+  // ── check
+  $('#tiers').innerHTML = (s.tiers||[]).map(t=>`
+    <div class="item"><div class="t">
+      <span class="pill ${t.ok?'ok':'bad'}">${t.ok?'● ready':'● missing'}</span>
+      ${esc(t.name)}</div>
+    <div class="d">${esc(t.detail)}</div></div>`).join('')
+    + (s.backup ? `<div class="item"><div class="t">
+        <span class="pill ${s.backup.mode==='github'?'ok':''}">
+        ${s.backup.mode==='github'?'● on':'● off'}</span> GitHub backup</div>
+        <div class="d">${s.backup.mode==='github'
+          ? 'State mirrored to GitHub each round.'
+          : 'Not set up. Storage relies on the Railway volume alone.'}</div>
+        </div>` : '');
+  $('#raw').textContent = JSON.stringify(s,null,1);
 }
 
-$('#toggle').onclick = async () => {
-  const stop = $('#toggle').textContent === 'stop';
-  await fetch(stop ? '/api/stop' : '/api/start', {method:'POST'});
+$('#toggle').onclick = async()=>{
+  await fetch($('#toggle').textContent==='stop'?'/api/stop':'/api/start',
+              {method:'POST'});
   tick();
 };
-
-tick(); setInterval(tick, 4000);
+tick(); setInterval(tick, 5000);
 </script>
