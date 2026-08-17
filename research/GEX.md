@@ -68,3 +68,5 @@ Caveats that matter: open interest is yesterday's, the dealer sign convention is
 - **gamma walls** nearest spot: 7,900, 7,850, 7,800
 - 22,036 contracts with live gamma and open interest
 
+## 2026-08-17
+
