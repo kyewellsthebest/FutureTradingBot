@@ -101,6 +101,16 @@ code{font-family:var(--mono);background:var(--s3);padding:1px 5px;border-radius:
   </div>
 
   <div class="card">
+    <h2>data tiers this deployment can see</h2>
+    <div id="tiers"></div>
+    <div class="note">
+      An <b>absent</b> tier produces no events at all, so a console driven only by
+      the event stream would render a perfectly healthy search running on a fraction
+      of its data. This panel is probed directly for that reason.
+    </div>
+  </div>
+
+  <div class="card">
     <h2>ledger</h2>
     <div class="grid" id="stats"></div>
     <div class="note" id="barnote"></div>
@@ -174,6 +184,18 @@ async function tick(){
   const v = s.verdict || {};
   $('#vline').textContent = v.line || '—';
   $('#vdetail').textContent = v.detail || '';
+
+  const T = s.tiers || [];
+  $('#tiers').innerHTML = T.map(t =>
+    `<div style="display:flex;gap:10px;align-items:baseline;padding:6px 0;
+       border-bottom:1px solid rgba(96,160,255,.05)">
+     <span style="font-family:var(--mono);font-size:11px;color:${
+       t.ok?'var(--pos-t)':'var(--neg-t)'};min-width:64px">
+       ${t.ok?'● ready':'● ABSENT'}</span>
+     <span style="min-width:250px;font-size:13px">${esc(t.name)}</span>
+     <span style="font-size:12px;color:${t.ok?'var(--muted)':'var(--warn)'}">${
+       esc(t.detail)}</span></div>`).join('')
+    || '<span style="color:var(--muted)">probing…</span>';
 
   const L = s.ledger || {};
   $('#stats').innerHTML =

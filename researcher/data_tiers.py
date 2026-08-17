@@ -111,9 +111,41 @@ def tier1(symbols=None, min_bars=5000):
 
 
 # ------------------------------------------------------------- tier 2
+BARS = os.path.join(ROOT, "data", "research_bars")
+
+
 def tier2_contracts():
     return sorted(glob.glob(os.path.join(ROOT, "data", "tick", "raw",
                                          "NQ*.parquet")))
+
+
+def tier2_sources(bar_s):
+    """Where the deep tier comes from at this resolution.
+
+    PRECOMPUTED FIRST. `data/tick/` is 4.7 GB and gitignored, so it does
+    not exist on any deploy target -- Railway builds from the repo. The
+    committed bars in data/research_bars/ are the same close/vol/n/absret
+    the searcher actually reads, resampled once by build_deep_bars.py,
+    15 MB for all 24 contract-resolution combinations.
+
+    Returns (name, kind, path). An EMPTY list is a real condition the
+    caller must report, not skip quietly: a missing tier looks exactly
+    like a healthy search from the outside, and that is the most
+    dangerous thing a monitoring surface can show.
+    """
+    pre = sorted(glob.glob(os.path.join(BARS, f"NQ*_{bar_s}s.parquet")))
+    if pre:
+        return [(os.path.basename(p).split("_")[0], "pre", p) for p in pre]
+    raw = tier2_contracts()
+    return [(os.path.basename(p).replace(".parquet", ""), "raw", p)
+            for p in raw]
+
+
+def tier2_from(kind, path, bar_s):
+    if kind == "pre":
+        d = pd.read_parquet(path).astype("float64")
+        return d.sort_index()
+    return tier2(path, bar_s=bar_s)
 
 
 def tier2(path, bar_s=60, rth_only=True):

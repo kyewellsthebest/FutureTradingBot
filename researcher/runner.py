@@ -533,7 +533,21 @@ def main():
         # one contract at a time because 4.7 GB of tick data will not
         # fit alongside anything else on a box with no swap.
         if not os.path.exists(STOP):
-            cs = DT.tier2_contracts()
+            res_probe = T2_RES[0]
+            cs = DT.tier2_sources(res_probe)
+            if not cs:
+                # LOUD. A tier that is absent looks identical to a tier
+                # that found nothing, and the second is a result while
+                # the first is a broken deployment. data/tick/ is
+                # gitignored (4.7 GB), so on any deploy target this
+                # means build_deep_bars.py was never run or its output
+                # was never committed.
+                say("TIER2_MISSING", searched=DT.BARS,
+                    why="no deep-tier bars and no raw tick data. The "
+                        "searcher is running on tier 1 and tier 3 only "
+                        "-- a third of its data is absent. Run "
+                        "researcher/build_deep_bars.py where the raw "
+                        "ticks live and commit data/research_bars/.")
             if cs:
                 # ROTATE CONTRACT AND RESOLUTION. The hypothesis space is
                 # bounded on purpose -- that is what keeps the bar
@@ -543,11 +557,12 @@ def main():
                 # 5-minute bars is two different questions, because the
                 # move size that has to clear a fixed cost differs by
                 # sqrt(20). It is not the same test repeated.
-                p = cs[(cycle - 1) % len(cs)]
                 res = T2_RES[((cycle - 1) // len(cs)) % len(T2_RES)]
-                cn = os.path.basename(p).replace(".parquet", "") + f"@{res}s"
+                srcs = DT.tier2_sources(res) or cs
+                name, kind, p = srcs[(cycle - 1) % len(srcs)]
+                cn = f"{name}@{res}s"
                 try:
-                    a = DT.tier2(p, bar_s=res)
+                    a = DT.tier2_from(kind, p, res)
                 except Exception as exc:                      # noqa: BLE001
                     a = None
                     say("tier2_load_failed", contract=cn, err=str(exc)[:150])

@@ -11,3 +11,7 @@ plotly>=5.20
 gunicorn>=21.2
 websocket-client>=1.7
 orjson>=3.10
+# parquet engine -- the researcher's deep tiers (data/research_bars,
+# data/depth) are parquet. Without this, tier 2 and tier 3 raise on
+# read and the searcher silently runs on tier 1 alone.
+pyarrow>=15.0

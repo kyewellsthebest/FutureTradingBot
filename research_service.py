@@ -201,6 +201,54 @@ def health():
     return jsonify({"ok": True, "alive": STATE["alive"], "t": now()})
 
 
+def tiers():
+    """What data this deployment can actually see.
+
+    Checked from the API rather than trusted from the search log,
+    because the dangerous case is the tier that is absent: an absent
+    tier produces no events at all, so a console driven purely by the
+    event stream renders a perfectly healthy search running on a
+    fraction of its data.
+    """
+    from researcher import data_tiers as DT
+    out = []
+    t1 = len(DT.tier1())
+    out.append({"tier": 1, "name": "breadth · 5-minute bars, 10 markets",
+                "ok": t1 > 0, "detail": f"{t1} markets"})
+    src = DT.tier2_sources(60)
+    kind = src[0][1] if src else None
+    out.append({"tier": 2, "name": "depth · NQ intraday bars, 8 quarters",
+                "ok": bool(src),
+                "detail": (f"{len(src)} contracts ("
+                           + ("precomputed" if kind == "pre" else "raw ticks")
+                           + ")") if src else
+                          "MISSING — data/tick/ is gitignored (4.7 GB) and "
+                          "data/research_bars/ was not committed. Run "
+                          "researcher/build_deep_bars.py where the raw "
+                          "ticks live and commit its output."})
+    bp = os.path.join(str(ROOT), "data", "depth", "NQU6_book_1s.parquet")
+    ok3 = os.path.exists(bp)
+    out.append({"tier": 3, "name": "book · NQ top-of-book, 1-second",
+                "ok": ok3,
+                "detail": "1.59M seconds" if ok3 else "MISSING"})
+    return out
+
+
+_TIERS = {"v": None, "t": 0.0}
+
+
+def cached_tiers():
+    """tier1() reads 24 CSVs, so cache it for a few minutes."""
+    if _TIERS["v"] is None or time.time() - _TIERS["t"] > 300:
+        try:
+            _TIERS["v"] = tiers()
+        except Exception as exc:                              # noqa: BLE001
+            _TIERS["v"] = [{"tier": 0, "name": "tier probe failed",
+                            "ok": False, "detail": str(exc)[:200]}]
+        _TIERS["t"] = time.time()
+    return _TIERS["v"]
+
+
 @app.get("/api/state")
 def api_state():
     status = read_json(RDIR / "status.json", {}) or {}
@@ -220,6 +268,7 @@ def api_state():
         "error": err,
         "storage": STATE["storage"],
         "state_loss": STATE["state_loss"],
+        "tiers": cached_tiers(),
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the
