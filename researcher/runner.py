@@ -67,6 +67,7 @@ from researcher import data_tiers as DT         # noqa: E402
 from researcher import insight as IN            # noqa: E402
 from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
+from researcher import brackets as BR           # noqa: E402
 
 ROOT = os.environ.get("M2_REPO", os.getcwd())
 RDIR = os.environ.get("RESEARCH_DIR", os.path.join(ROOT, "data", "research"))
@@ -286,7 +287,15 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     bar_s = bars_per(d) if bar_s is None else bar_s
     idx = d.index
 
-    if h.get("kind") in ("feature", "flow"):
+    if h.get("kind") == "shape":
+        m = HY.shape_mask(d, h["shape"], h.get("n", 3), h.get("k", 2.0))
+        if m is None:
+            return None
+        mask = np.asarray(m)
+        if h.get("cond", "none") != "none":
+            mask = mask & _conds(d)[h["cond"]]
+        side = np.full(len(d), 1.0 if h["ls"] == "long" else -1.0)
+    elif h.get("kind") in ("feature", "flow"):
         if h["kind"] == "flow":
             x = HY.flow_series(d, h["mech"])
         else:
@@ -322,6 +331,53 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
         side = sign if h["dir"] == "with" else -sign
 
     bars = max(int(round(h["hold_s"] / bar_s)), 1)
+
+    # ---- BRACKETED EXIT. A stop and a target, in units of realised
+    # volatility, resolved bar by bar with the stop winning any bar that
+    # touches both. This is the difference between a prediction and a
+    # strategy, and it is what makes win rate and reward-to-risk mean
+    # anything -- a fixed time exit produces ~50% wins and RR~1 by
+    # construction.
+    ex = h.get("exit")
+    if ex and "high" in d.columns and "low" in d.columns:
+        m0 = mask.values if hasattr(mask, "values") else np.asarray(mask)
+        unit = BR.atr(d["high"].values, d["low"].values,
+                      d["close"].values, 60)
+        sel = np.flatnonzero(m0 & np.isfinite(unit) & (unit > 0))
+        sel = sel[sel + 1 < len(d)]
+        if len(sel) < MIN_TRADES:
+            return None
+        maxb = max(int(round(h["hold_s"] / bar_s)), 1)
+        res = BR.pnl(sel, side[sel] if hasattr(side, "__len__") else side,
+                     d["high"].values, d["low"].values, d["close"].values,
+                     float(ex[0]), float(ex[1]), unit, maxb, tv, cost)
+        net = res["net"]
+        if len(net) < MIN_TRADES:
+            return None
+        gap = float(np.median(np.diff(sel))) if len(sel) > 1 else float(maxb)
+        ov = float(np.clip(np.median(res["held"]) / max(gap, 1.0),
+                           1.0, float(maxb)))
+        eff = max(len(net) / ov, 2.0)
+        z = float(net.mean() / (net.std(ddof=1) / np.sqrt(eff) + 1e-12))
+        gross = net + cost
+        gz = float(gross.mean() / (gross.std(ddof=1) / np.sqrt(eff) + 1e-12))
+        wins, losses = net[net > 0], net[net < 0]
+        aw = float(wins.mean()) if len(wins) else 0.0
+        al = float(-losses.mean()) if len(losses) else 0.0
+        span = max((idx[-1] - idx[0]).total_seconds() / 86400.0, 1.0)
+        return {"z": round(z, 3), "gz": round(gz, 3),
+                "edge": round(float(gross.mean()), 4),
+                "net": round(float(net.mean()), 4), "n": int(len(net)),
+                "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
+                "win_rate": round(float(len(wins) / len(net)), 4),
+                "rr": round(aw / al, 3) if al > 0 else 0.0,
+                "per_week": round(len(net) / (span / 7.0), 2),
+                "avg_win": round(aw, 3), "avg_loss": round(al, 3),
+                "stopped": round(res["stopped"], 3),
+                "targeted": round(res["targeted"], 3),
+                "timed": round(res["timed"], 3),
+                "tie_share": BR.resolution_cost(res["ties"], len(net))}
+
     # entry at t+delay, exit `bars` later. delay=0 is entry at the
     # signal bar's own close, which is where the bounce artifact lives.
     c = d["close"]
@@ -568,6 +624,18 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         say("flow_hypotheses", market=sym, tier=tier, n=len(fh),
             mechanisms=sorted({h["mech"] for h in fh}))
 
+    # RECURRING PRICE BEHAVIOUR, sampled fresh every cycle. This is the
+    # family that keeps the space from running out: the full cross
+    # product of shape x parameter x direction x exit x condition is
+    # ~15,000 per market, and drawing at random each cycle covers it
+    # evenly over weeks while the ledger's fingerprints guarantee
+    # nothing is ever tested twice.
+    if "high" in srch.columns:
+        rng_s = np.random.default_rng(
+            (led.d["trials"] * 7919 + len(srch)) % (2**32))
+        sh = HY.from_shapes(rng_s, cap=700, extra_conds=ctx_conds)
+        hyps += sh
+
     fmult = mem.hold_multiplier("feature/d1")
     if fmult != 1.0:
         mem.adapt("hold", "feature/d1",
@@ -638,6 +706,22 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     # reached across every cell it scored. Candidates are judged against
     # their own siblings, which accounts for the dependence between
     # hypotheses that a theoretical correction cannot see.
+    # COVERAGE. How much of what was generated this cycle was already
+    # in the ledger. A tape that returns 100% seen has been exhausted at
+    # this resolution, and that has to be SAID -- a searcher quietly
+    # regenerating hypotheses it has already tested looks identical from
+    # outside to one finding nothing new, and only one of those is a
+    # reason to add data.
+    gen = len(hyps)
+    fresh = done
+    cov = 1.0 - (fresh / max(gen, 1))
+    if cov > 0.97:
+        say("EXHAUSTED", market=sym, tier=tier, generated=gen,
+            new=fresh, seen_pct=round(cov * 100, 1),
+            why="every hypothesis this tape can generate at this "
+                "resolution has already been tested. More search here "
+                "buys nothing; more DATA or a finer resolution would.")
+
     null99 = VAL.empirical_null(allz)
     if null99:
         say("empirical_null", market=sym, tier=tier, cells=len(allz),

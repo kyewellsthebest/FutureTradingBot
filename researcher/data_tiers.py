@@ -104,7 +104,13 @@ def tier1(symbols=None, min_bars=5000):
             d["absret"] = d["close"].diff().abs()
             d["n"] = d.get("volume", pd.Series(1.0, index=d.index))
             d["vol"] = d["n"]
-            out[sym] = d[["close", "vol", "n", "absret"]]
+            # KEEP OHLC. Brackets need high and low to resolve a stop
+            # or target, and the shape patterns need them to measure
+            # ranges, inside bars and gaps. Dropping them here is what
+            # limited every hypothesis to a fixed-time exit.
+            cols = [c for c in ("close", "open", "high", "low",
+                                "vol", "n", "absret") if c in d.columns]
+            out[sym] = d[cols]
         except Exception:                                     # noqa: BLE001
             continue
     return out
@@ -190,7 +196,9 @@ def tier2(path, bar_s=60, rth_only=True):
             (a.index.hour < 20)
         a = a[m]
     a["absret"] = a["close"].diff().abs()
-    return a[["close", "vol", "n", "absret"]]
+    cols = [c for c in ("close", "high", "low", "vol", "n", "absret")
+            if c in a.columns]
+    return a[cols]
 
 
 # ------------------------------------------------------------- tier 3

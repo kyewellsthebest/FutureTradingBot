@@ -48,7 +48,10 @@ def main():
               "what gets committed.")
         return 1
     total = 0
-    print(f"{len(cs)} contracts x {len(RES)} resolutions\n")
+    print(f"{len(cs)} contracts x {len(RES)} resolutions")
+    print("Includes HIGH and LOW: without them the deep tier cannot test "
+          "a stop,\na target, or any shape that needs a range -- every "
+          "tier-2 hypothesis\nwould silently be a fixed-time exit.\n")
     for p in cs:
         cn = os.path.basename(p).replace(".parquet", "")
         for r in RES:
@@ -64,7 +67,9 @@ def main():
             # increment these instruments trade in -- NQ ticks at 0.25
             # on a ~24,000 handle needs 6 significant figures; float32
             # gives 7.
-            a = a.astype("float32")
+            keep = [c for c in ("close", "high", "low", "vol", "n",
+                                "absret") if c in a.columns]
+            a = a[keep].astype("float32")
             a.to_parquet(dst, compression="zstd")
             sz = os.path.getsize(dst)
             total += sz

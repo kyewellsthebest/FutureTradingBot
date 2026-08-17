@@ -255,6 +255,45 @@ def from_flow(available, hold_mult=1.0, cap=600, extra_holds=None):
     return hyps
 
 
+def from_shapes(rng, cap=900, extra_conds=None):
+    """Recurring-behaviour hypotheses, SAMPLED rather than enumerated.
+
+    The full cross product of shape x parameter x direction x exit x
+    condition is far larger than one cycle should test, and enumerating
+    it in a fixed order would mean the searcher spent weeks on run_up
+    before ever reaching gap. Drawing at random each cycle covers the
+    space evenly over time and -- because the ledger fingerprints every
+    hypothesis -- never repeats one.
+    """
+    hyps = []
+    names = list(SHAPES)
+    conds = ["none"] + list(extra_conds or [])
+    seen = set()
+    tries = 0
+    while len(hyps) < cap and tries < cap * 8:
+        tries += 1
+        nm = names[int(rng.integers(len(names)))]
+        n = int(SHAPE_N[int(rng.integers(len(SHAPE_N)))])
+        k = float(SHAPE_K[int(rng.integers(len(SHAPE_K)))])
+        ls = LONGSHORT[int(rng.integers(2))]
+        ex = EXITS[int(rng.integers(len(EXITS)))]
+        hold = int(HOLDS_S[int(rng.integers(len(HOLDS_S)))])
+        cond = conds[int(rng.integers(len(conds)))]
+        key = (nm, n, k, ls, ex, hold, cond)
+        if key in seen:
+            continue
+        seen.add(key)
+        hyps.append({"kind": "shape", "shape": nm, "n": n, "k": k,
+                     "ls": ls, "exit": list(ex) if ex else None,
+                     "hold_s": hold, "cond": cond,
+                     "_family": f"shape/{nm}"})
+    return hyps
+
+
+def shape_why(name):
+    return SHAPES.get(name, "")
+
+
 def flow_series(d, mech):
     """Evaluate a named mechanism on a book tape."""
     for m in FLOW:
@@ -275,7 +314,94 @@ def flow_why(mech):
     return ""
 
 
+# ------------------------------------------------- recurring behaviour
+# SHAPES. Recurring price behaviour, as opposed to clock buckets. Each
+# is a configuration the tape falls into repeatedly and that somebody
+# has to react to -- a run of one-way closes leaves trapped late
+# entrants, a range contraction stores energy that has to release, a
+# gap is an overnight repricing that intraday participants must adapt
+# to. These are the closest thing here to what a chart reader means by
+# a pattern, expressed so a machine can count them.
+SHAPES = {
+    "run_up": ("N consecutive higher closes. Momentum that has already "
+               "persuaded people, which means late entrants are long "
+               "and their stops are below."),
+    "run_dn": ("N consecutive lower closes. The mirror -- and not "
+               "assumed to behave like the mirror, since both "
+               "directions are tested separately."),
+    "squeeze": ("Range contracted well below its own recent normal. "
+                "Volatility clusters, so a quiet stretch is followed by "
+                "a loud one more often than chance -- the open question "
+                "is only whether the direction is predictable."),
+    "expansion": ("Range expanded well above normal: something arrived. "
+                  "Whether it continues or reverts is the test."),
+    "inside": ("Bar contained entirely within the previous bar's range. "
+               "Nobody was willing to push, so the prior range is the "
+               "reference everyone is watching."),
+    "outside": ("Bar engulfing the previous bar's range. Both sides got "
+                "run, which means stops on both sides were taken."),
+    "gap": ("Session opened away from the prior close. An overnight "
+            "repricing that intraday participants have to adapt to."),
+    "close_high": ("Closed in the top of its own range -- buyers held "
+                   "the level into the bell rather than fading."),
+    "close_low": ("Closed at the bottom of its own range."),
+}
+SHAPE_N = [2, 3, 4]          # for the run patterns
+SHAPE_K = [1.5, 2.5]         # how many sigma counts as squeeze/expansion
+
+
+def shape_mask(d, name, n=3, k=2.0):
+    """Boolean mask for a shape, computed only from PAST bars."""
+    import numpy as _np
+    c = d["close"]
+    hi = d["high"] if "high" in d.columns else c
+    lo = d["low"] if "low" in d.columns else c
+    op = d["open"] if "open" in d.columns else c
+    rng = (hi - lo)
+    nrm = rng.rolling(240, min_periods=60).median()
+    up = (c.diff() > 0)
+    dn = (c.diff() < 0)
+    if name == "run_up":
+        return up.rolling(n).sum().eq(n).fillna(False).values
+    if name == "run_dn":
+        return dn.rolling(n).sum().eq(n).fillna(False).values
+    if name == "squeeze":
+        return (rng < nrm / k).fillna(False).values
+    if name == "expansion":
+        return (rng > nrm * k).fillna(False).values
+    if name == "inside":
+        return ((hi <= hi.shift(1)) & (lo >= lo.shift(1))).fillna(False).values
+    if name == "outside":
+        return ((hi > hi.shift(1)) & (lo < lo.shift(1))).fillna(False).values
+    if name == "gap":
+        prev_day = d.index.normalize().values != \
+            _np.roll(d.index.normalize().values, 1)
+        g = (op - c.shift(1)).abs() > nrm
+        return (g.fillna(False).values & prev_day)
+    if name == "close_high":
+        return ((c - lo) / rng.replace(0, _np.nan) > 0.8).fillna(False).values
+    if name == "close_low":
+        return ((c - lo) / rng.replace(0, _np.nan) < 0.2).fillna(False).values
+    return None
+
+
+# ---------------------------------------------------------- exits
+# BRACKETS. A hypothesis without an exit is a prediction; with one it is
+# a strategy. Expressed in units of realised volatility so a single
+# specification means the same thing in every market.
+STOPS = [1.0, 2.0, 3.0]
+TARGETS = [1.0, 2.0, 3.0, 5.0]
+EXITS = [None] + [(s, t) for s in STOPS for t in TARGETS]
+
+
 def describe(h) -> str:
+    if h.get("kind") == "shape":
+        ex = h.get("exit")
+        tail = (f", stop {ex[0]}x vol, target {ex[1]}x vol"
+                if ex else f", hold {h['hold_s']}s")
+        nm = h["shape"].replace("_", " ")
+        extra = f" ({h['n']} bars)" if h["shape"].startswith("run") else ""
+        return f"after {nm}{extra}, go {h['ls']}{tail}"
     if h.get("kind") == "flow":
         q = "high" if h["side"] == "hi" else "low"
         return (f"when {h['mech'].replace('_', ' ')} is {q}, go "
