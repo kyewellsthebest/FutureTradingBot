@@ -100,7 +100,57 @@ def expand(footprints, cap=4000):
     return hyps
 
 
+SIDES = ["hi", "lo"]                      # top or bottom quintile
+LONGSHORT = ["long", "short"]
+
+
+def from_features(kept, floor, hold_mult=1.0, cap=1200):
+    """Discovered features -> hypotheses.
+
+    A feature says "these bars are different". A hypothesis has to say
+    something falsifiable, so each surviving feature is turned into:
+    when the feature sits in its top (or bottom) quintile, go long (or
+    short), and hold for H.
+
+    BOTH directions are always generated. Picking the direction that
+    looked better in the search set is fitting the sign -- the single
+    most common way a backtest manufactures an edge -- so both are
+    generated, both are counted as trials, and the bar decides.
+
+    `floor` is the dispersion threshold measured by features_selftest
+    against targets with no information. Features below it are not
+    weak evidence, they are the level the machinery reaches on nothing,
+    so they produce no hypotheses at all.
+
+    `hold_mult` comes from failure memory: a family whose failures were
+    mostly cost-bound gets longer holds, because cost is fixed per trade
+    while move size grows as sqrt(time). That is arithmetic, not a
+    fitted preference.
+    """
+    hyps = []
+    holds = [int(h * hold_mult) for h in HOLDS_S]
+    for nm, score in kept:
+        if score < floor:
+            continue
+        depth = nm.count("(") + nm.count("*")
+        for s in SIDES:
+            for ls in LONGSHORT:
+                for h in holds:
+                    hyps.append({
+                        "kind": "feature", "feat": nm, "side": s,
+                        "ls": ls, "hold_s": h,
+                        "_family": f"feature/d{depth}",
+                    })
+                    if len(hyps) >= cap:
+                        return hyps
+    return hyps
+
+
 def describe(h) -> str:
+    if h.get("kind") == "feature":
+        q = "top" if h["side"] == "hi" else "bottom"
+        return (f"when {h['feat']} is in its {q} quintile, go "
+                f"{h['ls']}, hold {h['hold_s']}s")
     if h.get("kind") != "footprint":
         return str(h)
     d = "trade with the move" if h["dir"] == "with" else "fade the move"

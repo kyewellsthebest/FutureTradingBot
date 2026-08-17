@@ -1,0 +1,143 @@
+name: researcher
+
+# The autonomous searcher, run as a relay of scheduled jobs.
+#
+# WHY A RELAY AND NOT A DAEMON. A GitHub Actions job is capped at 6
+# hours, so "24/7" here means a chain of bounded runs that hand state to
+# each other, not one process that never stops. That is strictly better
+# for this workload: the ledger, the failure memory and the feature
+# library are all files, so a crash loses at most one leg of the relay
+# instead of the whole search. Every run commits its state back, and the
+# next run picks it up.
+#
+# THE STATE THAT MAKES IT CUMULATIVE
+#   data/research/ledger.json   every hypothesis ever tested, the trial
+#                               count, and the rising bar that comes
+#                               from it. Losing this file would reset
+#                               the bar to 3.0 sigma and quietly make
+#                               every future result look better.
+#   data/research/memory.json   per-family failure profiles and the
+#                               vault-shrinkage calibration.
+#   data/research/status.json   human-readable current state.
+#   data/research/feed.jsonl    the running narrative.
+#
+# TO STOP IT: commit an empty file at data/research/RESEARCH_STOP, or
+# turn the schedule off here. The runner checks for that file between
+# every hypothesis, so it stops within seconds rather than at the end of
+# a six-hour leg.
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'      # four legs a day
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'max hours for this leg'
+        default: '5'
+      feat_floor:
+        description: 'dispersion floor (measured null, not a preference)'
+        default: '4.10'
+
+concurrency:
+  group: researcher
+  cancel-in-progress: false     # never kill a leg mid-write
+
+permissions:
+  contents: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/hello-vc2ivo
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: deps
+        run: pip install -q numpy pandas pyarrow
+
+      - name: stop switch
+        id: gate
+        run: |
+          if [ -f data/research/RESEARCH_STOP ]; then
+            echo "RESEARCH_STOP present -- not searching."
+            echo "go=no" >> $GITHUB_OUTPUT
+          else
+            echo "go=yes" >> $GITHUB_OUTPUT
+          fi
+
+      - name: search
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          M2_REPO: ${{ github.workspace }}
+          RESEARCH_DIR: ${{ github.workspace }}/data/research
+          FEAT_FLOOR: ${{ github.event.inputs.feat_floor || '4.10' }}
+          RESEARCH_SLEEP: '5'
+        run: |
+          HRS="${{ github.event.inputs.hours || '5' }}"
+          # SIGTERM at the deadline, then a grace period. The runner
+          # saves the ledger after every market, so a hard kill costs at
+          # most one market's trials -- but the grace window lets the
+          # current write finish, and a half-written ledger is the one
+          # failure that would corrupt the trial count.
+          timeout --signal=TERM --kill-after=120 "${HRS}h" \
+            python -m researcher.runner || true
+
+      - name: what it learned
+        if: always()
+        run: |
+          echo '## researcher' >> $GITHUB_STEP_SUMMARY
+          if [ -f data/research/status.json ]; then
+            python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json
+          s = json.load(open('data/research/status.json'))
+          g = s.get('summary', {})
+          print(f"cycle {s.get('cycle')} | trials **{g.get('trials'):,}** | "
+                f"bar **{g.get('current_bar_sigma')}σ** | "
+                f"survivors **{g.get('survivors')}** | "
+                f"vault touches {g.get('vault_used')}")
+          print()
+          lr = s.get('learning', {})
+          sh = lr.get('shrinkage', {})
+          print(f"shrinkage: {sh.get('note')}")
+          print()
+          fams = lr.get('families', [])
+          if fams:
+              print('| family | tested | cost-bound | no signal | hold x | lesson |')
+              print('|---|---|---|---|---|---|')
+              for f in fams:
+                  print(f"| {f['family']} | {f['n']} | {f['cost_bound']} | "
+                        f"{f['no_signal']} | {f['hold_x']} | {f['lesson']} |")
+          print()
+          print('A survivor count of 0 with a rising bar is the expected '
+                'output. It means the search covered ground and found '
+                'nothing, which is a result. Treat any survivor as a '
+                'candidate for the full gauntlet, not as a strategy.')
+          PY
+          else
+            echo 'no status written -- check the search step log' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: commit state
+        if: always()
+        run: |
+          git config user.name  "researcher-bot"
+          git config user.email "researcher@users.noreply.github.com"
+          git add -f data/research/ledger.json data/research/memory.json \
+                     data/research/status.json data/research/feed.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "no state change"
+          else
+            git commit -m "researcher: leg $(date -u +%Y-%m-%dT%H:%MZ)"
+            for i in 1 2 3 4; do
+              git pull --rebase origin claude/hello-vc2ivo && \
+              git push origin HEAD:claude/hello-vc2ivo && break
+              sleep $((2 ** i))
+            done
+          fi
