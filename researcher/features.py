@@ -186,16 +186,22 @@ class FeatureLibrary:
         return float(np.nanmax(np.abs(m - yv.mean()) / se.replace(0, np.nan)))
 
     # ---------- growth ----------
-    def grow(self, df, y, rng):
-        """One generation: propose, score on dispersion, keep the best."""
+    def grow(self, df, y, rng, base_cols=None):
+        """One generation: propose, score on dispersion, keep the best.
+
+        `base_cols` lets a tier contribute its own vocabulary. The book
+        tier has queue depletion, add rates, spread and trade-flow
+        columns that exist nowhere else and cannot be reconstructed
+        from trades -- restricting composition to close/vol/n/absret
+        there would throw away the only thing that tier is for.
+        """
         self.generation += 1
+        cols = [c for c in (base_cols or BASE) if c in df.columns]
         cands = []
         if not self.kept:
-            for c in BASE:
-                if c in df.columns:
-                    cands.append(("base", c))
-        seeds = list(self.kept.values()) or [("base", c) for c in BASE
-                                             if c in df.columns]
+            for c in cols:
+                cands.append(("base", c))
+        seeds = list(self.kept.values()) or [("base", c) for c in cols]
         for s in seeds:
             for prim, (_fn, params) in UNARY.items():
                 for p in params:
