@@ -105,6 +105,12 @@ MIN_TRADES = 60
 # WHOLE three-generation growth reaches against targets that cannot
 # carry information. Overridable, but never silently: the run prints it.
 FEAT_FLOOR = float(os.environ.get("FEAT_FLOOR", "4.10"))
+# Resolutions to rotate through on the deep tiers. Sixteen NQ tick
+# sweeps (8 contracts x 2 resolutions... plus 15s and 300s) and six book
+# sweeps before the deep space repeats -- and the feature library has
+# grown a new generation on every one of them by then.
+T2_RES = [60, 15, 300]
+T3_RES = [5, 1, 30]
 
 
 def now():
@@ -529,10 +535,19 @@ def main():
         if not os.path.exists(STOP):
             cs = DT.tier2_contracts()
             if cs:
+                # ROTATE CONTRACT AND RESOLUTION. The hypothesis space is
+                # bounded on purpose -- that is what keeps the bar
+                # meaningful -- so it exhausts in hours if the only axis
+                # is which footprint. Resolution is a genuine second
+                # axis: the same question asked of 15-second bars and of
+                # 5-minute bars is two different questions, because the
+                # move size that has to clear a fixed cost differs by
+                # sqrt(20). It is not the same test repeated.
                 p = cs[(cycle - 1) % len(cs)]
-                cn = os.path.basename(p).replace(".parquet", "")
+                res = T2_RES[((cycle - 1) // len(cs)) % len(T2_RES)]
+                cn = os.path.basename(p).replace(".parquet", "") + f"@{res}s"
                 try:
-                    a = DT.tier2(p, bar_s=60)
+                    a = DT.tier2(p, bar_s=res)
                 except Exception as exc:                      # noqa: BLE001
                     a = None
                     say("tier2_load_failed", contract=cn, err=str(exc)[:150])
@@ -562,14 +577,16 @@ def main():
         # rather than being screened first -- and pay the higher bar of
         # one market and four weeks.
         if not os.path.exists(STOP) and cycle % 2 == 1:
+            res3 = T3_RES[((cycle - 1) // 2) % len(T3_RES)]
             try:
-                b = DT.tier3(bar_s=5)
+                b = DT.tier3(bar_s=res3)
             except Exception as exc:                          # noqa: BLE001
                 b = None
                 say("tier3_load_failed", err=str(exc)[:150])
             if b is not None and len(b) > 5000:
                 tv, cost = SPEC["NQ"]
-                out, err = sweep("NQbook", b, led, mem, libs, 3, tv, cost,
+                out, err = sweep(f"NQbook@{res3}s", b, led, mem, libs, 3,
+                                 tv, cost,
                                  budget=400,
                                  base_cols=["close", "vol", "n", "absret",
                                             "imb", "spread", "qrate",
@@ -578,8 +595,10 @@ def main():
                     say("tier3_selftest_failed", why=err)
                 else:
                     done, cands, kept = out
-                    gauntlet("NQbook", 3, cands, led, mem, libs, tv, cost)
-                    say("cycle_market", cycle=cycle, market="NQbook",
+                    gauntlet(f"NQbook@{res3}s", 3, cands, led, mem, libs,
+                             tv, cost)
+                    say("cycle_market", cycle=cycle,
+                        market=f"NQbook@{res3}s",
                         tier=3, tested=done, features=len(kept),
                         bars=len(b), trials=led.d["trials"],
                         bar=round(led.bar(), 2))
