@@ -104,7 +104,22 @@ UNARY = {
     "sign": (_sign, [0]),
     "abs": (_absv, [0]),
 }
-BASE = ["close", "vol", "n", "absret"]
+# RANGE IS A BASE COLUMN, because a whole class of indicator is built
+# from it and none of them were reachable without it.
+#
+# The grower composed from close/vol/n/absret only, so every feature it
+# could invent was a function of the CLOSE series and volume. That
+# silently excluded everything built on the bar's range: ATR, ADX,
+# Supertrend, and the true-range family generally. The brackets and the
+# shape patterns had high/low all along -- only the feature grower was
+# blind to them, which is the kind of gap that never announces itself.
+#
+# `hl` is the bar range and `gap` the overnight/inter-bar jump; both are
+# differences rather than levels, so they are stationary in the way the
+# unary primitives (z, rank, ratio) expect, which raw high/low are not.
+# A raw high is just the price again and would waste a generation
+# rediscovering close.
+BASE = ["close", "vol", "n", "absret", "hl", "gap"]
 
 
 class _BoundedMemo(dict):

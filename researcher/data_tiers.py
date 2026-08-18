@@ -86,6 +86,29 @@ def effective_n(markets):
 
 
 # ------------------------------------------------------------- tier 1
+def add_range_cols(d):
+    """Bar range and inter-bar gap, for the feature grower.
+
+    features.BASE composes from these, and they must therefore exist on
+    every tape the grower sees or a whole class of indicator -- ATR,
+    ADX, Supertrend, the true-range family -- is simply unreachable.
+    Both are DIFFERENCES rather than levels, so the rolling primitives
+    (z, rank, ratio) behave on them; a raw high is just the price again.
+
+    Silently skipped where there is no high/low, which is correct: the
+    book tape has no bars in that sense.
+    """
+    if "high" in d.columns and "low" in d.columns:
+        d["hl"] = (d["high"] - d["low"]).astype("float64")
+    # `gap` needs an OPEN. Falling back to close-minus-previous-close
+    # would define it as exactly absret, which is already a base column
+    # -- a duplicate costs a whole generation of composition to
+    # rediscover something the grower already had.
+    if "open" in d.columns:
+        d["gap"] = (d["open"] - d["close"].shift(1)).abs()
+    return d
+
+
 def tier1(symbols=None, min_bars=5000):
     """Breadth. Every market with 5-minute bars on disk."""
     out = {}
@@ -108,8 +131,10 @@ def tier1(symbols=None, min_bars=5000):
             # or target, and the shape patterns need them to measure
             # ranges, inside bars and gaps. Dropping them here is what
             # limited every hypothesis to a fixed-time exit.
+            d = add_range_cols(d)
             cols = [c for c in ("close", "open", "high", "low",
-                                "vol", "n", "absret") if c in d.columns]
+                                "vol", "n", "absret", "hl", "gap")
+                    if c in d.columns]
             out[sym] = d[cols]
         except Exception:                                     # noqa: BLE001
             continue
@@ -150,7 +175,7 @@ def tier2_sources(bar_s):
 def tier2_from(kind, path, bar_s):
     if kind == "pre":
         d = pd.read_parquet(path).astype("float64")
-        return d.sort_index()
+        return add_range_cols(d.sort_index())
     return tier2(path, bar_s=bar_s)
 
 
@@ -210,7 +235,9 @@ def tier2(path, bar_s=60, rth_only=True):
             (a.index.hour < 20)
         a = a[m]
     a["absret"] = a["close"].diff().abs()
-    cols = [c for c in ("close", "high", "low", "vol", "n", "absret")
+    a = add_range_cols(a)
+    cols = [c for c in ("close", "high", "low", "vol", "n", "absret",
+                        "hl", "gap")
             if c in a.columns]
     return a[cols]
 
