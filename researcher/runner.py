@@ -72,6 +72,7 @@ from researcher.memory import Memory, classify  # noqa: E402
 from researcher import data_tiers as DT         # noqa: E402
 from researcher import insight as IN            # noqa: E402
 from researcher import brief as BRIEF            # noqa: E402
+from researcher import experiments as EXP        # noqa: E402
 from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
 from researcher import brackets as BR           # noqa: E402
@@ -2654,6 +2655,24 @@ def main():
 
         history_point(secs=round(time.time() - t0))
 
+        # ---- QUESTIONS SOMEBODY WROTE DOWN. Run after the sweep so a
+        # slow experiment can never delay the search, time-boxed, and
+        # every exception is caught inside run_all. Their measurements
+        # are charged like any other look: reading the data is reading
+        # the data, and a free look would be a hole in the bar.
+        try:
+            xp = os.path.join(RDIR, "experiments.json")
+            store = _read_json(xp, {}) or {}
+            out = EXP.run_all({"data": data, "spec": SPEC,
+                               "bar": led.bar(), "cycle": cycle},
+                              store, say=say)
+            if out.get("measurements"):
+                led.bump(int(out["measurements"]))
+            json.dump(store, open(xp, "w"), separators=(",", ":"),
+                      default=str)
+        except Exception as exc:                              # noqa: BLE001
+            say("experiments_failed", err=str(exc)[:200])
+
         led.save(force=True)
         _save_libs(libs)
         # WRITE THE BRIEF. The searcher grinds; this is the handoff --
@@ -2665,7 +2684,9 @@ def main():
             b = BRIEF.build(led.d, mem.d, arch=(ARCH["a"].dump()
                                                 if ARCH["a"] else None),
                             cal=_read_json(os.path.join(RDIR,
-                                                        "calibration.json")))
+                                                        "calibration.json")),
+                            experiments=_read_json(
+                                os.path.join(RDIR, "experiments.json")))
             json.dump(b, open(os.path.join(RDIR, "brief.json"), "w"),
                       separators=(",", ":"))
             open(os.path.join(RDIR, "brief.md"), "w").write(BRIEF.render(b))

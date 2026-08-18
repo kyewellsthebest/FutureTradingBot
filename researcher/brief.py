@@ -412,7 +412,7 @@ def next_actions(cov, unreach, contra, ruled, cal):
 
 
 # ---------------------------------------------------------------- build
-def build(led, mem, arch=None, cal=None, status=None):
+def build(led, mem, arch=None, cal=None, status=None, experiments=None):
     """The whole brief, from state the searcher already had."""
     led = led or {}
     mem = mem or {}
@@ -429,6 +429,15 @@ def build(led, mem, arch=None, cal=None, status=None):
         "unreachable": unreach,
         "contradictions": contra,
         "binding_constraint": binding_constraint(cov, led, mem, cal, ruled),
+        # ANSWERS TO QUESTIONS SOMEBODY ASKED, as opposed to the search's
+        # own output. These are the ones a person wrote down and the
+        # searcher answered while they were away.
+        "experiments": [
+            {"name": k, "question": v.get("question"),
+             "runs": v.get("runs"), "verdict": v.get("verdict"),
+             "error": v.get("error")}
+            for k, v in sorted((experiments or {}).items())
+            if v.get("verdict") or v.get("error")],
         "next": next_actions(cov, unreach, contra, ruled, cal),
     }
 
@@ -470,6 +479,13 @@ def render(b):
         A("GENUINELY RULED OUT")
         for r in b["ruled_out"][:8]:
             A(f"  {r['family']}: {r['cells']:,} cells -- {r['verdict']}")
+        A("")
+    if b.get("experiments"):
+        A("QUESTIONS ANSWERED WHILE YOU WERE AWAY")
+        for x in b["experiments"]:
+            A(f"  {x['name']}  ({x['runs']} run(s))")
+            A(f"      Q: {x['question']}")
+            A(f"      A: {x.get('verdict') or ('FAILED: ' + str(x.get('error')))}")
         A("")
     A("NEXT")
     for a in b["next"]:

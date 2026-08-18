@@ -279,6 +279,14 @@ def test_feature_parser():
     return a and b
 
 
+def test_experiments():
+    """A question somebody wrote down must never take the cycle down."""
+    from researcher import experiments as EX
+    f = EX.selftest(verbose=False)
+    return check("experiment queue is isolated and every experiment "
+                 "declares a control", not f, "; ".join(f))
+
+
 def test_recent_window():
     """The complaint: "it's showing the exact same strategies, no updates."
 
@@ -472,6 +480,7 @@ def main():
     test_brackets()
     test_context_lag()
     test_feature_parser()
+    test_experiments()
     test_recent_window()
     test_thread_safety()
     test_validators()

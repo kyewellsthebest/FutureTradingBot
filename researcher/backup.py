@@ -59,8 +59,14 @@ API = "https://api.github.com"
 # kilobytes of text and it is the one artefact somebody actually needs
 # between sessions -- what its coverage rules out, what it could not
 # see, what it could not ask, and what is currently in the way.
+#
+# experiments.json rides along for the reason the feature library had to:
+# an experiment accumulates its answer over many cycles, and this
+# container has restarted 28 times. A store that dies on restart turns a
+# five-run experiment into a permanent one-run experiment that never
+# reaches done() and re-answers the same question forever.
 FILES = ["ledger.json", "memory.json", "status.json",
-         "brief.md", "brief.json"]
+         "brief.md", "brief.json", "experiments.json"]
 
 
 def _now():
