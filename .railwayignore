@@ -1,0 +1,42 @@
+# WHAT THE BUILDER DOES NOT NEED TO CARRY.
+#
+# THE PROBLEM. This repo tracks 2.1 GB of files and had no ignore file
+# of any kind, so every deploy shipped all 2.1 GB to the builder and
+# baked it into the image. Nixpacks does `COPY . .`; there is nothing
+# in that step that knows a 660 MB directory of finished research
+# artifacts has no bearing on `python research_service.py`. The cost is
+# paid twice -- once uploading and layering the context, and again on
+# every deploy pulling the resulting image.
+#
+# THE RULE APPLIED HERE. A path is excluded only if NOTHING the running
+# services open can reach it. That was checked rather than assumed:
+# every literal `research/...` and `data/...` path in research_service.py,
+# researcher/*.py and bot/*.py was grepped, and each directory below has
+# zero readers.
+#
+# WHAT DELIBERATELY STAYS, because the searcher genuinely reads it:
+#
+#     data/polygon/          286 MB   tier 1, 10 markets of 5-min bars
+#     data/research_bars/     19 MB   precomputed tier-2 bars
+#     data/depth/             26 MB   tier 3, the NQ book
+#     data/research_data/     81 MB   COT / FRED / DTS, read by context.py
+#
+# That is ~410 MB the service cannot run without, and it is not touched.
+
+# Finished mining artifacts. 661 MB of .npz feature caches and result
+# tables from the 2026-07-31 campaign. Offline research output; no
+# runtime reader anywhere in the repo.
+research/mining_2026_07_31/mega2/
+
+# Old feature-search checkpoints, 497 MB. Zero references in any module.
+data/fsearch_ck/
+
+# Pulse checkpoints, 116 MB. Zero references in any module.
+data/pulse_ck_*.pkl
+
+# Never useful in an image.
+.git/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+*.ipynb_checkpoints/
