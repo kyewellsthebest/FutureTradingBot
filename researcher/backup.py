@@ -52,7 +52,15 @@ from datetime import datetime, timezone
 import requests
 
 API = "https://api.github.com"
-FILES = ["ledger.json", "memory.json", "status.json"]
+# brief.md rides along DELIBERATELY, and it is the only one here that
+# is not state. Everything else exists so a wiped container can be
+# restored; the brief exists so the searcher's own conclusions can be
+# READ without anyone having to get a file off a phone. It is three
+# kilobytes of text and it is the one artefact somebody actually needs
+# between sessions -- what its coverage rules out, what it could not
+# see, what it could not ask, and what is currently in the way.
+FILES = ["ledger.json", "memory.json", "status.json",
+         "brief.md", "brief.json"]
 
 
 def _now():
