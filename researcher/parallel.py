@@ -146,7 +146,7 @@ def snapshot(led, mem):
             "insights": mem.insights(), "lessons": lessons}
 
 
-def replay(led, mem, out):
+def replay(led, mem, out, arch=None):
     """Apply a worker's buffered writes in the parent. Single-threaded.
 
     Order matters: bumps before records, so the trial count -- and
@@ -158,6 +158,14 @@ def replay(led, mem, out):
         led.bump(out["bumps"])
     for hyp, result, family in out.get("records", ()):
         led.record(hyp, result, family=family)
+        # Every measurement is offered to the map. Doing it here rather
+        # than in the worker keeps one owner for the archive, the same
+        # discipline the ledger has.
+        if arch is not None:
+            try:
+                arch.consider(hyp, family, result)
+            except Exception:                                 # noqa: BLE001
+                pass
     for family, mode, result in out.get("notes", ()):
         try:
             mem.note(family, mode, result)

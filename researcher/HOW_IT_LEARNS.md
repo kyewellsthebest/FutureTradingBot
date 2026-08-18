@@ -143,6 +143,69 @@ signal.
 
 ---
 
+## 4. It keeps a map of every KIND of strategy, and breeds from it
+
+`researcher/archive.py`
+
+Ranking by strength has a structural bias that no amount of care fixes:
+significance grows with √n while profit grows with n, so a violent
+twice-a-month cell will always outrank a modest daily one that is worth
+far more. **The search was unable to find the thing actually wanted.**
+
+Your arithmetic: $300/week on one micro needs ~3,000 trades/week at a
+realistic +0.15 RT. A z-sorted leaderboard will never surface that.
+
+So there is now a **grid over how a strategy behaves** — trading
+frequency × hold length × exit style × direction, 240 cells — and the
+best occupant of each is kept forever. That is MAP-Elites, and it buys
+two things:
+
+- **Coverage.** "The best thing we have that trades often enough to pay"
+  becomes a question with an answer.
+- **It never runs out.** Elites are a breeding pool: new candidates are
+  crossed and mutated from occupants rather than drawn from nothing, so
+  every niche improves at once. Random draw explores without improving;
+  hill-climbing improves without exploring. This does both.
+
+The first thing the map produced, on real data:
+
+| band | best | trades | rate |
+|---|---|---|---|
+| <5/wk | +37.07 RT | 240 | 2/wk |
+| 5–25/wk | +7.62 RT | 1,852 | 17/wk |
+| 25–100/wk | +4.94 RT | 2,877 | 26/wk |
+| 100–400/wk | +1.37 RT | 28,242 | 236/wk |
+| 400–1500/wk | **−0.99 RT** | 44,254 | 402/wk |
+
+**The best available edge decays monotonically with frequency and is
+already negative by 400 trades/week.** That is the market answering the
+question the account asks, and it was invisible before — you would only
+ever have seen the +37 at 2/wk and thought you had found something.
+
+**Nothing in the map is validated.** An elite is the best thing in its
+niche and nothing more: no delay control, no null, no placebo, no vault.
+And an elite is a *maximum*, so every number is biased high by
+selection — which is exactly why the rare bands show the fattest ones.
+The map is where to look, never what was found.
+
+## 5. It runs in processes, because threads did nothing
+
+`researcher/parallel.py`
+
+Measured, four markets:
+
+    sequential   5.11s
+    4 threads    5.70s   0.90x   <- slower than no pool at all
+    4 processes  1.69s   2.95x
+
+The GIL made the thread pool decorative for its whole life. Workers now
+get proxies that answer reads from a snapshot and buffer writes, so
+`sweep()` is unchanged and the parent still owns the ledger — the trial
+count that sets the bar is written in exactly one place, as before.
+
+Verified equivalent: same trial count, and zero differing measurements
+among hypotheses both paths tested.
+
 ## What it still cannot do
 
 Stated because the alternative is overclaiming, which is the failure
@@ -179,7 +242,9 @@ mode this whole project exists to guard against.
 | `ledger.py` | trials, the rising bar, the sealed vault, epochs |
 | `validate.py` | empirical null, period stability, stale placebo |
 | `plausible.py` | encoded priors: numbers that cannot be true |
-| `selftest_all.py` | **one command, 19 checks** — run this first |
+| `archive.py` | the map: an elite per behavioural niche, and breeding |
+| `parallel.py` | sweeps in processes; proxies that account for trials |
+| `selftest_all.py` | **one command, 21 checks** — run this first |
 
 ```bash
 python3 -m researcher.selftest_all

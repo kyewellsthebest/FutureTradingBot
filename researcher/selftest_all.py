@@ -314,6 +314,26 @@ def test_diagnosis():
                  "apart", not f, "; ".join(f))
 
 
+def test_archive():
+    """The map, which is now what stops the search chasing rare cells."""
+    from researcher import archive as A
+    f = A.selftest(verbose=False)
+    return check("map keeps an elite per behavioural niche and breeds "
+                 "from them", not f, "; ".join(f))
+
+
+def test_parallel():
+    """The proxies that let sweeps run in processes.
+
+    If these drift from the objects they stand in for, the trial count
+    drifts -- and the trial count is what sets the bar.
+    """
+    from researcher import parallel as P
+    f = P.selftest(verbose=False)
+    return check("worker proxies account for every trial they spend",
+                 not f, "; ".join(f))
+
+
 def test_validators():
     from researcher import validate as V
     rng = np.random.default_rng(0)
@@ -363,6 +383,8 @@ def main():
     test_pooled()
     test_surrogate()
     test_diagnosis()
+    test_archive()
+    test_parallel()
     print("\n" + "=" * 66)
     if FAIL:
         print(f"{len(FAIL)} FAILED:")

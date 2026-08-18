@@ -248,6 +248,27 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
     </div>
     <div style="height:14px"></div>
     <div class="card">
+      <h2><span class="e">🗺️</span>the map — best of every kind</h2>
+      <div id="mapbox"><div class="sk sk-card"></div></div>
+      <div class="mini">
+        The leaderboard below ranks by <b>strength</b>, which always prefers
+        the <u>rare</u>: significance grows with √n while profit grows with n,
+        so a violent twice-a-month cell outranks a modest daily one that is
+        worth far more. So the searcher also keeps a <b>grid</b> over how a
+        strategy behaves — how often it trades, how long it holds, how it
+        exits — and the best occupant of <b>every</b> cell, forever. That is
+        the only way the question <i>"what is the best thing we have that
+        trades often enough to pay?"</i> has an answer at all.
+        <br><br>
+        ⚠️ <b>Nothing here is validated.</b> An elite is the best thing in
+        its niche and nothing more — it has not faced the delay control, the
+        null, the placebo or the vault. And an elite is a <u>maximum</u>, so
+        these numbers are biased high by selection. Treat the map as
+        <b>where to look</b>, never as what was found.
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card">
       <h2><span class="e">🥇</span>leaderboard — closest it has come</h2>
       <div class="mini" style="margin:0 0 14px;padding:0 0 12px">
         <b>RT = round trip</b>, the full cost of one trade: commission both
@@ -581,6 +602,39 @@ async function tick(){
     : `<div class="empty">⏳ <b>Nothing scored yet.</b><br><br>
        The first round is still measuring. Rows appear here the moment
        anything gets a number — ranked best to worst, however bad.</div>`;
+
+  // ── the map
+  const MP = s.archive || {};
+  const rt = v => v==null?'—':((v>0?'+':'')+Number(v).toFixed(3));
+  const mrow = (x, tag) => !x ? '' : `
+    <div class="item">
+      <div class="t">${tag} ${esc(x.what||'')}</div>
+      <div class="chg"><span class="pill">${esc(x.cell||'')}</span>
+        <b style="color:${(x.cu||0)>0?'var(--pos)':'var(--neg)'}">${rt(x.cu)} RT</b>
+        &nbsp;·&nbsp; ${x.per_week==null?'—':Number(x.per_week).toFixed(0)}/wk
+        &nbsp;·&nbsp; ${num(x.n)} trades
+        &nbsp;·&nbsp; ${esc(x.market||'')}</div>
+    </div>`;
+  $('#mapbox').innerHTML = (MP.filled)
+    ? `<div class="nums" style="margin-bottom:12px">
+         ${num_('<span class="e">🗺️</span>niches mapped',
+                `${MP.filled}/${MP.total}`, `${MP.pct}% of the grid`)}
+         ${num_('<span class="e">📈</span>times a niche improved',
+                num(MP.improvements||0), 'each one is the map getting better')}
+       </div>
+       ${MP.frequent ? `<div class="mini" style="margin:0 0 6px;padding:0;
+          border:none"><b>Best that trades often enough to matter</b>
+          (over 400/week — the frequency your $300/week needs):</div>
+          ${mrow(MP.frequent,'🎯')}` : ''}
+       <div class="mini" style="margin:10px 0 6px;padding:0;border:none">
+         <b>Best at each rate of trading.</b> Read down: the rarer the
+         band, the fatter its tail, so a huge number in a <u>&lt;5/wk</u>
+         row is the best of a nearly-empty corner rather than a find.</div>
+       ${(MP.bands||[]).map(x=>mrow(x,'<b>'+esc(x.band||'')+'</b> ')).join('')}`
+    : `<div class="empty">🗺️ <b>The map is empty.</b><br><br>
+       Cells fill as measurements arrive. A cell needs <b>200 trades</b>
+       before it will accept an occupant — below that the winner of a cell
+       is just the luckiest draw in it.</div>`;
 
   // ── check
   $('#tiers').innerHTML = (s.tiers||[]).map(t=>`

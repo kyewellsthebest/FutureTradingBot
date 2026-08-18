@@ -62,6 +62,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from researcher.ledger import Ledger
 from researcher import pooled as PO          # noqa: E402
 from researcher import parallel as PAR       # noqa: E402
+from researcher import archive as AR         # noqa: E402
 from researcher import surrogate as SG
 from researcher import diagnose as DG            # noqa: E402
 from researcher import hypotheses as HY         # noqa: E402
@@ -236,6 +237,12 @@ _GROW_GATE = __import__("threading").Semaphore(WORKERS)
 # and no two markets ever answered the same question, which is why the
 # breadth of this dataset was never actually used as evidence.
 SLATE = {"hyps": [], "book": None, "surrogate": None}
+
+# THE MAP. One elite per behavioural niche, kept for the life of the
+# project. Separate from the ledger because it answers a different
+# question: the ledger says what has been tried, the map says what the
+# best thing of each KIND is. See researcher/archive.py.
+ARCH = {"a": None}
 T2_RES = [60, 15, 300]
 T3_RES = [5, 1, 30]
 
@@ -1489,6 +1496,12 @@ def main():
     os.makedirs(RDIR, exist_ok=True)
     stage("loading the ledger")
     led = Ledger(os.path.join(RDIR, "ledger.json"))
+    ap = os.path.join(RDIR, "archive.json")
+    try:
+        ARCH["a"] = AR.Archive(json.load(open(ap)) if os.path.exists(ap)
+                               else None)
+    except Exception:                                         # noqa: BLE001
+        ARCH["a"] = AR.Archive()
     mem = Memory(os.path.join(RDIR, "memory.json"))
     stage("ledger loaded (%s entries)" % len(led.d["tested"]))
     once = os.environ.get("RESEARCH_ONCE") == "1"
@@ -1534,6 +1547,20 @@ def main():
         slate += HY.from_destinations(
             rng_d, ["squeeze", "expansion", "run_up", "run_dn",
                     "inside", "outside"], cap=80)
+        # BREED HALF THE SLATE FROM THE MAP. A purely random draw
+        # explores forever without ever getting better; breeding from
+        # elites gets better without exploring. Doing both is the point
+        # of a quality-diversity search, and the split is explicit so it
+        # can be argued with rather than buried.
+        arch = ARCH["a"]
+        if arch is not None and len(arch.cells) >= 8:
+            bred = arch.breed(rng_s, max(8, len(slate) // 2),
+                              mutate=HY.mutate_shape)
+            slate = list(slate) + [b for b in bred if b]
+            say("bred_from_map", cycle=cycle, bred=len(bred),
+                cells_filled=len(arch.cells),
+                note="children of the best strategy in each behavioural "
+                     "niche, not fresh random draws")
         fresh = []
         for h in slate:
             # The probe must fingerprint IDENTICALLY to what will be
@@ -1615,7 +1642,7 @@ def main():
             # trial count that sets the bar is still written in exactly
             # one place -- the property that made the thread pool safe
             # is preserved without the thread pool.
-            PAR.replay(led, mem, out)
+            PAR.replay(led, mem, out, arch=ARCH["a"])
             for k, v in (out.get("libs") or {}).items():
                 lib = libs.setdefault(k, FeatureLibrary(keep=20))
                 lib.kept.update(v.get("kept") or {})
@@ -1859,6 +1886,11 @@ def main():
         history_point(secs=round(time.time() - t0))
 
         led.save(force=True)
+        try:
+            if ARCH["a"] is not None:
+                ARCH["a"].save(os.path.join(RDIR, "archive.json"))
+        except Exception as exc:                              # noqa: BLE001
+            say("archive_save_failed", err=str(exc)[:120])
         json.dump({"t": now(), "cycle": cycle, "summary": led.summary(),
                    "learning": mem.summary(), "insight": ins},
                   open(STATUS, "w"), indent=1)

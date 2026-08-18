@@ -290,6 +290,51 @@ def from_shapes(rng, cap=900, extra_conds=None):
     return hyps
 
 
+def mutate_shape(h, rng, extra_conds=None):
+    """Nudge one attribute of a shape hypothesis, keeping it valid.
+
+    Used by the archive's breeding loop. Exactly ONE attribute changes
+    per call, which is what makes a lineage informative: if a child
+    beats its parent you know which change did it. Mutating several at
+    once turns the archive into a random search wearing a pedigree.
+
+    A child that is not a shape hypothesis is returned untouched --
+    crossover can only produce coherent members of a family, and this
+    must not be the thing that breaks that.
+    """
+    if not isinstance(h, dict) or h.get("kind") != "shape":
+        return h
+    c = dict(h)
+    conds = ["none"] + list(extra_conds or []) + \
+        ["hi_vol", "lo_vol", "up_day", "dn_day"]
+    pick = int(rng.integers(6))
+    if pick == 0:
+        c["shape"] = list(SHAPES)[int(rng.integers(len(SHAPES)))]
+        c["_family"] = f"shape/{c['shape']}"
+    elif pick == 1:
+        c["n"] = int(SHAPE_N[int(rng.integers(len(SHAPE_N)))])
+    elif pick == 2:
+        c["k"] = float(SHAPE_K[int(rng.integers(len(SHAPE_K)))])
+    elif pick == 3:
+        c["ls"] = LONGSHORT[int(rng.integers(2))]
+    elif pick == 4:
+        ex = EXITS[int(rng.integers(len(EXITS)))]
+        c["exit"] = list(ex) if ex else None
+    else:
+        # Hold length moves by a STEP rather than jumping anywhere in
+        # the list. The archive's whole purpose is to improve a niche,
+        # and hold length is one of the axes that defines the niche --
+        # a free jump would keep throwing children into other cells
+        # instead of refining the one they came from.
+        cur = float(c.get("hold_s") or 300)
+        step = float(rng.choice([0.5, 0.75, 1.5, 2.0]))
+        c["hold_s"] = int(max(15, min(14400, round(cur * step))))
+    c.setdefault("_family", f"shape/{c.get('shape', 'x')}")
+    c.pop("market", None)
+    c.pop("tier", None)
+    return c
+
+
 DEST_LEVELS = ["prior_high", "prior_low", "prior_close", "session_open",
                "day_high_so_far", "day_low_so_far",
                "swing_high_20", "swing_low_20",

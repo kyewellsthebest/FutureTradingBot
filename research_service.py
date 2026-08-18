@@ -487,6 +487,7 @@ def api_state():
         "backup": STATE["backup"],
         "adaptations": adaptations(),
         "learned": learned_facts(),
+        "archive": archive_view(),
         "survivors": survivors(),
         "near": near_misses(),
         "ledger": led,
@@ -564,6 +565,42 @@ def near_misses(k=15):
         return out
     except Exception:                                         # noqa: BLE001
         return []
+
+
+def archive_view():
+    """The map of best-per-niche, and the question the account asks.
+
+    Kept separate from the leaderboard on purpose. The leaderboard ranks
+    by significance, which systematically prefers the rare; the map
+    keeps the best thing at EVERY trading frequency, including the high
+    ones the account's arithmetic actually needs.
+    """
+    try:
+        from researcher import archive as AR
+        p = RDIR / "archive.json"
+        if not p.exists():
+            return {"filled": 0, "total": AR.TOTAL_CELLS, "top": [],
+                    "frequent": None}
+        a = AR.Archive(json.load(open(p)))
+        cov = a.coverage()
+        from researcher import hypotheses as HY
+        def row(e):
+            if not e:
+                return None
+            return {"what": describe(e.get("hyp") or {}),
+                    "cell": AR.cell_name(tuple(int(x) for x in
+                                               e["cell"].split(","))),
+                    "cu": e.get("cu"), "z": e.get("z"), "n": e.get("n"),
+                    "per_week": e.get("per_week"),
+                    "win_rate": e.get("win_rate"), "rr": e.get("rr"),
+                    "market": e.get("market")}
+        return {"filled": cov["filled"], "total": cov["total"],
+                "pct": cov["pct"], "improvements": cov["improvements"],
+                "bands": [dict(row(e) or {}, band=e.get("band"))
+                          for e in a.by_frequency()],
+                "frequent": row(a.best_at_frequency(400))}
+    except Exception:                                         # noqa: BLE001
+        return {"filled": 0, "total": 0, "top": [], "frequent": None}
 
 
 def learned_facts():
