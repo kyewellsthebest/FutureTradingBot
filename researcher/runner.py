@@ -270,6 +270,11 @@ def memory_report():
                                      / 1e6, 1)
     except Exception:                                         # noqa: BLE001
         pass
+    # THE CEILING ITSELF, so the console can say "using X of Y" instead
+    # of leaving the reader to find it in a hosting dashboard.
+    out["limit_mb"] = round(MEM_LIMIT_MB, 0) if MEM_LIMIT_MB else None
+    out["workers"] = WORKERS
+    out["cores"] = os.cpu_count()
     try:
         out["levels_cache"] = len(_LEVELS)
         out["levels_mb"] = round(sum(

@@ -357,7 +357,10 @@ async function tick(){
     begins from zero and any work since the last save is lost. That is
     why the round number keeps returning to <b>1</b> and the count goes
     <b>down</b>. Almost always the container running out of memory
-    ${s.rss_mb ? `(currently using <b>${s.rss_mb} MB</b>)` : ""}.</p></div>`;
+    ${s.rss_mb ? `(currently using <b>${s.rss_mb} MB</b>${
+      (s.memory||{}).limit_mb ? ` of a <b>${s.memory.limit_mb} MB</b> limit`
+      : " — this container reports no memory limit, so the ceiling is set "
+        + "by the hosting plan"})` : ""}.</p></div>`;
   if (s.error) a+=`<div class="card alert"><h2>it crashed — retrying</h2>
     <p>Restarting itself. If this keeps happening, send Claude the
     diagnostic bundle from the Check tab.</p></div>`;
