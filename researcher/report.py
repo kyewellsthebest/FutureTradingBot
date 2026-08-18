@@ -755,9 +755,8 @@ def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
                 "where no plausible finding could be seen: this "
                 "project's own rule treats an edge that large as more "
                 "likely a bug than a discovery.", st["note"]))
-            rows = [["hold", "dispersion (RT)", "trades available",
-                     "effective n after overlap",
-                     "SMALLEST EDGE IT COULD RESOLVE", "verdict"]]
+            rows = [["hold", "dispersion", "trades", "effective n",
+                     "smallest edge visible", "verdict"]]
             for r in reach:
                 hs = r.get("hold_s") or 0
                 m = r.get("smallest_edge_rt")
@@ -770,7 +769,7 @@ def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
                     ("worth searching" if (m or 9) <= 0.5 else
                      "marginal" if (m or 9) <= 1.0 else
                      "BLIND — nothing findable here")])
-            F.append(_table(rows, [18, 24, 26, 30, 40, 38], st, size=6.4))
+            F.append(_table(rows, [16, 20, 24, 24, 38, 52], st, size=6.4))
             F.append(Paragraph(
                 f"Measured on {_num_or(cal.get('bars'), '{:,.0f}')} bars "
                 f"at {_num_or(cal.get('bar_s'), '{:,.0f}')}s, assuming a "
