@@ -53,6 +53,8 @@ feature that splits the tape cleanly may split it into buckets whose
 forward returns are identical. Discovery here only proposes; the ledger,
 the rising bar and the sealed vault still decide.
 """
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -103,6 +105,26 @@ UNARY = {
     "abs": (_absv, [0]),
 }
 BASE = ["close", "vol", "n", "absret"]
+
+
+class _BoundedMemo(dict):
+    """A dict that forgets its oldest entries once it is full.
+
+    Insertion-ordered, so popping the first key evicts the least
+    recently ADDED value. Deliberately not a true LRU: the access
+    pattern here is a scan over candidates grouped by seed, where
+    recency of insertion and recency of use coincide, and a real LRU
+    would cost a reordering on every hit for no benefit.
+    """
+
+    def __init__(self, cap=48):
+        super().__init__()
+        self.cap = max(4, int(cap))
+
+    def __setitem__(self, k, v):
+        super().__setitem__(k, v)
+        while len(self) > self.cap:
+            super().__delitem__(next(iter(self)))
 
 
 class FeatureLibrary:
@@ -260,7 +282,17 @@ class FeatureLibrary:
                 cands.append(("mul", seeds[a], seeds[b]))
 
         scored = []
-        memo = {}
+        # BOUNDED. This memo exists so a seed's array is computed once
+        # and reused by its children, but it was unbounded across the
+        # whole generation: hundreds of candidates, each caching a
+        # full-length float array, freed only when grow() returned.
+        # Measured at 430 MB of transient peak for ONE market -- and
+        # with several markets growing features at the same time, that
+        # sum is what got the container killed.
+        #
+        # Candidates are emitted grouped by seed, so a small window
+        # keeps essentially all of the reuse and none of the hoard.
+        memo = _BoundedMemo(int(os.environ.get("FEATURE_MEMO", "48")))
         for sp in cands:
             nm = self.name(sp)
             if nm in self.scores:

@@ -172,6 +172,62 @@ def stage(what):
     LIVE["stage_t"] = time.time()
 _SHARED = __import__("threading").Lock()
 
+
+def _mem_limit_mb():
+    """The container's memory limit, from cgroup. None if unbounded."""
+    for p in ("/sys/fs/cgroup/memory.max",
+              "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            v = open(p).read().strip()
+            if v and v != "max":
+                n = int(v)
+                if 0 < n < (1 << 62):
+                    return n / 1e6
+        except Exception:                                     # noqa: BLE001
+            continue
+    return None
+
+
+# HOW MANY MARKETS AT ONCE, AND WHY IT IS NOT THE CPU COUNT.
+#
+# Feature growth is the peaky phase of a sweep: measured, one market
+# peaks around 430 MB of transient allocation while retaining only
+# ~15 MB. Sizing the pool by cores meant several markets hit that peak
+# simultaneously -- on an 8-core container, seven concurrent peaks --
+# and the sum is what the kernel sees. The console caught it in the act:
+# "YM tier 1: building features" at 5,644 MB, restarting seven times an
+# hour.
+#
+# So the pool is sized by MEMORY, with cores as a ceiling rather than
+# the target. RESEARCH_WORKERS still overrides, for anyone who knows
+# what their box has.
+MEM_LIMIT_MB = _mem_limit_mb()
+# Measured after bounding the feature memo: one market's sweep peaks
+# about 70 MB above its retained footprint, plus ~80 MB of retained
+# per-market working set. 160 is that with headroom.
+PEAK_PER_SWEEP_MB = float(os.environ.get("RESEARCH_PEAK_MB", "160"))
+BASE_MB = float(os.environ.get("RESEARCH_BASE_MB", "700"))
+
+
+def _worker_count():
+    cores = max(1, (os.cpu_count() or 2) - 1)
+    env = os.environ.get("RESEARCH_WORKERS")
+    if env:
+        return max(1, int(env))
+    if not MEM_LIMIT_MB:
+        return min(cores, 4)
+    room = (MEM_LIMIT_MB - BASE_MB) / PEAK_PER_SWEEP_MB
+    return int(max(1, min(cores, room)))
+
+
+WORKERS = _worker_count()
+
+# A HARD BOUND ON CONCURRENT PEAKS, independent of the pool size. Even
+# if the pool is widened, only this many markets may be in the
+# allocation-heavy phase at once -- so raising RESEARCH_WORKERS to use
+# spare cores on the cheap phases cannot reintroduce the OOM.
+_GROW_GATE = __import__("threading").Semaphore(WORKERS)
+
 # THE SHARED SLATE. Market-agnostic mechanisms are drawn ONCE per cycle
 # and every market is asked the same question, so the answers can be
 # pooled. Drawing them per market -- which is what happened before --
@@ -179,8 +235,6 @@ _SHARED = __import__("threading").Lock()
 # and no two markets ever answered the same question, which is why the
 # breadth of this dataset was never actually used as evidence.
 SLATE = {"hyps": [], "book": None, "surrogate": None}
-WORKERS = int(os.environ.get("RESEARCH_WORKERS",
-                             str(max(1, (os.cpu_count() or 2) - 1))))
 T2_RES = [60, 15, 300]
 T3_RES = [5, 1, 30]
 
@@ -920,8 +974,11 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     lib = libs.setdefault(f"{sym}/t{tier}", FeatureLibrary(keep=20))
     y = fwd_for_features(srch, 1)
     before = len(lib.scores)
-    kept = lib.grow(srch, y, np.random.default_rng(led.d["trials"] % 9973),
-                    base_cols=base_cols)
+    with _GROW_GATE:
+        kept = lib.grow(srch, y,
+                        np.random.default_rng(led.d["trials"] % 9973),
+                        base_cols=base_cols)
+    gc.collect()
     # every feature scored is a trial. Not counting them would let the
     # search buy hundreds of extra looks for free and keep the bar low.
     led.bump(max(len(lib.scores) - before, 0))
