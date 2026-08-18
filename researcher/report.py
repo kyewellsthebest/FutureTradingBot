@@ -513,10 +513,18 @@ def _spec(h):
     return ", ".join(out)
 
 
-def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
+def state_pdf(rdir, extra=None, top=100, source=True, led=None) -> bytes:
+    """`led` lets the caller hand in an ALREADY-PARSED ledger.
+
+    At production scale that file is 84 MB and takes 1.8s to parse. The
+    service holds a parsed copy for the console already, so re-reading
+    it here was buying the same object twice on a box where every core
+    is busy searching -- and the download was the request that could
+    least afford it.
+    """
     st = _styles()
     J = os.path.join
-    led = _read(J(rdir, "ledger.json"))
+    led = _read(J(rdir, "ledger.json")) if led is None else led
     mem = _read(J(rdir, "memory.json"))
     status = _read(J(rdir, "status.json"))
     hist = _read(J(rdir, "history.json"), [])

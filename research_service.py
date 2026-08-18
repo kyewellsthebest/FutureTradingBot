@@ -37,6 +37,7 @@ Endpoints
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 import threading
@@ -426,7 +427,19 @@ def tiers():
     """
     from researcher import data_tiers as DT
     out = []
-    t1 = len(DT.tier1())
+    # COUNT THE FILES; DO NOT LOAD THEM. This called DT.tier1(), which
+    # reads and parses all 24 five-minute CSVs -- 274 MB and 7.6 SECONDS
+    # -- to answer "how many markets are on disk". It ran behind a
+    # 5-minute cache, so every fifth minute one console poll blocked for
+    # seven and a half seconds on a box whose cores are all busy, which
+    # is exactly long enough to look like the service is down.
+    #
+    # The question the tab asks is whether the data is THERE. Globbing
+    # answers it in microseconds. A file that exists but is corrupt is a
+    # different failure, and the searcher's own selftest is what catches
+    # that -- a dashboard probe never would.
+    t1 = len(glob.glob(os.path.join(str(ROOT), "data", "polygon",
+                                    "*_5min.csv")))
     out.append({"tier": 1,
                 "name": f"breadth · 5-minute bars, {t1} markets",
                 "ok": t1 > 0, "detail": f"{t1} markets on disk"})
@@ -464,6 +477,109 @@ def cached_tiers():
     return _TIERS["v"]
 
 
+# ONE PARSE OF THE LEDGER, SHARED.
+#
+# /api/state used to read ledger.json THREE times per request --
+# survivors(), near_misses() and recent_best() each constructed their
+# own. Measured at production scale (336,449 entries, 84 MB):
+#
+#     one json parse            2.1s
+#     near_misses scan          1.1s
+#     recent_best scan          0.8s
+#     -> ~8.3s of CPU and roughly a gigabyte of transient allocation
+#        for a single poll of a dashboard
+#
+# On an idle box that is merely wasteful. On this one, where 47 search
+# workers own every core, it is a request that never finishes: the
+# console rendered "—" for every figure and "NEEDS A LOOK", and the PDF
+# download could not get scheduled at all because the web thread was
+# permanently busy re-parsing the same file.
+#
+# The file only changes when a cycle ends, so it is parsed once and
+# re-read only when its mtime or size moves. Holding 84 MB resident is
+# nothing against the limit and it is the same object every reader now
+# shares.
+_LED = {"key": None, "d": {}, "t": 0.0}
+_LED_LOCK = threading.Lock()
+
+
+def ledger_data(max_age=5.0):
+    """The parsed ledger, cached until the file actually changes."""
+    p = RDIR / "ledger.json"
+    try:
+        st = p.stat()
+        key = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        return {}
+    if _LED["key"] == key and time.time() - _LED["t"] < max_age:
+        return _LED["d"]
+    with _LED_LOCK:
+        if _LED["key"] == key:                 # someone else just did it
+            _LED["t"] = time.time()
+            return _LED["d"]
+        t0 = time.time()
+        try:
+            with p.open() as f:
+                d = json.load(f)
+        except Exception:                                     # noqa: BLE001
+            return _LED["d"] or {}
+        _LED.update(key=key, d=d, t=time.time())
+        print(f"[ledger] parsed {len(d.get('tested') or {}):,} entries "
+              f"in {time.time() - t0:.1f}s", flush=True)
+        return d
+
+
+_DERIVED = {}
+
+
+def from_ledger(name, fn):
+    """Cache a derived view for as long as the ledger file is unchanged.
+
+    near_misses and recent_best each walk all 336,449 entries -- 1.1s
+    and 0.8s -- and the console polls. Their inputs only change when a
+    cycle ends and rewrites the file, so recomputing them per request is
+    the same answer bought again every few seconds. Keyed on the same
+    (mtime, size) as the parse, so a new cycle invalidates them without
+    anything having to remember to.
+    """
+    # REFRESH THE KEY FIRST. The obvious version read _LED["key"] and
+    # returned the cached value when it matched -- but _LED["key"] is
+    # only updated by ledger_data(), and nothing calls ledger_data()
+    # once every derived view is a cache hit. So the key could never
+    # change, and the console would have frozen on the first snapshot it
+    # ever took and stayed there forever. Caught by a test that touched
+    # the file and watched nothing happen.
+    #
+    # ledger_data() is a stat and a comparison on the warm path, so
+    # calling it here costs nothing and is the only thing that can
+    # notice a new cycle.
+    ledger_data()
+    key = _LED.get("key")
+    hit = _DERIVED.get(name)
+    if hit and hit[0] == key:
+        return hit[1]
+    v = fn()
+    _DERIVED[name] = (key, v)
+    return v
+
+
+def _ledger_obj():
+    """A Ledger wrapping the SHARED dict, for its query methods only.
+
+    Deliberately not Ledger(path): that would parse the file again,
+    which is the whole problem. This object must never be saved -- it is
+    a reader over a snapshot the search process owns.
+    """
+    from researcher.ledger import Ledger
+    L = Ledger.__new__(Ledger)
+    L.d = ledger_data()
+    L.path = None
+    L._lock = threading.Lock()
+    L._since_save = 0
+    L._last_save = time.time()
+    return L
+
+
 @app.get("/api/state")
 def api_state():
     status = read_json(RDIR / "status.json", {}) or {}
@@ -496,9 +612,11 @@ def api_state():
         "learned": learned_facts(),
         "archive": archive_view(),
         "calibration": read_json(RDIR / "calibration.json", None),
-        "survivors": survivors(),
-        "near": near_misses(),
-        "recent": recent_best(),
+        "survivors": from_ledger("survivors", survivors),
+        # Both walk the whole ledger; both are pure functions of a file
+        # that only changes at the end of a cycle.
+        "near": from_ledger("near", near_misses),
+        "recent": from_ledger("recent", recent_best),
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the
@@ -522,7 +640,7 @@ def survivors():
     "found a strategy" and "found something that looked good on the data
     it was chosen from" are not the same claim.
     """
-    led = read_json(RDIR / "ledger.json", {}) or {}
+    led = ledger_data()
     touches = led.get("vault_touches", {}) or {}
     out = []
     for s in led.get("survivors", [])[-40:]:
@@ -549,9 +667,8 @@ def near_misses(k=15):
     it faced, so "z 3.1 against a bar of 5.4" is legible as the failure
     it is rather than as a near-thing.
     """
-    from researcher.ledger import Ledger
     try:
-        led = Ledger(str(RDIR / "ledger.json"))
+        led = _ledger_obj()
         out = []
         for r in led.near_misses(k):
             out.append({"what": describe(r["hyp"]),
@@ -592,9 +709,8 @@ def recent_best(hours=24, k=5):
     behind it -- indistinguishable, from the outside, from a process
     that has stopped. This is the second view that tells them apart.
     """
-    from researcher.ledger import Ledger
     try:
-        led = Ledger(str(RDIR / "ledger.json"))
+        led = _ledger_obj()
         d = led.recent_best(hours=hours, k=k)
         for r in d["rows"]:
             r["what"] = describe(r.get("hyp") or {})
@@ -798,7 +914,8 @@ def _build_pdf(top, src):
     """Build and cache one variant. Caller must hold _PDF_LOCK."""
     from researcher.report import state_pdf
     t0 = time.time()
-    pdf = state_pdf(str(RDIR), _live_extra(), top=top, source=src)
+    pdf = state_pdf(str(RDIR), _live_extra(), top=top, source=src,
+                    led=ledger_data())
     _PDF_CACHE[(top, src)] = (time.time(), pdf)
     print(f"[report] state.pdf top={top} source={src} "
           f"{len(pdf) / 1024:.0f}KB in {time.time() - t0:.1f}s", flush=True)
@@ -818,13 +935,27 @@ def _warm_pdfs():
     # almost all of it reportlab importing and registering fonts. Paying
     # that once shortly after boot, rather than on whichever tap happens
     # to be first, is the whole point.
-    wait = 45.0
+    wait = 20.0
     while True:
         try:
             time.sleep(wait)
             wait = max(60.0, _PDF_TTL_S * 0.75)
             if not STATE.get("alive"):
                 continue
+            # THE CONSOLE'S CACHES TOO. Parsing an 84 MB ledger and
+            # walking it twice is a second and a half; whichever poll
+            # lands first after a cycle pays it, and on a box with every
+            # core busy that poll is the one that renders "—" for every
+            # figure. Paying it here instead means no request ever does.
+            try:
+                ledger_data()
+                for nm, fn in (("survivors", survivors),
+                               ("near", near_misses),
+                               ("recent", recent_best)):
+                    from_ledger(nm, fn)
+                cached_tiers()
+            except Exception as exc:                          # noqa: BLE001
+                print(f"[warm] state caches: {str(exc)[:160]}", flush=True)
             for top, src in ((100, False), (100, True)):
                 with _PDF_LOCK:
                     _build_pdf(top, src)
