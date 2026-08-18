@@ -1102,7 +1102,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     book = SLATE.get("book")
     n_slate = 0
     t_slate = time.time()
-    slate_budget = float(os.environ.get("RESEARCH_SLATE_S", "120"))
+    slate_budget = float(os.environ.get("RESEARCH_SLATE_S", "600"))
     for h in slate:
         if os.path.exists(STOP):
             break
@@ -1541,12 +1541,18 @@ def main():
         # mechanism is asked once and never again.
         stage("drawing this cycle's mechanisms")
         rng_s = np.random.default_rng((cycle * 7919 + led.d["trials"]) % 2**32)
-        slate = HY.from_shapes(rng_s, cap=int(os.environ.get(
-            "RESEARCH_SLATE", "180")))
+        # SIZED TO THE MACHINE, not to a number picked when the space
+        # was a 28,000-cell grid. Each slate mechanism is measured in
+        # every market, so N mechanisms is N x markets evaluations --
+        # at ~164/sec/core that is seconds of work per thousand, and
+        # the space is now unbounded so there is always more to draw.
+        slate_cap = int(os.environ.get("RESEARCH_SLATE",
+                                       str(max(400, 260 * WORKERS))))
+        slate = HY.from_shapes(rng_s, cap=slate_cap)
         rng_d = np.random.default_rng((cycle * 6151 + led.d["trials"]) % 2**32)
         slate += HY.from_destinations(
             rng_d, ["squeeze", "expansion", "run_up", "run_dn",
-                    "inside", "outside"], cap=80)
+                    "inside", "outside"], cap=max(120, slate_cap // 4))
         # BREED HALF THE SLATE FROM THE MAP. A purely random draw
         # explores forever without ever getting better; breeding from
         # elites gets better without exploring. Doing both is the point
@@ -1616,7 +1622,9 @@ def main():
         t_par = time.time()
         pool = PAR.Pool(WORKERS, ctx)
         try:
-            results = pool.map((sym, 1, 500) for sym in syms)
+            results = pool.map(
+                (sym, 1, int(os.environ.get("RESEARCH_BUDGET", "1200")))
+                for sym in syms)
         finally:
             pool.close()
         say("swept_parallel", cycle=cycle, markets=len(syms),

@@ -28,6 +28,8 @@ is strictly better than one producing 3,000,000 arbitrary ones, even if
 the real edge is in both -- because in the second the real edge is
 buried under a larger pile of convincing noise.
 """
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -273,11 +275,11 @@ def from_shapes(rng, cap=900, extra_conds=None):
     while len(hyps) < cap and tries < cap * 8:
         tries += 1
         nm = names[int(rng.integers(len(names)))]
-        n = int(SHAPE_N[int(rng.integers(len(SHAPE_N)))])
-        k = float(SHAPE_K[int(rng.integers(len(SHAPE_K)))])
+        n = draw_n(rng)
+        k = draw_k(rng)
         ls = LONGSHORT[int(rng.integers(2))]
-        ex = EXITS[int(rng.integers(len(EXITS)))]
-        hold = int(HOLDS_S[int(rng.integers(len(HOLDS_S)))])
+        ex = draw_exit(rng)
+        hold = draw_hold(rng)
         cond = conds[int(rng.integers(len(conds)))]
         key = (nm, n, k, ls, ex, hold, cond)
         if key in seen:
@@ -307,19 +309,37 @@ def mutate_shape(h, rng, extra_conds=None):
     c = dict(h)
     conds = ["none"] + list(extra_conds or []) + \
         ["hi_vol", "lo_vol", "up_day", "dn_day"]
+    # CONTINUOUS NUDGES, not jumps to another grid point. In a
+    # continuous space a mutation that resamples uniformly is just a
+    # fresh random draw wearing a parent's name -- it carries no
+    # information from the parent and the archive stops being a search
+    # and becomes a lottery. Small multiplicative steps keep a child
+    # near its parent, which is what makes "this child beat its parent"
+    # mean something.
     pick = int(rng.integers(6))
     if pick == 0:
         c["shape"] = list(SHAPES)[int(rng.integers(len(SHAPES)))]
         c["_family"] = f"shape/{c['shape']}"
     elif pick == 1:
-        c["n"] = int(SHAPE_N[int(rng.integers(len(SHAPE_N)))])
+        cur = int(c.get("n") or 3)
+        c["n"] = int(min(N_RANGE[1], max(N_RANGE[0],
+                                         cur + int(rng.choice([-2, -1, 1, 2])))))
     elif pick == 2:
-        c["k"] = float(SHAPE_K[int(rng.integers(len(SHAPE_K)))])
+        cur = float(c.get("k") or 2.0)
+        c["k"] = round(float(min(K_RANGE[1], max(
+            K_RANGE[0], cur * float(rng.uniform(0.7, 1.4))))), 3)
     elif pick == 3:
         c["ls"] = LONGSHORT[int(rng.integers(2))]
     elif pick == 4:
-        ex = EXITS[int(rng.integers(len(EXITS)))]
-        c["exit"] = list(ex) if ex else None
+        ex = c.get("exit")
+        if not ex or rng.random() < 0.25:
+            c["exit"] = list(draw_exit(rng) or []) or None
+        else:
+            st = float(min(STOP_RANGE[1], max(
+                STOP_RANGE[0], float(ex[0]) * float(rng.uniform(0.7, 1.4)))))
+            tg = float(min(TARG_RANGE[1], max(
+                TARG_RANGE[0], float(ex[1]) * float(rng.uniform(0.7, 1.4)))))
+            c["exit"] = [round(st, 2), round(tg, 2)]
     else:
         # Hold length moves by a STEP rather than jumping anywhere in
         # the list. The archive's whole purpose is to improve a niche,
@@ -327,8 +347,9 @@ def mutate_shape(h, rng, extra_conds=None):
         # a free jump would keep throwing children into other cells
         # instead of refining the one they came from.
         cur = float(c.get("hold_s") or 300)
-        step = float(rng.choice([0.5, 0.75, 1.5, 2.0]))
-        c["hold_s"] = int(max(15, min(14400, round(cur * step))))
+        step = float(rng.uniform(0.6, 1.7))
+        c["hold_s"] = int(max(HOLD_MIN_S, min(HOLD_MAX_S,
+                                              round(cur * step))))
     c.setdefault("_family", f"shape/{c.get('shape', 'x')}")
     c.pop("market", None)
     c.pop("tier", None)
@@ -429,8 +450,68 @@ SHAPES = {
                    "the level into the bell rather than fading."),
     "close_low": ("Closed at the bottom of its own range."),
 }
-SHAPE_N = [2, 3, 4]          # for the run patterns
-SHAPE_K = [1.5, 2.5]         # how many sigma counts as squeeze/expansion
+SHAPE_N = [2, 3, 4]          # legacy anchors, kept for the self-tests
+SHAPE_K = [1.5, 2.5]
+
+# ---------------------------------------------------------------------
+# THE SPACE HAD A FLOOR AND THE SEARCH HIT IT.
+#
+# Counted: 9 shapes x 3 lengths x 2 widths x 2 sides x 13 exits x 4 holds
+# x 5 conditions = 28,080 distinct shape hypotheses, plus about 1,360
+# footprint cells per market which are DETERMINISTIC -- the same tape
+# yields the same buckets every cycle, so after the first cycle every
+# one of them is already in the ledger.
+#
+# The searcher had run 256,959 trials against a universe of roughly
+# thirty thousand ideas. It was not slow; it had nothing left to test.
+# Each cycle it generated thousands of candidates, `seen()` rejected
+# ~97% of them as already measured, and the counter crawled at twenty
+# an hour. No amount of extra cores touches that -- the bottleneck was
+# the size of the question set, not the speed of answering it.
+#
+# So the parameters are CONTINUOUS now. Hold length is any number of
+# seconds on a log scale, stop and target are real multipliers rather
+# than three-by-four, run length reaches twelve bars and the squeeze
+# width is a real number. The space stops being a grid to exhaust and
+# becomes a landscape to navigate -- which is exactly what the archive's
+# breeding is for, and why the two changes belong together.
+#
+# The bar keeps this honest. An unbounded space does not weaken the
+# standard: every draw is still a trial, and the bar still rises as
+# sqrt(2 ln N). At a million trials it is 6.06 sigma, at ten million
+# 6.50 -- the growth is logarithmic, so a far larger space costs
+# surprisingly little in required strength while removing the ceiling
+# entirely.
+HOLD_MIN_S, HOLD_MAX_S = 15.0, 14400.0      # 15 seconds to four hours
+STOP_RANGE = (0.4, 6.0)                     # in units of realised vol
+TARG_RANGE = (0.4, 8.0)
+N_RANGE = (2, 12)                           # bars in a run pattern
+K_RANGE = (1.05, 4.0)                       # sigma for squeeze/expansion
+P_TIME_EXIT = 0.18                          # share with no bracket
+
+
+def draw_hold(rng):
+    """Log-uniform, because the difference between 30s and 60s matters
+    as much as the difference between one hour and two."""
+    lo, hi = math.log(HOLD_MIN_S), math.log(HOLD_MAX_S)
+    return int(round(math.exp(rng.uniform(lo, hi))))
+
+
+def draw_exit(rng):
+    """A real stop/target pair, or a time exit."""
+    if rng.random() < P_TIME_EXIT:
+        return None
+    stop = round(float(rng.uniform(*STOP_RANGE)), 2)
+    targ = round(float(rng.uniform(*TARG_RANGE)), 2)
+    return (stop, targ)
+
+
+def draw_n(rng):
+    return int(rng.integers(N_RANGE[0], N_RANGE[1] + 1))
+
+
+def draw_k(rng):
+    return round(float(rng.uniform(*K_RANGE)), 3)
 
 
 # Per-sweep cache of shape masks and the rolling normaliser.
