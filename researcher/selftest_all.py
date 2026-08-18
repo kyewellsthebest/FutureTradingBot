@@ -354,6 +354,21 @@ def test_validators():
     null = V.empirical_null(rng.standard_normal(5000))
     a = check("empirical null on pure noise", 2.0 < null < 3.2,
               f"p99 {null:.2f} (expect ~2.6)")
+    # THE ASYMMETRY CASE, which the pure-noise test cannot see because
+    # noise is symmetric. A real tape carries a heavy tail of cells that
+    # reliably LOSE the round trip -- z of -30 with total certainty --
+    # and folding those into the null once made it demand that a winner
+    # beat the strength of the most confident loser. Measured on NQ 60s:
+    # p99 of z was 2.49 while p99 of |z| was 27.13.
+    skew = np.concatenate([rng.standard_normal(4000),
+                           rng.normal(-30, 2, 400)])
+    one = V.empirical_null(skew)
+    two = V.empirical_null(skew, two_sided=True)
+    a = check("empirical null ignores the loss tail, which is arithmetic "
+              "rather than chance",
+              one < 4.0 and two > 20.0,
+              f"one-sided {one:.2f} (must stay near noise), "
+              f"two-sided {two:.2f} (the old figure)") and a
     p = np.concatenate([rng.normal(2, 1, 300), rng.normal(-0.1, 1, 300)])
     st = V.period_stability(p, None)
     b = check("period stability catches a one-off regime",

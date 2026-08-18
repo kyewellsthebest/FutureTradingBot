@@ -42,18 +42,40 @@ from __future__ import annotations
 import numpy as np
 
 
-def empirical_null(zs, q=99.0):
-    """What |z| does this sweep's own machinery reach on everything?
+def empirical_null(zs, q=99.0, two_sided=False):
+    """How HIGH does this sweep's own machinery push z on everything?
 
-    Returns the qth percentile of |z| over every cell scored. A
-    candidate has to beat the level its own siblings reached, which
-    automatically accounts for however much dependence there is between
-    them -- the thing a theoretical correction cannot know.
+    Returns the qth percentile of z over every cell scored. A candidate
+    has to beat the level its own siblings reached, which automatically
+    accounts for however much dependence there is between them -- the
+    thing a theoretical correction cannot know.
+
+    ONE-SIDED, AND THE REASON MATTERS. This used to take the percentile
+    of |z|, which on a real tape is not a null at all. Measured on NQ
+    60-second bars over 399 cells:
+
+        z > 10       occurred   0 times
+        |z| > 10     occurred  39 times, every one of them negative
+        p99 of z     2.49
+        p99 of |z|  27.13
+
+    A cell that trades twenty thousand times and pays the round trip on
+    every one of them reaches z = -27 with total certainty. That is
+    arithmetic, not chance, and folding it in demanded that a winner be
+    ten times stronger than the most confident LOSER before it counted.
+    The searcher only ever promotes a positive net, so the question the
+    null has to answer is one-sided: of everything tried on this tape,
+    how high did z actually get? Reading the loss tail as a null was
+    making the strictest control in the system reject real edges for a
+    reason that has nothing to do with them.
+
+    two_sided=True returns the old figure, kept so the two can be
+    reported side by side rather than the change being invisible.
     """
-    v = np.abs(np.asarray([z for z in zs if np.isfinite(z)], dtype=float))
+    v = np.asarray([z for z in zs if np.isfinite(z)], dtype=float)
     if len(v) < 200:
         return None
-    return float(np.percentile(v, q))
+    return float(np.percentile(np.abs(v) if two_sided else v, q))
 
 
 def period_stability(pnl, idx, k=6):

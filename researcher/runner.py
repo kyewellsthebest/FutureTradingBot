@@ -1234,6 +1234,40 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
                   why=mem.lesson("feature/d1")[0])
     hyps += HY.from_features(sorted(lib.scores.items(), key=lambda kv: -kv[1]),
                              FEAT_FLOOR, fmult)
+
+    # THE CONTINUOUS SPACE ON THE DEEP TIERS.
+    #
+    # Tier 2 reported EXHAUSTED: "every hypothesis this tape can generate
+    # at this resolution has already been tested." That was true and it
+    # was a design hole. The footprint families are a bounded grid, so
+    # they run out; the shape and destination space is continuous and
+    # never does. Tier 1 reaches it through the shared slate, but the
+    # slate is POOLED evidence and a deep NQ contract is not a
+    # twenty-fourth market -- it is the same market again, so it cannot
+    # join the pool without inflating the sample on a discount
+    # calibrated for distinct instruments.
+    #
+    # So the deep tiers draw their own, tested as ordinary per-market
+    # hypotheses: charged a trial each, judged against the rising bar,
+    # deduped by the ledger forever. This is where that draw belongs.
+    # The deep tape is the highest-powered evidence in the system --
+    # 95,137 bars at 15 seconds against tier 1's few thousand -- and
+    # until now it was spending that power re-asking a question that had
+    # run out of new forms.
+    if tier >= 2 and "high" in srch.columns:
+        rng_deep = np.random.default_rng(
+            (hash(sym) & 0xFFFF) * 7919 + led.d["trials"] % 2**31)
+        n_deep = int(os.environ.get("RESEARCH_DEEP_SHAPES", "400"))
+        deep_h = HY.from_shapes(rng_deep, cap=n_deep)
+        deep_h += HY.from_destinations(
+            rng_deep, ["squeeze", "expansion", "run_up", "run_dn",
+                       "inside", "outside"], cap=max(60, n_deep // 4))
+        deep_h = [h for h in deep_h if h.get("kind") != "feature"]
+        hyps += deep_h
+        say("deep_continuous", market=sym, tier=tier, drawn=len(deep_h),
+            note="the deep tape gets the continuous shape and destination "
+                 "space, which cannot exhaust, instead of only the "
+                 "bounded footprint grid that already has")
     for fam in {h["_family"] for h in hyps}:
         pr = led.family_prior(fam)
         if pr < 0.5:
@@ -1329,8 +1363,16 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
 
     null99 = VAL.empirical_null(allz)
     if null99:
+        # Both figures, so the one-sided change is visible in the log
+        # rather than being a number that quietly moved. On a tape with
+        # a heavy loss tail these differ by an order of magnitude, and
+        # the gap IS the finding -- see validate.empirical_null.
+        two = VAL.empirical_null(allz, two_sided=True)
         say("empirical_null", market=sym, tier=tier, cells=len(allz),
-            p99=round(null99, 2), theoretical_bar=round(led.bar(), 2))
+            p99=round(null99, 2), p99_abs=round(two, 2) if two else None,
+            theoretical_bar=round(led.bar(), 2),
+            note=("one-sided: the search only promotes positive net, so "
+                  "the loss tail is arithmetic rather than chance"))
     cands = [(*c, null99, mrows) for c in cands]
     return (done, cands, kept), None
 
