@@ -143,6 +143,15 @@ _SPEC_RAW = {
 }
 SPEC = {k: (pv, round(tick * pv + comm, 4))
         for k, (pv, tick, comm) in _SPEC_RAW.items()}
+# RESEARCH_MARKETS narrows the universe to a comma-separated list. Only
+# for integration runs -- a short list is the only way to exercise a
+# code path like slate sharding, which needs more workers than markets,
+# without forking one process per core on a dev box. Unset in
+# production, where breadth IS the evidence.
+_ONLY = [s.strip().upper() for s in
+         os.environ.get("RESEARCH_MARKETS", "").split(",") if s.strip()]
+if _ONLY:
+    SPEC = {k: v for k, v in SPEC.items() if k in _ONLY}
 VAULT_FRAC = 0.20
 MIN_TRADES = 60
 # dispersion floor, measured by features_selftest.py as the maximum the
@@ -173,6 +182,61 @@ LIVE = {"trials": 0, "tested": 0, "market": "", "tier": 0,
 def stage(what):
     LIVE["stage"] = what
     LIVE["stage_t"] = time.time()
+
+
+# PROGRESS THAT SURVIVES A PROCESS BOUNDARY.
+#
+# The sweep now runs in forked children. Anything a child writes to LIVE
+# is written to its own copy of the dict and thrown away when it exits,
+# so the console read "0 this session" for the whole eight minutes a
+# cycle took while 47 processes were flat out. These are multiprocessing
+# counters created in main() before the pool forks, so a child's
+# increment is visible to the parent's web thread immediately.
+#
+#   v  every hypothesis scored, anywhere
+#   s  every shared-slate mechanism measured, anywhere
+#
+# Both are None until main() creates them, and _tick falls back to the
+# plain dict so importing runner and calling sweep() directly -- which
+# the self-tests do -- still counts.
+PROGRESS = {"v": None, "s": None}
+
+
+def _tick(key="v", n=1):
+    c = PROGRESS.get(key)
+    if c is None:
+        if key == "v":
+            LIVE["tested"] += int(n)
+        return
+    try:
+        with c.get_lock():
+            c.value += int(n)
+    except Exception:                                         # noqa: BLE001
+        pass
+
+
+def progress(key="v"):
+    c = PROGRESS.get(key)
+    base = int(LIVE["tested"]) if key == "v" else 0
+    try:
+        return base + (int(c.value) if c is not None else 0)
+    except Exception:                                         # noqa: BLE001
+        return base
+
+
+def start_progress():
+    """Create the shared counters. Must run BEFORE any pool is forked."""
+    if PROGRESS["v"] is not None:
+        return
+    try:
+        import multiprocessing as _mp
+        ctx = _mp.get_context("fork" if hasattr(os, "fork") else "spawn")
+        PROGRESS["v"] = ctx.Value("l", 0)
+        PROGRESS["s"] = ctx.Value("l", 0)
+    except Exception:                                         # noqa: BLE001
+        PROGRESS["v"] = PROGRESS["s"] = None
+
+
 _SHARED = __import__("threading").Lock()
 
 
@@ -996,13 +1060,86 @@ def fwd_for_features(d, bars=1):
 
 
 # ------------------------------------------------------------------ loop
+def measure_slate(sym, srch, slate, tier, tv, cost, feats, bar_s, tape_memo):
+    """The shared slate, measured here but JUDGED ONCE, globally.
+
+    These do not each cost a trial. One mechanism is one hypothesis
+    however many markets it is measured in, and charging 23 trials for 23
+    measurements of the same idea is what was driving the bar up while
+    destroying the power to see anything broad and weak.
+
+    Factored out of sweep() because a slate-only shard runs exactly this
+    and nothing else; two copies of the measurement would be two things
+    to keep in step, and they would not stay in step.
+    """
+    book = SLATE.get("book")
+    n_slate = 0
+    t_slate = time.time()
+    # A CEILING, NOT A SCHEDULE. With the slate sized per market this is
+    # never reached in normal running (~60s of work against a 240s box);
+    # it exists so one pathological market cannot hold back the pooled
+    # verdict for the other twenty-two. It was raised to 600 to paper
+    # over the worker-scaled slate, which is no longer there.
+    slate_budget = float(os.environ.get("RESEARCH_SLATE_S", "240"))
+    for h in slate:
+        if os.path.exists(STOP):
+            break
+        # Bounded: a slow market must not delay the pooled verdict for
+        # every other market. Whatever was measured still pools; a
+        # mechanism simply has fewer markets behind it, and the market
+        # floor in pooled.py already refuses to answer below five.
+        if time.time() - t_slate > slate_budget:
+            say("slate_timeboxed", market=sym, tier=tier, measured=n_slate,
+                of=len(slate))
+            break
+        fam = h.pop("_family", None)
+        hh = dict(h)
+        hh["market"] = sym
+        hh["tier"] = tier
+        try:
+            r = evaluate(srch, hh, tv, cost, feats, bar_s, memo=tape_memo)
+        except Exception:                                     # noqa: BLE001
+            continue
+        if not r:
+            continue
+        n_slate += 1
+        _tick("s")
+        if book is not None:
+            with _SHARED:
+                book.add(h, sym, r, cost, family=fam)
+    if n_slate:
+        say("slate_measured", market=sym, tier=tier, mechanisms=n_slate)
+    return n_slate
+
+
 def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
-          base_cols=None, points=None, mrows=None):
-    """One market, one tier: grow features, build hypotheses, score."""
+          base_cols=None, points=None, mrows=None, shard=(0, 1)):
+    """One market, one tier: grow features, build hypotheses, score.
+
+    `shard` is (index, count) over the shared slate. When there are more
+    cores than markets the extra workers take slate shards rather than
+    sitting idle: shard 0 is the full sweep for that market, shards 1..n
+    measure their share of the slate and nothing else. Only shard 0 grows
+    features, spends trials, or scores the market's private hypotheses,
+    so the ledger sees each of those exactly once no matter how the work
+    was divided.
+    """
     srch, vault = split(d)
     bar_s = bars_per(d)
     if not selftest(srch, tv, cost, bar_s):
         return None, f"selftest failed on {sym} tier{tier}: harness blind"
+
+    si, sn = int(shard[0]), max(1, int(shard[1]))
+    if si > 0:
+        # A slate-only shard. attach_context still runs: the slate's
+        # conditions are drawn against context columns, and a mechanism
+        # whose condition is missing from the tape is skipped rather than
+        # measured against a different tape than its siblings.
+        attach_context(sym, srch)
+        slate = ([dict(h) for h in SLATE["hyps"]][si::sn]
+                 if "high" in srch.columns else [])
+        measure_slate(sym, srch, slate, tier, tv, cost, {}, bar_s, {})
+        return (0, [], set()), None
 
     # ---- layer 1: grow the vocabulary (search set only, never vault)
     stage(f"{sym} tier {tier}: building features")
@@ -1082,7 +1219,11 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     # drew its own private random sample, so no two markets ever tested
     # the same mechanism and the breadth of this dataset -- the single
     # most valuable thing it has -- was never used as evidence.
-    slate = [dict(h) for h in SLATE["hyps"]] if "high" in srch.columns else []
+    # This shard's share of the slate. sn == 1 when there are at least as
+    # many markets as workers, which is the common case and leaves the
+    # slice a no-op.
+    slate = ([dict(h) for h in SLATE["hyps"]][si::sn]
+             if "high" in srch.columns else [])
 
 
     fmult = mem.hold_multiplier("feature/d1")
@@ -1115,43 +1256,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         hyps = sur.order(hyps, fams,
                          rng=np.random.default_rng(led.d["trials"] % 7919))
 
-    # ---- the shared slate, measured here but JUDGED ONCE, globally.
-    #
-    # These do not each cost a trial. One mechanism is one hypothesis
-    # however many markets it is measured in, and charging 23 trials for
-    # 23 measurements of the same idea is what was driving the bar up
-    # while destroying the power to see anything broad and weak.
-    book = SLATE.get("book")
-    n_slate = 0
-    t_slate = time.time()
-    slate_budget = float(os.environ.get("RESEARCH_SLATE_S", "600"))
-    for h in slate:
-        if os.path.exists(STOP):
-            break
-        # Bounded: a slow market must not delay the pooled verdict for
-        # every other market. Whatever was measured still pools; a
-        # mechanism simply has fewer markets behind it, and the market
-        # floor in pooled.py already refuses to answer below five.
-        if time.time() - t_slate > slate_budget:
-            say("slate_timeboxed", market=sym, tier=tier, measured=n_slate,
-                of=len(slate))
-            break
-        fam = h.pop("_family", None)
-        hh = dict(h)
-        hh["market"] = sym
-        hh["tier"] = tier
-        try:
-            r = evaluate(srch, hh, tv, cost, feats, bar_s, memo=tape_memo)
-        except Exception:                                     # noqa: BLE001
-            continue
-        if not r:
-            continue
-        n_slate += 1
-        if book is not None:
-            with _SHARED:
-                book.add(h, sym, r, cost, family=fam)
-    if n_slate:
-        say("slate_measured", market=sym, tier=tier, mechanisms=n_slate)
+    measure_slate(sym, srch, slate, tier, tv, cost, feats, bar_s, tape_memo)
 
     done = 0
     cands = []
@@ -1195,7 +1300,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         led.record(h, r, family=fam)
         done += 1
         LIVE["trials"] = led.d["trials"]
-        LIVE["tested"] += 1
+        _tick("v")
         LIVE["market"] = sym
         LIVE["tier"] = tier
         if mode == "confirmed":
@@ -1228,6 +1333,80 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
             p99=round(null99, 2), theoretical_bar=round(led.bar(), 2))
     cands = [(*c, null99, mrows) for c in cands]
     return (done, cands, kept), None
+
+
+def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
+    """Every NQ contract at one resolution, in parallel, at tier 2.
+
+    Deliberately NOT part of the shared slate. The slate is pooled as
+    cross-market evidence with a correlation discount between markets;
+    eight quarters of the SAME market are not eight markets, and feeding
+    them in would inflate the pooled sample eightfold on a discount
+    calibrated for distinct instruments. What the deep tier buys is
+    depth -- 95,137 bars at 15s against tier 1's few thousand -- and
+    depth belongs to the per-market test, where it raises z honestly by
+    raising n.
+    """
+    syms = sorted(deep)
+    say("tier2_parallel", cycle=cycle, res=res, contracts=len(syms),
+        bars=sum(len(v) for v in deep.values()),
+        note="all contracts at this resolution, not one per cycle")
+    snap = PAR.snapshot(led, mem)
+    ctx = {"snap": snap, "data": deep, "slate": [],
+           "surrogate": SLATE.get("surrogate"),
+           "libs": {k: v for k, v in libs.items()
+                    if k.split("/")[0] in deep}}
+    stage(f"deep tier: {len(syms)} NQ contracts at {res}s bars")
+    pool = PAR.Pool(min(WORKERS, len(syms)), ctx)
+    try:
+        results = pool.map((s, 2, int(os.environ.get("RESEARCH_BUDGET_T2",
+                                                     "400")))
+                           for s in syms)
+    finally:
+        pool.close()
+    for out in results:
+        if os.path.exists(STOP):
+            break
+        sym = out.get("sym")
+        if out.get("error"):
+            if "selftest" in str(out["error"]):
+                say("tier2_selftest_failed", why=str(out["error"])[:300])
+            else:
+                say("tier2_sweep_failed", market=sym,
+                    err=str(out["error"])[:300])
+            continue
+        tv, cost = spec_for(sym)
+        PAR.replay(led, mem, out, arch=ARCH["a"])
+        for k, v in (out.get("libs") or {}).items():
+            lib = libs.setdefault(k, FeatureLibrary(keep=20))
+            lib.kept.update(v.get("kept") or {})
+            lib.scores.update(v.get("scores") or {})
+        for fam, pts in (out.get("points") or {}).items():
+            points.setdefault(fam, []).extend(pts)
+        for fam, rows in (out.get("mrows") or {}).items():
+            mrows.setdefault(fam, []).extend(rows)
+        LIVE["market"] = sym
+        LIVE["tier"] = 2
+        cands = _rehydrate(out.get("candidates") or [], deep.get(sym),
+                           sym=sym)
+        gauntlet(sym, 2, cands, led, mem, libs, tv, cost)
+        say("cycle_market", cycle=cycle, market=sym, tier=2,
+            tested=out.get("done"), features=len(out.get("kept") or []),
+            bars=len(deep.get(sym, ())),
+            trials=led.d["trials"], bar=round(led.bar(), 2),
+            note=DT.Curriculum.caveat(1, 2, "NQ"))
+
+
+def spec_for(sym):
+    """Contract economics for a sweep name, deep-tier names included.
+
+    Tier-1 names are the symbol; tier-2 names carry their tape, as in
+    "NQ@NQU4@60s". Both are the same contract and must be charged the
+    same round trip -- a deep sweep priced at the wrong tick would make
+    every one of its results incomparable with the shallow ones.
+    """
+    s = str(sym)
+    return SPEC.get(s) or SPEC[s.split("@")[0]]
 
 
 def _tape_for(market):
@@ -1546,6 +1725,8 @@ def main():
     mem = Memory(os.path.join(RDIR, "memory.json"))
     stage("ledger loaded (%s entries)" % len(led.d["tested"]))
     once = os.environ.get("RESEARCH_ONCE") == "1"
+    # Before anything forks, so every child inherits the same counters.
+    start_progress()
     LIVE["trials"] = led.d["trials"]
     LIVE["started"] = now()
     say("boot", trials=led.d["trials"], bar=round(led.bar(), 2),
@@ -1582,13 +1763,22 @@ def main():
         # mechanism is asked once and never again.
         stage("drawing this cycle's mechanisms")
         rng_s = np.random.default_rng((cycle * 7919 + led.d["trials"]) % 2**32)
-        # SIZED TO THE MACHINE, not to a number picked when the space
-        # was a 28,000-cell grid. Each slate mechanism is measured in
-        # every market, so N mechanisms is N x markets evaluations --
-        # at ~164/sec/core that is seconds of work per thousand, and
-        # the space is now unbounded so there is always more to draw.
-        slate_cap = int(os.environ.get("RESEARCH_SLATE",
-                                       str(max(400, 260 * WORKERS))))
+        # SIZED PER MARKET, NOT PER WORKER. This was `260 * WORKERS`,
+        # which is the wrong direction: the pool parallelises across
+        # MARKETS, and every worker measures the WHOLE slate for its own
+        # market. So scaling the slate by worker count multiplied the
+        # work each worker does by the worker count and bought nothing --
+        # 47 workers meant 12,220 shapes per market instead of 260, and
+        # a cycle that should take ~10s took the full 600s time-box with
+        # the console frozen on one stage line. Per-market work is a
+        # constant; what more cores buy is more markets at once.
+        #
+        #   800 shapes + 200 destinations + ~500 bred  = ~1,500 per market
+        #   measured at ~24 mechanisms/sec/core        = ~60s per market
+        #
+        # RESEARCH_SLATE still overrides, so the size can be raised for a
+        # box with more time per cycle without touching this file.
+        slate_cap = int(os.environ.get("RESEARCH_SLATE", "800"))
         slate = HY.from_shapes(rng_s, cap=slate_cap)
         rng_d = np.random.default_rng((cycle * 6151 + led.d["trials"]) % 2**32)
         slate += HY.from_destinations(
@@ -1608,6 +1798,21 @@ def main():
                 cells_filled=len(arch.cells),
                 note="children of the best strategy in each behavioural "
                      "niche, not fresh random draws")
+        # THE SLATE MUST BE MARKET-AGNOSTIC OR IT CANNOT BE POOLED.
+        # Breeding draws from elites of every family, and a FEATURE
+        # hypothesis names a column in one market's own grown library --
+        # "NQ/t1 feature #7" means nothing in ES. evaluate() returns None
+        # for a feature it cannot find, so such a mechanism would be
+        # measured in one market, skipped in the other twenty-two, and
+        # then pooled from a single observation. Dropping them here is
+        # not a loss: feature hypotheses are still tested per market in
+        # the private sweep, where their features actually exist.
+        n_before = len(slate)
+        slate = [h for h in slate if h.get("kind") != "feature"]
+        if len(slate) != n_before:
+            say("slate_filtered", cycle=cycle, dropped=n_before - len(slate),
+                why="feature hypotheses name one market's own library and "
+                    "cannot be measured in the others")
         fresh = []
         for h in slate:
             # The probe must fingerprint IDENTICALLY to what will be
@@ -1655,21 +1860,36 @@ def main():
         # because the GIL serialises everything here -- while processes
         # ran at 2.95x. On a many-core box that difference is the whole
         # throughput of the searcher. See researcher/parallel.py.
-        stage(f"sweeping {len(syms)} markets across {WORKERS} processes")
+        # SPEND EVERY CORE. One job per market leaves (cores - markets)
+        # children forked and idle -- 24 of 47 on this box -- each still
+        # paying the fork's resident cost for nothing. When there are
+        # more workers than markets the surplus takes SLATE SHARDS: the
+        # slate is the same mechanisms in every market, so market M's
+        # slate splits cleanly across `shards` workers and the pooled
+        # book merges the pieces exactly as it merges markets. Shard 0
+        # also does the market's private sweep; shards 1+ measure slate
+        # only, so nothing is scored or charged twice.
+        shards = max(1, min(4, WORKERS // max(1, len(syms))))
+        budget = int(os.environ.get("RESEARCH_BUDGET", "1200"))
+        jobs = [(sym, 1, budget, (i, shards))
+                for sym in syms for i in range(shards)]
+        stage(f"sweeping {len(syms)} markets across "
+              f"{min(WORKERS, len(jobs))} processes"
+              + (f" ({shards} slate shards each)" if shards > 1 else ""))
         snap = PAR.snapshot(led, mem)
         ctx = {"snap": snap, "data": data, "slate": SLATE["hyps"],
                "surrogate": SLATE.get("surrogate"),
                "libs": {k: v for k, v in libs.items()}}
         t_par = time.time()
-        pool = PAR.Pool(WORKERS, ctx)
+        # Never fork more children than there is work for them.
+        pool = PAR.Pool(min(WORKERS, len(jobs)), ctx)
         try:
-            results = pool.map(
-                (sym, 1, int(os.environ.get("RESEARCH_BUDGET", "1200")))
-                for sym in syms)
+            results = pool.map(jobs)
         finally:
             pool.close()
         say("swept_parallel", cycle=cycle, markets=len(syms),
-            workers=WORKERS, secs=round(time.time() - t_par, 1))
+            workers=min(WORKERS, len(jobs)), shards=shards, jobs=len(jobs),
+            secs=round(time.time() - t_par, 1))
 
         for out in results:
             if os.path.exists(STOP):
@@ -1702,7 +1922,16 @@ def main():
                 mrows.setdefault(fam, []).extend(rows)
             if SLATE.get("book") is not None:
                 _merge_book(SLATE["book"], out.get("book") or {})
-            LIVE["tested"] += int(out.get("done") or 0)
+            # A slate-only shard has no private hypotheses, no candidates
+            # and no features -- its whole contribution is the book rows
+            # merged just above. Running the gauntlet and logging a
+            # per-market line for it would report the same market three
+            # times with nothing new in two of them.
+            if (out.get("shard") or (0, 1))[0] > 0:
+                continue
+            # NOT counted here any more: the worker already ticked the
+            # shared counter as it went, so adding out["done"] on return
+            # would count every hypothesis twice.
             LIVE["market"] = sym
             LIVE["tier"] = 1
             # Candidates crossed the boundary without their tapes, which
@@ -1804,40 +2033,47 @@ def main():
                         "researcher/build_deep_bars.py where the raw "
                         "ticks live and commit data/research_bars/.")
             if cs:
-                # ROTATE CONTRACT AND RESOLUTION. The hypothesis space is
-                # bounded on purpose -- that is what keeps the bar
-                # meaningful -- so it exhausts in hours if the only axis
-                # is which footprint. Resolution is a genuine second
-                # axis: the same question asked of 15-second bars and of
-                # 5-minute bars is two different questions, because the
-                # move size that has to clear a fixed cost differs by
-                # sqrt(20). It is not the same test repeated.
-                res = T2_RES[((cycle - 1) // len(cs)) % len(T2_RES)]
+                # ROTATE RESOLUTION, SWEEP EVERY CONTRACT. Resolution is
+                # a genuine second axis: the same question asked of
+                # 15-second bars and of 5-minute bars is two different
+                # questions, because the move size that has to clear a
+                # fixed cost differs by sqrt(20). It is not the same test
+                # repeated.
+                #
+                # Contract, though, was ALSO being rotated -- one of
+                # eight per cycle -- and that was a memory decision made
+                # for the raw path, where a 25M-row parquet peaks near
+                # 2 GB. The precomputed bars are not that: a whole
+                # contract at 15s is 95,137 rows and 5.3 MB in memory,
+                # and all eight at once is 42 MB. Rotating them was
+                # throwing away seven eighths of the deepest data in the
+                # system to save nothing, and the deep tier is precisely
+                # where the statistical power is -- 95k bars against
+                # tier 1's few thousand. All eight now sweep together,
+                # in the pool, on the cores that were idle.
+                #
+                # The raw fallback keeps the old one-at-a-time behaviour,
+                # because there the 2 GB peak is real.
+                res = T2_RES[(cycle - 1) % len(T2_RES)]
                 srcs = DT.tier2_sources(res) or cs
-                name, kind, p = srcs[(cycle - 1) % len(srcs)]
-                cn = f"{name}@{res}s"
-                try:
-                    a = DT.tier2_from(kind, p, res)
-                except Exception as exc:                      # noqa: BLE001
-                    a = None
-                    say("tier2_load_failed", contract=cn, err=str(exc)[:150])
-                if a is not None and len(a) > 5000:
-                    tv, cost = SPEC["NQ"]
-                    out, err = sweep(f"NQ@{cn}", a, led, mem, libs, 2,
-                                     tv, cost, budget=400,
-                                     points=points, mrows=mrows)
-                    if err:
-                        say("tier2_selftest_failed", why=err)
-                    else:
-                        done, cands, kept = out
-                        gauntlet(f"NQ@{cn}", 2, cands, led, mem, libs,
-                                 tv, cost)
-                        say("cycle_market", cycle=cycle,
-                            market=f"NQ@{cn}", tier=2, tested=done,
-                            features=len(kept), bars=len(a),
-                            trials=led.d["trials"], bar=round(led.bar(), 2),
-                            note=DT.Curriculum.caveat(1, 2, "NQ"))
-                    del a
+                pre = [s for s in srcs if s[1] == "pre"]
+                if not pre:
+                    pre = [srcs[(cycle - 1) % len(srcs)]]
+                deep = {}
+                for name, kind, p in pre:
+                    cn = f"NQ@{name}@{res}s"
+                    try:
+                        a = DT.tier2_from(kind, p, res)
+                    except Exception as exc:                  # noqa: BLE001
+                        say("tier2_load_failed", contract=cn,
+                            err=str(exc)[:150])
+                        continue
+                    if a is not None and len(a) > 5000:
+                        deep[cn] = a
+                if deep:
+                    _sweep_deep(deep, res, cycle, led, mem, libs,
+                                points, mrows)
+                    del deep
                 led.save()
                 mem.save()
                 gc.collect()

@@ -189,7 +189,10 @@ def _init(ctx):
 
 def _run(job):
     """One market, in a worker process. Returns everything to replay."""
-    sym, tier, budget = job
+    sym, tier, budget = job[0], job[1], job[2]
+    # (index, count) over the shared slate; absent means "the whole
+    # thing", which is what every caller written before sharding meant.
+    shard = job[3] if len(job) > 3 else (0, 1)
     try:
         from researcher import runner as R
         from researcher import pooled as PO
@@ -210,15 +213,16 @@ def _run(job):
         R.SLATE["hyps"] = _CTX.get("slate") or []
         R.SLATE["book"] = book
         R.SLATE["surrogate"] = _CTX.get("surrogate")
-        tv, cost = R.SPEC[sym]
+        tv, cost = R.spec_for(sym)
         pts, mrows = {}, {}
         out, err = R.sweep(sym, d, led, mem, libs, tier, tv, cost,
-                           budget=budget, points=pts, mrows=mrows)
+                           budget=budget, points=pts, mrows=mrows,
+                           shard=shard)
         if err:
             return {"sym": sym, "error": err}
         done, cands, kept = out
         return {
-            "sym": sym, "tier": tier, "done": done,
+            "sym": sym, "tier": tier, "done": done, "shard": shard,
             "records": led.records, "bumps": led.bumps,
             "notes": mem.notes, "adapts": mem.adapts,
             "book": book.rows,

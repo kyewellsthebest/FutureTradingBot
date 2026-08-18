@@ -68,8 +68,28 @@ COT_MAP = {
 GEX_MAP = {"NQ": "NDX", "ES": "SPX", "YM": "SPX", "RTY": "SPX"}
 
 
+def _ns(idx):
+    """A DatetimeIndex at nanosecond resolution, UTC, whatever came in.
+
+    pandas 2 keeps whatever unit the source had, and parquet written by
+    the deep-bar builder carries microseconds. merge_asof refuses to join
+    datetime64[us, UTC] against datetime64[ns, UTC] -- so every deep-tier
+    tape raised "incompatible merge keys", the exception was caught and
+    logged as context_failed, and the deep tier ran with NO regime
+    conditioning at all. Loudly logged and completely invisible: the
+    searcher looked healthy and was quietly blind to credit stress,
+    positioning and dealer gamma on the deepest data it has.
+    """
+    i = pd.DatetimeIndex(idx)
+    if i.tz is None:
+        i = i.tz_localize("UTC")
+    else:
+        i = i.tz_convert("UTC")
+    return i.as_unit("ns") if hasattr(i, "as_unit") else i
+
+
 def _daily(idx):
-    return pd.DatetimeIndex(idx).normalize()
+    return _ns(idx).normalize()
 
 
 # ------------------------------------------------------------- loaders
@@ -158,9 +178,10 @@ def _asof(series, days, lag_bdays):
     if series is None or not len(series):
         return None
     s = series.copy()
-    s.index = s.index + pd.tseries.offsets.BDay(lag_bdays)
+    s.index = _ns(s.index) + pd.tseries.offsets.BDay(lag_bdays)
+    s.index = _ns(s.index)          # BDay can widen the unit again
     s = s[~s.index.duplicated(keep="last")].sort_index()
-    t = pd.DataFrame({"day": pd.DatetimeIndex(sorted(set(days)))})
+    t = pd.DataFrame({"day": _ns(pd.DatetimeIndex(sorted(set(days))))})
     j = pd.merge_asof(t, s.rename("v").reset_index().rename(
         columns={s.index.name or "index": "day"}),
         on="day", direction="backward")
