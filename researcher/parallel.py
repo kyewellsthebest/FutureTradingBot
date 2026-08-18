@@ -357,6 +357,30 @@ class Pool:
 
     def __init__(self, workers, ctx):
         self.workers = max(1, int(workers))
+        # HAND THE CONTEXT OVER BY FORK, NOT BY PICKLE.
+        #
+        # This used to pass ctx through Pool(initializer=..., initargs=),
+        # and initargs does not share anything: multiprocessing PICKLES
+        # it and sends a full private copy to EVERY worker. The context
+        # holds the tapes. Measured, 23 markets:
+        #
+        #     tier-1 tapes, pickled      241.5 MB   per worker
+        #
+        # and larger again once unpickled back into DataFrames. That is
+        # the 604 MB per worker that was measured end to end and blamed
+        # first on refcount dirtying and then on the garbage collector;
+        # both were wrong, and the uint64 fingerprint index that came
+        # out of the second theory saved only the 24 MB the set itself
+        # was worth. The tapes were the other 580.
+        #
+        # Assigning into a module global BEFORE forking is the actual
+        # copy-on-write path: the child inherits the address space and
+        # never unpickles anything. Workers only read it, and now that
+        # is true rather than merely asserted.
+        self._forked = hasattr(os, "fork")
+        if self._forked:
+            _CTX.clear()
+            _CTX.update(ctx)
         # FREEZE BEFORE FORKING.
         #
         # Copy-on-write is supposed to make a forked child nearly free.
@@ -377,9 +401,12 @@ class Pool:
                 gc.freeze()
             except Exception:                                 # noqa: BLE001
                 pass
-        mpctx = mp.get_context("fork" if hasattr(os, "fork") else "spawn")
-        self.pool = mpctx.Pool(self.workers, initializer=_init,
-                               initargs=(ctx,))
+        mpctx = mp.get_context("fork" if self._forked else "spawn")
+        # On spawn there is no inheritance, so the pickle is unavoidable
+        # and initargs is still the right mechanism.
+        self.pool = (mpctx.Pool(self.workers) if self._forked else
+                     mpctx.Pool(self.workers, initializer=_init,
+                                initargs=(ctx,)))
 
     def map(self, jobs):
         return self.pool.map(_run, list(jobs))
@@ -388,6 +415,10 @@ class Pool:
         try:
             self.pool.close()
             self.pool.join()
+            if self._forked:
+                # Drop the parent's reference so a cycle's tapes are not
+                # pinned by this module between sweeps.
+                _CTX.clear()
         except Exception:                                     # noqa: BLE001
             try:
                 self.pool.terminate()
