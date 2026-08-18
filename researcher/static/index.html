@@ -315,14 +315,30 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
   <!-- ─────────────────────────── CHECK -->
   <div class="pane hide" id="p-check">
     <div class="card">
-      <h2><span class="e">🔬</span>for Claude to audit</h2>
-      <div class="empty">Everything needed to judge whether the research model
-        is working properly: live state, every control and what it measured,
-        the errors already caught, and the complete source of every module.</div>
+      <h2><span class="e">📦</span>everything, in one file</h2>
+      <div class="empty">The whole backend, so anyone — you or Claude — can
+        tell exactly where this bot is at without opening another tab.
+        <b>Health</b> (running, memory, restarts, halts, storage, tiers).
+        <b>Throughput</b> (hypotheses charged in the last 10 min / 30 min /
+        hour / 6h / 24h, cycle times). <b>Whether it is improving</b>, on
+        each measure where improvement is real, with the 1h and 24h
+        movement and what the honest reading is. <b>Statistical power</b> —
+        the smallest edge it could actually see, and the false-alarm rate.
+        <b>The map</b> of the search space. <b>Every family</b> and what its
+        failures said. <b>The top 100 strategies</b> with every field:
+        market, tier, hold, stop, target, side, trades, trades per week,
+        win rate, RR, net per trade, z against the bar it faced, blindness,
+        and the flags. <b>Every adaptation</b>, every control, every raw
+        counter, and the complete source.</div>
       <div style="height:12px"></div>
-      <a class="btn" id="dl-diag" href="/api/diagnostics.pdf">
-        🔬 Download the diagnostic bundle
-        <span class="bs">PDF · full source + state · send this to Claude</span>
+      <a class="btn" id="dl-state" href="/api/state.pdf">
+        📦 Download everything
+        <span class="bs" id="dl-state-sub">PDF · full state + top 100 + source</span>
+      </a>
+      <div style="height:8px"></div>
+      <a class="btn" id="dl-state-lite" href="/api/state.pdf?source=0">
+        ⚡ Download without the source
+        <span class="bs">same numbers, far smaller — for reading on a phone</span>
       </a>
     </div>
     <div style="height:14px"></div>
@@ -383,8 +399,9 @@ async function tick(){
       : " — this container reports no memory limit, so the ceiling is set "
         + "by the hosting plan"})` : ""}.</p></div>`;
   if (s.error) a+=`<div class="card alert"><h2>it crashed — retrying</h2>
-    <p>Restarting itself. If this keeps happening, send Claude the
-    diagnostic bundle from the Check tab.</p></div>`;
+    <p>Restarting itself. If this keeps happening, open the Check tab and
+    hit <b>Download everything</b> — that file has the restart tally, the
+    halts and the source.</p></div>`;
   $('#alerts').innerHTML=a;
 
   // ── status
@@ -404,8 +421,8 @@ async function tick(){
        and confirming it still finds it — if it ever goes blind it stops
        rather than pretending it found nothing.</div>`
     : `<div class="empty"><span class="pill warn">⚠️ NEEDS A LOOK</span><br><br>
-       Something above needs attention. Open the Check tab and send Claude
-       the diagnostic bundle.</div>`;
+       Something above needs attention. Open the Check tab and hit
+       <b>Download everything</b>.</div>`;
 
   // ── learning
   const adAll = s.adaptations||[];
@@ -670,6 +687,7 @@ $('#toggle').onclick = async()=>{
 // ── live counter, polled every second and eased between values so the
 // number moves continuously rather than jumping once a cycle
 let shown = null, target = null, lastT = 0;
+let lastWork = -1, lastWorkAt = 0;
 async function live(){
   try{
     const l = await (await fetch('/api/live')).json();
@@ -685,18 +703,34 @@ async function live(){
     const mins = (s) => s > 120 ? Math.round(s/60)+' min' : Math.round(s)+'s';
     const where = l.market ? `${esc(l.market)} · tier ${l.tier}`
                            : esc(l.stage || 'starting…');
+    // IS IT ACTUALLY MOVING? The headline count comes from the ledger,
+    // which only takes the workers' records when a cycle ENDS -- so
+    // during a sweep it is legitimately frozen for minutes while 47
+    // processes are flat out. The worker counters below are written from
+    // inside the children, so they are the honest liveness signal, and
+    // the stall warning is now based on them instead of on the ledger.
+    const work = (l.tested||0) + (l.slate_measured||0);
+    if (work !== lastWork){ lastWork = work; lastWorkAt = Date.now(); }
+    const idle = lastWorkAt ? (Date.now()-lastWorkAt)/1000 : 0;
     let note = '';
-    if (l.never_scored) {
+    if (l.never_scored && !work) {
       note = ` &nbsp;·&nbsp; <b style="color:#e9b05a">⏳ ${
         esc(l.stage||'starting')}${l.stage_age_s > 20
           ? ' — ' + mins(l.stage_age_s) : ''}</b>`;
-    } else if (l.last_trial_age_s != null && l.last_trial_age_s > 45) {
+    } else if (idle > 90) {
       note = ` &nbsp;·&nbsp; <b style="color:#e9b05a">⏳ ${
-        mins(l.last_trial_age_s)} since the last one</b> — ${
+        mins(idle)} with nothing measured</b> — ${
         esc(l.stage || 'working')}`;
     }
+    // The shared slate is measured in every market before anything is
+    // judged, so those measurements are real work that becomes trials
+    // only later. Showing them separately stops that phase reading as
+    // "0 this session" for its whole duration.
+    const sl = l.slate_measured
+      ? ` &nbsp;·&nbsp; ${num(l.slate_measured)} slate` : '';
     $('#bigsub').innerHTML = `<b>${esc(where)}</b> &nbsp;·&nbsp; bar
-      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session${note}`;
+      <b>${l.bar||'—'}σ</b> &nbsp;·&nbsp; ${num(l.tested||0)} this session${
+      sl}${note}`;
   }catch(e){}
 }
 function paint(){

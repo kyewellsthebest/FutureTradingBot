@@ -46,7 +46,7 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
 from researcher.backup import Backup
 
@@ -356,6 +356,13 @@ def api_live():
     try:
         from researcher import runner as R
         lv = dict(R.LIVE)
+        # THE COUNTERS THE WORKERS WRITE. The sweep runs in forked
+        # children now, and a child's LIVE["tested"] dies with the child,
+        # so this read used to sit at zero for the whole eight minutes a
+        # cycle took. These are shared-memory counters incremented by
+        # whichever process is doing the work.
+        lv["tested"] = R.progress("v")
+        lv["slate_measured"] = R.progress("s")
     except Exception:                                         # noqa: BLE001
         lv = {}
     # THE HEADLINE COMES FROM THE LEDGER'S OWN COUNTER, not from the
@@ -685,27 +692,67 @@ def api_learning_pdf():
                                f'{d}.pdf"'})
 
 
-@app.get("/api/diagnostics.pdf")
-def api_diag_pdf():
-    from flask import Response
-    from researcher.report import diagnostics_pdf
+def _live_extra():
+    """Everything the report needs that lives in this process, not on disk.
+
+    The report reads state files, but health is about the process that is
+    running right now -- its resident memory, the phase it is in, how
+    many workers it forked, how many times it has restarted. None of that
+    is written to disk between cycles, so it is collected here and handed
+    in rather than guessed at from a file.
+    """
+    e = {"storage": STATE["storage"].get("path"),
+         "durable": STATE["storage"].get("durable"),
+         "volume": STATE["storage"].get("volume"),
+         "backup": (STATE.get("backup") or {}).get("mode"),
+         "alive": STATE["alive"] and not (RDIR / "RESEARCH_STOP").exists(),
+         "state_loss": bool(STATE.get("state_loss")),
+         "boots_last_hour": STATE.get("boots_last_hour"),
+         "boots_total": STATE.get("boots_total"),
+         "rss_mb": rss_mb(),
+         "tiers": ", ".join(f"{t['tier']}:{'ok' if t['ok'] else 'MISSING'}"
+                            for t in cached_tiers())}
     try:
-        extra = {"storage": STATE["storage"].get("path"),
-                 "durable": STATE["storage"].get("durable"),
-                 "volume": STATE["storage"].get("volume"),
-                 "backup": (STATE.get("backup") or {}).get("mode"),
-                 "alive": STATE["alive"],
-                 "state_loss": bool(STATE.get("state_loss")),
-                 "tiers": ", ".join(
-                     f"{t['tier']}:{'ok' if t['ok'] else 'MISSING'}"
-                     for t in cached_tiers())}
-        pdf = diagnostics_pdf(str(RDIR), extra)
+        from researcher import runner as R
+        e["stage"] = R.LIVE.get("stage")
+        if R.LIVE.get("stage_t"):
+            e["stage_age_s"] = round(time.time() - R.LIVE["stage_t"], 1)
+        e["workers"] = R.WORKERS
+        e["mem_limit_mb"] = R.MEM_LIMIT_MB
+        e["cores"] = os.cpu_count()
+        e["tested_this_session"] = R.progress("v")
+        e["slate_measured_this_session"] = R.progress("s")
+    except Exception:                                         # noqa: BLE001
+        pass
+    return e
+
+
+@app.get("/api/state.pdf")
+def api_state_pdf():
+    """THE download. One file, everything the backend knows about itself.
+
+    Replaces the old diagnostics bundle, which carried the source and the
+    controls but almost none of the numbers -- no throughput, no power,
+    no leaderboard, no per-strategy specification. Answering "where is
+    this bot actually at" from it meant opening four other tabs.
+    """
+    from flask import Response
+    from researcher.report import state_pdf
+    try:
+        top = max(1, min(500, int(request.args.get("top", 100))))
+    except Exception:                                         # noqa: BLE001
+        top = 100
+    src = request.args.get("source", "1") != "0"
+    try:
+        pdf = state_pdf(str(RDIR), _live_extra(), top=top, source=src)
     except Exception as exc:                                  # noqa: BLE001
-        return jsonify({"error": str(exc)[:400]}), 500
-    d = datetime.now(timezone.utc).strftime("%Y%m%d")
+        import traceback
+        return jsonify({"error": str(exc)[:400],
+                        "where": traceback.format_exc()[-900:]}), 500
+    d = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
     return Response(pdf, mimetype="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="research-'
-                               f'diagnostics-{d}.pdf"'})
+        "Content-Disposition": f'attachment; filename="research-state-'
+                               f'{d}.pdf"'})
 
 
 @app.get("/")

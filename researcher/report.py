@@ -311,6 +311,18 @@ AUDIT_FILES = [
     ("researcher/features.py", "compositional feature discovery"),
     ("researcher/hypotheses.py", "where hypotheses come from"),
     ("researcher/data_tiers.py", "the curriculum and the data"),
+    ("researcher/pooled.py", "cross-market meta-analysis"),
+    ("researcher/archive.py", "the map of the search space (MAP-Elites)"),
+    ("researcher/parallel.py", "the process pool and its write proxies"),
+    ("researcher/calibration.py", "power, detectable size, false-alarm rate"),
+    ("researcher/surrogate.py", "the learned ordering of the space"),
+    ("researcher/validate.py", "the gauntlet's controls"),
+    ("researcher/plausible.py", "the too-good-to-be-true layer"),
+    ("researcher/diagnose.py", "telling the failure modes apart"),
+    ("researcher/brackets.py", "the bracket walk"),
+    ("researcher/destinations.py", "destination mechanisms"),
+    ("researcher/context.py", "external regime state"),
+    ("researcher/insight.py", "what it infers from its own failures"),
     ("researcher/backup.py", "state durability"),
     ("researcher/runner_selftest.py", "look-ahead and overlap controls"),
     ("researcher/features_selftest.py", "feature-discovery null calibration"),
@@ -372,6 +384,836 @@ CAUGHT = [
     ("Silent exception swallowing", "An empty results table presented "
      "with confident prose."),
 ]
+
+
+# ================================================= full state of the bot
+#
+# ONE DOWNLOAD, EVERYTHING BEHIND THE CONSOLE. The console shows the
+# five or ten numbers that fit on a phone; this is the rest. It answers,
+# in order: is it healthy, how fast is it going right now, is it getting
+# better and by what measure, what has it actually found, and what is
+# the code that produced all of that.
+#
+# The rule throughout: a number that is unknown says UNKNOWN. A report
+# that prints 0 for "no data yet" and 0 for "measured zero" is worse
+# than no report, because the two mean opposite things.
+
+def _ts(x):
+    """Parse the ISO timestamps this project writes. None on anything else."""
+    try:
+        s = str(x).replace("Z", "+00:00")
+        d = datetime.fromisoformat(s)
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
+def _rate(hist, minutes, key="trials"):
+    """How much `key` moved over the last `minutes`, from the history series.
+
+    Returns (delta, span_seconds, covered). `covered` is False when the
+    series is younger than the window asked for -- and that distinction
+    is the whole point of this function. A four-minute-old series can
+    still report a delta, but printing it in a row labelled "last 24
+    hours" would state a 315/second rate as a day's average and be off
+    by three hundred times. The caller must say which it got.
+
+    (None, None, False) when the series cannot answer at all.
+    """
+    if not hist:
+        return None, None, False
+    end = _ts(hist[-1].get("t"))
+    if end is None:
+        return None, None, False
+    want = end.timestamp() - minutes * 60.0
+    start = None
+    for row in hist:                       # oldest row still inside window
+        t = _ts(row.get("t"))
+        if t is None:
+            continue
+        if t.timestamp() >= want:
+            start = row
+            break
+    if start is None or start is hist[-1]:
+        return None, None, False
+    t0 = _ts(start.get("t"))
+    span = end.timestamp() - t0.timestamp()
+    if span <= 0:
+        return None, None, False
+    a, b = start.get(key), hist[-1].get(key)
+    if a is None or b is None:
+        return None, None, False
+    # Covered only if the oldest sample really does sit at (or before)
+    # the edge of the window, within one sampling interval.
+    return (b - a), span, (t0.timestamp() <= want + 75.0)
+
+
+def _num_or(x, fmt="{:,.2f}", dash="UNKNOWN"):
+    try:
+        v = float(x)
+        if v != v:
+            return dash
+        return fmt.format(v)
+    except Exception:                                         # noqa: BLE001
+        return dash
+
+
+def _table(rows, widths, st, size=7.2, header=True):
+    t = Table(rows, colWidths=[w * mm for w in widths],
+              repeatRows=1 if header else 0)
+    style = [
+        ("FONT", (0, 0), (-1, -1), "Helvetica", size),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.25, RULE),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+    ]
+    if header:
+        style += [("FONT", (0, 0), (-1, 0), "Helvetica-Bold", size),
+                  ("TEXTCOLOR", (0, 0), (-1, 0), MUTED),
+                  ("LINEBELOW", (0, 0), (-1, 0), 0.7, RULE)]
+    t.setStyle(TableStyle(style))
+    return t
+
+
+def _describe(h):
+    """English for a hypothesis dict, without importing the search loop."""
+    try:
+        from researcher import hypotheses as HY
+        return HY.describe(h)
+    except Exception:                                         # noqa: BLE001
+        return ", ".join(f"{k}={v}" for k, v in sorted((h or {}).items())
+                         if not str(k).startswith("_"))[:200]
+
+
+def _spec(h):
+    """The tradeable specification, field by field, as short strings."""
+    h = h or {}
+    out = []
+    for k in ("market", "tier", "kind", "mech", "feat", "shape", "cond",
+              "side", "ls", "n", "k", "hold_s", "stop_atr", "targ_atr",
+              "exit", "session"):
+        if k in h and h[k] is not None:
+            v = h[k]
+            if k == "hold_s":
+                v = (f"{int(v)}s" if v < 120 else
+                     f"{v / 60:.0f}m" if v < 7200 else f"{v / 3600:.1f}h")
+            elif isinstance(v, float):
+                v = f"{v:.3g}"
+            out.append(f"{k}={v}")
+    for k, v in sorted(h.items()):
+        if k in ("market", "tier", "kind", "mech", "feat", "shape", "cond",
+                 "side", "ls", "n", "k", "hold_s", "stop_atr", "targ_atr",
+                 "exit", "session") or str(k).startswith("_"):
+            continue
+        out.append(f"{k}={v:.3g}" if isinstance(v, float) else f"{k}={v}")
+    return ", ".join(out)
+
+
+def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
+    st = _styles()
+    J = os.path.join
+    led = _read(J(rdir, "ledger.json"))
+    mem = _read(J(rdir, "memory.json"))
+    status = _read(J(rdir, "status.json"))
+    hist = _read(J(rdir, "history.json"), [])
+    cal = _read(J(rdir, "calibration.json"), {})
+    arch = _read(J(rdir, "archive.json"), {})
+    if not isinstance(hist, list):
+        hist = []
+    extra = dict(extra or {})
+
+    buf = io.BytesIO()
+    doc = _doc(buf, "Research bot — complete state")
+    F = []
+    trials = int(led.get("trials", 0) or 0)
+    import math
+    bar = max(3.0, math.sqrt(2.0 * math.log(max(trials, 1))) + 0.8)
+
+    F.append(Paragraph("Research bot &mdash; complete state", st["h1"]))
+    F.append(Paragraph(
+        # NOT &sigma;. The built-in Helvetica has no Greek glyph, so the
+        # entity renders as a black box or silently as "s" -- and "bar
+        # 5.31s" reads as a duration. Spell it.
+        f"Generated {_now()} &nbsp;·&nbsp; cycle {status.get('cycle', 0)} "
+        f"&nbsp;·&nbsp; {trials:,} hypotheses charged &nbsp;·&nbsp; bar "
+        f"{bar:.2f} sigma. Everything the backend knows about itself: "
+        f"health, throughput, whether it is improving and by which "
+        f"measure, every metric it keeps, the top {top} things it has "
+        f"found with their full specifications, and the source that "
+        f"produced all of it.", st["sub"]))
+
+    # ------------------------------------------------------------ health
+    F.append(Paragraph("1 &nbsp; Health", st["h2"]))
+    halts = led.get("halts", []) or []
+    alive = extra.get("alive")
+    rows = [
+        ["process", "RUNNING" if alive else
+         ("STOPPED" if alive is False else "UNKNOWN")],
+        ["stage", str(extra.get("stage", "UNKNOWN"))],
+        ["stage age", _num_or(extra.get("stage_age_s"), "{:,.0f}s")],
+        ["resident memory", _num_or(extra.get("rss_mb"), "{:,.0f} MB")],
+        ["memory limit", _num_or(extra.get("mem_limit_mb"), "{:,.0f} MB")],
+        ["worker processes", str(extra.get("workers", "UNKNOWN"))],
+        ["cores visible", str(extra.get("cores", "UNKNOWN"))],
+        ["restarts in the last hour", str(extra.get("boots_last_hour",
+                                                    "UNKNOWN"))],
+        ["restarts, all time", str(extra.get("boots_total", "UNKNOWN"))],
+        ["state storage", f"{extra.get('storage', '?')} "
+                          f"({'durable' if extra.get('durable') else 'EPHEMERAL'})"],
+        ["state ever lost", "YES" if extra.get("state_loss") else "no"],
+        ["data tiers", str(extra.get("tiers", "UNKNOWN"))],
+        ["halts (blind-harness stops)", str(len(halts))],
+        ["running since", str(led.get("started", "UNKNOWN"))],
+    ]
+    F.append(_kv(rows))
+    if halts:
+        F.append(Paragraph("The searcher halts itself when its own "
+                           "planted-edge check fails, because a blind "
+                           "harness reports silence and silence looks "
+                           "like a result.", st["note"]))
+        for h in halts[-6:]:
+            F.append(Paragraph(f"<b>{_esc(h.get('t'))}</b> "
+                               f"{_esc(h.get('why'))}", st["note"]))
+
+    # -------------------------------------------------------- throughput
+    F.append(Paragraph("2 &nbsp; Throughput &mdash; how much searching, "
+                       "how recently", st["h2"]))
+    F.append(Paragraph(
+        "Read from the history series, which is sampled every 60 seconds "
+        "by a thread separate from the search, so a stalled search shows "
+        "as a flat line rather than as a missing one. A window the series "
+        "does not reach back to says UNKNOWN; it does not say zero.",
+        st["note"]))
+    rows = [["window", "actually measured over", "hypotheses charged",
+             "per minute", "per second"]]
+    for label, mins in (("last 10 minutes", 10), ("last 30 minutes", 30),
+                        ("last hour", 60), ("last 6 hours", 360),
+                        ("last 24 hours", 1440)):
+        d, span, covered = _rate(hist, mins)
+        if d is None:
+            rows.append([label, "—", "UNKNOWN (no series yet)", "—", "—"])
+        else:
+            # SAY WHAT WAS ACTUALLY MEASURED. A four-minute-old series
+            # answering a 24-hour question is not wrong data, it is a
+            # wrong label -- and a 315/second burst printed as a daily
+            # average overstates the day by three hundred times.
+            rows.append([
+                label,
+                (f"{span / 60.0:,.0f} min" if covered
+                 else f"only {span / 60.0:,.0f} min — series is younger"),
+                f"{d:,}", f"{d / (span / 60.0):,.0f}", f"{d / span:,.1f}"])
+    F.append(_table(rows, [26, 44, 32, 24, 24], st))
+
+    cycles = [r for r in hist if not r.get("sampled")]
+    secs = [r.get("secs") for r in cycles if r.get("secs")]
+    F.append(Spacer(1, 6))
+    F.append(_kv([
+        ["cycles completed", str(status.get("cycle", 0))],
+        ["mean cycle time", _num_or(sum(secs) / len(secs) if secs else None,
+                                    "{:,.0f}s")],
+        ["last cycle time", _num_or(secs[-1] if secs else None, "{:,.0f}s")],
+        ["history samples held", f"{len(hist):,}"],
+        ["distinct hypotheses on record", f"{len(led.get('tested', {})):,}"],
+        ["charged but compacted to stubs",
+         f"{sum(1 for v in (led.get('tested') or {}).values() if isinstance(v, dict) and v.get('stub')):,}"],
+    ]))
+
+    # --------------------------------------------------------- improving
+    F.append(Paragraph("3 &nbsp; Is it improving, and by what measure",
+                       st["h2"]))
+    F.append(Paragraph(
+        "\"Improving\" cannot mean \"finding more winners\" &mdash; a "
+        "searcher that found more winners the longer it ran would be "
+        "overfitting, and the rising bar exists specifically to stop "
+        "that. These are the measures on which improvement is real, each "
+        "with the direction that counts as better and the current "
+        "24-hour movement.", st["note"]))
+    metrics = [
+        ("distinct", "coverage: ideas permanently ruled out", "up"),
+        ("features", "vocabulary: features grown and kept", "up"),
+        ("adaptations", "changes made to how it searches", "up"),
+        ("closed", "families closed off as exhausted", "up"),
+        ("deduced", "horizons inferred from its own failures", "up"),
+        ("survivors", "candidates that cleared every control", "up"),
+        ("killed", "candidates a control caught", "up (controls working)"),
+        ("bar", "the strength now demanded, in sigma", "rises by design"),
+    ]
+    d, span24, cov24 = _rate(hist, 1440)
+    _, span1, cov1 = _rate(hist, 60)
+    h24 = ("24h" if cov24 else
+           (f"{span24 / 60.0:,.0f}m*" if span24 else "24h"))
+    h1 = ("1h" if cov1 else (f"{span1 / 60.0:,.0f}m*" if span1 else "1h"))
+    rows = [["measure", "what better looks like", "now", h24, h1]]
+    last = hist[-1] if hist else {}
+    for key, what, better in metrics:
+        d24, _, _ = _rate(hist, 1440, key)
+        d1, _, _ = _rate(hist, 60, key)
+        cur = last.get(key)
+        rows.append([
+            key, what,
+            _num_or(cur, "{:,.2f}" if key == "bar" else "{:,.0f}"),
+            "UNKNOWN" if d24 is None else f"{d24:+,.2f}" if key == "bar"
+            else f"{d24:+,.0f}",
+            "UNKNOWN" if d1 is None else f"{d1:+,.2f}" if key == "bar"
+            else f"{d1:+,.0f}"])
+    F.append(_table(rows, [22, 62, 22, 22, 20], st))
+    if not (cov24 and cov1):
+        F.append(Paragraph(
+            "* the history series is younger than the window, so that "
+            "column covers the whole series rather than the period its "
+            "heading names. This is what a recently restarted process "
+            "looks like; it is not a measurement of a full day.",
+            st["note"]))
+    F.append(Paragraph(
+        "The honest reading: coverage climbing while survivors stay at "
+        "zero is the expected and healthy state. What would mean it is "
+        "NOT improving is coverage flat (the space is exhausted and "
+        "nothing new is being drawn), adaptations flat over many cycles "
+        "(it is testing but not learning from failure), or killed at "
+        "zero across thousands of candidates (the controls are not "
+        "engaging, which usually means nothing is reaching them).",
+        st["note"]))
+
+    # ----------------------------------------------------------- power
+    F.append(Paragraph("4 &nbsp; Statistical power &mdash; what it could "
+                       "see if it were there", st["h2"]))
+    F.append(Paragraph(
+        "The most important section in this document. A search that "
+        "reports nothing is only informative if it could have detected "
+        "something. These numbers come from planting edges of known size "
+        "in real tapes and counting how often the searcher finds them.",
+        st["note"]))
+    if not cal:
+        F.append(Paragraph("No calibration on file yet. Until there is "
+                           "one, \"nothing found\" carries NO information "
+                           "about whether anything is there.", st["p"]))
+    else:
+        det = cal.get("detectable_at_80pct")
+        fa = cal.get("false_alarms") or {}
+        F.append(_kv([
+            ["market calibrated", str(cal.get("market", "?"))],
+            ["measured at", str(cal.get("t", "?"))],
+            ["bar at calibration", _num_or(cal.get("bar"), "{:,.2f} sigma")],
+            ["smallest edge found 80% of the time",
+             (f"{det:.3f} round trips per trade" if det is not None
+              else "NONE of the planted sizes reached 80% power")],
+            ["per-trade dispersion (sd)",
+             _num_or(cal.get("sd_rt"), "{:,.1f} round trips")],
+            ["baseline (unplanted) level",
+             _num_or(cal.get("baseline_rt"), "{:+.3f} RT/trade")],
+        ]))
+
+        F.append(Paragraph("Power: planted edges of known size, and how "
+                           "often the searcher found them", st["h3"]))
+        rows = [["planted edge (RT/trade)", "detected", "rate", "median z",
+                 "bar it had to clear"]]
+        for k, v in sorted((cal.get("power") or {}).items(),
+                           key=lambda kv: float(kv[0])):
+            rows.append([f"+{float(k):.3f}",
+                         f"{v.get('detected', '?')} of {v.get('of', '?')}",
+                         _num_or(v.get("rate"), "{:.0%}"),
+                         _num_or(v.get("median_z")),
+                         _num_or(cal.get("bar"), "{:.2f}")])
+        F.append(_table(rows, [36, 26, 18, 22, 30], st))
+
+        F.append(Paragraph("False alarms: the same search run on tapes "
+                           "with nothing planted", st["h3"]))
+        F.append(_kv([
+            ["cells searched", _num_or(fa.get("cells"), "{:,.0f}")],
+            ["cells that cleared the bar anyway",
+             _num_or(fa.get("alarms"), "{:,.0f}")],
+            ["false-alarm rate", _num_or(fa.get("rate"), "{:.2%}")],
+            ["highest z reached on pure noise",
+             _num_or(fa.get("max_z"))],
+            ["99th percentile z on pure noise",
+             _num_or(fa.get("p99_z"))],
+        ]))
+        F.append(Paragraph(
+            "A false-alarm rate at or near zero while the highest noise z "
+            "sits far below the bar is the bar doing its job: it is "
+            "calibrated well above what chance produces at this number of "
+            "trials. That is the good news and the bad news at once &mdash; "
+            "the same strictness is what the power table above is failing "
+            "to reach.", st["note"]))
+
+        req = cal.get("required_trades") or {}
+        if req:
+            F.append(Paragraph("How many trades an edge of each size would "
+                               "need before this bar could see it",
+                               st["h3"]))
+            rows = [["edge (RT/trade)", "trades needed",
+                     "at 200 trades/week, one market",
+                     "pooled over 20 markets"]]
+            for k, v in sorted(req.items(), key=lambda kv: float(kv[0])):
+                try:
+                    wk = float(v) / 200.0
+                    rows.append([f"+{float(k):.3f}", f"{float(v):,.0f}",
+                                 f"{wk:,.0f} weeks", f"{wk / 20.0:,.0f} weeks"])
+                except Exception:                             # noqa: BLE001
+                    rows.append([str(k), str(v), "—", "—"])
+            F.append(_table(rows, [26, 34, 40, 34], st))
+            F.append(Paragraph(
+                "This table is the entire argument for breadth. The same "
+                "edge that is unreachable in one market becomes reachable "
+                "when the same mechanism is measured in twenty at once, "
+                "which is why the searcher draws one shared slate per "
+                "cycle and judges it on the pooled evidence rather than "
+                "market by market. The pooled column still assumes the "
+                "markets are independent; the meta-analysis applies a "
+                "correlation discount on top, so the true figure sits "
+                "between the two columns.", st["note"]))
+
+        F.append(Paragraph("Calibration: does a planted edge come back at "
+                           "the size it was planted", st["h3"]))
+        rows = [["asked", "recovered", "offset from zero plant",
+                 "INCREMENT recovered", "increment error", "standard error",
+                 "plants", "trades"]]
+        for row in (cal.get("calibration") or []):
+            rows.append([_num_or(row.get("asked"), "{:+.3f}"),
+                         _num_or(row.get("got"), "{:+.3f}"),
+                         _num_or(row.get("err"), "{:+.3f}"),
+                         _num_or(row.get("increment"), "{:+.3f}"),
+                         _num_or(row.get("increment_err"), "{:+.4f}"),
+                         _num_or(row.get("se"), "{:.3f}"),
+                         str(row.get("plants", "?")),
+                         _num_or(row.get("n"), "{:,.0f}")])
+        F.append(_table(rows, [16, 20, 26, 26, 22, 22, 14, 16], st,
+                        size=6.4))
+        F.append(Paragraph(
+            "Read the INCREMENT column, not the offset. Every row here "
+            "carries the same offset because the unplanted tape itself "
+            "drifts &mdash; the zero plant recovers it too. That is the "
+            "market, not bias in the harness. The harness is honest when "
+            "asking for +0.25 more returns +0.25 more, which is what the "
+            "increment column checks, and it fails when the increment "
+            "error grows beyond the standard error. An earlier version of "
+            "this check read the offset instead and reported a +0.409 "
+            "\"bias\" that was a single walk's noise.", st["note"]))
+        if det is None:
+            F.append(Paragraph(
+                "<b>This is the binding constraint on the whole project.</b> "
+                "Below the detectable size, silence is not evidence of "
+                "absence &mdash; the searcher would return exactly these "
+                "results whether or not an edge of that size exists. The "
+                "two ways out are more trades per mechanism (higher "
+                "frequency, longer tapes, deeper tiers) and more markets "
+                "per mechanism (the pooled slate), and the searcher does "
+                "both at once because neither is enough alone.", st["p"]))
+
+    # ------------------------------------------------- map of the space
+    F.append(Paragraph("5 &nbsp; The map of the search space", st["h2"]))
+    cells = (arch or {}).get("cells") or {}
+    if not cells:
+        F.append(Paragraph("The map is empty. It fills as mechanisms "
+                           "clear the minimum trade count.", st["note"]))
+    else:
+        # The key on disk is the raw index tuple "1,4,0,1". Printing that
+        # is printing the storage format: it says nothing about what the
+        # niche IS, which is the only reason the map exists.
+        try:
+            from researcher.archive import cell_name, TOTAL_CELLS
+        except Exception:                                     # noqa: BLE001
+            cell_name, TOTAL_CELLS = None, None
+
+        def nice(key):
+            if cell_name is None:
+                return str(key)
+            try:
+                return cell_name(tuple(int(x) for x in str(key).split(",")))
+            except Exception:                                 # noqa: BLE001
+                return str(key)
+
+        F.append(Paragraph(
+            f"{len(cells)} behavioural niches occupied"
+            + (f" of {TOTAL_CELLS} that exist "
+               f"({len(cells) / TOTAL_CELLS:.0%} coverage)"
+               if TOTAL_CELLS else "")
+            + ". One elite per niche (frequency x hold x exit x side); "
+              "breeding draws from these rather than from fresh random "
+              "shapes, which is what makes the search get better as well "
+              "as broader. Coverage matters as much as the scores: an "
+              "empty region of the map is a kind of strategy nothing has "
+              "ever been tried in.", st["note"]))
+        rows = [["niche", "net RT/trade", "z", "trades", "/wk", "win",
+                 "RR", "market", "family"]]
+        items = sorted(cells.items(),
+                       key=lambda kv: -(kv[1].get("cu")
+                                        if kv[1].get("cu") is not None
+                                        else -9e9))[:45]
+        for name, c in items:
+            rows.append([
+                nice(name)[:44],
+                _num_or(c.get("cu"), "{:+.3f}"),
+                _num_or(c.get("z")), _num_or(c.get("n"), "{:,.0f}"),
+                _num_or(c.get("per_week"), "{:,.1f}"),
+                _num_or(c.get("win_rate"), "{:.0%}"),
+                _num_or(c.get("rr")),
+                str(c.get("market", "?"))[:10],
+                str(c.get("family", ""))[:20]])
+        F.append(_table(rows, [44, 18, 12, 16, 12, 12, 11, 14, 23], st,
+                        size=6.4))
+        if len(cells) > 45:
+            F.append(Paragraph(f"...{len(cells) - 45} further niches not "
+                               f"listed.", st["note"]))
+        F.append(Paragraph(
+            f"{arch.get('considered', 0):,} measurements offered to the "
+            f"map, {arch.get('improvements', 0):,} of which improved on "
+            f"the elite already holding their niche.", st["note"]))
+
+    # ----------------------------------------------- what it can see
+    F.append(Paragraph("5b &nbsp; The data it can see", st["h2"]))
+    F.append(Paragraph(
+        "A tier that is absent looks exactly like a tier that found "
+        "nothing, and only one of those is a result. Every tier is listed "
+        "whether or not it loaded.", st["note"]))
+    try:
+        from researcher import data_tiers as DT
+        from researcher import runner as R
+        rows = [["tier", "what it is", "markets", "status"]]
+        rows.append(["1", "daily/5-minute bars, every market",
+                     f"{len(R.SPEC)} configured", "see markets below"])
+        for res in (getattr(R, "T2_RES", None) or []):
+            srcs = DT.tier2_sources(res)
+            rows.append([f"2 @ {res}s", "NQ tick, resampled",
+                         f"{len(srcs)} contracts",
+                         "ok" if srcs else "MISSING"])
+        rows.append(["3", "NQ top of book", "1",
+                     str(extra.get("tiers", "see health"))])
+        F.append(_table(rows, [18, 60, 34, 50], st))
+        rows = [["market", "$ per point", "round-trip cost"]]
+        for k, (pv, cost) in sorted(R.SPEC.items()):
+            rows.append([k, f"{pv:,.4g}", f"${cost:,.4f}"])
+        F.append(Spacer(1, 6))
+        F.append(_table(rows, [24, 34, 34], st))
+        F.append(Paragraph(
+            "Silver (SI) is permanently excluded by standing instruction. "
+            "Every result in this document is measured against that "
+            "market's own round-trip cost, never against dollars, because "
+            "ZB's tick is sixty times MNQ's and a dollar figure compared "
+            "across them is a category error.", st["note"]))
+    except Exception as exc:                                  # noqa: BLE001
+        F.append(Paragraph(f"data inventory unavailable: {_esc(exc)}",
+                           st["note"]))
+
+    # --------------------------------- what it inferred about horizons
+    ins = (mem.get("insights") or {}).get("horizons") or {}
+    if ins:
+        F.append(Paragraph("5c &nbsp; What it worked out about holding "
+                           "time", st["h2"]))
+        F.append(Paragraph(
+            "Cost is fixed per trade; the size of a move grows roughly as "
+            "the square root of time. So for every family there is a "
+            "horizon at which its gross edge first covers a round trip, "
+            "and that horizon is arithmetic rather than something to "
+            "search for. These fits are what the searcher extracted from "
+            "its OWN failures, and they are what the hold multipliers in "
+            "the adaptations section act on.", st["note"]))
+        rows = [["family", "edge grows as", "fit", "break-even horizon",
+                 "reachable", "longest tested"]]
+        for name, h in sorted(ins.items(),
+                              key=lambda kv: (kv[1].get("h_star") or 9e9)):
+            hs = h.get("h_star")
+            rows.append([
+                str(name)[:30],
+                f"horizon^{_num_or(h.get('b'), '{:.2f}')}",
+                _num_or(h.get("r2"), "{:.2f}"),
+                ("does not reach it" if not hs else
+                 f"{hs:,.0f}s" if hs < 120 else f"{hs / 60:,.0f} min"),
+                "yes" if h.get("reachable") else "NO — beyond the data",
+                _num_or(h.get("max_tested"), "{:,.0f}s")])
+        F.append(_table(rows, [30, 26, 12, 34, 32, 26], st))
+
+    # ------------------------------------------------------- families
+    F.append(PageBreak())
+    F.append(Paragraph("6 &nbsp; Every family, and what its failures said",
+                       st["h2"]))
+    fams = led.get("families", {}) or {}
+    mf = mem.get("families", {}) or {}
+    if not fams:
+        F.append(Paragraph("No families on record.", st["note"]))
+    else:
+        F.append(Paragraph(
+            "\"Effort\" is the multiplier on how much attention the family "
+            "gets next cycle. It falls as a family accumulates trials "
+            "without producing anything and never reaches zero, because a "
+            "family is not disproved by its members failing. \"Lesson\" is "
+            "derived from the SHAPE of the failures, not from their "
+            "count: cost-bound means the direction was right and the move "
+            "too small to pay the round trip, which is an arithmetic "
+            "problem fixed by longer holds rather than by more searching.",
+            st["note"]))
+        # Both derived, not stored: the prior is a function of (n, sum_edge)
+        # and the lesson a function of the failure profile. Reading a
+        # "prior" key that was never written is how the first version of
+        # this table printed UNKNOWN in every row.
+        try:
+            from researcher.ledger import Ledger
+            from researcher.memory import Memory
+            _L = Ledger.__new__(Ledger)
+            _L.d = led
+            _M = Memory.__new__(Memory)
+            _M.d = mem
+        except Exception:                                     # noqa: BLE001
+            _L = _M = None
+        rows = [["family", "tested", "best z", "effort", "cost-bound",
+                 "wrong sign", "no signal", "thin", "lesson"]]
+        for name, f in sorted(fams.items(),
+                              key=lambda kv: -(kv[1].get("n") or 0)):
+            m = mf.get(name, {}) or {}
+            try:
+                pri = _L.family_prior(name) if _L else None
+            except Exception:                                 # noqa: BLE001
+                pri = None
+            try:
+                les = _M.lesson(name)[0] if _M else ""
+            except Exception:                                 # noqa: BLE001
+                les = ""
+            rows.append([
+                str(name)[:30],
+                f"{f.get('n', 0):,}",
+                _num_or(f.get("best_z")),
+                _num_or(pri, "{:.2f}x"),
+                f"{m.get('cost_bound', 0):,}" if m else "—",
+                f"{m.get('wrong_sign', 0):,}" if m else "—",
+                f"{m.get('no_signal', 0):,}" if m else "—",
+                f"{m.get('thin', 0):,}" if m else "—",
+                str(les)[:52]])
+        F.append(_table(rows, [30, 14, 12, 12, 15, 14, 14, 11, 50], st,
+                        size=6.2))
+
+    # ------------------------------------------------- top N strategies
+    F.append(PageBreak())
+    F.append(Paragraph(f"7 &nbsp; The top {top} things it has found",
+                       st["h2"]))
+    F.append(Paragraph(
+        "Ranked by whether they pay at all first, then by strength. "
+        "READ THE FLAGS: <b>passed</b> means it cleared the bar and every "
+        "control; <b>killed</b> means a control caught it; <b>stale</b> "
+        "means the tape changed under it; <b>code-stale</b> means the "
+        "measurement code was superseded. The highest z out of hundreds "
+        "of thousands of trials is expected to be large even when nothing "
+        "is there, which is exactly what the bar is for.", st["note"]))
+    board = []
+    try:
+        from researcher.ledger import Ledger
+        L = Ledger.__new__(Ledger)
+        L.d = led
+        import threading
+        L._lock = threading.Lock()
+        board = L.near_misses(top)
+    except Exception as exc:                                  # noqa: BLE001
+        F.append(Paragraph(f"leaderboard unavailable: {_esc(exc)}",
+                           st["note"]))
+    if not board:
+        F.append(Paragraph("Nothing on the board yet.", st["note"]))
+    else:
+        rows = [["#", "market", "t", "family", "z", "bar", "net", "unit",
+                 "trades", "/wk", "win", "RR", "MDE", "mkts", "flags"]]
+        for i, r in enumerate(board, 1):
+            h = r.get("hyp") or {}
+            pooled = r.get("pooled")
+            net = r.get("net") if not pooled else r.get("cu")
+            flags = []
+            if r.get("passed"):
+                flags.append("PASSED")
+            if r.get("killed"):
+                flags.append("killed")
+            if r.get("stale"):
+                flags.append("stale")
+            if r.get("code_stale"):
+                flags.append("code-stale")
+            if r.get("checked"):
+                flags.append("vault")
+            rows.append([
+                str(i),
+                str(h.get("market", "POOLED"))[:14],
+                str(h.get("tier", "")),
+                str(r.get("family", ""))[:22],
+                _num_or(r.get("z")),
+                _num_or(r.get("bar_at_test")),
+                _num_or(net, "{:+.3f}"),
+                "RT" if pooled else "$",
+                _num_or(r.get("n"), "{:,.0f}"),
+                _num_or(r.get("per_week"), "{:,.1f}"),
+                _num_or(r.get("win_rate"), "{:.0%}"),
+                _num_or(r.get("rr")),
+                _num_or(r.get("mde"), "{:.3f}"),
+                (_num_or(r.get("k"), "{:,.0f}") + "/" +
+                 _num_or(r.get("agree"), "{:.0%}")) if pooled else "—",
+                " ".join(flags)[:22]])
+        F.append(_table(rows, [6, 15, 4, 22, 11, 10, 13, 7, 14, 10, 10,
+                               9, 11, 14, 22], st, size=6.0))
+
+        F.append(PageBreak())
+        F.append(Paragraph(f"7b &nbsp; Full specification of each",
+                           st["h2"]))
+        F.append(Paragraph(
+            "Every field the searcher stored, so any entry can be "
+            "reproduced or argued with. \"net\" is dollars per trade for a "
+            "single-market result and round trips per trade for a pooled "
+            "one; 0 round trips is break-even after costs, not 1.",
+            st["note"]))
+        for i, r in enumerate(board, 1):
+            h = r.get("hyp") or {}
+            pooled = r.get("pooled")
+            head = (f"<b>#{i} &nbsp; {_esc(h.get('market', 'POOLED'))}"
+                    f"{' tier ' + str(h['tier']) if h.get('tier') else ''}"
+                    f" &nbsp;·&nbsp; {_esc(r.get('family', ''))}</b>")
+            body = [
+                f"{head}<br/>{_esc(_describe(h))}",
+                f"<b>spec</b> &nbsp; {_esc(_spec(h))}",
+                (f"<b>result</b> &nbsp; z {_num_or(r.get('z'))} against a "
+                 f"bar of {_num_or(r.get('bar_at_test'))} &nbsp;·&nbsp; "
+                 f"net {_num_or(r.get('net') if not pooled else r.get('cu'), '{:+.4f}')}"
+                 f"{' round trips/trade' if pooled else ' $/trade'}"
+                 f" &nbsp;·&nbsp; gross {_num_or(r.get('gross'), '{:+.4f}')}"
+                 f" &nbsp;·&nbsp; {_num_or(r.get('n'), '{:,.0f}')} trades"
+                 f" &nbsp;·&nbsp; {_num_or(r.get('per_week'), '{:,.1f}')}/week"
+                 f" &nbsp;·&nbsp; win {_num_or(r.get('win_rate'), '{:.1%}')}"
+                 f" &nbsp;·&nbsp; RR {_num_or(r.get('rr'))}"),
+                (f"<b>blindness</b> &nbsp; smallest edge this cell could "
+                 f"have shown: {_num_or(r.get('mde'), '{:.3f}')} RT/trade"
+                 + (f" &nbsp;·&nbsp; pooled over "
+                    f"{_num_or(r.get('k'), '{:,.0f}')} markets, "
+                    f"{_num_or(r.get('agree'), '{:.0%}')} agreeing on sign"
+                    if pooled else "")),
+            ]
+            if r.get("kill_reasons"):
+                body.append("<b>killed by</b> &nbsp; "
+                            + _esc("; ".join(r["kill_reasons"]))[:400])
+            F.append(KeepTogether(
+                [Paragraph(b, st["note"]) for b in body]
+                + [Spacer(1, 4)]))
+
+    # ------------------------------------------------------------- vault
+    F.append(PageBreak())
+    F.append(Paragraph("7c &nbsp; The sealed vault, and what has been "
+                       "spent from it", st["h2"]))
+    F.append(Paragraph(
+        "The last 20% of every tape is never searched. A candidate is "
+        "shown it exactly once, and that look is recorded forever, so the "
+        "vault cannot be reused to rescue an idea that failed on it. This "
+        "is the only genuinely out-of-sample evidence in the system and "
+        "it is a consumable resource: every touch spends a little of it.",
+        st["note"]))
+    touches = mem.get("vault", []) or []
+    F.append(_kv([
+        ["hypotheses shown the vault",
+         f"{len(led.get('vault_touches', {})):,}"],
+        ["touches recorded with detail", f"{len(touches):,}"],
+    ]))
+    if touches:
+        rows = [["when", "family", "z in search", "z in vault",
+                 "trades in search", "trades in vault", "verdict"]]
+        for t in touches[-40:]:
+            zs, zv = t.get("z_search"), t.get("z_vault")
+            if zv is None:
+                verdict = "no trades in the vault window"
+            elif zs is None:
+                verdict = "—"
+            else:
+                verdict = ("held up" if zv > 0 and zv >= 0.5 * zs
+                           else "did not hold up")
+            rows.append([str(t.get("t", ""))[:19], str(t.get("family", ""))[:26],
+                         _num_or(zs), _num_or(zv),
+                         _num_or(t.get("n_search"), "{:,.0f}"),
+                         _num_or(t.get("n_vault"), "{:,.0f}"),
+                         verdict])
+        F.append(_table(rows, [30, 28, 18, 18, 20, 20, 34], st, size=6.4))
+        if len(touches) > 40:
+            F.append(Paragraph(f"...{len(touches) - 40} earlier touches "
+                               f"not listed.", st["note"]))
+
+    # ------------------------------------------------------- adaptations
+    F.append(PageBreak())
+    F.append(Paragraph("8 &nbsp; Everything it changed about itself",
+                       st["h2"]))
+    adapts = sorted(mem.get("adaptations", []) or [],
+                    key=lambda a: -(a.get("applied") or 0))
+    if not adapts:
+        F.append(Paragraph("Nothing yet. A system that reports lessons but "
+                           "cannot show what it did differently is a "
+                           "logging system, so this page being empty is a "
+                           "real and reportable state.", st["note"]))
+    for a in adapts:
+        F.append(Paragraph(
+            f"<b>{_esc(a.get('kind'))} / {_esc(a.get('family'))}</b> "
+            f"&mdash; {_esc(a.get('before'))} &rarr; {_esc(a.get('after'))}, "
+            f"applied {a.get('applied')}x since {_esc(a.get('first'))}<br/>"
+            f"{_esc(a.get('why'))}", st["note"]))
+
+    # ------------------------------------------------- controls + caught
+    F.append(PageBreak())
+    F.append(Paragraph("9 &nbsp; The controls, and what they measured",
+                       st["h2"]))
+    for n, d in CONTROLS:
+        F.append(Paragraph(n, st["h3"]))
+        F.append(Paragraph(_esc(d), st["note"]))
+    F.append(Paragraph("10 &nbsp; Errors these controls already caught",
+                       st["h2"]))
+    F.append(Paragraph(
+        "Every one was found by a control or a calibration against a "
+        "known answer, and none by reading the code. All but one produced "
+        "a FALSE POSITIVE, which is the direction that costs money.",
+        st["note"]))
+    rows = [["error", "what it did"]]
+    for n, d in CAUGHT:
+        rows.append([Paragraph(f"<b>{_esc(n)}</b>", st["note"]),
+                     Paragraph(_esc(d), st["note"])])
+    F.append(_table(rows, [52, 110], st))
+
+    # -------------------------------------------------------- raw state
+    F.append(PageBreak())
+    F.append(Paragraph("11 &nbsp; Raw counters", st["h2"]))
+    F.append(Paragraph("Every scalar in the state files, unabridged, so "
+                       "nothing above can hide a number by omitting it.",
+                       st["note"]))
+    for label, blob in (("ledger.json", led), ("memory.json", mem),
+                        ("status.json", status),
+                        ("calibration.json", cal)):
+        F.append(Paragraph(label, st["h3"]))
+        rows = []
+        for k, v in sorted((blob or {}).items()):
+            if isinstance(v, (dict, list)):
+                rows.append([k, f"{type(v).__name__}, {len(v):,} entries"])
+            else:
+                rows.append([k, str(v)[:110]])
+        F.append(_kv(rows) if rows else Paragraph("empty", st["note"]))
+
+    # ------------------------------------------------------------ source
+    if source:
+        F.append(PageBreak())
+        F.append(Paragraph("12 &nbsp; Source", st["h2"]))
+        F.append(Paragraph(
+            "Complete and unabridged, so every number above can be "
+            "checked against what actually runs.", st["note"]))
+        for rel, what in AUDIT_FILES:
+            p = os.path.join(ROOT, rel)
+            if not os.path.exists(p):
+                continue
+            F.append(PageBreak())
+            F.append(Paragraph(rel, st["h2"]))
+            F.append(Paragraph(_esc(what), st["note"]))
+            try:
+                src = open(p).read()
+            except Exception as exc:                          # noqa: BLE001
+                F.append(Paragraph(f"unreadable: {_esc(exc)}", st["note"]))
+                continue
+            chunk = []
+            for i, line in enumerate(src.split("\n"), 1):
+                chunk.append(f"{i:4d}  " + _esc(line.rstrip())[:112])
+                if len(chunk) >= 58:
+                    F.append(Paragraph("<br/>".join(chunk), st["code"]))
+                    F.append(PageBreak())
+                    chunk = []
+            if chunk:
+                F.append(Paragraph("<br/>".join(chunk), st["code"]))
+
+    doc.build(F)
+    return buf.getvalue()
 
 
 def diagnostics_pdf(rdir, extra=None) -> bytes:
