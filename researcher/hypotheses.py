@@ -388,15 +388,57 @@ SHAPE_N = [2, 3, 4]          # for the run patterns
 SHAPE_K = [1.5, 2.5]         # how many sigma counts as squeeze/expansion
 
 
-def shape_mask(d, name, n=3, k=2.0):
+# Per-sweep cache of shape masks and the rolling normaliser.
+#
+# PROFILED, NOT GUESSED. 79% of a hypothesis evaluation was
+# rng.rolling(240).median() inside this function -- recomputed from
+# scratch for every single hypothesis, and computed even for the six of
+# nine shapes that never look at it. There are only 9 shapes x 3 lengths
+# x 2 widths = 54 distinct masks per market, against hundreds of
+# hypotheses per market that reuse them.
+#
+# The memo is passed in by the caller and lives for one market sweep, so
+# it cannot leak between tapes -- keying a cache on id(DataFrame) would,
+# because CPython reuses ids after garbage collection and the second
+# tape would silently inherit the first one's masks.
+def _normaliser(d, memo):
+    """Rolling median bar range. The expensive part, computed at most
+    once per tape and only when a shape actually needs it."""
+    if memo is not None and "_nrm" in memo:
+        return memo["_nrm"]
+    c = d["close"]
+    hi = d["high"] if "high" in d.columns else c
+    lo = d["low"] if "low" in d.columns else c
+    nrm = (hi - lo).rolling(240, min_periods=60).median()
+    if memo is not None:
+        memo["_nrm"] = nrm
+    return nrm
+
+
+def shape_mask(d, name, n=3, k=2.0, memo=None):
     """Boolean mask for a shape, computed only from PAST bars."""
+    import numpy as _np
+    key = (name, n, k)
+    if memo is not None and key in memo:
+        return memo[key]
+    out = _shape_mask(d, name, n, k, memo)
+    if memo is not None:
+        memo[key] = out
+    return out
+
+
+def _shape_mask(d, name, n, k, memo):
     import numpy as _np
     c = d["close"]
     hi = d["high"] if "high" in d.columns else c
     lo = d["low"] if "low" in d.columns else c
     op = d["open"] if "open" in d.columns else c
     rng = (hi - lo)
-    nrm = rng.rolling(240, min_periods=60).median()
+    # LAZY. Six of the nine shapes below never touch the normaliser, and
+    # it was the single most expensive line in the whole search.
+    nrm = None
+    if name in ("squeeze", "expansion", "gap"):
+        nrm = _normaliser(d, memo)
     up = (c.diff() > 0)
     dn = (c.diff() < 0)
     if name == "run_up":

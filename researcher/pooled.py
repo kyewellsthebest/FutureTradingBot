@@ -88,8 +88,9 @@ class PooledBook:
     def add(self, h, sym, result, cost, family=None):
         """Record one market's measurement of a mechanism.
 
-        The effect is stored in units of that market's own round-trip
-        cost. Pooling raw dollars would compare ZB's $31 tick with MNQ's
+        The effect is stored as NET profit in units of that market's own
+        round-trip cost: 0 is break-even, +1 means it earns a whole extra
+        round trip per trade, -1 means it loses one. Pooling raw dollars would compare ZB's $31 tick with MNQ's
         $0.50 and then judge the pool against one of them -- the same
         category error that once made every 6A trade score -$0.5992. A
         ratio of 1.0 means "paid for itself here", and that means the
@@ -100,7 +101,13 @@ class PooledBook:
         n = int(result.get("n") or 0)
         if n < 30:
             return
-        edge = result.get("edge")
+        # NET, not gross. The question a pooled mechanism has to answer
+        # is "does it pay after the cost of trading", and with gross the
+        # break-even point sits at 1.0 -- so the `mean > 0` gate below
+        # would have promoted a mechanism earning a tenth of its own
+        # cost. Measured in net round trips, 0 is break-even and the
+        # gate means what it says.
+        edge = result.get("net")
         if edge is None:
             return
         # standard error of the per-trade edge, in cost units, deflated

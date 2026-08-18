@@ -249,6 +249,16 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
     <div style="height:14px"></div>
     <div class="card">
       <h2><span class="e">🥇</span>leaderboard — closest it has come</h2>
+      <div class="mini" style="margin:0 0 14px;padding:0 0 12px">
+        <b>RT = round trip</b>, the full cost of one trade: commission both
+        ways plus crossing the spread twice (about <b>60c</b> on a micro).
+        So <b>profit / trade</b> is measured in units of what trading costs.
+        <u>0.000 is break-even</u>; <b>+1.000 RT</b> would mean earning a whole
+        extra round trip on every trade, and <b>−0.900 RT</b> means losing
+        nine tenths of the trading cost each time. Using this unit instead
+        of dollars is what lets a ZB trade (tick worth $31) be compared with
+        an MNQ one (tick worth 50c).
+      </div>
       <div id="near"><div class="sk sk-line" style="width:70%"></div>
         <div class="sk sk-card"></div>
         <div class="sk sk-line" style="width:55%"></div>
@@ -534,9 +544,10 @@ async function tick(){
                <div class="v">${x.k ?? pend}</div></div>
           <div><div class="l">🤝 agreed on direction</div>
                <div class="v">${x.agree==null?pend:(x.agree*100).toFixed(0)+'%'}</div></div>
-          <div><div class="l">💵 round trips / trade</div>
+          <div><div class="l">💵 profit / trade</div>
                <div class="v" style="color:${(x.cu||0)>0?'var(--pos)':'var(--neg)'}">
-               ${x.cu==null?pend:(x.cu>0?'+':'')+Number(x.cu).toFixed(3)}</div></div>
+               ${x.cu==null?pend:(x.cu>0?'+':'')+Number(x.cu).toFixed(3)}
+               <span style="font-size:10px;color:var(--muted)"> RT</span></div></div>
           <div><div class="l">📊 trades pooled</div>
                <div class="v">${x.n==null?pend:num(x.n)}</div></div>
         </div>` : `

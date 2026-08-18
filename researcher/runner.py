@@ -361,7 +361,7 @@ def entries(mask, n, extra=0):
 _LEVELS = {}
 
 
-def _eval_dest(d, h, tv, cost, delay=0):
+def _eval_dest(d, h, tv, cost, delay=0, memo=None):
     """Score a destination hypothesis as the race it actually is.
 
     Returns the same shape of dict as everything else so the ledger,
@@ -389,7 +389,7 @@ def _eval_dest(d, h, tv, cost, delay=0):
         if h["trigger"] in cs:
             trig = cs[h["trigger"]]
         else:
-            trig = HY.shape_mask(d, h["trigger"], 3, 2.0)
+            trig = HY.shape_mask(d, h["trigger"], 3, 2.0, memo=memo)
             if trig is None:
                 return None
     # same invariant: the trigger is knowable at bar t, tradeable at t+1
@@ -419,7 +419,7 @@ def _eval_dest(d, h, tv, cost, delay=0):
     return {"z": round(float(z), 3), "gz": round(float(gross / (se + 1e-12)), 3),
             "edge": round(float(gross), 4), "net": round(float(per), 4),
             "sd": round(float(var ** 0.5), 5),
-            "cu": round(float(gross) / cost, 5) if cost else None,
+            "cu": round(float(per) / cost, 5) if cost else None,
             "n": int(n), "eff_n": int(n), "overlap": 1.0, "delay": delay,
             "win_rate": round(p, 4),
             "rr": round(rw / rk, 3) if rk else 0.0,
@@ -505,7 +505,8 @@ def attach_context(sym, d):
 
 
 # ------------------------------------------------------------ evaluation
-def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
+def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0,
+             memo=None):
     """Score one hypothesis. Returns dict with z, edge, net, n.
 
     `delay` shifts the ENTRY forward by that many bars while leaving the
@@ -536,9 +537,10 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     idx = d.index
 
     if h.get("kind") == "dest":
-        return _eval_dest(d, h, tv, cost, delay)
+        return _eval_dest(d, h, tv, cost, delay, memo=memo)
     if h.get("kind") == "shape":
-        m = HY.shape_mask(d, h["shape"], h.get("n", 3), h.get("k", 2.0))
+        m = HY.shape_mask(d, h["shape"], h.get("n", 3), h.get("k", 2.0),
+                          memo=memo)
         if m is None:
             return None
         mask = np.asarray(m)
@@ -590,8 +592,15 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     # construction.
     ex = h.get("exit")
     if ex and "high" in d.columns and "low" in d.columns:
-        unit = BR.atr(d["high"].values, d["low"].values,
+        # ATR is a property of the tape, not of the hypothesis, so it
+        # is computed once per market rather than once per cell.
+        if memo is not None and "_atr" in memo:
+            unit = memo["_atr"]
+        else:
+            unit = BR.atr(d["high"].values, d["low"].values,
                       d["close"].values, 60)
+            if memo is not None:
+                memo["_atr"] = unit
         m0 = mask.values if hasattr(mask, "values") else np.asarray(mask)
         sel = entries(m0, len(d), delay)
         sel = sel[np.isfinite(unit[sel]) & (unit[sel] > 0)]
@@ -637,10 +646,14 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
                 # cross-market pooling needs the dispersion, not just
                 # the mean: the pooled standard error is built from it
                 "sd": round(float(gross.std(ddof=1)), 5),
-                # gross edge in units of THIS market's round trip, so
+                # NET edge in units of THIS market's round trip, so
                 # results are comparable across instruments whose ticks
-                # differ by 60x. Pooling and the surrogate both read it.
-                "cu": round(float(gross.mean()) / cost, 5) if cost else None,
+                # differ by 60x. NET, not gross: with gross the
+                # break-even point is 1.0, and a cell earning a tenth of
+                # its own trading cost rendered as "+0.098" in green.
+                # Defined this way 0 IS break-even and the sign of the
+                # number is the sign of the money.
+                "cu": round(float(net.mean()) / cost, 5) if cost else None,
                 "net": round(float(net.mean()), 4), "n": int(len(net)),
                 "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
                 "win_rate": round(float(len(wins) / len(net)), 4),
@@ -709,7 +722,7 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0):
     return {"z": round(z, 3), "gz": round(gz, 3),
             "edge": round(float(pnl.mean() * tv), 4),
             "sd": round(float((pnl * tv).std(ddof=1)), 5),
-            "cu": round(float(pnl.mean() * tv) / cost, 5) if cost else None,
+            "cu": round(float(net.mean()) / cost, 5) if cost else None,
             "net": round(float(net.mean()), 4), "n": int(len(net)),
             "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
             "win_rate": round(win_rate, 4), "rr": round(rr, 3),
@@ -857,6 +870,12 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
 
     memo = {}
     feats = {}
+    # ONE cache per market for tape-derived arrays (rolling normaliser,
+    # ATR, shape masks). Profiling showed 79% of every evaluation was a
+    # rolling median recomputed per hypothesis; there are only 54
+    # distinct shape masks per tape and hundreds of hypotheses using
+    # them. Scoped to this sweep so it cannot leak between tapes.
+    tape_memo = {}
     for nm, spec in lib.kept.items():
         try:
             feats[nm] = FeatureLibrary.evaluate_spec(srch, spec, memo)
@@ -972,7 +991,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         hh["market"] = sym
         hh["tier"] = tier
         try:
-            r = evaluate(srch, hh, tv, cost, feats, bar_s)
+            r = evaluate(srch, hh, tv, cost, feats, bar_s, memo=tape_memo)
         except Exception:                                     # noqa: BLE001
             continue
         if not r:
@@ -996,7 +1015,7 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
         if led.seen(h):
             continue
         try:
-            r = evaluate(srch, h, tv, cost, feats, bar_s)
+            r = evaluate(srch, h, tv, cost, feats, bar_s, memo=tape_memo)
         except Exception as exc:                              # noqa: BLE001
             say("eval_error", err=str(exc)[:160], hyp=HY.describe(h))
             continue

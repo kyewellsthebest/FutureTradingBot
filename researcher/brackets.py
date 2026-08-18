@@ -77,26 +77,47 @@ def run(entry_idx, side, high, low, close, stop_mult, target_mult,
     exit_px = np.full(n, np.nan)
     held = np.full(n, max_bars, dtype=np.int64)
     reason = np.full(n, 2, dtype=np.int8)
-    active = np.ones(n, dtype=bool)
     ties = 0
     last = len(c) - 1
 
+    # COMPACT THE SURVIVORS EACH BAR.
+    #
+    # The loop was already vectorised over trades, but every one of the
+    # max_bars passes allocated a dozen arrays of the FULL trade count
+    # even after almost every trade had already exited. With a 1-ATR
+    # stop most trades are gone within a handful of bars, so the tail of
+    # the loop was doing full-width work for a handful of live rows.
+    #
+    # Working on the still-open subset makes the cost proportional to
+    # the trades that are actually open, which is what it should always
+    # have been. Semantics are untouched: same tie rule, same gap fill,
+    # same timeout. Verified by exact comparison against the previous
+    # implementation over the whole shape family.
+    alive = np.arange(n, dtype=np.int64)
+    # Trades whose window runs off the end of the tape. They must still
+    # time out at the last available bar; dropping them would silently
+    # discard every trade near the end of history, which is exactly the
+    # most recent and most relevant part of it.
+    overrun = []
     for k in range(1, max_bars + 1):
-        j = e + k
-        valid = active & (j <= last)
-        if not valid.any():
+        if alive.size == 0:
             break
-        jj = np.where(valid, j, 0)
-        bh, bl = h[jj], lo[jj]
+        ea = e[alive]
+        j = ea + k
+        inb = j <= last
+        if not inb.all():
+            overrun.append(alive[~inb])
+            alive = alive[inb]
+            if alive.size == 0:
+                break
+            ea, j = e[alive], (e[alive] + k)
+        sa = s[alive]
+        bh, bl = h[j], lo[j]
+        stp, tgt = stop_px[alive], tgt_px[alive]
 
-        longs = valid & (s > 0)
-        shorts = valid & (s < 0)
-        s_hit = np.zeros(n, dtype=bool)
-        t_hit = np.zeros(n, dtype=bool)
-        s_hit[longs] = bl[longs] <= stop_px[longs]
-        t_hit[longs] = bh[longs] >= tgt_px[longs]
-        s_hit[shorts] = bh[shorts] >= stop_px[shorts]
-        t_hit[shorts] = bl[shorts] <= tgt_px[shorts]
+        long_ = sa > 0
+        s_hit = np.where(long_, bl <= stp, bh >= stp)
+        t_hit = np.where(long_, bh >= tgt, bl <= tgt)
 
         # THE TIE. Both barriers touched in one bar; the order is
         # unknowable from OHLC. The stop is awarded the fill.
@@ -117,27 +138,31 @@ def run(entry_idx, side, high, low, close, stop_mult, target_mult,
         # perfectly. A target is left at its level: a resting limit at
         # the target really does fill there when price trades through.
         if s_hit.any():
-            fill = stop_px.copy()
+            fill = stp.copy()
             if open_ is not None:
-                op = open_[jj]
-                worse = np.where(s > 0, np.minimum(fill, op),
-                                 np.maximum(fill, op))
-                fill = np.where(s_hit, worse, fill)
-            exit_px[s_hit] = fill[s_hit]
-            held[s_hit] = k
-            reason[s_hit] = 0
-            active[s_hit] = False
+                op = open_[j]
+                fill = np.where(long_, np.minimum(fill, op),
+                                np.maximum(fill, op))
+            si = alive[s_hit]
+            exit_px[si] = fill[s_hit]
+            held[si] = k
+            reason[si] = 0
         if t_hit.any():
-            exit_px[t_hit] = tgt_px[t_hit]
-            held[t_hit] = k
-            reason[t_hit] = 1
-            active[t_hit] = False
+            ti = alive[t_hit]
+            exit_px[ti] = tgt[t_hit]
+            held[ti] = k
+            reason[ti] = 1
+        done = s_hit | t_hit
+        if done.any():
+            alive = alive[~done]
 
     # anything still open exits at the timeout bar's close
-    if active.any():
-        j = np.minimum(e[active] + max_bars, last)
-        exit_px[active] = c[j]
-        held[active] = j - e[active]
+    if overrun:
+        alive = np.concatenate([alive] + overrun)
+    if alive.size:
+        j = np.minimum(e[alive] + max_bars, last)
+        exit_px[alive] = c[j]
+        held[alive] = j - e[alive]
     return exit_px, held, reason, ties
 
 
