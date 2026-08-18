@@ -71,6 +71,7 @@ from researcher.features import FeatureLibrary  # noqa: E402
 from researcher.memory import Memory, classify  # noqa: E402
 from researcher import data_tiers as DT         # noqa: E402
 from researcher import insight as IN            # noqa: E402
+from researcher import brief as BRIEF            # noqa: E402
 from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
 from researcher import brackets as BR           # noqa: E402
@@ -1756,6 +1757,13 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
 # The running searcher's own Ledger, for readers in this process.
 LIVE_LEDGER = {"l": None}
 
+
+def _read_json(p, default=None):
+    try:
+        return json.load(open(p))
+    except Exception:                                         # noqa: BLE001
+        return default
+
 LIBS_PATH = os.path.join(RDIR, "features.json")
 
 
@@ -2642,6 +2650,26 @@ def main():
 
         led.save(force=True)
         _save_libs(libs)
+        # WRITE THE BRIEF. The searcher grinds; this is the handoff --
+        # what its coverage actually rules out, what it could not see,
+        # what it could not even ask, what cannot be true, and the one
+        # constraint currently binding. Cheap, and it never fails the
+        # cycle: a brief that throws is a lost report, not a lost sweep.
+        try:
+            b = BRIEF.build(led.d, mem.d, arch=(ARCH["a"].dump()
+                                                if ARCH["a"] else None),
+                            cal=_read_json(os.path.join(RDIR,
+                                                        "calibration.json")))
+            json.dump(b, open(os.path.join(RDIR, "brief.json"), "w"),
+                      separators=(",", ":"))
+            open(os.path.join(RDIR, "brief.md"), "w").write(BRIEF.render(b))
+            bc = b["binding_constraint"]
+            say("BRIEF", constraint=bc["constraint"], says=bc["says"],
+                do=bc["do"], blind_share=b["coverage"].get("blind_share"),
+                unreachable=len(b["unreachable"]),
+                contradictions=len(b["contradictions"]))
+        except Exception as exc:                              # noqa: BLE001
+            say("brief_failed", err=str(exc)[:200])
         try:
             if ARCH["a"] is not None:
                 ARCH["a"].save(os.path.join(RDIR, "archive.json"))

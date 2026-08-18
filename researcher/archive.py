@@ -109,6 +109,51 @@ MIN_TRADES = 200
 MIN_EFF = int(os.environ.get("ARCHIVE_MIN_EFF", "30"))
 
 
+# HOW GOOD IS THIS CELL, ONCE ITS OWN UNCERTAINTY IS TAKEN OFF IT.
+#
+# The map ranked cells by raw cu and bred from the winners. Raw cu is a
+# MAXIMUM over a huge search, so ranking on it ranks luck, and breeding
+# on it breeds luck -- a quality-diversity search evolving toward the
+# best noise it can find. The effective-n floor stopped the very worst
+# of that (cells of two observations claiming +110 RT), but within the
+# survivors the ordering was still raw.
+#
+# Empirical-Bayes shrinkage is the standard answer and it needs one
+# number this project already computes. mde = 3.5 * se in cost units,
+# so se = mde / 3.5 comes free with every result. Then
+#
+#     shrunk = cu / (1 + (se / tau)^2)
+#
+# with tau the scale a REAL edge is expected to have. An estimate whose
+# standard error is much larger than tau collapses toward zero; one
+# measured tightly keeps almost all of its value. Worked through:
+#
+#     cu +110.00, se 731.0   ->  +0.00   (two lucky days, now ranked last)
+#     cu   +0.50, se   0.30  ->  +0.15
+#     cu   +0.20, se   0.05  ->  +0.19   (kept almost whole)
+#
+# TAU IS A PRIOR AND IT IS STATED, not hidden. 0.20 round trips per
+# trade is roughly the largest edge this project's own reachability
+# analysis says is plausibly detectable and not bug territory. Raising
+# it shrinks less and ranks more like the old behaviour; the whole
+# argument is visible in one constant.
+SHRINK_TAU = float(os.environ.get("ARCHIVE_TAU", "0.20"))
+
+
+def shrunk(cu, mde):
+    """cu with its own uncertainty discounted. Falls back to raw cu when
+    the result predates mde, because refusing to rank an older entry
+    would silently empty the map."""
+    try:
+        cu = float(cu)
+        se = float(mde) / 3.5
+    except (TypeError, ValueError):
+        return float(cu) if cu is not None else 0.0
+    if not (se == se) or se <= 0:
+        return cu
+    return cu / (1.0 + (se / SHRINK_TAU) ** 2)
+
+
 def _bucket(v, edges):
     try:
         v = float(v)
@@ -198,11 +243,16 @@ class Archive:
         if not (cu == cu) or abs(cu) > 1e6:      # NaN or nonsense
             return False
         key = ",".join(str(x) for x in c)
+        # RANK ON THE SHRUNK VALUE, keep the raw one for display. The
+        # occupant of a niche should be the best RELIABLE thing found
+        # there, because that is what breeding will build on.
+        sc = shrunk(cu, result.get("mde"))
         cur = self.cells.get(key)
-        if cur is not None and float(cur.get("cu", -9e9)) >= cu:
+        if cur is not None and float(cur.get("shrunk", cur.get("cu", -9e9))) >= sc:
             return False
         self.cells[key] = {
-            "cu": round(cu, 5), "hyp": hyp, "family": family,
+            "cu": round(cu, 5), "shrunk": round(sc, 5),
+            "hyp": hyp, "family": family,
             "z": result.get("z"), "n": result.get("n"),
             # THE TWO NUMBERS THAT SAY WHETHER cu MEANS ANYTHING.
             # Without them a cell of two overlapping days and a cell of

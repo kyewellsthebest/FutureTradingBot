@@ -554,6 +554,66 @@ def state_pdf(rdir, extra=None, top=100, source=True, led=None) -> bytes:
         f"found with their full specifications, and the source that "
         f"produced all of it.", st["sub"]))
 
+    # ------------------------------------------------------ the brief
+    # FIRST, DELIBERATELY. Everything after this is evidence; this is
+    # what the evidence adds up to. A reader who stops after one page
+    # should still leave knowing what is ruled out, what could not be
+    # seen, and what is currently in the way.
+    br = _read(J(rdir, "brief.json"), {})
+    if br:
+        F.append(Paragraph("0 &nbsp; What this adds up to", st["h2"]))
+        bc = br.get("binding_constraint") or {}
+        F.append(Paragraph(
+            f"<b>Binding constraint: {_esc(bc.get('constraint', '?'))}</b>",
+            st["big"]))
+        F.append(Paragraph(_esc(bc.get("says", "")), st["p"]))
+        F.append(Paragraph(f"<b>&rarr; {_esc(bc.get('do', ''))}</b>",
+                           st["p"]))
+        cv = br.get("coverage") or {}
+        F.append(_kv([
+            ["cells measured", _num_or(cv.get("measured"), "{:,.0f}")],
+            ["could have seen an edge worth having",
+             _num_or(cv.get("informative"), "{:,.0f}")],
+            ["could NOT -- silence means nothing",
+             _num_or(cv.get("blind"), "{:,.0f}")],
+            ["smallest edge ever visible anywhere",
+             _num_or(cv.get("smallest_edge_ever_visible"),
+                     "{:.3f} RT/trade")],
+        ]))
+        if br.get("unreachable"):
+            F.append(Paragraph("Not tested &mdash; could not be asked",
+                               st["h3"]))
+            for u in br["unreachable"][:6]:
+                F.append(Paragraph(
+                    f"<b>{_esc(u['family'])}</b>: {u['unevaluable']:,} of "
+                    f"{u['attempts']:,} ({u['share']:.0%}) could not be "
+                    f"evaluated. This family has NOT been tested.",
+                    st["note"]))
+        if br.get("contradictions"):
+            F.append(Paragraph("Cannot both be true", st["h3"]))
+            for x in br["contradictions"][:6]:
+                F.append(Paragraph(
+                    f"<b>{_esc(x.get('claim'))}</b> &mdash; "
+                    f"{_esc(x.get('where'))}<br/>{_esc(x['why_impossible'])}",
+                    st["note"]))
+        if br.get("ruled_out"):
+            F.append(Paragraph("Genuinely ruled out", st["h3"]))
+            rows = [["family", "cells", "with power", "what its silence "
+                     "excludes"]]
+            for r in br["ruled_out"][:12]:
+                rows.append([str(r["family"])[:30],
+                             f"{r['cells']:,}",
+                             f"{r['informative_cells']:,}",
+                             r["verdict"]])
+            F.append(_table(rows, [34, 16, 18, 90], st))
+        if br.get("next"):
+            F.append(Paragraph("What follows", st["h3"]))
+            for a in br["next"][:8]:
+                F.append(Paragraph(
+                    f"<b>[{a['priority']}] {_esc(a['do'])}</b><br/>"
+                    f"because {_esc(a['because'])}", st["note"]))
+        F.append(PageBreak())
+
     # ------------------------------------------------------------ health
     F.append(Paragraph("1 &nbsp; Health", st["h2"]))
     halts = led.get("halts", []) or []

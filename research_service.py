@@ -636,6 +636,7 @@ def api_state():
         "survivors": from_ledger("survivors", survivors),
         # Both walk the whole ledger; both are pure functions of a file
         # that only changes at the end of a cycle.
+        "brief": read_json(RDIR / "brief.json", None),
         "near": from_ledger("near", near_misses),
         "recent": from_ledger("recent", recent_best),
         "ledger": led,

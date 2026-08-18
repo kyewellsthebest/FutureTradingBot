@@ -56,8 +56,22 @@ import os
 import threading
 from datetime import datetime, timezone
 
-MODES = ["thin", "no_signal", "wrong_sign", "cost_bound", "vault_killed",
-         "confirmed"]
+# "unevaluable" IS NOT "thin", AND CONFLATING THEM HID A BUG FOR MONTHS.
+#
+# thin        the question WAS asked and the tape had too few instances
+#             to answer it. A real, weak measurement.
+# unevaluable the question could not be asked AT ALL -- the feature does
+#             not exist on this tape, the condition was never registered,
+#             the shape cannot be built from these columns.
+#
+# The first is evidence about the market. The second is evidence about
+# THIS SEARCHER, and it must never be read as the market being empty.
+# evaluate() returning None was classified as "thin", so a family the
+# code could not express reported exactly like a family it had tested
+# and found nothing in. That is how the feature grower went months
+# unable to see high and low while the console showed a healthy search.
+MODES = ["thin", "unevaluable", "no_signal", "wrong_sign", "cost_bound",
+         "vault_killed", "confirmed"]
 
 
 def _now():
@@ -72,7 +86,7 @@ def classify(result, bar, cost):
     that "no signal" throws away the only actionable failure there is.
     """
     if result is None:
-        return "thin"
+        return "unevaluable"
     z, net, gross = result["z"], result["net"], result["edge"]
     if result["n"] < 1:
         return "thin"
@@ -218,6 +232,19 @@ class Memory:
             return ("not enough failures to say anything", 1.0)
         n = f["n"]
         cb, thin = f.get("cost_bound", 0), f.get("thin", 0)
+        # CHECKED FIRST, because it is the only failure that is about
+        # the SEARCHER rather than the market. A family that mostly
+        # cannot be evaluated has not been tested, and every other
+        # lesson below would be drawn from the handful that happened to
+        # run -- a conclusion about the market from a sample selected by
+        # what the code could express.
+        une = f.get("unevaluable", 0)
+        if une / n > 0.50:
+            return (f"{une}/{n} could not be EVALUATED at all -- the "
+                    f"feature, condition or shape does not exist on "
+                    f"these tapes. This family has not been tested and "
+                    f"its silence is about this searcher, not the "
+                    f"market.", 1.0)
         if cb / n > 0.25:
             # directionally right, too small to pay. Cost is fixed per
             # trade and move size grows as sqrt(time), so the fix is
