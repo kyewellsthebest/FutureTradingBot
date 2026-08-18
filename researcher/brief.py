@@ -217,47 +217,27 @@ def contradictions(led, arch, k=12):
     for key, c in ((arch or {}).get("cells") or {}).items():
         cu, z = _num(c.get("cu")), _num(c.get("z"))
         n, eff = _num(c.get("n")), _num(c.get("eff_n"))
-        if cu is not None and z is not None and abs(cu) > 1.0 and abs(z) < 1.0:
-            # ATTRIBUTE IT CORRECTLY. A large effect with a tiny z is
-            # only mysterious when the sample is real. When the
-            # effective sample is a handful, the mean of a handful is
-            # just noise and there is nothing broken to find -- saying
-            # "one of these is not measuring what it says" would send
-            # somebody hunting a bug that is not there.
-            if eff is None:
-                # An entry from before effective-n was recorded. The
-                # honest report is that the sample size is UNKNOWN, not
-                # that the measurement is broken -- guessing which would
-                # send somebody after the wrong thing.
-                add("a big number whose sample size was never recorded",
-                    f"map cell {key} ({c.get('market')})",
-                    f"{cu:+.2f} RT at z {z:.2f}, independent "
-                    f"observations unknown",
-                    ("recorded before effective sample size was kept, so "
-                     "it cannot be told apart from a mean of two "
-                     "overlapping days; re-measure or discard, never "
-                     "read as a finding"),
-                    sort=abs(cu))
-            elif eff < 30:
-                add("a big number from almost no data",
-                    f"map cell {key} ({c.get('market')})",
-                    f"{cu:+.2f} RT at z {z:.2f} on {eff:,.0f} "
-                    f"independent observations",
-                    ("the mean of a few overlapping observations can be "
-                     "anything; this is a selection maximum, not a "
-                     "measurement error, and it must never be bred from "
-                     "or displayed as a finding"),
-                    sort=abs(cu))
-            else:
-                add("effect too large for its own significance",
-                    f"map cell {key} ({c.get('market')})",
-                    f"{cu:+.2f} RT per trade at z {z:.2f} on "
-                    f"{eff:,.0f} independent observations",
-                    ("an edge that large with a z that small implies a "
-                     "per-trade dispersion no market has, and the sample "
-                     "here is big enough that noise does not explain it "
-                     "-- one of the two numbers is wrong"),
-                    sort=abs(cu))
+        # NO cu-VERSUS-z CHECK. An earlier version flagged "a big
+        # effect at a small z" as impossible. It is not merely weak, it
+        # is VACUOUS: z is defined as cu/se, so a large cu with a small
+        # z means exactly and only that se is large. The condition can
+        # never be violated and it fired on fifteen cells in the first
+        # live brief, every one of them ordinary noise, each carrying
+        # the instruction "one of the two numbers is wrong". A detector
+        # that manufactures leads is worse than no detector, because
+        # acting on it costs the time this file exists to save.
+        #
+        # What DOES contradict is a raw trade count read as a sample
+        # size, below -- that is a real error and the numbers really
+        # cannot both be what they appear to be.
+        if cu is not None and eff is not None and eff < 30 and abs(cu) > 1.0:
+            add("a big number from almost no data",
+                f"map cell {key} ({c.get('market')})",
+                f"{cu:+.2f} RT on {eff:,.0f} independent observations",
+                ("the mean of a few overlapping observations can be "
+                 "anything; a selection maximum, not a measurement error "
+                 "-- never breed from it or show it as a finding"),
+                sort=abs(cu))
         if n and eff and eff < n / 20.0 and n >= 200:
             add("trade count is not a sample size",
                 f"map cell {key} ({c.get('market')})",
@@ -529,18 +509,36 @@ def selftest(verbose=True):
     if not ok:
         fails.append("unevaluable family not surfaced")
 
-    # the +110 RT / z 0.15 cell must be called impossible
+    # a big number on almost no data must be named as such
     arch = {"cells": {"1,4,0,1": {"cu": 110.2, "z": 0.151, "n": 391,
                                   "eff_n": 2, "market": "NQ@NQM5@15s"}}}
     b3 = build({"trials": 1, "tested": {}, "survivors": []},
                {"families": {}}, arch=arch)
-    ok = len(b3["contradictions"]) >= 1
+    ok = any("almost no data" in x["kind"] for x in b3["contradictions"])
     if verbose:
-        print(f"  {'PASS' if ok else 'FAIL'}  '+110 RT at z 0.15' is "
-              f"flagged as impossible  — {len(b3['contradictions'])} "
-              f"contradiction(s) found")
+        print(f"  {'PASS' if ok else 'FAIL'}  '+110 RT on 2 independent "
+              f"observations' is named as a selection maximum")
     if not ok:
-        fails.append("did not flag the impossible cell")
+        fails.append("did not flag the thin cell")
+
+    # AND THE DETECTOR MUST NOT MANUFACTURE LEADS. A large effect with a
+    # small z is not a contradiction -- z IS cu/se, so it means only
+    # that se is large. The first live brief fired this on fifteen
+    # ordinary cells, each with "one of the two numbers is wrong"
+    # attached. Chasing a lead that cannot exist costs exactly the time
+    # this module is meant to save.
+    ordinary = {"cells": {"1,0,0,1": {"cu": 8.89, "z": 0.98, "n": 3000,
+                                      "eff_n": 2000,
+                                      "market": "NQ@NQZ5@15s"}}}
+    b5 = build({"trials": 1, "tested": {}, "survivors": []},
+               {"families": {}}, arch=ordinary)
+    ok = not b5["contradictions"]
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  a large effect with a small "
+              f"z on a REAL sample raises nothing  — "
+              f"{len(b5['contradictions'])} flagged (expect 0)")
+    if not ok:
+        fails.append("manufactured a contradiction from z = cu/se")
 
     # informative silence IS reported as ruled out
     good = {"trials": 60000, "survivors": [], "tested": {}}
