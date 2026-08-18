@@ -230,21 +230,39 @@ def research_loop():
     # over. Every boot is appended here, so "12 restarts in the last
     # hour" is visible even when nothing ever raised.
     try:
+        # A DEPLOY IS NOT A CRASH. Every push restarts the container, so
+        # counting boots alone reports "5 restarts in the last hour"
+        # during an afternoon of shipping fixes -- crying wolf on the
+        # one alarm that must stay trustworthy. Railway stamps the
+        # commit, so a boot whose commit differs from the last one is a
+        # deploy and is recorded as such.
+        sha = (os.environ.get("RAILWAY_GIT_COMMIT_SHA") or "")[:12] or "?"
         bl = RDIR / "boots.log"
-        bl.open("a").write(now() + "\n")
+        bl.open("a").write(f"{now()} {sha}\n")
         lines = [x.strip() for x in bl.read_text().splitlines() if x.strip()]
         if len(lines) > 400:
             bl.write_text("\n".join(lines[-400:]) + "\n")
         cut = time.time() - 3600
-        recent = 0
+        recent = deploys = 0
+        prev_sha = None
         for x in lines[-400:]:
+            parts = x.split()
             try:
-                if datetime.fromisoformat(x).timestamp() > cut:
-                    recent += 1
+                ts = datetime.fromisoformat(parts[0]).timestamp()
             except Exception:                                 # noqa: BLE001
-                pass
+                continue
+            cur = parts[1] if len(parts) > 1 else "?"
+            is_deploy = (prev_sha is not None and cur != "?"
+                         and cur != prev_sha)
+            prev_sha = cur if cur != "?" else prev_sha
+            if ts > cut:
+                if is_deploy:
+                    deploys += 1
+                else:
+                    recent += 1
         STATE["boots_total"] = len(lines)
-        STATE["boots_last_hour"] = recent
+        STATE["boots_last_hour"] = max(0, recent - 1)   # the current boot
+        STATE["deploys_last_hour"] = deploys
         if recent > 3:
             print(f"[RESTART LOOP] {recent} boots in the last hour — the "
                   f"process is being killed, most likely out of memory.",
@@ -461,6 +479,7 @@ def api_state():
         "restarts": {"last_hour": STATE.get("boots_last_hour"),
                      "total": STATE.get("boots_total"),
                      "crashes": STATE.get("crash_count", 0),
+                     "deploys_last_hour": STATE.get("deploys_last_hour", 0),
                      "last_tb": (STATE.get("crashes") or [{}])[-1].get("tb")},
         "rss_mb": rss_mb(),
         "memory": memory_breakdown(),

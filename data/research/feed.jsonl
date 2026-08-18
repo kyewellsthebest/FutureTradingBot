@@ -1,0 +1,8 @@
+{"t": "2026-08-18T04:57:50+00:00", "msg": "context", "market": "NQ", "tier": 1, "conditions": ["credit_stress", "crowded_long", "crowded_short", "long_gamma", "short_gamma", "tight_funding"]}
+{"t": "2026-08-18T04:57:56+00:00", "msg": "context", "market": "ES", "tier": 1, "conditions": ["credit_stress", "crowded_long", "crowded_short", "long_gamma", "short_gamma", "tight_funding"]}
+{"t": "2026-08-18T04:58:01+00:00", "msg": "context", "market": "CL", "tier": 1, "conditions": ["credit_stress", "tight_funding"]}
+{"t": "2026-08-18T04:58:06+00:00", "msg": "context", "market": "GC", "tier": 1, "conditions": ["credit_stress", "tight_funding"]}
+{"t": "2026-08-18T04:58:11+00:00", "msg": "context", "market": "CL", "tier": 1, "conditions": ["credit_stress", "tight_funding"]}
+{"t": "2026-08-18T04:58:12+00:00", "msg": "context", "market": "GC", "tier": 1, "conditions": ["credit_stress", "tight_funding"]}
+{"t": "2026-08-18T04:58:12+00:00", "msg": "context", "market": "ES", "tier": 1, "conditions": ["credit_stress", "crowded_long", "crowded_short", "long_gamma", "short_gamma", "tight_funding"]}
+{"t": "2026-08-18T04:58:12+00:00", "msg": "context", "market": "NQ", "tier": 1, "conditions": ["credit_stress", "crowded_long", "crowded_short", "long_gamma", "short_gamma", "tight_funding"]}

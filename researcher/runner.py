@@ -61,6 +61,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from researcher.ledger import Ledger
 from researcher import pooled as PO          # noqa: E402
+from researcher import parallel as PAR       # noqa: E402
 from researcher import surrogate as SG
 from researcher import diagnose as DG            # noqa: E402
 from researcher import hypotheses as HY         # noqa: E402
@@ -1341,6 +1342,41 @@ def backfill_metrics(led, data, k=40, budget_s=45.0):
     return n
 
 
+def _merge_book(book, rows):
+    """Fold a worker's pooled measurements into the parent's book.
+
+    Each worker measured the SAME slate against its own markets, so the
+    per-market dictionaries are disjoint by construction and merging is
+    a union rather than a reconciliation.
+    """
+    for key, slot in (rows or {}).items():
+        cur = book.rows.setdefault(
+            key, {"hyp": slot.get("hyp"), "family": slot.get("family"),
+                  "by": {}})
+        if cur.get("hyp") is None:
+            cur["hyp"] = slot.get("hyp")
+            cur["family"] = slot.get("family")
+        cur["by"].update(slot.get("by") or {})
+
+
+def _rehydrate(rows, d):
+    """Put the tapes back on candidates that crossed a process boundary.
+
+    A DataFrame does not belong in a pickle sent between processes, so
+    workers return candidates without theirs. The parent already holds
+    the tape and can split it again -- deterministically, so the vault
+    boundary is identical to the one the worker used.
+    """
+    if d is None:
+        return []
+    srch, vault = split(d)
+    bar_s = bars_per(d)
+    out = []
+    for h, fam, r, bar, null99, mrows in rows:
+        out.append((h, fam, r, bar, srch, vault, bar_s, null99, mrows))
+    return out
+
+
 def gauntlet(sym, tier, cands, led, mem, libs, tv, cost):
     """What a candidate must survive, in order, before it is believed.
 
@@ -1540,37 +1576,70 @@ def main():
         for sym in syms:
             vols[sym] = float(data[sym]["close"].diff().abs().median() or 0.0)
 
-        def _run(sym):
-            tv, cost = SPEC[sym]
-            try:
-                return sym, sweep(sym, data[sym], led, mem, libs, 1,
-                                  tv, cost, points=points, mrows=mrows)
-            except Exception as exc:                          # noqa: BLE001
-                return sym, (None, f"sweep crashed on {sym}: "
-                                   f"{str(exc)[:200]}")
+        # PROCESSES, NOT THREADS. Measured on four markets: threads ran
+        # at 0.90x of sequential -- slower than not parallelising at all,
+        # because the GIL serialises everything here -- while processes
+        # ran at 2.95x. On a many-core box that difference is the whole
+        # throughput of the searcher. See researcher/parallel.py.
+        stage(f"sweeping {len(syms)} markets across {WORKERS} processes")
+        snap = PAR.snapshot(led, mem)
+        ctx = {"snap": snap, "data": data, "slate": SLATE["hyps"],
+               "surrogate": SLATE.get("surrogate"),
+               "libs": {k: v for k, v in libs.items()}}
+        t_par = time.time()
+        pool = PAR.Pool(WORKERS, ctx)
+        try:
+            results = pool.map((sym, 1, 500) for sym in syms)
+        finally:
+            pool.close()
+        say("swept_parallel", cycle=cycle, markets=len(syms),
+            workers=WORKERS, secs=round(time.time() - t_par, 1))
 
-        with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-            results = list(ex.map(_run, syms))
-
-        for sym, (out, err) in results:
+        for out in results:
             if os.path.exists(STOP):
                 break
+            sym = out.get("sym")
+            if out.get("error"):
+                # A worker failing on one market must not take the cycle
+                # down with it; a blind SELFTEST failure still must.
+                if "selftest" in str(out["error"]):
+                    led.halt(out["error"])
+                    say("HALT_selftest_failed", why=out["error"])
+                    led.save(force=True)
+                    mem.save()
+                    return
+                say("sweep_failed", market=sym, err=str(out["error"])[:300])
+                continue
             tv, cost = SPEC[sym]
-            if err:
-                led.halt(err)
-                say("HALT_selftest_failed", why=err)
-                led.save(force=True)
-                mem.save()
-                return
-            done, cands, kept = out
+            # REPLAY IN THE PARENT. One process owns the ledger, so the
+            # trial count that sets the bar is still written in exactly
+            # one place -- the property that made the thread pool safe
+            # is preserved without the thread pool.
+            PAR.replay(led, mem, out)
+            for k, v in (out.get("libs") or {}).items():
+                lib = libs.setdefault(k, FeatureLibrary(keep=20))
+                lib.kept.update(v.get("kept") or {})
+                lib.scores.update(v.get("scores") or {})
+            for fam, pts in (out.get("points") or {}).items():
+                points.setdefault(fam, []).extend(pts)
+            for fam, rows in (out.get("mrows") or {}).items():
+                mrows.setdefault(fam, []).extend(rows)
+            if SLATE.get("book") is not None:
+                _merge_book(SLATE["book"], out.get("book") or {})
+            LIVE["tested"] += int(out.get("done") or 0)
+            LIVE["market"] = sym
+            LIVE["tier"] = 1
+            # Candidates crossed the boundary without their tapes, which
+            # do not pickle sanely; the parent re-derives them.
+            cands = _rehydrate(out.get("candidates") or [], data.get(sym))
             gauntlet(sym, 1, cands, led, mem, libs, tv, cost)
-            stage(f"{sym}: saving the ledger")
-            led.save()
-            mem.save()
-            say("cycle_market", cycle=cycle, market=sym, tier=1, tested=done,
-                features=len(kept), trials=led.d["trials"],
-                bar=round(led.bar(), 2))
-            gc.collect()
+            say("cycle_market", cycle=cycle, market=sym, tier=1,
+                tested=out.get("done"), features=len(out.get("kept") or []),
+                trials=led.d["trials"], bar=round(led.bar(), 2))
+        stage("saving the ledger")
+        led.save()
+        mem.save()
+        gc.collect()
 
         # ---- JUDGE THE SLATE, once, on all the evidence at once.
         #
@@ -1701,9 +1770,10 @@ def main():
         # rather than being screened first -- and pay the higher bar of
         # one market and four weeks.
         if not os.path.exists(STOP) and cycle % 2 == 1:
-            res3 = T3_RES[((cycle - 1) // 2) % len(T3_RES)]
+            res3 = (T3_RES[((cycle - 1) // 2) % len(T3_RES)]
+                    if T3_RES else None)
             try:
-                b = DT.tier3(bar_s=res3)
+                b = DT.tier3(bar_s=res3) if res3 else None
             except Exception as exc:                          # noqa: BLE001
                 b = None
                 say("tier3_load_failed", err=str(exc)[:150])
