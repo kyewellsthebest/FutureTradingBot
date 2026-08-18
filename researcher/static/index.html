@@ -291,6 +291,7 @@ pre{font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--t2);
         <b>+0.1 to +0.3 RT · 8+ markets · 85%+ agreement · 100,000+ trades ·
         above the bar</b> — not a big number in one market.
       </div>
+      <div id="recent"></div>
       <div id="near"><div class="sk sk-line" style="width:70%"></div>
         <div class="sk sk-card"></div>
         <div class="sk sk-line" style="width:55%"></div>
@@ -520,6 +521,49 @@ async function tick(){
        one-look-only test against data the search was never allowed to see.
        </div>`;
 
+  // ── WHAT IT HAS TURNED UP RECENTLY, beside the all-time board.
+  //
+  // The board below ranks by strength, and strength is a MAXIMUM over
+  // everything ever tested. It only moves when something beats the best
+  // result in the project's history -- so on a searcher that is working
+  // correctly it sits unchanged for days while hundreds of thousands of
+  // trials happen behind it. That is what success at not overfitting
+  // looks like, and from the outside it is identical to a dead process.
+  // This window is the second view that tells the two apart.
+  const rc = s.recent||{};
+  const rrows = rc.rows||[];
+  if (rrows.length){
+    const top = rrows[0];
+    const tz = Number(top.z||0), tb = Number(top.bar_at_test||0);
+    $('#recent').innerHTML = `<div class="card" style="background:var(--s2);
+        margin-bottom:14px">
+      <h2><span class="e">🕐</span>best of the last ${rc.hours||24} hours</h2>
+      <div class="empty" style="font-size:13.5px">
+        The board below is an <b>all-time</b> record, so it only changes when
+        something beats the best result ever found — it can sit still for
+        days while the search runs flat out. This box only looks at recent
+        work, so it moves every round. <b>${num(rc.considered||0)}</b> ideas
+        measured in this window.
+      </div>
+      <div style="height:10px"></div>
+      <div class="nm" style="font-size:15px">${esc(top.what||'')}</div>
+      <div class="chg">${tz.toFixed(2)}σ of the ${tb ? tb.toFixed(2) : '—'}
+        it needed &nbsp;·&nbsp;
+        ${top.pooled
+          ? `${Number(top.cu||0).toFixed(3)} RT pooled over ${top.k||'?'} markets`
+          : `${Number(top.net||0).toFixed(3)} $/trade in ${esc(top.market||'')}`}
+        &nbsp;·&nbsp; ${num(top.n||0)} trades${
+        top.eff_n!=null ? ` (${num(top.eff_n)} independent)` : ''}
+        &nbsp;·&nbsp; ${ago(top.t)}</div>
+      <div class="mini">If this number is far below the board's and keeps
+        being far below it, the search is running and finding nothing new —
+        which is information. If this box stops updating at all, the search
+        has stopped, which is a fault.</div>
+    </div>`;
+  } else {
+    $('#recent').innerHTML = '';
+  }
+
   const nm = s.near||[];
   const MEDAL=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
   const pend = '<span style="font-size:12px;color:var(--muted);'
@@ -584,6 +628,19 @@ async function tick(){
           <b>${Number(x.mde).toFixed(2)} RT</b> or bigger — and anything
           that big is far more likely a bug than a find. Its silence is
           <u>not</u> evidence there is nothing here.</div>` : '';
+    // WHEN IT WAS FOUND, and on how many INDEPENDENT observations.
+    // This board ranks by strength, and strength is a high-water mark:
+    // it only moves when something beats the best result ever recorded.
+    // So it can legitimately sit unchanged for days while hundreds of
+    // thousands of trials happen behind it. Without a date that is
+    // indistinguishable from a dead searcher.
+    const found = x.t ? `<span class="pill">📅 found ${ago(x.t)}</span>` : '';
+    // Raw trades are not independent when a hold spans many bars. A
+    // cell holding 240 bars and firing every bar has 240x overlap, so
+    // 391 trades carry the information of two.
+    const thin = x.eff_n != null && x.n && x.eff_n < x.n / 8
+      ? `<span class="pill warn">⚠️ only ${num(x.eff_n)} independent of
+          ${num(x.n)} trades</span>` : '';
     const mark = x.killed ? '☠️' : (x.stale || x.code_stale) ? '🕗'
                : over ? '⚠️' : (MEDAL[i]||'');
     // A cross-market result is a different and much stronger kind of
@@ -598,6 +655,7 @@ async function tick(){
       <div class="rk">${mark}</div>
       <div class="bd">
         <div class="nm">${esc(x.what)}</div>
+        <div style="margin-bottom:6px">${found}${thin}</div>
         ${tag}
         ${x.pooled ? `
         <div class="mt">
@@ -633,14 +691,26 @@ async function tick(){
   // ── the map
   const MP = s.archive || {};
   const rt = v => v==null?'—':((v>0?'+':'')+Number(v).toFixed(3));
+  // A BIG cu WITH A TINY z IS NOISE, AND THE ROW MUST SAY SO. Overlapping
+  // trades are not independent observations: a cell holding 240 bars and
+  // firing every bar carries the information of two. Rendering "+110 RT
+  // on 391 trades" without that is how the map came to show pure noise
+  // at the top of the Strategies tab.
   const mrow = (x, tag) => !x ? '' : `
     <div class="item">
       <div class="t">${tag} ${esc(x.what||'')}</div>
       <div class="chg"><span class="pill">${esc(x.cell||'')}</span>
         <b style="color:${(x.cu||0)>0?'var(--pos)':'var(--neg)'}">${rt(x.cu)} RT</b>
+        &nbsp;·&nbsp; ${x.z==null?'—':Number(x.z).toFixed(2)}σ
         &nbsp;·&nbsp; ${x.per_week==null?'—':Number(x.per_week).toFixed(0)}/wk
-        &nbsp;·&nbsp; ${num(x.n)} trades
+        &nbsp;·&nbsp; ${num(x.n)} trades${
+        x.eff_n!=null ? ` (${num(x.eff_n)} independent)` : ''}
         &nbsp;·&nbsp; ${esc(x.market||'')}</div>
+      ${x.mde!=null && Number(x.mde) > 1
+        ? `<div class="gap">🔭 could only have detected an edge of
+            <b>${Number(x.mde).toFixed(1)} RT</b> or bigger, so the number
+            above is noise this cell had no power to distinguish from
+            zero.</div>` : ''}
     </div>`;
   $('#mapbox').innerHTML = (MP.filled)
     ? `<div class="nums" style="margin-bottom:12px">
@@ -687,6 +757,18 @@ $('#toggle').onclick = async()=>{
 // ── live counter, polled every second and eased between values so the
 // number moves continuously rather than jumping once a cycle
 let shown = null, target = null, lastT = 0;
+// "6h ago" from an ISO stamp. Deliberately coarse: the point is whether
+// a row is from this hour or from last week, never the exact minute.
+function ago(iso){
+  try{
+    const s = (Date.now() - new Date(iso).getTime())/1000;
+    if (!isFinite(s) || s < 0) return 'just now';
+    if (s < 90) return 'just now';
+    if (s < 5400) return Math.round(s/60) + ' min ago';
+    if (s < 172800) return Math.round(s/3600) + 'h ago';
+    return Math.round(s/86400) + ' days ago';
+  }catch(e){ return ''; }
+}
 let lastWork = -1, lastWorkAt = 0;
 async function live(){
   try{

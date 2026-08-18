@@ -44,6 +44,24 @@ def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _parse_t(v):
+    """Epoch seconds from the ISO stamps _now() writes. None on junk.
+
+    Entries written before timestamps were read back carry the same
+    format, so this needs no migration -- but an unreadable stamp must
+    return None rather than 0, or a window query would silently treat
+    every ancient row as brand new.
+    """
+    try:
+        s = str(v).replace("Z", "+00:00")
+        d = datetime.fromisoformat(s)
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.timestamp()
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
 def _num(v, default=0.0):
     """float() that survives None and junk. Used on result fields that
     legitimately do not exist for every kind of result."""
@@ -397,6 +415,16 @@ class Ledger:
             r = rec.get("result") or {}
             out.append({"fp": fp, "hyp": rec.get("hyp", {}),
                         "family": rec.get("family"),
+                        # WHEN IT WAS FOUND. The board ranks by strength
+                        # and strength is a HIGH-WATER MARK, so a good
+                        # early result sits at the top for weeks and the
+                        # board looks frozen no matter how much work has
+                        # happened since. Without a date there is no way
+                        # to tell a searcher that has found nothing new
+                        # from one that has stopped searching -- and
+                        # those are opposite conditions.
+                        "t": rec.get("t"),
+                        "eff_n": r.get("eff_n"),
                         "z": r.get("z"), "net": r.get("net"),
                         "gross": r.get("edge"), "n": r.get("n"),
                         # cross-market rows carry a different currency:
@@ -423,6 +451,60 @@ class Ledger:
                             and _num(r.get("net"), _num(r.get("cu"))) > 0
                             and not killed and not st)})
         return out
+
+    def recent_best(self, hours=24, k=5):
+        """The best of what was measured RECENTLY, however it ranks overall.
+
+        THE COMPLAINT THIS ANSWERS, verbatim: "it's showing the exact
+        same strategies, no updates ... after 200,000 searches it hasn't
+        found one strategy, even if unprofitable, that's a bit better
+        than the five we found this morning."
+
+        That observation was correct and the board was not broken. It
+        ranks by strength, strength is a MAXIMUM over everything ever
+        tested, and a maximum only moves when something beats it. The
+        top of the board sat at z 5.37 against a bar of 5.77, so every
+        one of those 200,000 later trials -- almost all of which score
+        below 3 -- left it untouched. A frozen high-water mark is what
+        SUCCESS at not overfitting looks like, and it is visually
+        identical to a dead process. That is the actual defect: not the
+        ranking, the absence of any second view.
+
+        So this reports the best of a WINDOW. It moves every cycle
+        because it is not a maximum over all time, and comparing it with
+        the all-time board is what tells you whether the search is still
+        turning anything up.
+        """
+        now = time.time()
+        rows = []
+        for fp, rec in self.d["tested"].items():
+            if not isinstance(rec, dict) or rec.get("stub"):
+                continue
+            ts = _parse_t(rec.get("t"))
+            if ts is None or now - ts > hours * 3600.0:
+                continue
+            r = rec.get("result") or {}
+            if not r:
+                continue
+            z = _num(r.get("z"))
+            net = _num(r.get("net"), _num(r.get("cu")))
+            rows.append(((1 if net > 0 else 0), z, fp, rec))
+        rows.sort(key=lambda t: (t[0], t[1]), reverse=True)
+        out = []
+        for _pos, z, fp, rec in rows[:k]:
+            r = rec.get("result") or {}
+            h = rec.get("hyp") or {}
+            out.append({
+                "fp": fp, "hyp": h, "family": rec.get("family"),
+                "t": rec.get("t"), "z": r.get("z"),
+                "net": r.get("net"), "cu": r.get("cu"), "n": r.get("n"),
+                "eff_n": r.get("eff_n"), "mde": r.get("mde"),
+                "k": r.get("k"), "agree": r.get("agree"),
+                "pooled": bool(r.get("pooled")),
+                "market": h.get("market"),
+                "bar_at_test": rec.get("bar_at_test"),
+                "killed": bool(rec.get("killed"))})
+        return {"hours": hours, "considered": len(rows), "rows": out}
 
     def halt(self, why):
         self.d["halts"].append({"t": _now(), "why": why})

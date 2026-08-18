@@ -887,24 +887,34 @@ def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
               "as broader. Coverage matters as much as the scores: an "
               "empty region of the map is a kind of strategy nothing has "
               "ever been tried in.", st["note"]))
-        rows = [["niche", "net RT/trade", "z", "trades", "/wk", "win",
-                 "RR", "market", "family"]]
+        F.append(Paragraph(
+            "READ eff n BEFORE cu. Overlapping trades are not "
+            "independent observations: a cell holding 240 bars while "
+            "firing on every bar carries the information of two, "
+            "whatever its raw trade count says. The four best elites on "
+            "this map were once +110, +79, +61 and +47 round trips per "
+            "trade on effective samples of 2, 2, 2 and 5 -- pure noise "
+            "wearing a four-figure trade count. The map now refuses a "
+            "niche below 30 effective observations and prints the "
+            "figure either way.", st["note"]))
+        rows = [["niche", "net RT/trade", "z", "trades", "eff n",
+                 "smallest visible", "/wk", "market", "family"]]
         items = sorted(cells.items(),
                        key=lambda kv: -(kv[1].get("cu")
                                         if kv[1].get("cu") is not None
                                         else -9e9))[:45]
         for name, c in items:
             rows.append([
-                nice(name)[:44],
+                nice(name)[:40],
                 _num_or(c.get("cu"), "{:+.3f}"),
                 _num_or(c.get("z")), _num_or(c.get("n"), "{:,.0f}"),
+                _num_or(c.get("eff_n"), "{:,.0f}"),
+                _num_or(c.get("mde"), "{:,.1f} RT"),
                 _num_or(c.get("per_week"), "{:,.1f}"),
-                _num_or(c.get("win_rate"), "{:.0%}"),
-                _num_or(c.get("rr")),
                 str(c.get("market", "?"))[:10],
-                str(c.get("family", ""))[:20]])
-        F.append(_table(rows, [44, 18, 12, 16, 12, 12, 11, 14, 23], st,
-                        size=6.4))
+                str(c.get("family", ""))[:18]])
+        F.append(_table(rows, [40, 18, 11, 15, 12, 20, 12, 14, 20], st,
+                        size=6.2))
         if len(cells) > 45:
             F.append(Paragraph(f"...{len(cells) - 45} further niches not "
                                f"listed.", st["note"]))
@@ -1137,6 +1147,59 @@ def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
             F.append(KeepTogether(
                 [Paragraph(b, st["note"]) for b in body]
                 + [Spacer(1, 4)]))
+
+    # ------------------------------------ what it turned up RECENTLY
+    F.append(Paragraph("7b2 &nbsp; The best of the last 24 hours",
+                       st["h2"]))
+    F.append(Paragraph(
+        "The board above is an ALL-TIME record. It ranks by strength, "
+        "strength is a maximum over everything ever tested, and a "
+        "maximum only moves when something beats the best result in the "
+        "project's history -- so on a searcher that is working correctly "
+        "it sits unchanged for days while hundreds of thousands of "
+        "trials happen behind it. That is what success at not "
+        "overfitting looks like, and from the outside it is identical to "
+        "a process that has stopped. This window is the second view that "
+        "tells them apart: it moves every cycle. If it is always far "
+        "below the board, the search is running and finding nothing new, "
+        "which is information. If it stops moving, that is a fault.",
+        st["note"]))
+    try:
+        from researcher.ledger import Ledger as _L2
+        _l2 = _L2.__new__(_L2)
+        _l2.d = led
+        import threading as _th
+        _l2._lock = _th.Lock()
+        rec = _l2.recent_best(hours=24, k=10)
+    except Exception as exc:                                  # noqa: BLE001
+        rec = None
+        F.append(Paragraph(f"unavailable: {_esc(exc)}", st["note"]))
+    if rec:
+        F.append(Paragraph(
+            f"{rec['considered']:,} measurements landed in this window.",
+            st["note"]))
+        if not rec["rows"]:
+            F.append(Paragraph(
+                "NOTHING measured in the last 24 hours. On a searcher "
+                "that is supposed to run continuously that is a fault, "
+                "not a quiet spell.", st["p"]))
+        else:
+            rows = [["#", "market", "z", "bar", "net", "unit", "trades",
+                     "eff n", "found", "family"]]
+            for i, r in enumerate(rec["rows"], 1):
+                pooled = r.get("pooled")
+                rows.append([
+                    str(i), str(r.get("market") or "POOLED")[:14],
+                    _num_or(r.get("z")), _num_or(r.get("bar_at_test")),
+                    _num_or(r.get("cu") if pooled else r.get("net"),
+                            "{:+.3f}"),
+                    "RT" if pooled else "$",
+                    _num_or(r.get("n"), "{:,.0f}"),
+                    _num_or(r.get("eff_n"), "{:,.0f}"),
+                    str(r.get("t") or "")[:16],
+                    str(r.get("family") or "")[:22]])
+            F.append(_table(rows, [8, 20, 13, 12, 16, 8, 16, 13, 26, 30],
+                            st, size=6.4))
 
     # ------------------------------------------------------------- vault
     F.append(PageBreak())

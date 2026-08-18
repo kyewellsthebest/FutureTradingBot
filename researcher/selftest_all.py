@@ -279,6 +279,54 @@ def test_feature_parser():
     return a and b
 
 
+def test_recent_window():
+    """The complaint: "it's showing the exact same strategies, no updates."
+
+    That was a correct observation about a board that was working as
+    designed. It ranks by strength, strength is a MAXIMUM over
+    everything ever tested, and a maximum only moves when something
+    beats it -- so a strong early result pins the board for weeks while
+    the search runs flat out behind it. Frozen is what success at not
+    overfitting looks like, and it is indistinguishable from dead.
+
+    So there are two views now, and this pins both: the all-time board
+    must still surface the old high-water row, and the recent window
+    must NOT.
+    """
+    import json as _j
+    from datetime import datetime, timedelta, timezone as _tz
+    from researcher.ledger import Ledger
+    p = os.path.join(os.environ["RESEARCH_DIR"], "recent_test.json")
+    if os.path.exists(p):
+        os.remove(p)
+    led = Ledger(p)
+    old_t = (datetime.now(_tz.utc) - timedelta(days=3)).isoformat(
+        timespec="seconds")
+    new_t = datetime.now(_tz.utc).isoformat(timespec="seconds")
+    led.record({"x": "ancient", "market": "NQ", "tier": 1},
+               {"z": 5.37, "net": 0.9, "n": 900, "eff_n": 900}, "fam/a")
+    led.d["tested"][led.fingerprint(
+        {"x": "ancient", "market": "NQ", "tier": 1})]["t"] = old_t
+    led.record({"x": "today", "market": "ES", "tier": 1},
+               {"z": 2.10, "net": 0.4, "n": 800, "eff_n": 800}, "fam/a")
+    led.d["tested"][led.fingerprint(
+        {"x": "today", "market": "ES", "tier": 1})]["t"] = new_t
+
+    board = led.near_misses(5)
+    rec = led.recent_best(hours=24, k=5)
+    top_all = (board[0]["hyp"] or {}).get("x") if board else None
+    top_rec = (rec["rows"][0]["hyp"] or {}).get("x") if rec["rows"] else None
+    a = check("the all-time board still shows the old high-water result",
+              top_all == "ancient", f"showed {top_all!r}")
+    b = check("the recent window excludes it and shows this cycle's best",
+              top_rec == "today" and rec["considered"] == 1,
+              f"showed {top_rec!r} from {rec['considered']} rows in window")
+    c = check("every leaderboard row carries the date it was found",
+              all(r.get("t") for r in board),
+              f"{sum(1 for r in board if not r.get('t'))} rows undated")
+    return a and b and c
+
+
 def test_thread_safety():
     import threading
     from researcher.ledger import Ledger
@@ -424,6 +472,7 @@ def main():
     test_brackets()
     test_context_lag()
     test_feature_parser()
+    test_recent_window()
     test_thread_safety()
     test_validators()
     test_plausibility()

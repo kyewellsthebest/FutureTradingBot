@@ -498,6 +498,7 @@ def api_state():
         "calibration": read_json(RDIR / "calibration.json", None),
         "survivors": survivors(),
         "near": near_misses(),
+        "recent": recent_best(),
         "ledger": led,
         "learning": learn,
         # the honest headline. Zero survivors with a high bar is the
@@ -570,10 +571,37 @@ def near_misses(k=15):
                         "agree": r.get("agree"),
                         "stale": r.get("stale"), "killed": r.get("killed"),
                         "code_stale": r.get("code_stale"),
+                        # WHEN, and on how many INDEPENDENT observations.
+                        # Without the date a high-water board looks
+                        # frozen; without eff_n a cell of two overlapping
+                        # days reads the same as one of eight hundred.
+                        "t": r.get("t"), "eff_n": r.get("eff_n"),
                         "kill_reasons": r.get("kill_reasons") or []})
         return out
     except Exception:                                         # noqa: BLE001
         return []
+
+
+def recent_best(hours=24, k=5):
+    """The best of a recent WINDOW, beside the all-time board.
+
+    The all-time board ranks by strength and strength is a maximum, so
+    it only moves when something beats the best result ever recorded. On
+    a searcher that is working correctly that is rare, and the board sits
+    unchanged for days while hundreds of thousands of trials happen
+    behind it -- indistinguishable, from the outside, from a process
+    that has stopped. This is the second view that tells them apart.
+    """
+    from researcher.ledger import Ledger
+    try:
+        led = Ledger(str(RDIR / "ledger.json"))
+        d = led.recent_best(hours=hours, k=k)
+        for r in d["rows"]:
+            r["what"] = describe(r.get("hyp") or {})
+            r.pop("hyp", None)
+        return d
+    except Exception:                                         # noqa: BLE001
+        return {"hours": hours, "considered": 0, "rows": []}
 
 
 def archive_view():
@@ -601,6 +629,13 @@ def archive_view():
                                                e["cell"].split(","))),
                     "cu": e.get("cu"), "z": e.get("z"), "n": e.get("n"),
                     "per_week": e.get("per_week"),
+                    # WITHOUT THESE, cu IS UNREADABLE. A cell holding 240
+                    # bars while firing every bar has 240x overlap, so
+                    # its 391 trades carry the information of two -- and
+                    # "+110 RT on 391 trades" is then the most
+                    # misleading sentence this console can print.
+                    "eff_n": e.get("eff_n"), "mde": e.get("mde"),
+                    "overlap": e.get("overlap"),
                     "win_rate": e.get("win_rate"), "rr": e.get("rr"),
                     "market": e.get("market")}
         return {"filled": cov["filled"], "total": cov["total"],

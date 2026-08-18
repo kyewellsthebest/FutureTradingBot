@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 
 # ---------------------------------------------------------------- axes
 #
@@ -82,6 +83,31 @@ SIDE_NAMES = ["long", "short"]
 # 200 changes the map at all.
 MIN_TRADES = 200
 
+# AND A FLOOR ON THE *EFFECTIVE* SAMPLE, WHICH IS THE ONE THAT COUNTS.
+#
+# The raw trade count was the only guard, and raw trades are not
+# independent observations. A cell holding 240 bars while firing on
+# every bar has 240x overlap, so 391 trades carry the information of
+# TWO. Measured on the map as it stood, the top four elites were:
+#
+#   cu +110.20   z 0.151   raw n   391   effective n 2   mde 2,558 RT
+#   cu  +79.40   z 0.207   raw n   204   effective n 2   mde 1,342 RT
+#   cu  +60.97   z 0.159   raw n   220   effective n 2   mde 1,345 RT
+#   cu  +47.18   z 0.140   raw n 1,251   effective n 5   mde 1,181 RT
+#
+# Every one is two lucky days wearing a four-figure trade count. The
+# console rendered them as "+110 RT/trade on 391 trades", which is the
+# most misleading sentence this project can produce: the number is a
+# maximum over a huge search of cells that could not have detected
+# anything smaller than a thousand round trips per trade. The z column
+# said so all along -- 0.151 is indistinguishable from nothing -- but
+# the map ranked on cu and never showed z.
+#
+# 30 effective observations is still thin. It is a floor against
+# nonsense, not a claim of significance, and the map now carries eff_n
+# and mde on every cell so the thinness is visible rather than implied.
+MIN_EFF = int(os.environ.get("ARCHIVE_MIN_EFF", "30"))
+
 
 def _bucket(v, edges):
     try:
@@ -104,6 +130,11 @@ def behaviour(hyp, result):
         return None
     n = int(result.get("n") or 0)
     if n < MIN_TRADES:
+        return None
+    # eff_n is absent on results from older engines; treat missing as
+    # failing, because admitting an unknown sample size is exactly the
+    # hole this closes.
+    if int(result.get("eff_n") or 0) < MIN_EFF:
         return None
     f = _bucket(result.get("per_week"), FREQ_EDGES)
     h = _bucket(hyp.get("hold_s"), HOLD_EDGES)
@@ -173,6 +204,11 @@ class Archive:
         self.cells[key] = {
             "cu": round(cu, 5), "hyp": hyp, "family": family,
             "z": result.get("z"), "n": result.get("n"),
+            # THE TWO NUMBERS THAT SAY WHETHER cu MEANS ANYTHING.
+            # Without them a cell of two overlapping days and a cell of
+            # eight hundred independent ones render identically.
+            "eff_n": result.get("eff_n"), "mde": result.get("mde"),
+            "overlap": result.get("overlap"),
             "per_week": result.get("per_week"),
             "win_rate": result.get("win_rate"), "rr": result.get("rr"),
             "market": hyp.get("market"),
@@ -305,10 +341,12 @@ def selftest(verbose=True):
     #    frequent one is the only one that can pay the bills.
     rare = ({"shape": "gap", "hold_s": 3600, "exit": [1.0, 5.0],
              "ls": "long"},
-            {"cu": 0.90, "n": 400, "per_week": 3, "z": 6.0})
+            {"cu": 0.90, "n": 400, "per_week": 3, "z": 6.0,
+             "eff_n": 400})
     freq = ({"shape": "run_up", "hold_s": 60, "exit": [1.0, 1.0],
              "ls": "long"},
-            {"cu": 0.14, "n": 90000, "per_week": 3000, "z": 4.0})
+            {"cu": 0.14, "n": 90000, "per_week": 3000, "z": 4.0,
+             "eff_n": 9000})
     A.consider(rare[0], "shape/gap", rare[1])
     A.consider(freq[0], "shape/run_up", freq[1])
     got = A.best_at_frequency(1000)
@@ -331,6 +369,24 @@ def selftest(verbose=True):
               f"worse one in the same cell  — {cell['cu']:+.2f} RT")
     if not ok:
         fails.append("cell not improved by a better occupant")
+
+    # 2b. THE FAILURE THAT PUT NOISE AT THE TOP OF THE CONSOLE. A cell
+    #     with a large RAW trade count but almost no independent
+    #     observations must not take a niche, however spectacular its
+    #     number. The four best elites on the real map were exactly this:
+    #     240x overlap, effective n of 2, and cu up to +110 RT.
+    thin = ({"shape": "inside", "hold_s": 3600, "exit": None,
+             "ls": "long"},
+            {"cu": 110.2, "n": 391, "per_week": 800, "z": 0.151,
+             "eff_n": 2, "mde": 2558.1})
+    took = A.consider(thin[0], "shape/inside", thin[1])
+    ok = not took
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  a huge number built from two "
+              f"independent observations is refused a niche  — 391 raw "
+              f"trades, effective n 2, +110.20 RT {'rejected' if ok else 'ACCEPTED'}")
+    if not ok:
+        fails.append("thin cell admitted to the map on raw trade count")
 
     worse = dict(freq[1]); worse["cu"] = -5.0
     A.consider(freq[0], "shape/run_up", worse)
