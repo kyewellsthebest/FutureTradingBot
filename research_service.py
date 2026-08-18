@@ -504,7 +504,24 @@ _LED_LOCK = threading.Lock()
 
 
 def ledger_data(max_age=5.0):
-    """The parsed ledger, cached until the file actually changes."""
+    """The parsed ledger, cached until the file actually changes.
+
+    PREFER THE SEARCHER'S OWN OBJECT. The search thread runs in THIS
+    process and already holds the ledger; parsing the file again made a
+    second copy of it -- 413 MB at 336,449 entries -- and every forked
+    worker then inherited and dirtied both. That was a measurable share
+    of the memory that got the container killed. Reading the live object
+    costs nothing, is never stale, and is the same data by definition.
+    The file path stays as the fallback for the moments before the
+    searcher has loaded, and for anyone running the console alone.
+    """
+    try:
+        from researcher import runner as R
+        live = R.LIVE_LEDGER.get("l")
+        if live is not None and live.d.get("tested") is not None:
+            return live.d
+    except Exception:                                         # noqa: BLE001
+        pass
     p = RDIR / "ledger.json"
     try:
         st = p.stat()
@@ -553,8 +570,12 @@ def from_ledger(name, fn):
     # ledger_data() is a stat and a comparison on the warm path, so
     # calling it here costs nothing and is the only thing that can
     # notice a new cycle.
-    ledger_data()
-    key = _LED.get("key")
+    d = ledger_data()
+    # KEY ON WHAT ACTUALLY CHANGES. With the live object there is no
+    # file mtime to watch, so the trial count is the identity: it moves
+    # on every recorded hypothesis and never moves backwards.
+    key = _LED.get("key") if _LED.get("d") is d else (
+        "live", d.get("trials"), len(d.get("tested") or {}))
     hit = _DERIVED.get(name)
     if hit and hit[0] == key:
         return hit[1]

@@ -275,19 +275,99 @@ MEM_LIMIT_MB = _mem_limit_mb()
 PEAK_PER_SWEEP_MB = float(os.environ.get("RESEARCH_PEAK_MB", "160"))
 BASE_MB = float(os.environ.get("RESEARCH_BASE_MB", "700"))
 
+# THE COST THAT WAS MISSING, AND IT IS THE ONE THAT GREW.
+#
+# The formula above treats a worker as a fixed 160 MB. It is not: a
+# forked child also DIRTIES the parent's ledger. Copy-on-write does not
+# save you in CPython, because touching any object writes its refcount
+# and therefore its page. Measured directly -- parent holding a 336,449
+# entry ledger, eight forked children each reading the snapshot the way
+# a sweep does:
+#
+#     baseline 0.89 GB -> 1.68 GB with 8 workers = 102 MB EACH
+#     gc.freeze() made no difference
+#
+# That is ~0.3 KB per ledger entry per worker, and the ledger grows all
+# day. At 47 workers and 336k entries it is 4.8 GB of pure fork
+# overhead that the sizing formula could not see -- which is how a box
+# with a 24 GB limit reached 20 GB and was killed. The console's own
+# memory graph showed the sawtooth for hours.
+#
+# So the per-worker figure is now computed from the ledger's actual
+# size rather than assumed constant.
+LEDGER_DIRTY_KB_PER_ENTRY = float(
+    os.environ.get("RESEARCH_DIRTY_KB", "0.30"))
 
-def _worker_count():
+
+def rss_mb():
+    """This process's resident memory, right now."""
+    try:
+        with open("/proc/self/statm") as fh:
+            return (int(fh.read().split()[1])
+                    * os.sysconf("SC_PAGE_SIZE") / 1e6)
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
+def per_worker_mb(entries=0):
+    return PEAK_PER_SWEEP_MB + (entries * LEDGER_DIRTY_KB_PER_ENTRY / 1024.0)
+
+
+def _worker_count(entries=0, parent_mb=None):
+    """How many children this box can actually hold.
+
+    MEASURED PARENT, NOT AN ASSUMED CONSTANT. BASE_MB was a guess of
+    700, and the parent is nothing like that once it holds 23 tier-1
+    tapes, eight deep contracts and a ledger -- the real figure is
+    several gigabytes and it grows all day. Sizing a 47-worker pool
+    against a stale guess is how the box reached 20 GB of a 24 GB limit
+    and was killed. Every child starts as a copy of the parent, so the
+    parent's size is the single largest term and it is knowable for
+    free.
+    """
     cores = max(1, (os.cpu_count() or 2) - 1)
     env = os.environ.get("RESEARCH_WORKERS")
     if env:
         return max(1, int(env))
     if not MEM_LIMIT_MB:
         return min(cores, 4)
-    room = (MEM_LIMIT_MB - BASE_MB) / PEAK_PER_SWEEP_MB
+    base = parent_mb if parent_mb else (rss_mb() or BASE_MB)
+    # Leave a fifth of the limit unspent. A sweep's peak is not its
+    # average, the kernel kills on the peak, and a searcher that is
+    # dead is slower than one running two workers short.
+    room = (MEM_LIMIT_MB * 0.80 - base) / per_worker_mb(entries)
     return int(max(1, min(cores, room)))
 
 
 WORKERS = _worker_count()
+
+
+def resize_workers(led):
+    """Re-size the pool for the ledger as it is NOW, not as it booted.
+
+    The per-worker cost grows with the ledger, so a pool sized at boot
+    is oversized by lunchtime. Called each cycle; only ever narrows
+    toward what the memory actually supports.
+    """
+    global WORKERS
+    if os.environ.get("RESEARCH_WORKERS"):
+        return WORKERS
+    try:
+        n = len(led.d.get("tested") or {})
+    except Exception:                                         # noqa: BLE001
+        return WORKERS
+    parent = rss_mb()
+    w = _worker_count(n, parent_mb=parent)
+    if w != WORKERS:
+        say("workers_resized", was=WORKERS, now=w, ledger_entries=n,
+            parent_rss_mb=None if parent is None else round(parent),
+            per_worker_mb=round(per_worker_mb(n)),
+            limit_mb=None if not MEM_LIMIT_MB else round(MEM_LIMIT_MB),
+            why="a forked worker dirties ~0.3 KB per ledger entry, so "
+                "the pool that fitted at boot does not fit once the "
+                "ledger has grown")
+        WORKERS = w
+    return WORKERS
 
 # A HARD BOUND ON CONCURRENT PEAKS, independent of the pool size. Even
 # if the pool is widened, only this many markets may be in the
@@ -1595,7 +1675,7 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
            "libs": {k: v for k, v in libs.items()
                     if k.split("/")[0] in deep}}
     stage(f"deep tier: {len(syms)} NQ contracts at {res}s bars")
-    pool = PAR.Pool(min(WORKERS, len(syms)), ctx)
+    pool = PAR.Pool(min(resize_workers(led), len(syms)), ctx)
     try:
         results = pool.map((s, 2, int(os.environ.get("RESEARCH_BUDGET_T2",
                                                      "400")))
@@ -1646,6 +1726,9 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
     if not os.path.exists(STOP):
         _judge_deep(dbook, res, cycle, led, mem, syms)
 
+
+# The running searcher's own Ledger, for readers in this process.
+LIVE_LEDGER = {"l": None}
 
 LIBS_PATH = os.path.join(RDIR, "features.json")
 
@@ -2035,6 +2118,12 @@ def main():
         effective_n=DT.effective_n(sorted(data)),
         note="correlated markets are not independent evidence")
 
+    # THE ONE LEDGER. The console lives in this same process and was
+    # parsing the file again for itself -- a second 413 MB copy of an
+    # object the searcher already holds, and one that every forked
+    # worker then inherits and dirties. Handing over the live object
+    # removes both.
+    LIVE_LEDGER["l"] = led
     libs = _load_libs()
     cycle = 0
     # Hand the sampler live references so the learning graphs gain a
@@ -2186,12 +2275,15 @@ def main():
         # book merges the pieces exactly as it merges markets. Shard 0
         # also does the market's private sweep; shards 1+ measure slate
         # only, so nothing is scored or charged twice.
-        shards = max(1, min(4, WORKERS // max(1, len(syms))))
+        # Re-size for the ledger as it is NOW. Every child is a copy of
+        # this process, and this process grows all day.
+        nw = resize_workers(led)
+        shards = max(1, min(4, nw // max(1, len(syms))))
         budget = int(os.environ.get("RESEARCH_BUDGET", "1200"))
         jobs = [(sym, 1, budget, (i, shards))
                 for sym in syms for i in range(shards)]
         stage(f"sweeping {len(syms)} markets across "
-              f"{min(WORKERS, len(jobs))} processes"
+              f"{min(nw, len(jobs))} processes"
               + (f" ({shards} slate shards each)" if shards > 1 else ""))
         snap = PAR.snapshot(led, mem)
         ctx = {"snap": snap, "data": data, "slate": SLATE["hyps"],
@@ -2199,13 +2291,13 @@ def main():
                "libs": {k: v for k, v in libs.items()}}
         t_par = time.time()
         # Never fork more children than there is work for them.
-        pool = PAR.Pool(min(WORKERS, len(jobs)), ctx)
+        pool = PAR.Pool(min(nw, len(jobs)), ctx)
         try:
             results = pool.map(jobs)
         finally:
             pool.close()
         say("swept_parallel", cycle=cycle, markets=len(syms),
-            workers=min(WORKERS, len(jobs)), shards=shards, jobs=len(jobs),
+            workers=min(nw, len(jobs)), shards=shards, jobs=len(jobs),
             secs=round(time.time() - t_par, 1))
 
         for out in results:
