@@ -180,8 +180,3 @@ def selftest(verbose=True):
         if not has:
             fails.append(f"{name} has no CONTROL")
     return fails
-
-
-if __name__ == "__main__":
-    f = selftest()
-    print("\nexperiments selftest:", "PASS" if not f else f"FAIL {f}")

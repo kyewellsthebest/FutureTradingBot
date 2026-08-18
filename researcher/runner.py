@@ -2664,7 +2664,13 @@ def main():
             xp = os.path.join(RDIR, "experiments.json")
             store = _read_json(xp, {}) or {}
             out = EXP.run_all({"data": data, "spec": SPEC,
-                               "bar": led.bar(), "cycle": cycle},
+                               "bar": led.bar(), "cycle": cycle,
+                               # by reference, not a copy -- the ledger
+                               # is ~84 MB parsed and an experiment that
+                               # duplicated it would OOM the box it runs
+                               # on. Experiments read it; they must not
+                               # write to it.
+                               "ledger": led.d},
                               store, say=say)
             if out.get("measurements"):
                 led.bump(int(out["measurements"]))
