@@ -699,6 +699,7 @@ def near_misses(k=15):
                         "gross": r["gross"], "net": r["net"], "n": r["n"],
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),
                         "per_week": r.get("per_week"),
+                        "per_week_per_market": r.get("per_week_per_market"),
                         "bar": r["bar_at_test"], "passed": r["passed"],
                         "tier": (r["hyp"] or {}).get("tier"),
                         # pooled rows are a different KIND of result and

@@ -1138,8 +1138,16 @@ def state_pdf(rdir, extra=None, top=100, source=True, led=None) -> bytes:
     if not board:
         F.append(Paragraph("Nothing on the board yet.", st["note"]))
     else:
+        F.append(Paragraph(
+            "READ THE TRADE COUNT CAREFULLY on a pooled row. It is the "
+            "total across EVERY market in the pool over the whole tape "
+            "history -- about nine years for tier 1 -- not a rate. "
+            "\"790,863 trades\" is roughly seventy a week per market. "
+            "The /wk column is the rate, summed over the pool, and "
+            "/wk/mkt is what one market actually fires.", st["note"]))
         rows = [["#", "market", "t", "family", "z", "bar", "net", "unit",
-                 "trades", "/wk", "win", "RR", "MDE", "mkts", "flags"]]
+                 "trades", "/wk", "/wk/mkt", "win", "RR", "MDE", "mkts",
+                 "flags"]]
         for i, r in enumerate(board, 1):
             h = r.get("hyp") or {}
             pooled = r.get("pooled")
@@ -1166,14 +1174,15 @@ def state_pdf(rdir, extra=None, top=100, source=True, led=None) -> bytes:
                 "RT" if pooled else "$",
                 _num_or(r.get("n"), "{:,.0f}"),
                 _num_or(r.get("per_week"), "{:,.1f}"),
+                _num_or(r.get("per_week_per_market"), "{:,.1f}"),
                 _num_or(r.get("win_rate"), "{:.0%}"),
                 _num_or(r.get("rr")),
                 _num_or(r.get("mde"), "{:.3f}"),
                 (_num_or(r.get("k"), "{:,.0f}") + "/" +
                  _num_or(r.get("agree"), "{:.0%}")) if pooled else "—",
                 " ".join(flags)[:22]])
-        F.append(_table(rows, [6, 15, 4, 22, 11, 10, 13, 7, 14, 10, 10,
-                               9, 11, 14, 22], st, size=6.0))
+        F.append(_table(rows, [5, 13, 4, 19, 10, 9, 12, 6, 13, 9, 12,
+                               9, 8, 10, 12, 18], st, size=5.8))
 
         F.append(PageBreak())
         F.append(Paragraph(f"7b &nbsp; Full specification of each",

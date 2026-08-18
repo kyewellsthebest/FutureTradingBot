@@ -437,6 +437,7 @@ class Ledger:
                         "pooled": bool(r.get("pooled")),
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),
                         "per_week": r.get("per_week"),
+                        "per_week_per_market": r.get("per_week_per_market"),
                         "bar_at_test": rec.get("bar_at_test"),
                         "checked": bool(rec.get("checked")),
                         "stale": self.stale(rec) and not rec.get("rescored"),

@@ -1632,7 +1632,9 @@ def _judge_deep(book, res, cycle, led, mem, syms):
              "cu": round(v["mean_cost_units"], 5),
              "edge": None, "net": None,
              "n": v["n_total"], "eff_n": int(v["effective_n"]),
-             "mde": v.get("mde"), "markets": v["markets"], "k": v["k"],
+             "mde": v.get("mde"), "per_week": v.get("per_week"),
+             "per_week_per_market": v.get("per_week_per_market"),
+             "markets": v["markets"], "k": v["k"],
              "agree": v["agree"], "tau2": round(v["tau2"], 6),
              "per_market": v["per_market"], "pooled": True,
              "one_instrument": True}
@@ -2422,6 +2424,10 @@ def main():
                        "edge": None, "net": None,
                        "n": v["n_total"], "eff_n": int(v["effective_n"]),
                        "mde": v.get("mde"),
+                       # so the board can say how often it fires, not
+                       # just how many times it ever has
+                       "per_week": v.get("per_week"),
+                       "per_week_per_market": v.get("per_week_per_market"),
                        "markets": v["markets"], "k": v["k"],
                        "agree": v["agree"], "tau2": round(v["tau2"], 6),
                        "per_market": v["per_market"], "pooled": True}

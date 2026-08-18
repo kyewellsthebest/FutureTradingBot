@@ -126,7 +126,15 @@ class PooledBook:
         if slot["hyp"] is None:
             slot["hyp"] = {kk: vv for kk, vv in h.items()
                            if kk not in ("market", "tier", "_family")}
-        slot["by"][sym] = (mu, se, n)
+        # PER-WEEK TRAVELS WITH IT. Without a rate, n_total is the sum
+        # of every trade in every market across the WHOLE tape history
+        # -- nine years for tier 1 -- and the console printed it beside
+        # "/wk UNKNOWN". "790,863 trades" then reads as a frequency when
+        # it is a total, and there is no way to tell from the row that
+        # it means about seventy a week per market. A trade count with
+        # no time in it cannot be judged, and this leaderboard exists to
+        # be judged.
+        slot["by"][sym] = (mu, se, n, float(result.get("per_week") or 0.0))
 
     # ------------------------------------------------------------ test
     def test(self, effective_n, min_markets=MIN_MARKETS):
@@ -157,10 +165,13 @@ def pool(by, effective_n):
     mu = np.array([by[s][0] for s in syms], float)
     se = np.array([by[s][1] for s in syms], float)
     nn = np.array([by[s][2] for s in syms], int)
+    # tuples written before per_week was carried have three entries
+    pw = np.array([(by[s][3] if len(by[s]) > 3 else 0.0) for s in syms],
+                  float)
     ok = np.isfinite(mu) & np.isfinite(se) & (se > 0)
     if ok.sum() < 2:
         return None
-    mu, se, nn = mu[ok], se[ok], nn[ok]
+    mu, se, nn, pw = mu[ok], se[ok], nn[ok], pw[ok]
     syms = [s for s, o in zip(syms, ok) if o]
     k = len(syms)
 
@@ -215,6 +226,11 @@ def pool(by, effective_n):
         "tau2": float(tau2),
         "Q": round(Q, 2),
         "n_total": int(nn.sum()),
+        # trades a week if the mechanism ran in every market that
+        # measured it, and the same figure per market -- the second is
+        # the one to compare against "how often does this actually fire"
+        "per_week": round(float(pw.sum()), 2),
+        "per_week_per_market": round(float(pw.sum()) / max(k, 1), 2),
         "mde": round(float(mde), 4),
         "per_market": {s: round(float(m), 4) for s, m in zip(syms, mu)},
         # A mechanism must be broad AND consistent AND pay for itself.
