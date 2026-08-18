@@ -305,6 +305,15 @@ def read_json(p, default=None):
         return default
 
 
+def memory_breakdown():
+    """What the searcher itself says its memory is going on."""
+    try:
+        from researcher import runner as R
+        return R.memory_report()
+    except Exception:                                         # noqa: BLE001
+        return {}
+
+
 def rss_mb():
     """Resident memory, from /proc — no psutil dependency.
 
@@ -454,6 +463,7 @@ def api_state():
                      "crashes": STATE.get("crash_count", 0),
                      "last_tb": (STATE.get("crashes") or [{}])[-1].get("tb")},
         "rss_mb": rss_mb(),
+        "memory": memory_breakdown(),
         "tiers": cached_tiers(),
         "backup": STATE["backup"],
         "adaptations": adaptations(),

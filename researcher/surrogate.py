@@ -266,11 +266,17 @@ class Surrogate:
         return out
 
 
-def from_ledger(led, cap=120000):
+def from_ledger(led, cap=40000):
     """Build the training set out of everything measured so far.
 
     Cost units, so markets are comparable. Stubs and rows without a
     usable measurement are skipped.
+
+    The cap is a MEMORY bound, not a statistical one: each row is a dict
+    of about ten short strings, so 120,000 of them was ~110 MB held
+    while fitting, inside a container that was already being killed for
+    memory. The most recent 40,000 measurements are plenty to estimate
+    effects that need only a few hundred observations each.
     """
     rows = []
     for _fp, rec in list(led.d["tested"].items())[-cap:]:

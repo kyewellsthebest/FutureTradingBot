@@ -185,6 +185,51 @@ T2_RES = [60, 15, 300]
 T3_RES = [5, 1, 30]
 
 
+def memory_report():
+    """Where the resident memory actually is.
+
+    Written because two rounds of this were spent guessing. The
+    container was being killed at 2.1 GB and the honest answer to "what
+    is using it" was "I do not know" -- so now the process says, and the
+    next person does not have to reason from the outside.
+    """
+    import sys as _sys
+    out = {}
+    try:
+        with open("/proc/self/statm") as fh:
+            out["rss_mb"] = round(int(fh.read().split()[1])
+                                  * os.sysconf("SC_PAGE_SIZE") / 1e6, 1)
+    except Exception:                                         # noqa: BLE001
+        pass
+    try:
+        led = _HIST_CTX.get("led")
+        if led is not None:
+            t = led.d["tested"]
+            full = sum(1 for r in t.values()
+                       if isinstance(r, dict) and not r.get("stub"))
+            out["ledger_entries"] = len(t)
+            out["ledger_full"] = full
+            out["ledger_stubs"] = len(t) - full
+            # measured, not assumed: 3,462 B for a full record, 265 for
+            # a stub, from a real ledger
+            out["ledger_mb"] = round((full * 3462 + (len(t) - full) * 265)
+                                     / 1e6, 1)
+    except Exception:                                         # noqa: BLE001
+        pass
+    try:
+        out["levels_cache"] = len(_LEVELS)
+        out["levels_mb"] = round(sum(
+            sum(_sys.getsizeof(v) for v in lv.values())
+            for lv, _u in _LEVELS.values()) / 1e6, 1)
+    except Exception:                                         # noqa: BLE001
+        pass
+    try:
+        out["libs"] = len(_HIST_CTX.get("libs") or {})
+    except Exception:                                         # noqa: BLE001
+        pass
+    return out
+
+
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -372,10 +417,23 @@ def _eval_dest(d, h, tv, cost, delay=0, memo=None):
     """
     if "high" not in d.columns:
         return None
+    # THE CACHE THAT ATE THE CONTAINER.
+    #
+    # build_levels for ONE market is 21 MB of arrays (14 levels over
+    # 185,000 bars). This cache was allowed to reach 30 of them before
+    # clearing, so its ceiling was 621 MB -- held for the life of the
+    # process, on top of the ledger and the tapes. Measured, and it is
+    # the largest single consumer in the searcher.
+    #
+    # Only the markets currently being swept need to be here, and sweeps
+    # run WORKERS-at-a-time. Bounded to that plus slack, evicting oldest
+    # first rather than clearing the lot (a full clear throws away the
+    # entry the caller is about to ask for again).
     k = (id(d), len(d))
     if k not in _LEVELS:
-        if len(_LEVELS) > 30:
-            _LEVELS.clear()
+        cap = max(2, WORKERS + 1)
+        while len(_LEVELS) >= cap:
+            _LEVELS.pop(next(iter(_LEVELS)))
         _LEVELS[k] = (DS.build_levels(d),
                       BR.atr(d["high"].values, d["low"].values,
                              d["close"].values, 60))
