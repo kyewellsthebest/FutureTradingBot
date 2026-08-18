@@ -308,8 +308,31 @@ SLATE = {"hyps": [], "book": None, "surrogate": None}
 # question: the ledger says what has been tried, the map says what the
 # best thing of each KIND is. See researcher/archive.py.
 ARCH = {"a": None}
-T2_RES = [60, 15, 300]
-T3_RES = [5, 1, 30]
+# RESOLUTION ROTATION, WEIGHTED BY WHERE THE POWER ACTUALLY IS.
+#
+# Measured on the NQ tapes on disk, per-trade dispersion in round trips
+# and the trades an edge of +0.15 RT would need to clear a 5.3 bar:
+#
+#   tape        hold     sd (RT)    trades needed    at 10% firing,
+#                                                     20 markets
+#   5-min bars    5m        74.4        6,902,589      9,100 weeks
+#   5-min bars   30m       181.9       41,296,793     55,000 weeks
+#   60s bars      60s       36.9        1,697,486        450 weeks
+#   15s bars      15s       17.7          390,641         26 weeks
+#   15s bars      90s       45.1        2,537,460        168 weeks
+#
+# Dispersion grows as the square root of hold, so the trades needed
+# grow LINEARLY with it -- and the number of trades available shrinks
+# linearly too, which squares the penalty. Every factor of four in
+# resolution is a factor of sixteen in how long it takes to see the same
+# edge. 15-second bars are not "one of three resolutions"; they are the
+# only tape on disk where anything of a plausible size is reachable at
+# all, and 15s appears twice here for that reason. 300s stays in the
+# rotation because the horizon fits say a few families do not break even
+# until minutes in, and a tape that cannot see them at all is worse than
+# a tape that sees them slowly.
+T2_RES = [15, 60, 15, 300]
+T3_RES = [1, 5, 1, 30]
 
 
 def memory_report():
@@ -1254,14 +1277,20 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     # 95,137 bars at 15 seconds against tier 1's few thousand -- and
     # until now it was spending that power re-asking a question that had
     # run out of new forms.
-    if tier >= 2 and "high" in srch.columns:
+    #
+    # Only when there is NO deep slate. When there is one, the same
+    # shapes are already being measured in every quarter and pooled,
+    # which is strictly more powerful for the same compute -- testing
+    # them privately as well would spend the budget twice to learn less.
+    if tier >= 2 and "high" in srch.columns and not SLATE.get("hyps"):
         rng_deep = np.random.default_rng(
             (hash(sym) & 0xFFFF) * 7919 + led.d["trials"] % 2**31)
         n_deep = int(os.environ.get("RESEARCH_DEEP_SHAPES", "400"))
         deep_h = HY.from_shapes(rng_deep, cap=n_deep)
         deep_h += HY.from_destinations(
             rng_deep, ["squeeze", "expansion", "run_up", "run_dn",
-                       "inside", "outside"], cap=max(60, n_deep // 4))
+                       "inside", "outside"], cap=max(60, n_deep // 4),
+            bar_s=float(bar_s or 300.0))
         deep_h = [h for h in deep_h if h.get("kind") != "feature"]
         hyps += deep_h
         say("deep_continuous", market=sym, tier=tier, drawn=len(deep_h),
@@ -1377,24 +1406,170 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
     return (done, cands, kept), None
 
 
+def _deep_slate(deep, res, cycle, led, syms):
+    """Mechanisms every NQ quarter answers, so they can be pooled.
+
+    WHY THE DEEP TIER NEEDED ITS OWN POOL. One contract alone resolves
+    essentially nothing: 95,137 bars at 15s, a cell firing on a tenth of
+    them, gives 9,514 trades and a smallest resolvable edge near a whole
+    round trip per trade -- which this project's own rule calls bug
+    territory rather than a find. The depth was there and the power was
+    not, because each quarter was judged by itself.
+
+    The eight contracts are PERFECTLY DISJOINT in time:
+
+        NQU4  2024-06-21 -> 2024-09-19     NQU5  2025-06-20 -> 2025-09-18
+        NQZ4  2024-09-20 -> 2024-12-19     NQZ5  2025-09-19 -> 2025-12-18
+        NQH5  2024-12-20 -> 2025-03-20     NQH6  2025-12-19 -> 2026-03-19
+        NQM5  2025-03-21 -> 2025-06-19     NQM6  2026-03-20 -> 2026-06-17
+
+    -- a continuous two-year span cut into eight non-overlapping
+    quarters, 786,064 bars at 15 seconds. Combining them is not
+    double-counting anything; it is simply the whole sample instead of
+    an eighth of it, and it drops the smallest resolvable edge at a
+    15-second hold from about +0.96 to about +0.34 round trips.
+
+    It also gives the quarter-stability test for free. A mechanism has
+    to be measurable in at least six of the eight and agree in sign
+    across them, which is the "6/8 green quarters" gate stated as a
+    requirement of the pooling rather than bolted on afterwards.
+
+    ONE HONEST CAVEAT, stated rather than buried: these are eight
+    samples of ONE instrument. A survivor here is evidence about NQ, not
+    about markets in general, and it is recorded under POOLED_DEEP so it
+    can never be confused with the cross-market slate.
+    """
+    rng = np.random.default_rng(
+        (cycle * 104729 + int(res) * 7919 + led.d["trials"]) % 2**32)
+    # The ceiling the tape can actually resolve, measured on one
+    # contract and shared -- the quarters are the same instrument at the
+    # same resolution, so their dispersion law is the same.
+    ceil_s = None
+    try:
+        probe = deep[syms[0]]
+        ceil_s = CAL.hold_ceiling(probe, *spec_for(syms[0]),
+                                  bars_per(probe), led.bar(),
+                                  target_rt=0.5, markets=len(syms))
+    except Exception as exc:                                  # noqa: BLE001
+        say("deep_ceiling_failed", err=str(exc)[:160])
+    cap = int(os.environ.get("RESEARCH_DEEP_SLATE", "600"))
+    sl = HY.from_shapes(rng, cap=cap, hold_max=ceil_s)
+    sl += HY.from_destinations(
+        rng, ["squeeze", "expansion", "run_up", "run_dn",
+              "inside", "outside"], cap=max(80, cap // 4),
+        bar_s=float(res), hold_max=ceil_s)
+    sl = [h for h in sl if h.get("kind") != "feature"]
+    fresh = []
+    for h in sl:
+        probe = {k: v for k, v in h.items() if k != "_family"}
+        probe["market"] = "POOLED_DEEP"
+        probe["tier"] = 2
+        probe["res"] = int(res)
+        if not led.seen(probe):
+            fresh.append(h)
+    say("deep_slate_drawn", cycle=cycle, res=res, mechanisms=len(fresh),
+        hold_ceiling_s=None if ceil_s is None else round(ceil_s),
+        note="one slate for all eight quarters, judged once on the "
+             "pooled evidence -- a single quarter cannot resolve "
+             "anything smaller than about one round trip per trade")
+    return fresh
+
+
+def _judge_deep(book, res, cycle, led, mem, syms):
+    """Pool the quarters and record one verdict per mechanism."""
+    if book is None:
+        return
+    stage(f"combining {len(syms)} NQ quarters at {res}s")
+    try:
+        # DISJOINT SAMPLES, so effective_n is the count. The
+        # cross-market discount in data_tiers exists because four equity
+        # indices move together; two non-overlapping quarters of NQ do
+        # not overlap at all, and discounting them as if they did would
+        # throw away the sample this whole tier exists to provide.
+        need = int(os.environ.get("RESEARCH_DEEP_MIN_Q", "6"))
+        verdicts = book.test(lambda s: float(len(s)),
+                             min_markets=min(need, max(2, len(syms))))
+    except Exception as exc:                                  # noqa: BLE001
+        say("deep_pool_failed", err=str(exc)[:160])
+        return
+    cands = []
+    for v in verdicts:
+        h = dict(v["hyp"])
+        h["market"] = "POOLED_DEEP"
+        h["tier"] = 2
+        h["res"] = int(res)
+        if led.seen(h):
+            continue
+        r = {"z": round(v["z"], 3), "gz": round(v["z"], 3),
+             "cu": round(v["mean_cost_units"], 5),
+             "edge": None, "net": None,
+             "n": v["n_total"], "eff_n": int(v["effective_n"]),
+             "mde": v.get("mde"), "markets": v["markets"], "k": v["k"],
+             "agree": v["agree"], "tau2": round(v["tau2"], 6),
+             "per_market": v["per_market"], "pooled": True,
+             "one_instrument": True}
+        led.record(h, r, family=v.get("family"))
+        bar = led.bar()
+        if (v["z"] >= bar and v["mean_cost_units"] > 0
+                and v["agree"] >= PO.MIN_AGREE):
+            cands.append((h, v, bar))
+    # THE MDE DISTRIBUTION, not the top row's. The highest-z mechanism
+    # is often a rare cell with poor power, so reporting its mde alone
+    # reads as though the whole tier were blind when the most powerful
+    # quarter of it is not. What matters is how small an edge the tier
+    # COULD see across the mechanisms it tested.
+    mdes = sorted(v["mde"] for v in verdicts
+                  if v.get("mde") is not None and np.isfinite(v["mde"]))
+    ns = sorted(v["n_total"] for v in verdicts if v.get("n_total"))
+
+    def _p(a, q):
+        return round(float(np.percentile(a, q)), 4) if a else None
+
+    say("deep_pool_judged", cycle=cycle, res=res,
+        quarters=len(syms), mechanisms=len(verdicts),
+        candidates=len(cands),
+        best_z=round(verdicts[0]["z"], 2) if verdicts else None,
+        bar=round(led.bar(), 2),
+        mde_p5=_p(mdes, 5), mde_p25=_p(mdes, 25), mde_p50=_p(mdes, 50),
+        trades_p50=_p(ns, 50),
+        note="mde is the smallest edge, in round trips per trade, the "
+             "pooled test could have detected -- p5 is the most powerful "
+             "twentieth of the mechanisms tested, and a single quarter "
+             "on its own sits near 1.0")
+    for h, v, bar in cands[:6]:
+        say("DEEP_POOLED_CANDIDATE", z=round(v["z"], 2), bar=round(bar, 2),
+            quarters=v["k"], agree=v["agree"],
+            cost_units=round(v["mean_cost_units"], 3),
+            what=HY.describe(h),
+            caveat="eight quarters of ONE instrument -- evidence about "
+                   "NQ, not about markets in general")
+        mem.adapt("pooled_deep", v.get("family") or "mechanism",
+                  before="untested across quarters",
+                  after=f"{v['z']:.2f} sigma over {v['k']} NQ quarters",
+                  why=(f"agreed in sign in {v['agree']:.0%} of them and "
+                       f"paid {v['mean_cost_units']:.2f} round trips per "
+                       f"trade on a tape a single quarter could not have "
+                       f"resolved"))
+
+
 def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
     """Every NQ contract at one resolution, in parallel, at tier 2.
 
-    Deliberately NOT part of the shared slate. The slate is pooled as
-    cross-market evidence with a correlation discount between markets;
-    eight quarters of the SAME market are not eight markets, and feeding
-    them in would inflate the pooled sample eightfold on a discount
-    calibrated for distinct instruments. What the deep tier buys is
-    depth -- 95,137 bars at 15s against tier 1's few thousand -- and
-    depth belongs to the per-market test, where it raises z honestly by
-    raising n.
+    Kept out of the CROSS-MARKET slate on purpose: that pool applies a
+    correlation discount calibrated for distinct instruments, and eight
+    quarters of NQ are not eight markets. They get their own pool
+    instead -- see _deep_slate for why that is both honest and the
+    difference between this tier resolving nothing and resolving
+    something.
     """
     syms = sorted(deep)
     say("tier2_parallel", cycle=cycle, res=res, contracts=len(syms),
         bars=sum(len(v) for v in deep.values()),
         note="all contracts at this resolution, not one per cycle")
+    dslate = _deep_slate(deep, res, cycle, led, syms)
+    dbook = PO.PooledBook()
     snap = PAR.snapshot(led, mem)
-    ctx = {"snap": snap, "data": deep, "slate": [],
+    ctx = {"snap": snap, "data": deep, "slate": dslate,
            "surrogate": SLATE.get("surrogate"),
            "libs": {k: v for k, v in libs.items()
                     if k.split("/")[0] in deep}}
@@ -1412,10 +1587,15 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
         sym = out.get("sym")
         if out.get("error"):
             if "selftest" in str(out["error"]):
-                say("tier2_selftest_failed", why=str(out["error"])[:300])
+                say("tier2_selftest_failed", why=str(out["error"])[-1400:])
             else:
+                # THE WHOLE TRACEBACK, or at least its tail. Truncating a
+                # traceback to its first 300 characters keeps the frame
+                # that called the failing code and throws away the line
+                # that says what went wrong -- which is the only part
+                # anyone needs. Cost a diagnosis once; not again.
                 say("tier2_sweep_failed", market=sym,
-                    err=str(out["error"])[:300])
+                    err=str(out["error"])[-1400:])
             continue
         tv, cost = spec_for(sym)
         PAR.replay(led, mem, out, arch=ARCH["a"])
@@ -1427,6 +1607,7 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
             points.setdefault(fam, []).extend(pts)
         for fam, rows in (out.get("mrows") or {}).items():
             mrows.setdefault(fam, []).extend(rows)
+        _merge_book(dbook, out.get("book") or {})
         LIVE["market"] = sym
         LIVE["tier"] = 2
         cands = _rehydrate(out.get("candidates") or [], deep.get(sym),
@@ -1437,6 +1618,12 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
             bars=len(deep.get(sym, ())),
             trials=led.d["trials"], bar=round(led.bar(), 2),
             note=DT.Curriculum.caveat(1, 2, "NQ"))
+    # ONE VERDICT PER MECHANISM, over every quarter that measured it.
+    # This is the step that makes the deep tier worth running: alone,
+    # a quarter cannot resolve anything smaller than roughly a whole
+    # round trip per trade.
+    if not os.path.exists(STOP):
+        _judge_deep(dbook, res, cycle, led, mem, syms)
 
 
 def spec_for(sym):
@@ -1821,11 +2008,34 @@ def main():
         # RESEARCH_SLATE still overrides, so the size can be raised for a
         # box with more time per cycle without touching this file.
         slate_cap = int(os.environ.get("RESEARCH_SLATE", "800"))
-        slate = HY.from_shapes(rng_s, cap=slate_cap)
+        # BOUND THE DRAW TO WHAT THE TAPES CAN RESOLVE. Measured on the
+        # tier-1 five-minute tape pooled over every market, the smallest
+        # edge a five-minute hold could show is about +0.65 round trips
+        # and a four-hour hold about +31 -- and the draw's exploration
+        # share reached four hours. Nothing at +31 RT/trade is a finding;
+        # by this project's own rule an edge that large is a bug. The
+        # ceiling is measured each cycle rather than assumed, because it
+        # depends on how much tape there is, which grows.
+        ref = next((data[s] for s in ("NQ", "ES", "CL") if s in data),
+                   next(iter(data.values()), None))
+        hold_cap = None
+        if ref is not None:
+            try:
+                hold_cap = CAL.hold_ceiling(
+                    ref, *SPEC.get("NQ", (2.0, 0.6)), bars_per(ref),
+                    led.bar(), target_rt=1.0, markets=len(data))
+            except Exception as exc:                          # noqa: BLE001
+                say("slate_ceiling_failed", err=str(exc)[:160])
+        say("slate_hold_ceiling", cycle=cycle,
+            seconds=None if hold_cap is None else round(hold_cap),
+            note="longest hold at which the pooled tier-1 evidence could "
+                 "resolve an edge of one round trip per trade")
+        slate = HY.from_shapes(rng_s, cap=slate_cap, hold_max=hold_cap)
         rng_d = np.random.default_rng((cycle * 6151 + led.d["trials"]) % 2**32)
         slate += HY.from_destinations(
             rng_d, ["squeeze", "expansion", "run_up", "run_dn",
-                    "inside", "outside"], cap=max(120, slate_cap // 4))
+                    "inside", "outside"], cap=max(120, slate_cap // 4),
+            bar_s=300.0, hold_max=hold_cap)
         # BREED HALF THE SLATE FROM THE MAP. A purely random draw
         # explores forever without ever getting better; breeding from
         # elites gets better without exploring. Doing both is the point
@@ -1946,7 +2156,8 @@ def main():
                     led.save(force=True)
                     mem.save()
                     return
-                say("sweep_failed", market=sym, err=str(out["error"])[:300])
+                say("sweep_failed", market=sym,
+                    err=str(out["error"])[-1400:])
                 continue
             tv, cost = SPEC[sym]
             # REPLAY IN THE PARENT. One process owns the ledger, so the

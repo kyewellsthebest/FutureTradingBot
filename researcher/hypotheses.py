@@ -258,7 +258,7 @@ def from_flow(available, hold_mult=1.0, cap=600, extra_holds=None):
     return hyps
 
 
-def from_shapes(rng, cap=900, extra_conds=None):
+def from_shapes(rng, cap=900, extra_conds=None, hold_max=None):
     """Recurring-behaviour hypotheses, SAMPLED rather than enumerated.
 
     The full cross product of shape x parameter x direction x exit x
@@ -267,6 +267,15 @@ def from_shapes(rng, cap=900, extra_conds=None):
     before ever reaching gap. Drawing at random each cycle covers the
     space evenly over time and -- because the ledger fingerprints every
     hypothesis -- never repeats one.
+
+    hold_max bounds the draw to what the TAPE can actually resolve. The
+    tilt below already spends more effort at short holds, but a quarter
+    of every draw deliberately ignores the tilt to keep the slow corner
+    covered -- and on a five-minute tape that corner reaches four-hour
+    holds, where calibration.hold_ceiling puts the smallest resolvable
+    edge at +31 round trips per trade. Exploring is worth paying for;
+    exploring where no possible answer could be seen is not, and it is
+    not free either, because the bar rises with every trial spent.
     """
     hyps = []
     names = list(SHAPES)
@@ -280,7 +289,7 @@ def from_shapes(rng, cap=900, extra_conds=None):
         k = draw_k(rng)
         ls = LONGSHORT[int(rng.integers(2))]
         ex = draw_exit(rng)
-        hold = draw_hold(rng)
+        hold = draw_hold(rng, hold_max=hold_max)
         cond = conds[int(rng.integers(len(conds)))]
         key = (nm, n, k, ls, ex, hold, cond)
         if key in seen:
@@ -365,7 +374,7 @@ DEST_LEVELS = ["prior_high", "prior_low", "prior_close", "session_open",
 DEST_BARS = [6, 12, 24, 48, 96]
 
 
-def from_destinations(rng, triggers, cap=600):
+def from_destinations(rng, triggers, cap=600, bar_s=300.0, hold_max=None):
     """Destination / trigger / invalidation hypotheses.
 
     Nothing here is a configuration. The destination is a level the tape
@@ -374,23 +383,39 @@ def from_destinations(rng, triggers, cap=600):
     from where eventual winners actually travelled. That last part is
     the difference between this family and every other one: elsewhere
     the exit is drawn from a list somebody wrote down.
+
+    bar_s MATTERS AND USED TO BE ASSUMED. The horizon here is a number
+    of BARS, and hold_s was recorded as max_bars * 300 -- correct on the
+    five-minute tier-1 tape and wrong by twenty times on fifteen-second
+    deep bars, where 96 bars is 24 minutes rather than eight hours. The
+    stored hold is what the archive bins behaviour by and what any hold
+    ceiling can act on, so a hold that disagrees with the evaluation put
+    deep destination hypotheses in the wrong niche and made them
+    invisible to the ceiling entirely.
+
+    hold_max drops horizons the tape cannot resolve, rather than drawing
+    them and discovering afterwards that nothing there was findable.
     """
     hyps, seen = [], set()
     trig = list(triggers) + ["none"]
+    bars = [b for b in DEST_BARS
+            if hold_max is None or b * float(bar_s) <= float(hold_max)]
+    if not bars:                    # never draw nothing: keep the shortest
+        bars = [min(DEST_BARS)]
     tries = 0
     while len(hyps) < cap and tries < cap * 8:
         tries += 1
         lvl = DEST_LEVELS[int(rng.integers(len(DEST_LEVELS)))]
         side = 1 if rng.integers(2) else -1
         tg = trig[int(rng.integers(len(trig)))]
-        mb = int(DEST_BARS[int(rng.integers(len(DEST_BARS)))])
+        mb = int(bars[int(rng.integers(len(bars)))])
         key = (lvl, side, tg, mb)
         if key in seen:
             continue
         seen.add(key)
         hyps.append({"kind": "dest", "level": lvl, "side": side,
                      "trigger": tg, "max_bars": mb,
-                     "hold_s": mb * 300,
+                     "hold_s": int(mb * float(bar_s)),
                      "_family": f"dest/{lvl}"})
     return hyps
 
@@ -528,14 +553,18 @@ WIDTH_TILT = float(os.environ.get("RESEARCH_WIDTH_TILT", "2.0"))
 EXPLORE_WIDE = float(os.environ.get("RESEARCH_EXPLORE_WIDE", "0.25"))
 
 
-def draw_hold(rng, tilt=None):
+def draw_hold(rng, tilt=None, hold_max=None):
     """Hold length, tilted toward the regime where an edge is visible.
 
     tilt=0 is log-uniform. tilt=0.5 exactly cancels the sqrt(hold)
     growth in noise, so effort is spread evenly over detectability
-    rather than over octaves.
+    rather than over octaves. hold_max, when given, is the ceiling the
+    TAPE can resolve -- see calibration.hold_ceiling -- and it bounds
+    the untilted exploration share as well as the tilted draw.
     """
-    a, b = math.log(HOLD_MIN_S), math.log(HOLD_MAX_S)
+    hi = HOLD_MAX_S if hold_max is None else max(HOLD_MIN_S * 2.0,
+                                                 float(hold_max))
+    a, b = math.log(HOLD_MIN_S), math.log(min(HOLD_MAX_S, hi))
     lam = HOLD_TILT if tilt is None else float(tilt)
     if lam <= 0 or rng.random() < EXPLORE_WIDE:
         return int(round(math.exp(rng.uniform(a, b))))

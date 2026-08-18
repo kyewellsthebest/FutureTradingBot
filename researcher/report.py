@@ -739,6 +739,51 @@ def state_pdf(rdir, extra=None, top=100, source=True) -> bytes:
             "the same strictness is what the power table above is failing "
             "to reach.", st["note"]))
 
+        reach = cal.get("reachability") or []
+        if reach:
+            F.append(Paragraph("Reachability: which HOLDS this tape can "
+                               "see anything at, and how small", st["h3"]))
+            F.append(Paragraph(
+                "The single most decision-relevant table in this "
+                "document. Per-trade dispersion grows as roughly the "
+                "square root of hold, so the trades an edge needs grow "
+                "LINEARLY with hold &mdash; while the trades a tape can "
+                "supply shrink linearly with it. The penalty is "
+                "quadratic, and it decides where searching is worth "
+                "anything at all. A row whose smallest resolvable edge "
+                "is above about +1.0 round trips per trade is a region "
+                "where no plausible finding could be seen: this "
+                "project's own rule treats an edge that large as more "
+                "likely a bug than a discovery.", st["note"]))
+            rows = [["hold", "dispersion (RT)", "trades available",
+                     "effective n after overlap",
+                     "SMALLEST EDGE IT COULD RESOLVE", "verdict"]]
+            for r in reach:
+                hs = r.get("hold_s") or 0
+                m = r.get("smallest_edge_rt")
+                rows.append([
+                    f"{hs}s" if hs < 120 else f"{hs / 60:,.0f} min",
+                    _num_or(r.get("sd_rt"), "{:,.1f}"),
+                    _num_or(r.get("trades_available"), "{:,.0f}"),
+                    _num_or(r.get("effective_n"), "{:,.0f}"),
+                    _num_or(m, "{:+.3f} RT/trade"),
+                    ("worth searching" if (m or 9) <= 0.5 else
+                     "marginal" if (m or 9) <= 1.0 else
+                     "BLIND — nothing findable here")])
+            F.append(_table(rows, [18, 24, 26, 30, 40, 38], st, size=6.4))
+            F.append(Paragraph(
+                f"Measured on {_num_or(cal.get('bars'), '{:,.0f}')} bars "
+                f"at {_num_or(cal.get('bar_s'), '{:,.0f}')}s, assuming a "
+                f"cell fires on 10% of them and the mechanism is pooled "
+                f"over 20. Both assumptions are stated because the "
+                f"answer is meaningless without them. A wasted trial is "
+                f"not free: the bar rises as the square root of twice "
+                f"the log of the trial count, so every hypothesis tested "
+                f"in a blind region makes the standard harder for every "
+                f"hypothesis tested anywhere else. Searching where you "
+                f"cannot see is strictly worse than not searching.",
+                st["note"]))
+
         req = cal.get("required_trades") or {}
         if req:
             F.append(Paragraph("How many trades an edge of each size would "

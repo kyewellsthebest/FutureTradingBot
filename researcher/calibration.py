@@ -57,6 +57,8 @@ wrong here before, and it is now a number rather than a hope.
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -325,9 +327,119 @@ def report(bars, tv, cost, bar_s, bar_sigma, verbose=True):
             print(f"    {e:+.2f} RT needs {n:,} trades "
                   f"({n / 3000:.0f} weeks at 3,000/wk in one market, "
                   f"{n / 20 / 3000:.0f} weeks pooled over 20)")
+    reach = reachability(bars, tv, cost, bar_s, bar_sigma, verbose=verbose)
     return {"calibration": cal, "power": pw, "false_alarms": fa,
             "bar": bar_sigma, "sd_rt": sd, "required_trades": req,
-            "baseline_rt": base}
+            "baseline_rt": base, "reachability": reach,
+            "bar_s": bar_s, "bars": int(len(bars))}
+
+
+def hold_ceiling(bars, tv, cost, bar_s, bar_sigma, target_rt=1.0,
+                 markets=1, fire=0.10, anchor_bars=1):
+    """The longest hold at which this tape could resolve `target_rt`.
+
+    Past this, the search is looking somewhere the data cannot answer,
+    whatever is actually there -- and a wasted trial is not free,
+    because the bar rises as sqrt(2 ln N) and every blind test makes the
+    standard harder for every test elsewhere.
+
+    Solvable in closed form from ONE dispersion measurement, which is
+    what makes it affordable to do per tape per cycle. Under the
+    measured law sd(h) = sd0 * sqrt(h / h0):
+
+        mde(h) = bar * sd(h) * sqrt(h / bar_s) / sqrt(n * fire * markets)
+               = bar * sd0 * h / (sqrt(h0 * bar_s * n * fire * markets))
+
+    which is LINEAR in h, so
+
+        h_max = target * sqrt(h0 * bar_s * n * fire * markets) / (bar*sd0)
+
+    Checked against the five-point measured curve on both tapes:
+
+        15s deep NQ    formula 70s   measured mde crosses 1.0 near 68s
+        5-min tier 1   formula 463s  measured mde crosses 1.0 near 460s
+
+    Returns None when dispersion cannot be measured, and the caller must
+    treat that as "no ceiling known" rather than as zero.
+    """
+    sd0 = dispersion(bars, tv, cost, hold_bars=anchor_bars)
+    if not sd0 or sd0 <= 0:
+        return None
+    h0 = float(anchor_bars) * float(bar_s)
+    n = float(len(bars)) * float(fire) * float(max(1, markets))
+    if n <= 1:
+        return None
+    h = (float(target_rt) * math.sqrt(h0 * float(bar_s) * n)
+         / (float(bar_sigma) * sd0))
+    return float(max(bar_s, h))
+
+
+def reachability(bars, tv, cost, bar_s, bar_sigma, holds_bars=(1, 2, 6, 12, 48),
+                 markets=20, fire=0.10, verbose=False):
+    """WHICH HOLDS THIS TAPE CAN SEE ANYTHING AT, and how small.
+
+    One dispersion number, measured at one hold, cannot answer the only
+    question that matters for where to spend the search: is there a
+    region of this space where an edge of a plausible size is reachable
+    with the data that exists?
+
+    Dispersion grows as roughly the square root of hold, so the trades
+    an edge needs grow LINEARLY with hold -- while the trades a tape can
+    supply shrink linearly with it. The penalty is therefore quadratic,
+    and it decides everything:
+
+        tape        hold     sd (RT)    trades for +0.15 RT
+        5-min bars    5m        74.4          6,902,589
+        60s bars      60s       36.9          1,697,486
+        15s bars      15s       17.7            390,641
+
+    So instead of a single "detectable size", this reports, for each
+    hold, the SMALLEST EDGE this tape could actually resolve given how
+    many trades it can supply. That number is a research directive: it
+    says what to go looking for, and where looking is pointless.
+
+    `fire` is the fraction of bars a cell is assumed to trigger on and
+    `markets` how many the mechanism is pooled across; both are stated
+    rather than hidden, because the answer is meaningless without them.
+    """
+    out = []
+    n_bars = int(len(bars))
+    weeks = max(n_bars * float(bar_s) / (6.5 * 3600.0) / 5.0, 1e-9)
+    for hb in holds_bars:
+        try:
+            sd = dispersion(bars, tv, cost, hold_bars=hb)
+        except Exception:                                     # noqa: BLE001
+            sd = None
+        if not sd:
+            continue
+        hold_s = int(hb * bar_s)
+        # Trades this tape can supply, pooled: every bar is a candidate
+        # entry, `fire` of them trigger, and the hold does not reduce the
+        # count because entries overlap -- the overlap correction in the
+        # evaluator already deflates the effective n for that, which is
+        # why `eff` below is the honest figure and n_bars * fire is not.
+        avail = n_bars * fire * markets
+        overlap = max(1.0, hold_s / float(bar_s))
+        eff = avail / overlap
+        # smallest edge resolvable: bar * sd / sqrt(eff)
+        mde = bar_sigma * sd / math.sqrt(max(eff, 1.0))
+        out.append({
+            "hold_s": hold_s, "sd_rt": round(sd, 2),
+            "trades_available": int(avail),
+            "effective_n": int(eff),
+            "smallest_edge_rt": round(mde, 4),
+            "weeks_for_0.15": round(
+                required_trades(sd, bar_sigma, edges=(0.15,))[0.15]
+                / max(n_bars * fire * markets / weeks, 1e-9), 1),
+        })
+    if verbose and out:
+        print(f"  REACHABILITY on this tape ({n_bars:,} bars at {bar_s:g}s, "
+              f"cell firing {fire:.0%}, pooled over {markets}):")
+        for r in out:
+            print(f"    hold {r['hold_s']:>6}s  sd {r['sd_rt']:>7.1f} RT  "
+                  f"-> smallest edge it could resolve "
+                  f"{r['smallest_edge_rt']:+.3f} RT/trade")
+    return out
 
 
 def required_trades(sd_rt, bar_sigma, edges=(0.05, 0.1, 0.15, 0.25, 0.5)):
