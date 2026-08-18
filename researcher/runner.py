@@ -666,7 +666,16 @@ def _eval_dest(d, h, tv, cost, delay=0, memo=None):
     # entry the caller is about to ask for again).
     k = (id(d), len(d))
     if k not in _LEVELS:
-        cap = max(2, WORKERS + 1)
+        # CAP OF THREE, NOT WORKERS+1.
+        #
+        # "WORKERS-at-a-time plus slack" was correct when sweeps were
+        # THREADS sharing one process: all of them needed their levels
+        # resident at once. They are processes now, and a process sweeps
+        # ONE market at a time -- so this cache is per-worker and each
+        # worker needs one entry, not forty-eight. At 21 MB per entry
+        # and 47 workers the old cap allowed a gigabyte per child of
+        # levels for markets that child will never look at again.
+        cap = int(os.environ.get("RESEARCH_LEVELS_CAP", "3"))
         while len(_LEVELS) >= cap:
             _LEVELS.pop(next(iter(_LEVELS)))
         _LEVELS[k] = (DS.build_levels(d),
