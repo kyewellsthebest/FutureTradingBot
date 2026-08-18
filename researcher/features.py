@@ -136,6 +136,50 @@ class FeatureLibrary:
         self.scores = {}        # name -> dispersion score
         self.generation = 0
 
+    # ---------- persistence ----------
+    #
+    # THE LIBRARY LIVED IN MEMORY ONLY, AND THE PROCESS RESTARTS.
+    #
+    # Feature discovery is compositional: generation two builds on the
+    # features generation one kept, generation three on those. The kept
+    # set is the seed list, so losing it does not merely cost the time
+    # to regrow -- it resets the SEARCH to first principles. Production
+    # had restarted twenty-eight times, so the deep compositions this
+    # design exists to find had never been reached, and the console
+    # showed it plainly: "features grown and kept" at 0 with a 24-hour
+    # movement of -488.
+    #
+    # Only names and scores are stored. parse() rebuilds the spec from
+    # the name, so there is no second serialisation format to keep in
+    # step with the first -- and the name/spec round trip already has a
+    # self-test guarding exactly that property.
+
+    def dump(self):
+        return {"keep": self.keep, "generation": self.generation,
+                "scores": dict(self.scores)}
+
+    @classmethod
+    def load(cls, d):
+        lib = cls(keep=int((d or {}).get("keep", 24)))
+        lib.generation = int((d or {}).get("generation", 0))
+        bad = 0
+        for nm, sc in ((d or {}).get("scores") or {}).items():
+            try:
+                sp = cls.parse(nm)
+            except Exception:                                 # noqa: BLE001
+                sp = None
+            if sp is None:
+                # A name the current grammar cannot read is from an older
+                # one. Dropping it is correct; doing so silently is not,
+                # because a library that quietly shrinks every deploy
+                # looks exactly like one that is working.
+                bad += 1
+                continue
+            lib.kept[nm] = sp
+            lib.scores[nm] = float(sc)
+        lib._unparseable = bad
+        return lib
+
     # ---------- construction ----------
     @staticmethod
     def evaluate_spec(df, spec, memo=None):

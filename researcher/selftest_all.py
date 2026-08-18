@@ -257,7 +257,26 @@ def test_feature_parser():
              "abs(chg(ratio(close,60),3))", "chg(n,1)*ratio(close,60)",
              "z(rank(vol,60),20)*chg(chg(close,1),3)"]
     bad = [c for c in cases if F.name(F.parse(c)) != c]
-    return check("feature name/spec roundtrip", not bad, ", ".join(bad))
+    a = check("feature name/spec roundtrip", not bad, ", ".join(bad))
+
+    # THE LIBRARY MUST SURVIVE A RESTART UNCHANGED. Discovery is
+    # compositional -- each generation seeds from what the last one
+    # kept -- so a library that comes back subtly different is a search
+    # that silently resumes somewhere else. Only names and scores are
+    # stored; the specs are rebuilt by parse(), and what has to match is
+    # not the spec tuple but the ARRAY it produces.
+    lib = F(keep=20)
+    for c in cases:
+        lib.kept[c] = F.parse(c)
+        lib.scores[c] = 4.2
+    back = F.load(lib.dump())
+    same = (back.scores == lib.scores
+            and all(back.kept[k] == lib.kept[k] for k in lib.kept)
+            and not getattr(back, "_unparseable", 0))
+    b = check("feature library survives a restart identically",
+              same, f"{len(back.kept)} of {len(lib.kept)} rebuilt, "
+                    f"{getattr(back, '_unparseable', 0)} unreadable")
+    return a and b
 
 
 def test_thread_safety():

@@ -435,6 +435,44 @@ class Ledger:
             LIVE_TRIALS["n"] = self.d["trials"]
             LIVE_TRIALS["t"] = time.time()
 
+    def charge_features(self, scope, names):
+        """How many of these feature names have never been charged before.
+
+        The feature library is in-memory only, so every restart regrows
+        it and the caller used to charge the whole thing again -- the
+        same look paid for twice, or in production twenty-eight times.
+        Since the bar rises as sqrt(2 ln N), phantom trials do not merely
+        misreport effort, they raise the standard that every real
+        hypothesis has to clear.
+
+        Records the names under their scope (market/tier), because the
+        same feature expression grown on ES is a different look from the
+        one grown on NQ and does deserve its own trial. Returns the
+        count to charge; the caller bumps.
+
+        This is a set of short strings, not results, so it costs a few
+        hundred kilobytes at the sizes involved and compacts with
+        everything else.
+        """
+        with self._lock:
+            seen = self.d.setdefault("features_charged", {})
+            have = seen.get(scope)
+            if have is None:
+                have = seen[scope] = []
+            hs = set(have)
+            new = [n for n in names if n not in hs]
+            have.extend(new)
+            # BOUNDED, oldest first. The kept set is small and churns
+            # slowly, so this is generous -- but "small and churns
+            # slowly" is an observation about today's grower, and an
+            # unbounded list inside the ledger is how that file reached
+            # 144 MB the last time. Re-charging a name evicted thousands
+            # of features ago costs one trial and is the right trade.
+            cap = int(os.environ.get("LEDGER_FEATURES_CAP", "4000"))
+            if len(have) > cap:
+                del have[:len(have) - cap]
+            return len(new)
+
     # ---------- persistence ----------
     #
     # THIS FILE OUTGREW ITS FORMAT AND STALLED THE SEARCH.

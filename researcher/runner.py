@@ -1174,9 +1174,30 @@ def sweep(sym, d, led, mem, libs, tier, tv, cost, budget=500,
                         np.random.default_rng(led.d["trials"] % 9973),
                         base_cols=base_cols)
     gc.collect()
-    # every feature scored is a trial. Not counting them would let the
+    # Every feature scored is a trial. Not counting them would let the
     # search buy hundreds of extra looks for free and keep the bar low.
-    led.bump(max(len(lib.scores) - before, 0))
+    #
+    # CHARGED BY NAME, NOT BY COUNT. The feature library lives in memory
+    # only, so every restart rebuilds it from nothing -- and `before`
+    # was 0 on a fresh boot, so the whole library was charged again for
+    # rediscovering exactly the features it had already paid for. The
+    # production console showed the shape of it plainly: 28 restarts,
+    # "features grown and kept" reading 0 with a 24-hour movement of
+    # -488. At roughly 20 kept features across 23 markets that is
+    # thousands of phantom trials, and since the bar rises with the
+    # trial count, the searcher was making its own standard harder every
+    # time it was redeployed.
+    #
+    # The ledger now remembers which feature names have been charged, so
+    # a rediscovered feature is free and a genuinely new one still costs
+    # a trial. Growth is deterministic given the tape and the seed, so
+    # this is not a loophole: the same feature really is the same look.
+    fresh_feats = led.charge_features(f"{sym}/t{tier}", lib.scores)
+    led.bump(fresh_feats)
+    if fresh_feats < max(len(lib.scores) - before, 0):
+        say("features_recharged_free", market=sym, tier=tier,
+            grown=len(lib.scores), charged=fresh_feats,
+            note="the rest were already paid for before the last restart")
 
     memo = {}
     feats = {}
@@ -1626,6 +1647,50 @@ def _sweep_deep(deep, res, cycle, led, mem, libs, points, mrows):
         _judge_deep(dbook, res, cycle, led, mem, syms)
 
 
+LIBS_PATH = os.path.join(RDIR, "features.json")
+
+
+def _load_libs():
+    """Bring back the grown feature vocabulary from the last process.
+
+    Feature discovery is compositional -- each generation seeds from
+    what the last one kept -- so an in-memory-only library means every
+    restart resets the search to first principles rather than merely
+    costing the time to regrow. Production had restarted 28 times.
+    """
+    try:
+        d = json.load(open(LIBS_PATH))
+    except Exception:                                         # noqa: BLE001
+        return {}
+    libs, bad = {}, 0
+    for scope, blob in (d or {}).items():
+        try:
+            lib = FeatureLibrary.load(blob)
+        except Exception:                                     # noqa: BLE001
+            continue
+        bad += getattr(lib, "_unparseable", 0)
+        libs[scope] = lib
+    say("features_restored", scopes=len(libs),
+        features=sum(len(l.scores) for l in libs.values()),
+        unreadable=bad,
+        note="compositional discovery seeds from what was kept, so this "
+             "is where the search resumes rather than where it restarts")
+    return libs
+
+
+def _save_libs(libs):
+    if not libs:
+        return
+    try:
+        tmp = LIBS_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({k: v.dump() for k, v in libs.items()}, f,
+                      separators=(",", ":"))
+        os.replace(tmp, LIBS_PATH)
+    except Exception as exc:                                  # noqa: BLE001
+        say("features_save_failed", err=str(exc)[:160])
+
+
 def spec_for(sym):
     """Contract economics for a sweep name, deep-tier names included.
 
@@ -1970,7 +2035,7 @@ def main():
         effective_n=DT.effective_n(sorted(data)),
         note="correlated markets are not independent evidence")
 
-    libs = {}
+    libs = _load_libs()
     cycle = 0
     # Hand the sampler live references so the learning graphs gain a
     # point every minute instead of once a sweep.
@@ -2458,6 +2523,7 @@ def main():
         history_point(secs=round(time.time() - t0))
 
         led.save(force=True)
+        _save_libs(libs)
         try:
             if ARCH["a"] is not None:
                 ARCH["a"].save(os.path.join(RDIR, "archive.json"))
@@ -2474,6 +2540,7 @@ def main():
         time.sleep(int(os.environ.get("RESEARCH_SLEEP", "30")))
     led.save(force=True)
     mem.save()
+    _save_libs(libs)
     say("exit", **led.summary())
 
 

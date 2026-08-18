@@ -56,12 +56,14 @@ class LedgerProxy:
     caller mutate real state inside a worker and lose it silently.
     """
 
-    def __init__(self, seen, bar, priors, trials, families):
+    def __init__(self, seen, bar, priors, trials, families, feats=None):
         self._seen = seen              # shared, read-only, copy-on-write
         self._bar = float(bar)
         self._priors = priors
+        self._feats = feats or {}      # scope -> names already charged
         self._new = set()              # fingerprints recorded this sweep
         self.records = []              # (hyp, result, family)
+        self.charged = {}              # scope -> names charged this sweep
         self.bumps = 0
         self.d = {"trials": int(trials), "families": families}
 
@@ -94,6 +96,21 @@ class LedgerProxy:
     def bump(self, n):
         self.bumps += int(n)
         self.d["trials"] += int(n)
+
+    def charge_features(self, scope, names):
+        """Same contract as the real ledger: count what is genuinely new.
+
+        Reads the already-charged names from the snapshot and buffers
+        the new ones for the parent to record. Scopes are market/tier so
+        two workers never touch the same one in a cycle, which is what
+        makes replaying them a union rather than a reconciliation.
+        """
+        hs = set(self._feats.get(scope) or ())
+        hs.update(self.charged.get(scope) or ())
+        new = [n for n in names if n not in hs]
+        if new:
+            self.charged.setdefault(scope, []).extend(new)
+        return len(new)
 
 
 class MemoryProxy:
@@ -133,6 +150,8 @@ def snapshot(led, mem):
         bar = led.bar()
         families = {k: dict(v) for k, v in led.d["families"].items()}
         priors = {k: led.family_prior(k) for k in families}
+        feats = {k: list(v) for k, v in
+                 (led.d.get("features_charged") or {}).items()}
     holds, lessons = {}, {}
     for fam in set(families) | set(mem.d.get("families", {})):
         try:
@@ -142,7 +161,7 @@ def snapshot(led, mem):
         except Exception:                                     # noqa: BLE001
             continue
     return {"seen": seen, "bar": bar, "priors": priors, "trials": trials,
-            "families": families, "holds": holds,
+            "families": families, "holds": holds, "feats": feats,
             "insights": mem.insights(), "lessons": lessons}
 
 
@@ -156,6 +175,12 @@ def replay(led, mem, out, arch=None):
     """
     if out.get("bumps"):
         led.bump(out["bumps"])
+    # The names behind those bumps, so the next cycle -- and the next
+    # restart -- knows they have already been paid for. Recorded here
+    # rather than in the worker for the same reason the ledger is:
+    # one owner, one writer.
+    for scope, names in (out.get("charged") or {}).items():
+        led.charge_features(scope, names)
     for hyp, result, family in out.get("records", ()):
         led.record(hyp, result, family=family)
         # Every measurement is offered to the map. Doing it here rather
@@ -202,7 +227,8 @@ def _run(job):
         if d is None:
             return {"sym": sym, "error": f"no tape for {sym}"}
         led = LedgerProxy(snap["seen"], snap["bar"], snap["priors"],
-                          snap["trials"], snap["families"])
+                          snap["trials"], snap["families"],
+                          feats=snap.get("feats"))
         mem = MemoryProxy(snap["holds"], snap["insights"], snap["lessons"])
         book = PO.PooledBook()
         # The worker gets its OWN feature libraries and its own pooled
@@ -224,6 +250,7 @@ def _run(job):
         return {
             "sym": sym, "tier": tier, "done": done, "shard": shard,
             "records": led.records, "bumps": led.bumps,
+            "charged": led.charged,
             "notes": mem.notes, "adapts": mem.adapts,
             "book": book.rows,
             "kept": list(kept),
@@ -328,6 +355,39 @@ def selftest(verbose=True):
               f"the real ledger")
     if not ok:
         fails.append("record did not survive replay")
+
+    # FEATURES ARE CHARGED ONCE, EVER. The library is in-memory only, so
+    # every restart regrows it; charging by count meant paying for the
+    # same look again on every boot, and the bar rises with the count.
+    led.charge_features("NQ/t1", ["a", "b", "c"])
+    snap2 = snapshot(led, mem)
+    q = LedgerProxy(snap2["seen"], snap2["bar"], snap2["priors"],
+                    snap2["trials"], snap2["families"],
+                    feats=snap2.get("feats"))
+    again = q.charge_features("NQ/t1", ["a", "b", "c"])
+    novel = q.charge_features("NQ/t1", ["c", "d"])
+    other = q.charge_features("ES/t1", ["a"])
+    ok = (again == 0 and novel == 1 and other == 1)
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  a regrown feature is not "
+              f"charged twice  — rediscovered {again} (expect 0), new "
+              f"{novel} (expect 1), same name on another market {other} "
+              f"(expect 1)")
+    if not ok:
+        fails.append(f"feature charging wrong: {again}/{novel}/{other}")
+
+    before2 = led.d["trials"]
+    replay(led, mem, {"bumps": 0, "records": [], "notes": [], "adapts": [],
+                      "charged": q.charged})
+    r = LedgerProxy(snapshot(led, mem)["seen"], 3.0, {}, 0, {},
+                    feats=snapshot(led, mem).get("feats"))
+    ok = (r.charge_features("NQ/t1", ["c", "d"]) == 0
+          and led.d["trials"] == before2)
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  charged names survive replay, "
+              f"so the next cycle does not pay again")
+    if not ok:
+        fails.append("charged feature names did not survive replay")
 
     # the proxy must refuse to answer for things it does not model, so a
     # future caller cannot mutate real state inside a worker by accident
