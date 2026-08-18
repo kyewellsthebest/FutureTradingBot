@@ -206,6 +206,83 @@ count that sets the bar is written in exactly one place, as before.
 Verified equivalent: same trial count, and zero differing measurements
 among hypotheses both paths tested.
 
+## 6. It measures what it can actually SEE
+
+`researcher/calibration.py`
+
+The searcher reported a 5.79σ bar and treated that as controlling false
+positives. That claim rests on normality, the overlap correction, the
+empirical null and the bracket engine — **none of it ever checked end to
+end.** And "240,000 tested, nothing found" is uninterpretable without
+power.
+
+So edges of known size are planted in **real tapes**, tradeable by
+construction (a marker at bar *t* moves price only from *t+1*), and the
+engine is asked to find them.
+
+| | result |
+|---|---|
+| **Calibration** | exact — every planted increment recovers with **0.000 error** |
+| **False alarms** | **zero** in 282 empty cells, worst \|z\| 2.55 |
+| **Power** | **zero** — a +0.40 RT edge detected **0/10**, median z 0.4 |
+
+The arithmetic behind the last row:
+
+> 30-min hold noise = **113 RT**. A cell firing 166 times has SE 8.8 RT.
+> To clear 5.79σ it needs **~9 round trips per trade** — nine times the
+> entire cost of trading, i.e. bug territory.
+
+**The searcher was blind to every edge worth finding. Its silence was
+never evidence of absence.** That single measurement reframes the whole
+project's history.
+
+### What it takes instead
+
+| edge | trades needed | one market @3k/wk | pooled over 20 |
+|---|---|---|---|
+| +0.15 RT | 657,000 | 219 weeks ❌ | **11 weeks** ✅ |
+
+Noise scales as √hold, so required sample scales **linearly** with hold
+length — 5 min needs 6.8M trades, 4 hours needs 380M. Short holds are
+not a preference; they are the only arithmetically possible regime at
+this cost. Tight brackets help too (113 RT → 40 RT at 0.5×/0.5×).
+
+**Every result now carries its own `mde`** — the smallest edge it could
+have detected — and the leaderboard says outright when a cell was blind.
+
+## 7. It spends the budget where it can see
+
+Measured on the draw as it stood: of 400 slate hypotheses, **0.8% could
+have detected a +0.30 RT edge**, and the median could only have seen
++2.11 RT. Ninety-nine percent of the search was being spent where it
+could not possibly succeed — and a wasted trial is not free, because the
+bar rises for everyone.
+
+The draw is now tilted by the **measured noise law**, not by taste:
+weighting hold length by 1/√hold exactly cancels the √hold growth in
+noise, so effort is spread evenly over *detectability* rather than over
+octaves. Brackets are tilted toward the tight end for the same reason.
+
+    median detectable edge   2.11 RT  ->  0.89 RT
+    share that can see +0.50  5.5%    ->  16.5%
+
+**A quarter of every draw ignores the tilt.** The noise law is a
+measurement and could be wrong, the archive needs coverage of the slow
+corner, and a search that only looks where it expects to see is not a
+search.
+
+Pooling is what closes the remaining gap:
+
+| pooled over | detectable edge |
+|---|---|
+| 5 markets | 0.43 RT |
+| 12 markets | 0.29 RT |
+| **23 markets** | **0.21 RT** ✅ |
+
+Only full-breadth pooling reaches the +0.10 to +0.30 RT range worth
+hunting. That is why the cross-market test is the primary instrument and
+not a nicety.
+
 ## What it still cannot do
 
 Stated because the alternative is overclaiming, which is the failure
@@ -244,7 +321,8 @@ mode this whole project exists to guard against.
 | `plausible.py` | encoded priors: numbers that cannot be true |
 | `archive.py` | the map: an elite per behavioural niche, and breeding |
 | `parallel.py` | sweeps in processes; proxies that account for trials |
-| `selftest_all.py` | **one command, 21 checks** — run this first |
+| `calibration.py` | power, calibration, false-alarm rate — measured |
+| `selftest_all.py` | **one command, 23 checks** — run this first |
 
 ```bash
 python3 -m researcher.selftest_all

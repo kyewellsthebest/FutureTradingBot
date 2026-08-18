@@ -29,6 +29,7 @@ the real edge is in both -- because in the second the real edge is
 buried under a larger pile of convincing noise.
 """
 import math
+import os
 
 import numpy as np
 import pandas as pd
@@ -490,20 +491,77 @@ K_RANGE = (1.05, 4.0)                       # sigma for squeeze/expansion
 P_TIME_EXIT = 0.18                          # share with no bracket
 
 
-def draw_hold(rng):
-    """Log-uniform, because the difference between 30s and 60s matters
-    as much as the difference between one hour and two."""
-    lo, hi = math.log(HOLD_MIN_S), math.log(HOLD_MAX_S)
-    return int(round(math.exp(rng.uniform(lo, hi))))
+# ---------------------------------------------------------------------
+# SPEND THE BUDGET WHERE DETECTION IS POSSIBLE.
+#
+# Calibration measured the noise law on real NQ: per-trade dispersion
+# grows as sqrt(hold) -- 68 round trips at five minutes, 113 at thirty,
+# 244 at an hour, 505 at four hours -- and a bracket truncates it
+# (0.5x/0.5x cuts thirty-minute noise from 113 to 40). Since the
+# smallest detectable edge is bar * noise / sqrt(n), the long-hold
+# wide-bracket corner of the space CANNOT detect any edge worth having,
+# whatever is actually there.
+#
+# Measured on the draw as it stood: of 400 slate hypotheses, 0.8% could
+# have detected a +0.30 RT edge and the median could only have seen
+# +2.11 RT -- an edge that large is, by this project's own rule, far
+# more likely a bug than a find. Ninety-nine percent of the search was
+# being spent where it could not possibly succeed.
+#
+# And a wasted trial is not free. The bar rises as sqrt(2 ln N), so
+# every hypothesis tested in a blind cell makes the standard harder for
+# every hypothesis tested anywhere else. Searching where you cannot see
+# is strictly worse than not searching.
+#
+# THE TILT IS DERIVED, NOT CHOSEN. Log-uniform sampling puts equal
+# effort in each octave of hold length. Weighting by 1/sqrt(hold) --
+# exactly cancelling the measured noise growth -- puts equal effort per
+# unit of DETECTABILITY instead, which is the thing worth equalising.
+# In log space that is a truncated exponential with lambda = 1/2.
+#
+# A quarter of every draw ignores the tilt entirely. The noise law is a
+# measurement and could be wrong; the archive needs coverage of the slow
+# corner regardless; and a search that only looks where it expects to
+# see is not a search. That share is explicit so it can be argued with.
+HOLD_TILT = float(os.environ.get("RESEARCH_HOLD_TILT", "0.5"))
+WIDTH_TILT = float(os.environ.get("RESEARCH_WIDTH_TILT", "2.0"))
+EXPLORE_WIDE = float(os.environ.get("RESEARCH_EXPLORE_WIDE", "0.25"))
+
+
+def draw_hold(rng, tilt=None):
+    """Hold length, tilted toward the regime where an edge is visible.
+
+    tilt=0 is log-uniform. tilt=0.5 exactly cancels the sqrt(hold)
+    growth in noise, so effort is spread evenly over detectability
+    rather than over octaves.
+    """
+    a, b = math.log(HOLD_MIN_S), math.log(HOLD_MAX_S)
+    lam = HOLD_TILT if tilt is None else float(tilt)
+    if lam <= 0 or rng.random() < EXPLORE_WIDE:
+        return int(round(math.exp(rng.uniform(a, b))))
+    u = float(rng.random())
+    ea, eb = math.exp(-lam * a), math.exp(-lam * b)
+    x = -math.log(ea - u * (ea - eb)) / lam
+    return int(round(math.exp(max(a, min(b, x)))))
 
 
 def draw_exit(rng):
-    """A real stop/target pair, or a time exit."""
+    """A stop/target pair, tilted toward the tight end, or a time exit.
+
+    u**WIDTH_TILT with the exponent above one concentrates draws near
+    the bottom of each range. Tight brackets truncate the outcome
+    distribution, which is the other lever on detectability and the one
+    that does not cost holding time.
+    """
     if rng.random() < P_TIME_EXIT:
         return None
-    stop = round(float(rng.uniform(*STOP_RANGE)), 2)
-    targ = round(float(rng.uniform(*TARG_RANGE)), 2)
-    return (stop, targ)
+    wide = rng.random() < EXPLORE_WIDE
+    p = 1.0 if wide else WIDTH_TILT
+    lo, hi = STOP_RANGE
+    stop = lo + (hi - lo) * float(rng.random()) ** p
+    lo, hi = TARG_RANGE
+    targ = lo + (hi - lo) * float(rng.random()) ** p
+    return (round(stop, 2), round(targ, 2))
 
 
 def draw_n(rng):

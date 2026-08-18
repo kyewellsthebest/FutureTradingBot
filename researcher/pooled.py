@@ -190,6 +190,20 @@ def pool(by, effective_n):
 
     agree = float(max((mu > 0).sum(), (mu < 0).sum()) / k)
     z = mean / se_pool if se_pool > 0 else 0.0
+    # WHAT THIS POOLED TEST COULD HAVE SEEN.
+    #
+    # The per-market number is hopeless on its own -- calibration put a
+    # typical cell's smallest detectable edge at about 0.9 round trips,
+    # and anything that large is bug territory. Pooling is what rescues
+    # it: combining k markets shrinks the standard error, so the pooled
+    # test can see roughly sqrt(effective_n) times smaller an effect
+    # than any one market could.
+    #
+    # Reporting it here means a pooled null result finally means
+    # something: "measured -0.05 RT, could have detected +0.18" is
+    # evidence of absence in that range, where the same sentence with
+    # "could have detected +2.0" is evidence of nothing at all.
+    mde = 5.79 * se_pool
     return {
         "z": float(z),
         "mean_cost_units": mean,
@@ -201,6 +215,7 @@ def pool(by, effective_n):
         "tau2": float(tau2),
         "Q": round(Q, 2),
         "n_total": int(nn.sum()),
+        "mde": round(float(mde), 4),
         "per_market": {s: round(float(m), 4) for s, m in zip(syms, mu)},
         # A mechanism must be broad AND consistent AND pay for itself.
         "coherent": bool(agree >= MIN_AGREE and abs(mean) > 0),

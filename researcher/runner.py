@@ -704,7 +704,15 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0,
             # cost minutes instead of seconds -- the same work, done
             # 400 times.
             conds = _conds(d)
-            mask = np.asarray(mask) & conds[h["cond"]]
+            # A MISSING CONDITION IS A SKIP, NOT A CRASH. Context
+            # sources are external (gamma, COT, FRED, DTS) and can be
+            # unavailable; a hypothesis conditioned on one that is not
+            # registered for this tape cannot be measured, and killing
+            # the cycle over it throws away every other market's work.
+            cm = conds.get(h["cond"])
+            if cm is None:
+                return None
+            mask = np.asarray(mask) & cm
         sign = np.sign(d["close"].diff().fillna(0.0)).values
         side = sign if h["dir"] == "with" else -sign
 
@@ -1380,7 +1388,7 @@ def _merge_book(book, rows):
         cur["by"].update(slot.get("by") or {})
 
 
-def _rehydrate(rows, d):
+def _rehydrate(rows, d, sym=None):
     """Put the tapes back on candidates that crossed a process boundary.
 
     A DataFrame does not belong in a pickle sent between processes, so
@@ -1392,6 +1400,25 @@ def _rehydrate(rows, d):
         return []
     srch, vault = split(d)
     bar_s = bars_per(d)
+    # RE-ATTACH THE EXTERNAL CONTEXT.
+    #
+    # The worker called attach_context() on its own copy of the tape,
+    # which registers regime masks (credit_stress, crowded_long,
+    # short_gamma...) that hypotheses can then condition on. The parent
+    # re-derives the tape from disk and had none of them, so the moment
+    # a candidate conditioned on one reached the gauntlet, the delay
+    # control raised KeyError and the whole cycle died -- after the
+    # sweep, so every market's work went with it.
+    #
+    # Caught by the integration run rather than by reading the diff,
+    # which is the only way a bug that lives in the SEAM between two
+    # processes ever shows up. attach_context is deterministic given the
+    # symbol and the index, so calling it here reproduces exactly the
+    # masks the worker used.
+    try:
+        attach_context(str(sym), srch)
+    except Exception as exc:                                  # noqa: BLE001
+        say("context_reattach_failed", market=sym, err=str(exc)[:160])
     out = []
     for h, fam, r, bar, null99, mrows in rows:
         out.append((h, fam, r, bar, srch, vault, bar_s, null99, mrows))
@@ -1680,7 +1707,8 @@ def main():
             LIVE["tier"] = 1
             # Candidates crossed the boundary without their tapes, which
             # do not pickle sanely; the parent re-derives them.
-            cands = _rehydrate(out.get("candidates") or [], data.get(sym))
+            cands = _rehydrate(out.get("candidates") or [], data.get(sym),
+                               sym=sym)
             gauntlet(sym, 1, cands, led, mem, libs, tv, cost)
             say("cycle_market", cycle=cycle, market=sym, tier=1,
                 tested=out.get("done"), features=len(out.get("kept") or []),
@@ -1720,6 +1748,7 @@ def main():
                        "cu": round(v["mean_cost_units"], 5),
                        "edge": None, "net": None,
                        "n": v["n_total"], "eff_n": int(v["effective_n"]),
+                       "mde": v.get("mde"),
                        "markets": v["markets"], "k": v["k"],
                        "agree": v["agree"], "tau2": round(v["tau2"], 6),
                        "per_market": v["per_market"], "pooled": True}
