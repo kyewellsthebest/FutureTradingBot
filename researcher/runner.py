@@ -295,8 +295,25 @@ BASE_MB = float(os.environ.get("RESEARCH_BASE_MB", "700"))
 #
 # So the per-worker figure is now computed from the ledger's actual
 # size rather than assumed constant.
+# MEASURED, after three wrong theories about WHY it happens.
+#
+#   604 MB per worker   as found
+#   580 MB              after the compact fingerprint index
+#   540 MB              after passing the context by fork, not by pickle
+#
+# 540 MB at 336,449 entries is 1.64 KB per entry per worker. The first
+# value here was 0.30, which is what let the sizing formula pick 47
+# workers for a box that could hold roughly twelve.
+#
+# The remaining 540 MB is NOT fully explained. Two theories were
+# measured and rejected (the cyclic collector, refcount dirtying of the
+# fingerprint set) and a third -- initargs pickling the tapes -- was
+# real but proportionally smaller than hoped. Sizing does not require
+# the explanation: it requires the number, and the number is measured
+# end to end rather than reasoned about. If the cause is found later
+# this constant falls and the pool widens by itself.
 LEDGER_DIRTY_KB_PER_ENTRY = float(
-    os.environ.get("RESEARCH_DIRTY_KB", "0.30"))
+    os.environ.get("RESEARCH_DIRTY_KB", "1.64"))
 
 
 def rss_mb():
