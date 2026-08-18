@@ -43,6 +43,7 @@ justify: the count catches up at the end of the cycle.
 """
 from __future__ import annotations
 
+import gc
 import multiprocessing as mp
 import os
 import traceback
@@ -210,6 +211,14 @@ _CTX = {}
 def _init(ctx):
     """Runs once per worker. With fork, `ctx` arrives copy-on-write."""
     _CTX.update(ctx)
+    # A worker lives for one sweep and allocates mostly numpy, which the
+    # cyclic collector cannot help with anyway. Every collection it runs
+    # is pages dirtied in a child that is about to exit.
+    if os.environ.get("RESEARCH_GC_FREEZE", "0") == "1":
+        try:
+            gc.freeze()
+        except Exception:                                     # noqa: BLE001
+            pass
 
 
 def _run(job):
@@ -276,6 +285,26 @@ class Pool:
 
     def __init__(self, workers, ctx):
         self.workers = max(1, int(workers))
+        # FREEZE BEFORE FORKING.
+        #
+        # Copy-on-write is supposed to make a forked child nearly free.
+        # In CPython it is not, and the reason is the cyclic garbage
+        # collector: a gen-2 collection walks EVERY tracked object and
+        # writes to its header, so a child that merely lives long enough
+        # to collect twice ends up privately copying most of the
+        # parent's heap -- including a ledger that is hundreds of
+        # megabytes and grows all day.
+        #
+        # gc.freeze() moves everything currently allocated into a
+        # permanent generation the collector never visits. Objects the
+        # child allocates afterwards are still collected normally, so
+        # this trades no safety for the copies.
+        if os.environ.get("RESEARCH_GC_FREEZE", "0") == "1":
+            try:
+                gc.collect()
+                gc.freeze()
+            except Exception:                                 # noqa: BLE001
+                pass
         mpctx = mp.get_context("fork" if hasattr(os, "fork") else "spawn")
         self.pool = mpctx.Pool(self.workers, initializer=_init,
                                initargs=(ctx,))
