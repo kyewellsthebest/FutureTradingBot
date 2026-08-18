@@ -1719,7 +1719,83 @@ def api_pulse():
         "reset_at": reset_at,
         "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA"),
         "validated": validated,
+        "why_idle": why_idle(diag, in_session),
     })
+
+
+def why_idle(diag, in_session):
+    """Why has it not traded? Answer it, every time, in one sentence.
+
+    A bot that quietly does nothing is the worst failure mode this
+    project has: the dashboard says LIVE, the engine cycles every
+    second, the strategy card is full of validated numbers, and no
+    order has ever been sent. Nothing is wrong-looking anywhere.
+
+    The information to explain it already existed -- bars_processed,
+    bars_1m_source, signals_fired, last_error are all in the snapshot
+    the bot publishes -- it was simply never rendered. So: read it and
+    say so.
+
+    The Tradovate bar counters on this card mislead in exactly this
+    situation and should be read with care. The pulse strategy takes
+    its bars from POLYGON (research.data_loader.download_nq with
+    live_only=True: "Polygon or nothing"). It never calls
+    bot.tradovate_bars, so "fetch ok 0 / fail 0" is not evidence of a
+    problem -- it is a counter for a code path this strategy does not
+    use. Worse, setting BOT_BAR_SOURCE=tradovate makes the console
+    suppress the "(NO KEY)" Polygon warning, hiding the one message
+    that would explain a bot with no data.
+    """
+    try:
+        snap = persistence.load_dashboard() or {}
+    except Exception:                                         # noqa: BLE001
+        snap = {}
+    key = bool(os.environ.get("POLYGON_API")
+               or os.environ.get("POLYGON_API_KEY"))
+    bars = snap.get("bars_processed")
+    src = snap.get("bars_1m_source")
+    fired = snap.get("signals_fired")
+    err = snap.get("last_error")
+    age = diag.get("cycle_age_s")
+
+    if age is None:
+        return {"state": "unknown", "text":
+                "The bot loop has not reported a cycle. It may still be "
+                "starting, or the strategy thread may have died while "
+                "this dashboard kept serving."}
+    if age > 300:
+        return {"state": "stalled", "text":
+                f"The engine has not completed a cycle for "
+                f"{age / 60:.0f} minutes. It is not looking for setups."}
+    if err:
+        return {"state": "error", "text": f"Last cycle error: {err}"[:300]}
+    if not key:
+        return {"state": "no-data", "text":
+                "NO POLYGON API KEY on this service. The strategy takes "
+                "its bars from Polygon and nothing else, so with no key "
+                "it receives no bars, arms no setups and sends no "
+                "orders — silently, for as long as it runs. Set "
+                "POLYGON_API on the service. (The Tradovate bar counters "
+                "above are for a path this strategy never uses; they are "
+                "0/0 because of that, not because of a fault.)"}
+    if not bars:
+        return {"state": "no-data", "text":
+                "The key is set but no bars have been processed, so "
+                "Polygon is returning empty. Until bars arrive the "
+                "strategy cannot arm a setup."}
+    if not in_session:
+        return {"state": "waiting", "text":
+                "Outside the trading window. It only takes setups "
+                "between 13:30 and 20:00 UTC; this is expected and not "
+                "a fault."}
+    if not fired:
+        return {"state": "hunting", "text":
+                f"In session with {bars} bars from {src or 'unknown'}, "
+                f"and no setup has met the entry conditions yet. A 5pt "
+                f"impulse inside 6 minutes followed by a 0.618 pullback "
+                f"is a specific shape and most sessions offer few."}
+    return {"state": "trading", "text":
+            f"{fired} signals fired since the last reset."}
 
 
 @app.route("/api/basket")

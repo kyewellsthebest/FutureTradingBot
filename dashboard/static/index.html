@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0d13" />
   <title>Trading Bot</title>
-  <link rel="stylesheet" href="/static/styles.css?v=4" />
+  <link rel="stylesheet" href="/static/styles.css?v=7" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -107,6 +107,10 @@
           <span class="muted small" id="ops-sub">&nbsp;</span>
         </div>
         <div class="ops-banner" id="ops-banner" hidden></div>
+        <!-- The single most useful line on this dashboard: a bot that
+             quietly never trades looks identical to one that is working
+             and simply has no setups. -->
+        <div class="why" id="why-idle" hidden></div>
         <div id="ops-list">
           <div class="trade-skel"></div><div class="trade-skel"></div>
           <div class="trade-skel"></div>
@@ -214,6 +218,6 @@
 
   </main>
 
-  <script src="/static/app.js?v=6" defer></script>
+  <script src="/static/app.js?v=7" defer></script>
 </body>
 </html>

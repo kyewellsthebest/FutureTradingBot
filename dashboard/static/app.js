@@ -431,8 +431,13 @@ async function pollBasket() {
     } else ban.hidden = true;
     const dl = [];
     if (d.cycle_age_s != null) dl.push(`cycle ${Math.round(d.cycle_age_s)}s ago`);
-    if (d.bar_source) dl.push(`bars: ${d.bar_source}` +
-      (d.bar_source === "polygon" ? (d.polygon_key_set ? " (key ok)" : " (NO KEY)") : ""));
+    // The Polygon key state is reported ALWAYS, not only when
+    // BOT_BAR_SOURCE happens to say "polygon". The strategy reads
+    // Polygon regardless of what that variable is set to, so gating the
+    // warning on it meant setting BOT_BAR_SOURCE=tradovate silently
+    // suppressed the one line that explains a bot with no data.
+    dl.push(`polygon key: ${d.polygon_key_set ? "set" : "NOT SET"}`);
+    if (d.bar_source) dl.push(`BOT_BAR_SOURCE=${d.bar_source}`);
     if (d.tradovate_success_count != null)
       dl.push(`fetch ok ${d.tradovate_success_count} / fail ${d.tradovate_failure_count ?? 0}`);
     if (d.last_tradovate_success_age_s != null)
@@ -440,6 +445,18 @@ async function pollBasket() {
     if (d.heartbeat && d.cycle_age_s == null)
       dl.push(`boot: ${d.heartbeat.split(" ")[0] || ""} ${Math.round((d.heartbeat_age_s || 0) / 60)}m ago`);
     dl.forEach((x) => foot.push(x));
+    // WHY IT HAS NOT TRADED — the first thing to read on this card.
+    const wi = p.why_idle;
+    const wb = $("why-idle");
+    if (wb && wi) {
+      const bad = ["no-data", "error", "stalled", "unknown"].includes(wi.state);
+      const ico = {"no-data":"🚫","error":"💥","stalled":"🛑","unknown":"❓",
+                   "waiting":"🕒","hunting":"🔎","trading":"✅"}[wi.state]||"•";
+      wb.className = "why " + (bad ? "why-bad" : "why-ok");
+      wb.innerHTML = `<b>${ico} why it has not traded</b><div>${esc(wi.text)}</div>`;
+      wb.hidden = false;
+    }
+
     $("ops-foot").innerHTML = foot
       .map((x) => `<span class="foot-chip">${esc(String(x))}</span>`).join("");
   } catch (e) { /* keep last */ }

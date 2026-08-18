@@ -438,3 +438,19 @@ body {
   color: var(--muted); text-align: center; padding: 0 14px;
   align-self: center;
 }
+
+/* ── why it has not traded ────────────────────────────────── */
+.why {
+  border-radius: 7px; padding: 11px 12px; margin-bottom: 11px;
+  font-size: 12.5px; line-height: 1.6; border: 1px solid transparent;
+}
+.why b {
+  display: block; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px;
+}
+.why-ok { background: var(--surface-2); border-color: var(--border);
+  color: var(--text-2); }
+.why-ok b { color: var(--muted); }
+.why-bad { background: rgba(233,176,90,.10);
+  border-color: rgba(233,176,90,.45); color: var(--text-1); }
+.why-bad b { color: var(--warn); }
