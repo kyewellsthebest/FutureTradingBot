@@ -334,6 +334,20 @@ def test_parallel():
                  not f, "; ".join(f))
 
 
+def test_calibration():
+    """The harness that measures what the searcher can SEE.
+
+    Its own self-test caught a one-bar error in the plant that made
+    entering on the marker bar pay more than the honest lagged entry --
+    it would have measured the engine's ability to cheat and reported it
+    as power.
+    """
+    from researcher import calibration as C
+    f = C.selftest(verbose=False)
+    return check("calibration harness recovers known edges and refuses "
+                 "to reward look-ahead", not f, "; ".join(f))
+
+
 def test_validators():
     from researcher import validate as V
     rng = np.random.default_rng(0)
@@ -385,6 +399,7 @@ def main():
     test_diagnosis()
     test_archive()
     test_parallel()
+    test_calibration()
     print("\n" + "=" * 66)
     if FAIL:
         print(f"{len(FAIL)} FAILED:")

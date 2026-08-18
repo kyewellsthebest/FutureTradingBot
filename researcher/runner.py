@@ -63,6 +63,7 @@ from researcher.ledger import Ledger
 from researcher import pooled as PO          # noqa: E402
 from researcher import parallel as PAR       # noqa: E402
 from researcher import archive as AR         # noqa: E402
+from researcher import calibration as CAL    # noqa: E402
 from researcher import surrogate as SG
 from researcher import diagnose as DG            # noqa: E402
 from researcher import hypotheses as HY         # noqa: E402
@@ -779,6 +780,17 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0,
                 # Defined this way 0 IS break-even and the sign of the
                 # number is the sign of the money.
                 "cu": round(float(net.mean()) / cost, 5) if cost else None,
+                # THE SMALLEST EDGE THIS CELL COULD HAVE SEEN. Without
+                # it, "did not clear the bar" is ambiguous between "there
+                # is nothing here" and "this cell never had the power to
+                # tell". Measured on real NQ, most cells are the second:
+                # at a 30-minute hold the per-trade noise is ~113 round
+                # trips, so 166 observations can only detect an edge of
+                # about nine round trips -- nine times the entire cost of
+                # trading. Silence from an underpowered cell is not
+                # evidence of absence, and now it says so.
+                "mde": round(float(gross.std(ddof=1)) / cost
+                             * 3.5 / max(eff, 1) ** 0.5, 4) if cost else None,
                 "net": round(float(net.mean()), 4), "n": int(len(net)),
                 "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
                 "win_rate": round(float(len(wins) / len(net)), 4),
@@ -848,6 +860,8 @@ def evaluate(d, h, tv=None, cost=None, feats=None, bar_s=None, delay=0,
             "edge": round(float(pnl.mean() * tv), 4),
             "sd": round(float((pnl * tv).std(ddof=1)), 5),
             "cu": round(float(net.mean()) / cost, 5) if cost else None,
+            "mde": round(float((pnl * tv).std(ddof=1)) / cost
+                         * 3.5 / max(eff, 1) ** 0.5, 4) if cost else None,
             "net": round(float(net.mean()), 4), "n": int(len(net)),
             "eff_n": int(eff), "overlap": round(ov, 2), "delay": delay,
             "win_rate": round(win_rate, 4), "rr": round(rr, 3),
@@ -1844,8 +1858,40 @@ def main():
         # because nothing has beaten it. Re-scoring is NOT a new trial:
         # the hypothesis is already counted, and this only fills in
         # fields on the stored result.
+        # WHAT CAN THIS SEARCHER ACTUALLY SEE? Measured, periodically,
+        # by planting edges of known size in a real tape and counting how
+        # often they come back. Without it "240,000 tested, nothing
+        # found" is uninterpretable -- at 5% power it means almost
+        # nothing, at 90% it is a strong and expensive result. Run every
+        # few cycles because it costs real time and the answer moves only
+        # as the bar moves.
+        if cycle % int(os.environ.get("RESEARCH_CAL_EVERY", "6")) == 1:
+            try:
+                stage("measuring its own power and false-alarm rate")
+                symc = "NQ" if "NQ" in data else sorted(data)[0]
+                tvc, cc = SPEC[symc]
+                srchc, _vc = split(data[symc])
+                rep = CAL.report(srchc, tvc, cc, bars_per(data[symc]),
+                                 led.bar(), verbose=False)
+                rep["detectable_at_80pct"] = CAL.detectable_size(
+                    rep.get("power") or {})
+                rep["market"] = symc
+                rep["t"] = now()
+                json.dump(rep, open(os.path.join(RDIR, "calibration.json"),
+                                    "w"), indent=1)
+                say("CALIBRATED", market=symc,
+                    detectable_at_80pct=rep["detectable_at_80pct"],
+                    false_alarm_rate=(rep.get("false_alarms") or {}).get(
+                        "rate"),
+                    bar=round(led.bar(), 2),
+                    note="power is what makes 'nothing found' mean "
+                         "something -- below the detectable size, silence "
+                         "is not evidence of absence")
+            except Exception as exc:                          # noqa: BLE001
+                say("calibration_failed", err=str(exc)[:200])
+
+        stage("re-checking older results against current controls")
         try:
-            stage("re-checking older results against current controls")
             filled = backfill_metrics(led, data)
             if filled:
                 say("backfilled_metrics", rows=filled)

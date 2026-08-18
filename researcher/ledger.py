@@ -404,6 +404,7 @@ class Ledger:
                         # agreed. Rendering those as "$/trade" would be
                         # a category error on the front page.
                         "cu": r.get("cu"), "k": r.get("k"),
+                        "mde": r.get("mde"),
                         "agree": r.get("agree"),
                         "pooled": bool(r.get("pooled")),
                         "win_rate": r.get("win_rate"), "rr": r.get("rr"),

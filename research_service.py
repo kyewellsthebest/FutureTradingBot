@@ -488,6 +488,7 @@ def api_state():
         "adaptations": adaptations(),
         "learned": learned_facts(),
         "archive": archive_view(),
+        "calibration": read_json(RDIR / "calibration.json", None),
         "survivors": survivors(),
         "near": near_misses(),
         "ledger": led,
@@ -558,6 +559,7 @@ def near_misses(k=15):
                         # market's dollars per trade
                         "pooled": bool(r.get("pooled")),
                         "cu": r.get("cu"), "k": r.get("k"),
+                        "mde": r.get("mde"),
                         "agree": r.get("agree"),
                         "stale": r.get("stale"), "killed": r.get("killed"),
                         "code_stale": r.get("code_stale"),

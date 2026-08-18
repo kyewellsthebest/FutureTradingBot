@@ -136,8 +136,14 @@ def recover(bars, truth, tv, cost, bar_s, evaluate):
     return _fixed_side(bars, truth, tv, cost, bar_s)
 
 
-def _fixed_side(bars, truth, tv, cost, bar_s):
+def _fixed_side(bars, truth, tv, cost, bar_s=None):
     """Enter one bar after each marker, hold, exit. The honest measure.
+
+    `bar_s` is accepted and unused: the hold is specified in BARS by the
+    plant, so no seconds-to-bars conversion is needed here. Kept in the
+    signature because every other measurement path in this project takes
+    it, and a harness whose signature quietly differs is a harness
+    somebody will call wrongly.
 
     Written here rather than reused from runner.evaluate because the
     point is to check the ENGINE against an independent implementation.
@@ -298,8 +304,78 @@ def report(bars, tv, cost, bar_s, bar_sigma, verbose=True):
     if verbose:
         print("  FALSE ALARMS — how often does nothing look like something?")
     fa = false_alarms(bars, tv, cost, bar_s, bar_sigma, verbose=verbose)
+    sd = dispersion(bars, tv, cost)
+    req = required_trades(sd, bar_sigma) if sd else {}
+    # Calibration is about INCREMENTS. A real tape carries its own drift
+    # -- NQ over these years runs about +2 RT at a six-bar hold -- so the
+    # question is never "does the recovered number equal the planted
+    # one", it is "does an extra 0.10 show up as an extra 0.10". Reading
+    # the raw level as bias would report a two-round-trip error that is
+    # simply the market being up.
+    base = next((r["got"] for r in cal if r["asked"] == 0.0), None)
+    if base is not None:
+        for r in cal:
+            r["increment"] = round(r["got"] - base, 4)
+            r["increment_err"] = round(r["increment"] - r["asked"], 4)
+    if verbose and sd:
+        print(f"  DISPERSION — {sd:.1f} RT per trade on this tape")
+        print(f"  TRADES NEEDED for an edge to be detectable at "
+              f"{bar_sigma:.2f}σ:")
+        for e, n in req.items():
+            print(f"    {e:+.2f} RT needs {n:,} trades "
+                  f"({n / 3000:.0f} weeks at 3,000/wk in one market, "
+                  f"{n / 20 / 3000:.0f} weeks pooled over 20)")
     return {"calibration": cal, "power": pw, "false_alarms": fa,
-            "bar": bar_sigma}
+            "bar": bar_sigma, "sd_rt": sd, "required_trades": req,
+            "baseline_rt": base}
+
+
+def required_trades(sd_rt, bar_sigma, edges=(0.05, 0.1, 0.15, 0.25, 0.5)):
+    """How many trades an edge of each size needs to be DETECTABLE.
+
+    This is the number that turns "nothing found" from a shrug into a
+    research directive. Measured on real NQ: per-trade dispersion is
+    about 21 round trips, and a cell that fires 166 times therefore has
+    a standard error of 1.63 RT -- so it would need NINE round trips per
+    trade to clear a 5.79 bar. Nine times the entire cost of trading, in
+    the range this project calls bug territory.
+
+    In other words the searcher was blind, at that cell size, to every
+    edge it could plausibly have found. Its silence there was never
+    evidence of absence; it was evidence of no power.
+
+    What the arithmetic then says, and it is actionable:
+
+        +0.15 RT needs   657,000 trades
+          one market at 3,000/wk   ->  219 weeks   (hopeless)
+          pooled over 20 markets   ->   11 weeks   (feasible)
+
+    High frequency AND breadth, together. Neither alone is enough, which
+    is exactly why the frequency axis of the archive and the pooled
+    cross-market test are the two things that matter most.
+    """
+    out = {}
+    for e in edges:
+        n = (float(bar_sigma) * float(sd_rt) / float(e)) ** 2
+        out[e] = int(round(n))
+    return out
+
+
+def dispersion(bars, tv, cost, hold_bars=6, minutes=None):
+    """Per-trade dispersion in round trips, from the real tape.
+
+    Everything above depends on this one number, so it is measured
+    rather than assumed.
+    """
+    minutes = list(minutes or CAL_MINUTES)
+    sds = []
+    for m in minutes:
+        truth = {"minute": m, "hold_bars": hold_bars, "side": 1,
+                 "size_rt": 0.0}
+        r = _fixed_side(bars, truth, tv, cost, None)
+        if r and r.get("sd"):
+            sds.append(r["sd"] / cost)
+    return float(np.median(sds)) if sds else None
 
 
 def detectable_size(pw, want=0.8):
