@@ -28,9 +28,35 @@ the worker returns. One process owns the ledger, exactly as before, and
 the thing that must never be raced (the trial count that sets the bar)
 is still only ever touched in one place.
 
-WHAT THE SNAPSHOT COSTS. Nothing, on Linux. The pool forks, so children
-share the parent's tapes, its fingerprint set and its priors
-copy-on-write. Workers only read them, so no page is ever copied.
+WHAT THE SNAPSHOT COSTS, AND THE SENTENCE THAT WAS WRONG.
+
+This used to say: "Nothing, on Linux. The pool forks, so children share
+the parent's tapes, its fingerprint set and its priors copy-on-write.
+Workers only read them, so no page is ever copied."
+
+The last clause is false, and it cost the deployment. "Reading" a Python
+object writes its reference count, and a refcount lives in the same
+cache line as the object. So a child doing hundreds of thousands of
+`fp in seen` lookups against a set of 336,449 strings privately copies
+the pages holding those strings -- and their dict, and their set.
+
+Measured, six markets, three workers, same sweep:
+
+    empty ledger      +1.44 GB
+    336,449 entries   +3.21 GB     -> 604 MB PER WORKER of pure copying
+
+At 47 workers that is 28 GB of ledger alone, on a box with a 24 GB
+limit. It was OOM-killed for hours and the memory graph sawtoothed all
+the way up. gc.freeze() was tried first on the theory that the cyclic
+collector was doing the touching; measured, it changed nothing (3.21 GB
+vs 3.15 GB), which rules that out and leaves refcounts.
+
+The fix is to stop shipping Python objects. The fingerprints are 16 hex
+characters -- exactly 64 bits -- so they become ONE sorted numpy
+uint64 array: 2.7 MB, a single object with a single refcount, and
+`np.searchsorted` instead of a hash lookup. A worker can probe it a
+million times and dirty nothing. Verified exact against the set it
+replaces over 40,000 probes, with zero collisions on the real keys.
 
 ONE DELIBERATE SEMANTIC CHANGE, and it is an improvement. Every
 hypothesis in a cycle is now judged against the SAME bar -- the one
@@ -44,9 +70,48 @@ justify: the count catches up at the end of the cycle.
 from __future__ import annotations
 
 import gc
+import hashlib
 import multiprocessing as mp
 import os
 import traceback
+
+import numpy as np
+
+
+_U64 = (1 << 64) - 1
+
+
+def fp64(fp):
+    """A fingerprint as a 64-bit int.
+
+    Fingerprints are sha1 truncated to 16 hex characters, which is
+    exactly 64 bits, so this is lossless for everything the ledger
+    actually writes. Anything else -- a key from an older format, or
+    hand-edited -- is hashed instead of raising, because a snapshot that
+    throws on one odd key takes the whole cycle down.
+    """
+    try:
+        return int(fp, 16) & _U64
+    except (TypeError, ValueError):
+        return int.from_bytes(
+            hashlib.sha1(str(fp).encode()).digest()[:8], "big")
+
+
+def fingerprint_array(tested):
+    """Every tested fingerprint as ONE sorted uint64 array.
+
+    2.7 MB for 336,449 entries, against ~485 MB of dict and strings, and
+    -- the point -- a single Python object. A forked child can probe it
+    as often as it likes without touching a refcount, so the pages stay
+    shared. See the module docstring for the measurement that forced
+    this.
+    """
+    if not tested:
+        return np.zeros(0, dtype=np.uint64)
+    a = np.fromiter((fp64(k) for k in tested), dtype=np.uint64,
+                    count=len(tested))
+    a.sort()
+    return a
 
 
 class LedgerProxy:
@@ -76,7 +141,14 @@ class LedgerProxy:
 
     def seen(self, hyp) -> bool:
         fp = self.fingerprint(hyp)
-        return fp in self._seen or fp in self._new
+        if fp in self._new:                # this sweep's own, a small set
+            return True
+        a = self._seen
+        if a is None or len(a) == 0:
+            return False
+        v = np.uint64(fp64(fp))
+        i = int(np.searchsorted(a, v))
+        return i < a.size and bool(a[i] == v)
 
     def bar(self, extra=0) -> float:
         return self._bar
@@ -146,7 +218,7 @@ class MemoryProxy:
 def snapshot(led, mem):
     """Everything a worker needs to read, taken once under the lock."""
     with led._lock:
-        seen = set(led.d["tested"])
+        seen = fingerprint_array(led.d["tested"])
         trials = int(led.d["trials"])
         bar = led.bar()
         families = {k: dict(v) for k, v in led.d["families"].items()}
@@ -417,6 +489,46 @@ def selftest(verbose=True):
               f"so the next cycle does not pay again")
     if not ok:
         fails.append("charged feature names did not survive replay")
+
+    # THE COMPACT FINGERPRINT INDEX MUST ANSWER EXACTLY LIKE THE SET IT
+    # REPLACED. It exists to stop forked children copying 604 MB each,
+    # and it is worth nothing if it ever says "already tested" about
+    # something that was not -- that would silently skip real work and
+    # look like a search that had run out of ideas.
+    import random as _rnd
+    _rnd.seed(11)
+    from researcher.ledger import Ledger as _L
+    keys = [_L.fingerprint({"i": i, "market": "NQ"}) for i in range(4000)]
+    arr = fingerprint_array({k: 1 for k in keys})
+    ref = set(keys)
+    absent = [_L.fingerprint({"i": i, "market": "ES"})
+              for i in range(4000, 8000)]
+    pr = LedgerProxy(arr, 3.0, {}, 0, {})
+    wrong = 0
+    for i, k in enumerate(keys[:1500] + absent[:1500]):
+        want = k in ref
+        v = np.uint64(fp64(k))
+        j = int(np.searchsorted(arr, v))
+        got = j < arr.size and bool(arr[j] == v)
+        wrong += int(got != want)
+    ok = (wrong == 0 and arr.dtype == np.uint64
+          and len(np.unique(arr)) == len(arr))
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  the compact fingerprint index "
+              f"answers exactly like the set it replaced  — {wrong} "
+              f"disagreements over 3,000 probes, {arr.nbytes / 1e6:.2f} MB "
+              f"for {arr.size:,} keys")
+    if not ok:
+        fails.append(f"fingerprint index disagrees ({wrong} of 3000)")
+
+    # and it must still see what the real ledger has, through snapshot()
+    ok = pr.seen({"i": 7, "market": "NQ"}) and not pr.seen(
+        {"i": 99999, "market": "NQ"})
+    if verbose:
+        print(f"  {'PASS' if ok else 'FAIL'}  proxy.seen() over the compact "
+              f"index agrees with the ledger")
+    if not ok:
+        fails.append("proxy.seen() wrong over the compact index")
 
     # the proxy must refuse to answer for things it does not model, so a
     # future caller cannot mutate real state inside a worker by accident
