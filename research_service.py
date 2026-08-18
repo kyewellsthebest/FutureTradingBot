@@ -727,6 +727,77 @@ def _live_extra():
     return e
 
 
+# ONE BUILD AT A TIME, AND A SHORT CACHE.
+#
+# The full bundle is ~450 KB and about two seconds of CPU. That is
+# nothing on an idle box and quite a lot on this one, where 47 search
+# workers own every core and the parent process is also running the
+# gauntlet, fitting the surrogate and saving a large ledger. The first
+# version returned "Application failed to respond" on a phone: the
+# request was not failing, it was starving.
+#
+# Two fixes, both here. The lock means a second tap -- which is exactly
+# what anyone does when a download appears to hang -- waits for the
+# build already running instead of starting a competing one that makes
+# both slower. The cache means that wait happens at most once every few
+# minutes. Keyed by the arguments, so the light and full variants do not
+# evict each other.
+_PDF_LOCK = threading.Lock()
+_PDF_CACHE = {}
+_PDF_TTL_S = float(os.environ.get("STATE_PDF_TTL_S", "240"))
+
+
+def _pdf_response(pdf, age):
+    from flask import Response
+    d = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="research-state-'
+                               f'{d}.pdf"',
+        "Content-Length": str(len(pdf)),
+        "Cache-Control": "no-store",
+        # So a stale-looking figure can always be explained.
+        "X-Report-Age-Seconds": str(int(age))})
+
+
+def _build_pdf(top, src):
+    """Build and cache one variant. Caller must hold _PDF_LOCK."""
+    from researcher.report import state_pdf
+    t0 = time.time()
+    pdf = state_pdf(str(RDIR), _live_extra(), top=top, source=src)
+    _PDF_CACHE[(top, src)] = (time.time(), pdf)
+    print(f"[report] state.pdf top={top} source={src} "
+          f"{len(pdf) / 1024:.0f}KB in {time.time() - t0:.1f}s", flush=True)
+    return pdf
+
+
+def _warm_pdfs():
+    """Keep both variants warm, so a tap never waits on a build.
+
+    The download is the one thing on this console that a person reaches
+    for precisely when something looks wrong -- which is also when the
+    box is busiest and least able to build it quickly. Building it on a
+    timer instead means the request is a file read, and the two seconds
+    of work happen when nobody is watching.
+    """
+    # The FIRST build is the expensive one -- 8.6s against 0.9s warm,
+    # almost all of it reportlab importing and registering fonts. Paying
+    # that once shortly after boot, rather than on whichever tap happens
+    # to be first, is the whole point.
+    wait = 45.0
+    while True:
+        try:
+            time.sleep(wait)
+            wait = max(60.0, _PDF_TTL_S * 0.75)
+            if not STATE.get("alive"):
+                continue
+            for top, src in ((100, False), (100, True)):
+                with _PDF_LOCK:
+                    _build_pdf(top, src)
+                time.sleep(2.0)          # never hog the interpreter
+        except Exception as exc:                              # noqa: BLE001
+            print(f"[report] warm failed: {str(exc)[:200]}", flush=True)
+
+
 @app.get("/api/state.pdf")
 def api_state_pdf():
     """THE download. One file, everything the backend knows about itself.
@@ -743,16 +814,38 @@ def api_state_pdf():
     except Exception:                                         # noqa: BLE001
         top = 100
     src = request.args.get("source", "1") != "0"
-    try:
-        pdf = state_pdf(str(RDIR), _live_extra(), top=top, source=src)
-    except Exception as exc:                                  # noqa: BLE001
-        import traceback
-        return jsonify({"error": str(exc)[:400],
-                        "where": traceback.format_exc()[-900:]}), 500
-    d = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
-    return Response(pdf, mimetype="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="research-state-'
-                               f'{d}.pdf"'})
+    key = (top, src)
+    fresh = request.args.get("fresh") == "1"
+    hit = _PDF_CACHE.get(key)
+    if hit and not fresh and time.time() - hit[0] < _PDF_TTL_S:
+        pdf, age = hit[1], time.time() - hit[0]
+    else:
+        with _PDF_LOCK:
+            # Re-check inside the lock: whoever we queued behind has
+            # very likely just built exactly what we were about to.
+            hit = _PDF_CACHE.get(key)
+            if hit and not fresh and time.time() - hit[0] < _PDF_TTL_S:
+                pdf, age = hit[1], time.time() - hit[0]
+            else:
+                try:
+                    pdf = _build_pdf(top, src)
+                except Exception as exc:                      # noqa: BLE001
+                    # A STALE REPORT BEATS AN ERROR PAGE. If a build
+                    # fails and an older one is in hand, serve that and
+                    # say how old it is; the numbers being four minutes
+                    # behind is a far smaller problem than the person
+                    # looking at them getting nothing at all.
+                    if hit:
+                        pdf, age = hit[1], time.time() - hit[0]
+                        print(f"[report] build failed, serving cached "
+                              f"({age:.0f}s old): {str(exc)[:200]}",
+                              flush=True)
+                        return _pdf_response(pdf, age)
+                    return jsonify({"error": str(exc)[:400],
+                                    "where": traceback.format_exc()[-900:]
+                                    }), 500
+                age = 0.0
+    return _pdf_response(pdf, age)
 
 
 @app.get("/")
@@ -769,6 +862,8 @@ def main():
     check_storage()
     t = threading.Thread(target=research_loop, daemon=True, name="research")
     t.start()
+    threading.Thread(target=_warm_pdfs, daemon=True,
+                     name="report-warm").start()
     port = int(os.environ.get("PORT", "8080"))
     print(f"[research_service] console on :{port}, storage {RDIR}",
           flush=True)
