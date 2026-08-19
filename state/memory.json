@@ -7,11 +7,11 @@
    "cost_bound": 1005,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 473537,
+   "n": 475161,
    "best_gross": 121.8935,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 205966
+   "unevaluable": 207590
   },
   "minute_of_day/n": {
    "thin": 250150,
@@ -20,11 +20,11 @@
    "cost_bound": 1355,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 473552,
+   "n": 475176,
    "best_gross": 121.8935,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 203393
+   "unevaluable": 205017
   },
   "minute_of_day/absret": {
    "thin": 176266,
@@ -33,11 +33,11 @@
    "cost_bound": 622,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 340296,
+   "n": 340712,
    "best_gross": 118.0863,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 153852
+   "unevaluable": 154268
   },
   "day_of_week/vol": {
    "thin": 1813,
@@ -46,11 +46,11 @@
    "cost_bound": 310,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 6459,
+   "n": 6469,
    "best_gross": 54.9131,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 968
+   "unevaluable": 978
   },
   "day_of_week/n": {
    "thin": 1854,
@@ -59,11 +59,11 @@
    "cost_bound": 237,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 5589,
+   "n": 5599,
    "best_gross": 22.0944,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 968
+   "unevaluable": 978
   },
   "day_of_month/absret": {
    "thin": 13329,
@@ -72,11 +72,11 @@
    "cost_bound": 326,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 31253,
+   "n": 31327,
    "best_gross": 74.6838,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 14360
+   "unevaluable": 14434
   },
   "day_of_month/vol": {
    "thin": 21110,
@@ -85,11 +85,11 @@
    "cost_bound": 346,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 50752,
+   "n": 50818,
    "best_gross": 122.4226,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 25090
+   "unevaluable": 25156
   },
   "day_of_month/n": {
    "thin": 21022,
@@ -98,11 +98,11 @@
    "cost_bound": 331,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 49668,
+   "n": 49710,
    "best_gross": 122.4226,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 24336
+   "unevaluable": 24378
   },
   "day_of_week/absret": {
    "thin": 252,
@@ -111,11 +111,11 @@
    "cost_bound": 51,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 1154,
+   "n": 1156,
    "best_gross": 19.1847,
    "sum_hold": 0.0,
    "n_hold": 0,
-   "unevaluable": 120
+   "unevaluable": 122
   },
   "feature/d1": {
    "thin": 0,
@@ -395,13 +395,13 @@
   },
   "feature/d23": {
    "thin": 0,
-   "no_signal": 1157,
+   "no_signal": 1284,
    "wrong_sign": 856,
-   "cost_bound": 147,
+   "cost_bound": 148,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 2160,
-   "best_gross": 20.5152,
+   "n": 2288,
+   "best_gross": 24.9431,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -611,13 +611,13 @@
   },
   "feature/d43": {
    "thin": 0,
-   "no_signal": 171,
+   "no_signal": 187,
    "wrong_sign": 549,
    "cost_bound": 80,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 800,
-   "best_gross": 18.1997,
+   "n": 816,
+   "best_gross": 19.3504,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -816,11 +816,11 @@
   "feature/d44": {
    "thin": 0,
    "no_signal": 256,
-   "wrong_sign": 405,
+   "wrong_sign": 421,
    "cost_bound": 43,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 704,
+   "n": 720,
    "best_gross": 21.5032,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -1031,12 +1031,12 @@
   },
   "feature/d51": {
    "thin": 0,
-   "no_signal": 243,
+   "no_signal": 295,
    "wrong_sign": 292,
-   "cost_bound": 25,
+   "cost_bound": 37,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 560,
+   "n": 624,
    "best_gross": 17.3432,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -1067,12 +1067,12 @@
   },
   "feature/d122": {
    "thin": 0,
-   "no_signal": 75,
-   "wrong_sign": 123,
-   "cost_bound": 26,
+   "no_signal": 80,
+   "wrong_sign": 133,
+   "cost_bound": 27,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 224,
+   "n": 240,
    "best_gross": 9.938,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -1355,12 +1355,12 @@
   },
   "feature/d68": {
    "thin": 0,
-   "no_signal": 149,
-   "wrong_sign": 395,
-   "cost_bound": 32,
+   "no_signal": 159,
+   "wrong_sign": 400,
+   "cost_bound": 33,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 576,
+   "n": 592,
    "best_gross": 9.3113,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -1583,12 +1583,12 @@
   },
   "feature/d325": {
    "thin": 0,
-   "no_signal": 7,
-   "wrong_sign": 35,
+   "no_signal": 11,
+   "wrong_sign": 47,
    "cost_bound": 6,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 48,
+   "n": 64,
    "best_gross": 4.6029,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -1955,12 +1955,12 @@
   },
   "feature/d60": {
    "thin": 0,
-   "no_signal": 169,
-   "wrong_sign": 232,
+   "no_signal": 171,
+   "wrong_sign": 246,
    "cost_bound": 15,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 416,
+   "n": 432,
    "best_gross": 12.301,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -3347,13 +3347,13 @@
   "feature/d260": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 18,
-   "wrong_sign": 13,
-   "cost_bound": 1,
+   "no_signal": 40,
+   "wrong_sign": 21,
+   "cost_bound": 3,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 32,
-   "best_gross": 1.2504,
+   "n": 64,
+   "best_gross": 9.8414,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -3802,13 +3802,13 @@
   "feature/d300": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 3,
-   "wrong_sign": 29,
-   "cost_bound": 0,
+   "no_signal": 5,
+   "wrong_sign": 42,
+   "cost_bound": 1,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 32,
-   "best_gross": 0.6745,
+   "n": 48,
+   "best_gross": 1.622,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -3880,13 +3880,13 @@
   "feature/d198": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 8,
-   "wrong_sign": 39,
-   "cost_bound": 1,
+   "no_signal": 18,
+   "wrong_sign": 43,
+   "cost_bound": 3,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 48,
-   "best_gross": 1.4654,
+   "n": 64,
+   "best_gross": 9.8774,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -5791,13 +5791,13 @@
   "feature/d332": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 6,
-   "wrong_sign": 10,
-   "cost_bound": 0,
+   "no_signal": 8,
+   "wrong_sign": 23,
+   "cost_bound": 1,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 16,
-   "best_gross": 1.4522,
+   "n": 32,
+   "best_gross": 1.6635,
    "sum_hold": 0.0,
    "n_hold": 0
   },
@@ -6181,12 +6181,12 @@
   "feature/d487": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 18,
-   "wrong_sign": 13,
+   "no_signal": 27,
+   "wrong_sign": 20,
    "cost_bound": 1,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 32,
+   "n": 48,
    "best_gross": 5.2894,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -6350,12 +6350,12 @@
   "feature/d470": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 26,
-   "wrong_sign": 37,
+   "no_signal": 35,
+   "wrong_sign": 44,
    "cost_bound": 1,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 64,
+   "n": 80,
    "best_gross": 5.1212,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -6467,12 +6467,12 @@
   "feature/d553": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 9,
-   "wrong_sign": 7,
+   "no_signal": 13,
+   "wrong_sign": 19,
    "cost_bound": 0,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 16,
+   "n": 32,
    "best_gross": 0.8965,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -7494,12 +7494,12 @@
   "feature/d959": {
    "thin": 0,
    "unevaluable": 0,
-   "no_signal": 15,
-   "wrong_sign": 0,
+   "no_signal": 18,
+   "wrong_sign": 13,
    "cost_bound": 1,
    "vault_killed": 0,
    "confirmed": 0,
-   "n": 16,
+   "n": 32,
    "best_gross": 1.6838,
    "sum_hold": 0.0,
    "n_hold": 0
@@ -7893,6 +7893,214 @@
    "best_gross": 1.4222,
    "sum_hold": 0.0,
    "n_hold": 0
+  },
+  "feature/d673": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 3,
+   "wrong_sign": 13,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.316,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d718": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 3,
+   "wrong_sign": 13,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.3174,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d435": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 4,
+   "wrong_sign": 12,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.3396,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d685": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 4,
+   "wrong_sign": 12,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.3406,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d751": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 9,
+   "wrong_sign": 7,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.898,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d569": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 9,
+   "wrong_sign": 7,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.898,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d1307": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 2,
+   "wrong_sign": 13,
+   "cost_bound": 1,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 1.7903,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d1682": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 2,
+   "wrong_sign": 13,
+   "cost_bound": 1,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 1.7968,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d1684": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 2,
+   "wrong_sign": 13,
+   "cost_bound": 1,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 1.7968,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d1435": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 2,
+   "wrong_sign": 13,
+   "cost_bound": 1,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 1.7924,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d625": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 7,
+   "wrong_sign": 9,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.2977,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d1096": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 7,
+   "wrong_sign": 9,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.2832,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d861": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 7,
+   "wrong_sign": 9,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.2806,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d855": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 7,
+   "wrong_sign": 9,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.2806,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d890": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 0,
+   "wrong_sign": 16,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.724,
+   "sum_hold": 0.0,
+   "n_hold": 0
+  },
+  "feature/d396": {
+   "thin": 0,
+   "unevaluable": 0,
+   "no_signal": 4,
+   "wrong_sign": 12,
+   "cost_bound": 0,
+   "vault_killed": 0,
+   "confirmed": 0,
+   "n": 16,
+   "best_gross": 0.5556,
+   "sum_hold": 0.0,
+   "n_hold": 0
   }
  },
  "vault": [
@@ -7930,8 +8138,8 @@
    "after": "0.05x",
    "why": "674 hypotheses tested in this family, best z 1.26, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:14:54+00:00",
-   "applied": 3508
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 3526
   },
   {
    "key": "effort|day_of_month/n",
@@ -7941,8 +8149,8 @@
    "after": "0.05x",
    "why": "1000 hypotheses tested in this family, best z 2.19, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:14:54+00:00",
-   "applied": 2711
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 2723
   },
   {
    "key": "effort|minute_of_day/vol",
@@ -7952,8 +8160,8 @@
    "after": "0.05x",
    "why": "5192 hypotheses tested in this family, best z 2.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 5072
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 5097
   },
   {
    "key": "effort|minute_of_day/absret",
@@ -7963,8 +8171,8 @@
    "after": "0.05x",
    "why": "1832 hypotheses tested in this family, best z 2.53, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 3258
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 3273
   },
   {
    "key": "effort|day_of_week/vol",
@@ -7974,8 +8182,8 @@
    "after": "0.05x",
    "why": "754 hypotheses tested in this family, best z 1.26, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 3508
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 3526
   },
   {
    "key": "effort|feature/d1",
@@ -7996,8 +8204,8 @@
    "after": "0.05x",
    "why": "1096 hypotheses tested in this family, best z 2.81, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:14:54+00:00",
-   "applied": 2739
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 2751
   },
   {
    "key": "effort|minute_of_day/n",
@@ -8007,8 +8215,8 @@
    "after": "0.05x",
    "why": "4572 hypotheses tested in this family, best z 2.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:30+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 5072
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 5097
   },
   {
    "key": "effort|day_of_month/absret",
@@ -8018,8 +8226,8 @@
    "after": "0.05x",
    "why": "990 hypotheses tested in this family, best z 1.69, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:36+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 1154
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 1159
   },
   {
    "key": "effort|day_of_week/absret",
@@ -8029,8 +8237,8 @@
    "after": "0.05x",
    "why": "358 hypotheses tested in this family, best z 0.83, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:40:41+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 721
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 725
   },
   {
    "key": "effort|feature/d0",
@@ -8150,8 +8358,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:48:19+00:00",
-   "last": "2026-08-19T12:14:50+00:00",
-   "applied": 491
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 492
   },
   {
    "key": "effort|feature/d12",
@@ -8161,8 +8369,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:48:19+00:00",
-   "last": "2026-08-19T12:14:50+00:00",
-   "applied": 464
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 465
   },
   {
    "key": "effort|feature/d10",
@@ -8183,8 +8391,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 0.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:48:19+00:00",
-   "last": "2026-08-19T12:12:58+00:00",
-   "applied": 404
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 405
   },
   {
    "key": "effort|feature/d18",
@@ -8205,8 +8413,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:49:19+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 338
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 339
   },
   {
    "key": "effort|feature/d15",
@@ -8216,8 +8424,8 @@
    "after": "0.05x",
    "why": "368 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:49:19+00:00",
-   "last": "2026-08-19T12:12:58+00:00",
-   "applied": 421
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 422
   },
   {
    "key": "effort|feature/d22",
@@ -8227,8 +8435,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T11:50:14+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 288
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 289
   },
   {
    "key": "effort|flow/imbalance_change",
@@ -8326,8 +8534,8 @@
    "after": "0.05x",
    "why": "368 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:01:02+00:00",
-   "last": "2026-08-19T12:14:50+00:00",
-   "applied": 428
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 429
   },
   {
    "key": "effort|feature/d16",
@@ -8337,8 +8545,8 @@
    "after": "0.05x",
    "why": "416 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:01:21+00:00",
-   "last": "2026-08-19T12:12:58+00:00",
-   "applied": 417
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 418
   },
   {
    "key": "effort|feature/d35",
@@ -8348,8 +8556,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:02:03+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 391
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 394
   },
   {
    "key": "effort|feature/d28",
@@ -8392,8 +8600,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z -0.37, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:02:49+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 360
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 361
   },
   {
    "key": "effort|feature/d31",
@@ -8403,8 +8611,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:03:16+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 317
+   "last": "2026-08-19T12:22:05+00:00",
+   "applied": 318
   },
   {
    "key": "effort|feature/d23",
@@ -8414,8 +8622,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:03:24+00:00",
-   "last": "2026-08-19T12:06:08+00:00",
-   "applied": 294
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 295
   },
   {
    "key": "effort|feature/d36",
@@ -8425,8 +8633,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:19+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 363
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 366
   },
   {
    "key": "effort|feature/d47",
@@ -8436,8 +8644,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:19+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 179
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 181
   },
   {
    "key": "effort|feature/d29",
@@ -8447,8 +8655,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:19+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 335
+   "last": "2026-08-19T12:22:44+00:00",
+   "applied": 337
   },
   {
    "key": "effort|feature/d43",
@@ -8458,8 +8666,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:19+00:00",
-   "last": "2026-08-19T12:12:57+00:00",
-   "applied": 220
+   "last": "2026-08-19T12:23:24+00:00",
+   "applied": 225
   },
   {
    "key": "effort|feature/d34",
@@ -8469,8 +8677,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:39+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 377
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 380
   },
   {
    "key": "effort|feature/d25",
@@ -8491,8 +8699,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:39+00:00",
-   "last": "2026-08-19T12:12:49+00:00",
-   "applied": 290
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 293
   },
   {
    "key": "effort|feature/d37",
@@ -8502,8 +8710,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:39+00:00",
-   "last": "2026-08-19T12:12:49+00:00",
-   "applied": 326
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 329
   },
   {
    "key": "effort|feature/d40",
@@ -8513,8 +8721,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:04:39+00:00",
-   "last": "2026-08-19T12:12:49+00:00",
-   "applied": 328
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 331
   },
   {
    "key": "effort|feature/d41",
@@ -8524,8 +8732,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:05:37+00:00",
-   "last": "2026-08-19T12:12:49+00:00",
-   "applied": 261
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 264
   },
   {
    "key": "effort|feature/d42",
@@ -8535,8 +8743,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:05:45+00:00",
-   "last": "2026-08-19T12:12:57+00:00",
-   "applied": 260
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 264
   },
   {
    "key": "effort|feature/d48",
@@ -8546,8 +8754,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 0.79, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:19+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 178
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 181
   },
   {
    "key": "effort|feature/d30",
@@ -8557,8 +8765,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.01, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:19+00:00",
-   "last": "2026-08-19T12:15:29+00:00",
-   "applied": 274
+   "last": "2026-08-19T12:22:05+00:00",
+   "applied": 275
   },
   {
    "key": "effort|feature/d66",
@@ -8568,8 +8776,8 @@
    "after": "0.05x",
    "why": "336 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:38+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 280
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 282
   },
   {
    "key": "effort|feature/d56",
@@ -8579,8 +8787,8 @@
    "after": "0.05x",
    "why": "384 hypotheses tested in this family, best z 1.06, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:38+00:00",
-   "last": "2026-08-19T12:12:57+00:00",
-   "applied": 129
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 130
   },
   {
    "key": "effort|feature/d53",
@@ -8590,8 +8798,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:38+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 157
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 158
   },
   {
    "key": "effort|feature/d38",
@@ -8601,8 +8809,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.05, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:38+00:00",
-   "last": "2026-08-19T12:12:49+00:00",
-   "applied": 292
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 295
   },
   {
    "key": "effort|feature/d70",
@@ -8612,8 +8820,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:06:38+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 370
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 372
   },
   {
    "key": "effort|feature/d32",
@@ -8623,8 +8831,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z -0.38, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:16+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 308
+   "last": "2026-08-19T12:22:05+00:00",
+   "applied": 309
   },
   {
    "key": "effort|feature/d33",
@@ -8634,8 +8842,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z -0.23, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:16+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 356
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 358
   },
   {
    "key": "effort|feature/d59",
@@ -8645,8 +8853,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:33+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 197
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 200
   },
   {
    "key": "effort|feature/d68",
@@ -8656,8 +8864,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:42+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 273
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 276
   },
   {
    "key": "effort|feature/d44",
@@ -8667,8 +8875,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.04, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:42+00:00",
-   "last": "2026-08-19T12:12:57+00:00",
-   "applied": 194
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 198
   },
   {
    "key": "effort|feature/d67",
@@ -8678,8 +8886,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-17T12:07:42+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 278
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 280
   },
   {
    "key": "horizon|minute_of_day/vol",
@@ -9830,11 +10038,11 @@
    "kind": "closed",
    "family": "feature/d44",
    "before": "searching",
-   "after": "crossing at 10s",
-   "why": "gross edge grows as horizon^0.48 (fit quality 0.70), measured in multiples of each market's own round-trip cost. It reaches break-even near 11s.",
+   "after": "crossing at 861.8 days",
+   "why": "gross edge grows as horizon^0.30 (fit quality 0.86), measured in multiples of each market's own round-trip cost. It reaches break-even near 861.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-18T08:13:20+00:00",
-   "last": "2026-08-18T19:41:21+00:00",
-   "applied": 12
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 13
   },
   {
    "key": "closed|feature/d27",
@@ -9932,8 +10140,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.01, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:32:13+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 182
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 184
   },
   {
    "key": "horizon|feature/d20",
@@ -9987,8 +10195,8 @@
    "after": "0.05x",
    "why": "352 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:35:21+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 182
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 185
   },
   {
    "key": "effort|feature/d55",
@@ -9998,8 +10206,8 @@
    "after": "0.05x",
    "why": "416 hypotheses tested in this family, best z 1.04, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:35:43+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 171
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 173
   },
   {
    "key": "closed|feature/d39",
@@ -10152,8 +10360,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.23, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:43:15+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 154
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 156
   },
   {
    "key": "effort|feature/d63",
@@ -10163,8 +10371,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:43:35+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 253
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 255
   },
   {
    "key": "effort|feature/d52",
@@ -10174,8 +10382,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 1.37, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:46:22+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 169
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 170
   },
   {
    "key": "closed|feature/d40",
@@ -10193,11 +10401,11 @@
    "kind": "horizon",
    "family": "feature/d51",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+86s (deduced)",
-   "why": "gross edge grows as horizon^0.80 (fit quality 0.99), measured in multiples of each market's own round-trip cost. It reaches break-even near 86s.",
+   "after": "+855s (deduced)",
+   "why": "gross edge grows as horizon^0.44 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 14 min.",
    "first": "2026-08-18T12:47:03+00:00",
-   "last": "2026-08-18T20:35:30+00:00",
-   "applied": 9
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 10
   },
   {
    "key": "horizon|feature/d35",
@@ -10273,8 +10481,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:49:32+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 208
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 210
   },
   {
    "key": "effort|feature/d57",
@@ -10284,8 +10492,8 @@
    "after": "0.05x",
    "why": "336 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:49:38+00:00",
-   "last": "2026-08-19T12:12:57+00:00",
-   "applied": 114
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 115
   },
   {
    "key": "effort|feature/d54",
@@ -10295,8 +10503,8 @@
    "after": "0.05x",
    "why": "352 hypotheses tested in this family, best z 1.21, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:49:49+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 144
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 145
   },
   {
    "key": "effort|feature/d64",
@@ -10306,8 +10514,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 0.33, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:49:58+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 274
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 276
   },
   {
    "key": "effort|feature/d77",
@@ -10317,8 +10525,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:52:58+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 284
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 286
   },
   {
    "key": "horizon|feature/d77",
@@ -10416,8 +10624,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:59:54+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 245
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 247
   },
   {
    "key": "effort|feature/d60",
@@ -10427,8 +10635,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 0.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T12:59:58+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 199
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 201
   },
   {
    "key": "effort|feature/d49",
@@ -10438,8 +10646,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.59, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:00:03+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 156
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 159
   },
   {
    "key": "effort|feature/d65",
@@ -10449,8 +10657,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:00:19+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 281
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 283
   },
   {
    "key": "effort|feature/d58",
@@ -10460,8 +10668,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:00:19+00:00",
-   "last": "2026-08-19T12:14:53+00:00",
-   "applied": 190
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 192
   },
   {
    "key": "effort|feature/d62",
@@ -10471,8 +10679,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:05:04+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 256
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 258
   },
   {
    "key": "effort|feature/d86",
@@ -10482,8 +10690,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.97, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:07:57+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 134
+   "last": "2026-08-19T12:22:03+00:00",
+   "applied": 135
   },
   {
    "key": "effort|feature/d103",
@@ -10578,11 +10786,11 @@
    "kind": "closed",
    "family": "feature/d60",
    "before": "searching",
-   "after": "crossing at 12.7 hours",
-   "why": "gross edge grows as horizon^0.45 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 12.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "after": "crossing at 15.6 hours",
+   "why": "gross edge grows as horizon^0.49 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 15.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-18T13:08:45+00:00",
-   "last": "2026-08-18T16:10:01+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 8
   },
   {
    "key": "horizon|feature/d78",
@@ -10746,8 +10954,8 @@
    "after": "0.05x",
    "why": "432 hypotheses tested in this family, best z 1.60, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:15:22+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 171
+   "last": "2026-08-19T12:22:43+00:00",
+   "applied": 173
   },
   {
    "key": "horizon|feature/d45",
@@ -10823,8 +11031,8 @@
    "after": "0.05x",
    "why": "336 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:20:55+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 410
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 414
   },
   {
    "key": "closed|feature/d45",
@@ -10922,8 +11130,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:24:24+00:00",
-   "last": "2026-08-19T12:12:40+00:00",
-   "applied": 303
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 306
   },
   {
    "key": "effort|feature/d101",
@@ -10944,8 +11152,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.91, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:27:21+00:00",
-   "last": "2026-08-19T12:12:32+00:00",
-   "applied": 103
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 104
   },
   {
    "key": "effort|feature/d102",
@@ -10966,8 +11174,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:27:21+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 107
+   "last": "2026-08-19T12:22:03+00:00",
+   "applied": 108
   },
   {
    "key": "closed|feature/d58",
@@ -10985,11 +11193,11 @@
    "kind": "horizon",
    "family": "feature/d43",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+711s (deduced)",
-   "why": "gross edge grows as horizon^0.88 (fit quality 0.86), measured in multiples of each market's own round-trip cost. It reaches break-even near 12 min.",
+   "after": "+136s (deduced)",
+   "why": "gross edge grows as horizon^0.80 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 2 min.",
    "first": "2026-08-18T13:28:05+00:00",
-   "last": "2026-08-19T12:06:11+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 8
   },
   {
    "key": "horizon|feature/d107",
@@ -11120,8 +11328,8 @@
    "after": "0.05x",
    "why": "304 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:31:23+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 450
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 454
   },
   {
    "key": "effort|feature/d74",
@@ -11131,8 +11339,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:31:41+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 307
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 309
   },
   {
    "key": "effort|feature/d73",
@@ -11142,8 +11350,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:31:41+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 334
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 337
   },
   {
    "key": "effort|feature/d111",
@@ -11164,8 +11372,8 @@
    "after": "0.07x",
    "why": "208 hypotheses tested in this family, best z 0.50, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:34:57+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 116
+   "last": "2026-08-19T12:22:03+00:00",
+   "applied": 117
   },
   {
    "key": "effort|feature/d115",
@@ -11318,8 +11526,8 @@
    "after": "0.07x",
    "why": "208 hypotheses tested in this family, best z 1.20, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:38:59+00:00",
-   "last": "2026-08-18T19:58:43+00:00",
-   "applied": 71
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 72
   },
   {
    "key": "effort|feature/d98",
@@ -11340,8 +11548,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:39:19+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 230
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 232
   },
   {
    "key": "closed|feature/d88",
@@ -11417,8 +11625,8 @@
    "after": "0.07x",
    "why": "208 hypotheses tested in this family, best z 0.95, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:42:48+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 107
+   "last": "2026-08-19T12:22:03+00:00",
+   "applied": 108
   },
   {
    "key": "effort|feature/d75",
@@ -11428,8 +11636,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:42:57+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 342
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 345
   },
   {
    "key": "effort|feature/d123",
@@ -11439,8 +11647,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 1.20, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:42:57+00:00",
-   "last": "2026-08-19T12:12:32+00:00",
-   "applied": 79
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 80
   },
   {
    "key": "effort|feature/d84",
@@ -11450,8 +11658,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:43:17+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 178
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 180
   },
   {
    "key": "horizon|feature/d47",
@@ -11549,8 +11757,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:48:51+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 274
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 277
   },
   {
    "key": "effort|feature/d100",
@@ -11571,8 +11779,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.32, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:48:55+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 193
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 195
   },
   {
    "key": "effort|feature/d104",
@@ -11582,8 +11790,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 1.43, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:48:55+00:00",
-   "last": "2026-08-19T12:14:52+00:00",
-   "applied": 144
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 145
   },
   {
    "key": "closed|feature/d79",
@@ -11648,8 +11856,8 @@
    "after": "0.05x",
    "why": "320 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T13:54:07+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 235
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 237
   },
   {
    "key": "effort|feature/d108",
@@ -11670,8 +11878,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 0.53, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:02:10+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 39
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 40
   },
   {
    "key": "effort|feature/d228",
@@ -11692,8 +11900,8 @@
    "after": "0.12x",
    "why": "128 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:02:10+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 42
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 43
   },
   {
    "key": "effort|feature/d116",
@@ -11703,8 +11911,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.37, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:02:10+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 87
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 88
   },
   {
    "key": "closed|feature/d51",
@@ -11835,8 +12043,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:06:21+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 270
+   "last": "2026-08-19T12:22:35+00:00",
+   "applied": 272
   },
   {
    "key": "effort|feature/d109",
@@ -11868,8 +12076,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:06:38+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 275
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 278
   },
   {
    "key": "closed|feature/d53",
@@ -11989,8 +12197,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:10:40+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 90
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 91
   },
   {
    "key": "effort|feature/d105",
@@ -12143,8 +12351,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 0.71, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:16:27+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 74
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 75
   },
   {
    "key": "effort|feature/d112",
@@ -12165,8 +12373,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 0.91, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:16:44+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 131
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 132
   },
   {
    "key": "effort|feature/d170",
@@ -12253,8 +12461,8 @@
    "after": "0.05x",
    "why": "288 hypotheses tested in this family, best z 1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:20:26+00:00",
-   "last": "2026-08-19T12:14:49+00:00",
-   "applied": 234
+   "last": "2026-08-19T12:22:22+00:00",
+   "applied": 236
   },
   {
    "key": "effort|feature/d121",
@@ -12264,8 +12472,8 @@
    "after": "0.09x",
    "why": "160 hypotheses tested in this family, best z 1.20, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:20:35+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 81
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 82
   },
   {
    "key": "effort|feature/d137",
@@ -12275,8 +12483,8 @@
    "after": "0.09x",
    "why": "160 hypotheses tested in this family, best z 1.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:20:53+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 78
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 80
   },
   {
    "key": "effort|feature/d138",
@@ -12286,8 +12494,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z -0.68, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:20:53+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 51
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 52
   },
   {
    "key": "closed|feature/d86",
@@ -12426,11 +12634,11 @@
    "kind": "horizon",
    "family": "feature/d260",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+1237s (deduced)",
-   "why": "gross edge grows as horizon^0.89 (fit quality 0.97), measured in multiples of each market's own round-trip cost. It reaches break-even near 21 min.",
+   "after": "+3013s (deduced)",
+   "why": "gross edge grows as horizon^0.57 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 50 min.",
    "first": "2026-08-18T14:25:23+00:00",
-   "last": "2026-08-18T14:25:23+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "horizon|feature/d259",
@@ -12517,8 +12725,8 @@
    "after": "0.07x",
    "why": "208 hypotheses tested in this family, best z 1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:28:59+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 52
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 53
   },
   {
    "key": "effort|feature/d155",
@@ -12528,8 +12736,8 @@
    "after": "0.09x",
    "why": "160 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:29:11+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 96
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 97
   },
   {
    "key": "effort|feature/d91",
@@ -12539,8 +12747,8 @@
    "after": "0.09x",
    "why": "160 hypotheses tested in this family, best z 0.95, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:29:17+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 105
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 107
   },
   {
    "key": "closed|feature/d132",
@@ -12671,8 +12879,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 0.95, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:34:11+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 37
   },
   {
    "key": "horizon|feature/d66",
@@ -12759,8 +12967,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z -0.82, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:40:12+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 53
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 54
   },
   {
    "key": "effort|feature/d186",
@@ -12858,8 +13066,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:44:54+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 88
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 90
   },
   {
    "key": "effort|feature/d92",
@@ -12880,8 +13088,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -10.49, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:45:07+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 35
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 36
   },
   {
    "key": "effort|feature/d187",
@@ -12902,8 +13110,8 @@
    "after": "0.12x",
    "why": "128 hypotheses tested in this family, best z 1.21, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:45:11+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 65
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 67
   },
   {
    "key": "effort|feature/d126",
@@ -12954,11 +13162,11 @@
    "kind": "horizon",
    "family": "feature/d68",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+318s (deduced)",
-   "why": "gross edge grows as horizon^0.90 (fit quality 0.96), measured in multiples of each market's own round-trip cost. It reaches break-even near 5 min.",
+   "after": "+2329s (deduced)",
+   "why": "gross edge grows as horizon^0.54 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 39 min.",
    "first": "2026-08-18T14:49:38+00:00",
-   "last": "2026-08-18T18:27:44+00:00",
-   "applied": 4
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 5
   },
   {
    "key": "closed|feature/d90",
@@ -13177,8 +13385,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 1.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:53:27+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 54
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 57
   },
   {
    "key": "effort|feature/d125",
@@ -13199,8 +13407,8 @@
    "after": "0.12x",
    "why": "128 hypotheses tested in this family, best z 0.95, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:53:34+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 87
+   "last": "2026-08-19T12:22:03+00:00",
+   "applied": 88
   },
   {
    "key": "effort|feature/d129",
@@ -13210,8 +13418,8 @@
    "after": "0.06x",
    "why": "240 hypotheses tested in this family, best z 0.98, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:53:50+00:00",
-   "last": "2026-08-19T12:12:32+00:00",
-   "applied": 96
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 97
   },
   {
    "key": "closed|feature/d149",
@@ -13284,11 +13492,11 @@
    "kind": "closed",
    "family": "feature/d300",
    "before": "searching",
-   "after": "crossing at 10.9 days",
-   "why": "gross edge grows as horizon^0.37 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.9 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "after": "crossing at 7.4 hours",
+   "why": "gross edge grows as horizon^0.54 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.4 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-18T14:54:45+00:00",
-   "last": "2026-08-18T19:19:18+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 3
   },
   {
    "key": "closed|feature/d188",
@@ -13364,8 +13572,8 @@
    "after": "0.15x",
    "why": "96 hypotheses tested in this family, best z -1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:58:35+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 38
   },
   {
    "key": "effort|feature/d150",
@@ -13375,8 +13583,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z -1.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:58:35+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 33
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 35
   },
   {
    "key": "effort|feature/d154",
@@ -13386,8 +13594,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:58:49+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 90
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 91
   },
   {
    "key": "effort|feature/d196",
@@ -13397,8 +13605,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z 1.19, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:59:06+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 78
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 82
   },
   {
    "key": "effort|feature/d146",
@@ -13408,8 +13616,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z 0.01, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T14:59:08+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 69
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 71
   },
   {
    "key": "effort|feature/d96",
@@ -13559,11 +13767,11 @@
    "kind": "effort",
    "family": "feature/d197",
    "before": "1.00x",
-   "after": "0.17x",
-   "why": "80 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "after": "0.15x",
+   "why": "96 hypotheses tested in this family, best z 1.19, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:05:51+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 65
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 68
   },
   {
    "key": "effort|feature/d167",
@@ -13691,11 +13899,11 @@
    "kind": "effort",
    "family": "feature/d152",
    "before": "1.00x",
-   "after": "0.12x",
-   "why": "128 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "after": "0.10x",
+   "why": "144 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:10:05+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 80
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 82
   },
   {
    "key": "effort|feature/d128",
@@ -13738,8 +13946,8 @@
    "after": "0.15x",
    "why": "96 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:10:49+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 50
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 51
   },
   {
    "key": "effort|feature/d168",
@@ -13878,11 +14086,11 @@
    "kind": "closed",
    "family": "feature/d122",
    "before": "searching",
-   "after": "crossing at 2.6 days",
-   "why": "gross edge grows as horizon^0.30 (fit quality 0.81), measured in multiples of each market's own round-trip cost. It reaches break-even near 2.6 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "after": "crossing at 11.2 hours",
+   "why": "gross edge grows as horizon^0.35 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.2 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-18T15:15:39+00:00",
-   "last": "2026-08-18T16:45:05+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 3
   },
   {
    "key": "horizon|feature/d106",
@@ -14035,8 +14243,8 @@
    "after": "0.08x",
    "why": "192 hypotheses tested in this family, best z -0.68, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:19:30+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 66
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 67
   },
   {
    "key": "effort|feature/d153",
@@ -14046,8 +14254,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:19:30+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 60
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 61
   },
   {
    "key": "effort|feature/d132",
@@ -14068,8 +14276,8 @@
    "after": "0.09x",
    "why": "160 hypotheses tested in this family, best z 0.50, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:19:40+00:00",
-   "last": "2026-08-19T12:14:55+00:00",
-   "applied": 43
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 44
   },
   {
    "key": "effort|feature/d145",
@@ -14079,8 +14287,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -0.15, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:19:55+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 34
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 35
   },
   {
    "key": "effort|feature/d157",
@@ -14090,8 +14298,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:20:03+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 53
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 55
   },
   {
    "key": "closed|feature/d137",
@@ -14200,8 +14408,8 @@
    "after": "0.12x",
    "why": "128 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:25:15+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 57
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 59
   },
   {
    "key": "effort|feature/d158",
@@ -14211,8 +14419,8 @@
    "after": "0.13x",
    "why": "112 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:25:18+00:00",
-   "last": "2026-08-19T12:12:42+00:00",
-   "applied": 41
+   "last": "2026-08-19T12:22:24+00:00",
+   "applied": 42
   },
   {
    "key": "closed|feature/d123",
@@ -14288,8 +14496,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z 0.92, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:31:33+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 21
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 22
   },
   {
    "key": "effort|feature/d147",
@@ -14299,8 +14507,8 @@
    "after": "0.15x",
    "why": "96 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:31:33+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 27
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 28
   },
   {
    "key": "effort|feature/d202",
@@ -14310,8 +14518,8 @@
    "after": "0.10x",
    "why": "144 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:31:37+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 53
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 55
   },
   {
    "key": "closed|feature/d96",
@@ -14376,8 +14584,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:36:00+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 60
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 61
   },
   {
    "key": "effort|feature/d163",
@@ -14519,8 +14727,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:46:43+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 57
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 58
   },
   {
    "key": "effort|feature/d161",
@@ -14541,19 +14749,19 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:46:46+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 46
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 48
   },
   {
    "key": "effort|feature/d204",
    "kind": "effort",
    "family": "feature/d204",
    "before": "1.00x",
-   "after": "0.21x",
-   "why": "64 hypotheses tested in this family, best z 0.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "after": "0.17x",
+   "why": "80 hypotheses tested in this family, best z 0.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:46:46+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 43
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 45
   },
   {
    "key": "closed|feature/d245",
@@ -14695,8 +14903,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -14.59, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T15:58:54+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 41
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 42
   },
   {
    "key": "effort|feature/d164",
@@ -14783,8 +14991,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -0.16, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:03:46+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 37
   },
   {
    "key": "effort|feature/d210",
@@ -14794,8 +15002,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:04:14+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 48
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 49
   },
   {
    "key": "effort|feature/d165",
@@ -14926,8 +15134,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:14:48+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 43
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 44
   },
   {
    "key": "effort|feature/d207",
@@ -14937,8 +15145,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:14:52+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 53
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 55
   },
   {
    "key": "closed|feature/d259",
@@ -15080,8 +15288,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -0.82, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:27:20+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 34
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 35
   },
   {
    "key": "effort|feature/d260",
@@ -15091,8 +15299,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:27:20+00:00",
-   "last": "2026-08-18T17:21:14+00:00",
-   "applied": 8
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d159",
@@ -15113,8 +15321,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -14.29, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:27:47+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 37
   },
   {
    "key": "effort|feature/d418",
@@ -15146,8 +15354,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:27:52+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 46
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 47
   },
   {
    "key": "closed|feature/d146",
@@ -15245,8 +15453,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:32:58+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 55
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 57
   },
   {
    "key": "effort|feature/d367",
@@ -15256,8 +15464,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -11.79, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:33:28+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 35
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 36
   },
   {
    "key": "effort|feature/d368",
@@ -15267,8 +15475,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -14.29, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:33:28+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 34
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 35
   },
   {
    "key": "effort|feature/d179",
@@ -15399,8 +15607,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -0.88, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:43:43+00:00",
-   "last": "2026-08-19T12:12:32+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 7
   },
   {
    "key": "effort|feature/d169",
@@ -15476,8 +15684,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z -0.77, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:50:17+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 42
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 43
   },
   {
    "key": "effort|feature/d212",
@@ -15487,8 +15695,8 @@
    "after": "0.15x",
    "why": "96 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T16:50:21+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 55
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 57
   },
   {
    "key": "closed|feature/d350",
@@ -15718,8 +15926,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:14:53+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 49
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 50
   },
   {
    "key": "closed|feature/d278",
@@ -15762,8 +15970,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:21:14+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 43
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 44
   },
   {
    "key": "closed|feature/d279",
@@ -15883,8 +16091,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 1.18, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:35:13+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 38
   },
   {
    "key": "effort|feature/d248",
@@ -16015,8 +16223,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -1.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:46:04+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 25
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 26
   },
   {
    "key": "effort|feature/d213",
@@ -16026,8 +16234,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -1.11, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:46:10+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 53
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 55
   },
   {
    "key": "effort|feature/d266",
@@ -16191,8 +16399,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T17:52:25+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 10
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 11
   },
   {
    "key": "effort|feature/d296",
@@ -16364,11 +16572,11 @@
    "kind": "effort",
    "family": "feature/d221",
    "before": "1.00x",
-   "after": "0.26x",
-   "why": "48 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "after": "0.21x",
+   "why": "64 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:00:46+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 7
   },
   {
    "key": "effort|feature/d405",
@@ -16400,8 +16608,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:01:08+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 38
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 39
   },
   {
    "key": "effort|feature/d199",
@@ -16411,8 +16619,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:01:15+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 38
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 40
   },
   {
    "key": "closed|feature/d294",
@@ -16488,8 +16696,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -1.11, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:07:25+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 17
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 18
   },
   {
    "key": "effort|feature/d269",
@@ -16510,8 +16718,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:07:39+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 36
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 37
   },
   {
    "key": "effort|feature/d294",
@@ -16653,8 +16861,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:18:28+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 39
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 40
   },
   {
    "key": "effort|feature/d215",
@@ -16664,8 +16872,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -1.11, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:18:44+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 11
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 12
   },
   {
    "key": "effort|feature/d216",
@@ -16675,8 +16883,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:18:44+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 10
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 11
   },
   {
    "key": "effort|feature/d347",
@@ -16686,8 +16894,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:18:44+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 22
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 23
   },
   {
    "key": "effort|feature/d200",
@@ -16697,8 +16905,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:18:59+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 33
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 35
   },
   {
    "key": "closed|feature/d526",
@@ -16785,8 +16993,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z -0.77, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:25:28+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 29
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 30
   },
   {
    "key": "effort|feature/d380",
@@ -16928,8 +17136,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -1.26, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:33:16+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 8
   },
   {
    "key": "effort|feature/d371",
@@ -17038,8 +17246,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -1.26, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:39:45+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 5
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 6
   },
   {
    "key": "effort|feature/d372",
@@ -17071,8 +17279,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -14.29, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:39:57+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 19
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 20
   },
   {
    "key": "effort|feature/d464",
@@ -17247,8 +17455,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:51:20+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 34
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 35
   },
   {
    "key": "effort|feature/d351",
@@ -17310,11 +17518,11 @@
    "kind": "closed",
    "family": "feature/d332",
    "before": "searching",
-   "after": "crossing at 5.2 hours",
-   "why": "gross edge grows as horizon^0.51 (fit quality 0.81), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.2 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "after": "crossing at 7.6 hours",
+   "why": "gross edge grows as horizon^0.53 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-18T18:52:39+00:00",
-   "last": "2026-08-18T18:52:39+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "horizon|feature/d236",
@@ -17401,8 +17609,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:58:00+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 8
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d236",
@@ -17412,8 +17620,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T18:58:09+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 32
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 33
   },
   {
    "key": "effort|feature/d352",
@@ -17643,8 +17851,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.25, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:12:45+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 18
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 19
   },
   {
    "key": "effort|feature/d340",
@@ -17830,8 +18038,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.25, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:24:41+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 15
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 16
   },
   {
    "key": "effort|feature/d300",
@@ -17841,8 +18049,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -3.83, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:24:41+00:00",
-   "last": "2026-08-18T19:46:55+00:00",
-   "applied": 4
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 5
   },
   {
    "key": "effort|feature/d384",
@@ -17863,8 +18071,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -14.29, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:25:10+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 14
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 15
   },
   {
    "key": "closed|feature/d343",
@@ -17918,8 +18126,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:31:39+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 8
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d251",
@@ -17951,8 +18159,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -1.06, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:32:25+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 15
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 16
   },
   {
    "key": "effort|feature/d281",
@@ -18105,8 +18313,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:40:04+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 12
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 13
   },
   {
    "key": "effort|feature/d252",
@@ -18127,8 +18335,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -14.29, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:40:34+00:00",
-   "last": "2026-08-19T12:12:56+00:00",
-   "applied": 12
+   "last": "2026-08-19T12:22:41+00:00",
+   "applied": 13
   },
   {
    "key": "effort|feature/d195",
@@ -18138,8 +18346,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 1.19, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:40:39+00:00",
-   "last": "2026-08-19T12:12:59+00:00",
-   "applied": 25
+   "last": "2026-08-19T12:22:45+00:00",
+   "applied": 27
   },
   {
    "key": "effort|feature/d193",
@@ -18149,8 +18357,8 @@
    "after": "0.15x",
    "why": "96 hypotheses tested in this family, best z 1.21, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:40:40+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 16
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 17
   },
   {
    "key": "closed|feature/d345",
@@ -18270,8 +18478,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:46:55+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 11
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 12
   },
   {
    "key": "effort|feature/d735",
@@ -18457,8 +18665,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T19:58:39+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 10
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 11
   },
   {
    "key": "effort|feature/d357",
@@ -18575,11 +18783,11 @@
    "kind": "horizon",
    "family": "feature/d198",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+6963s (deduced)",
-   "why": "gross edge grows as horizon^0.60 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 1.9 hours.",
+   "after": "+2868s (deduced)",
+   "why": "gross edge grows as horizon^0.62 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 48 min.",
    "first": "2026-08-18T20:00:10+00:00",
-   "last": "2026-08-18T20:00:10+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "horizon|feature/d211",
@@ -18611,8 +18819,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:05:52+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 9
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 10
   },
   {
    "key": "effort|feature/d358",
@@ -18633,8 +18841,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.02, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:06:10+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 20
+   "last": "2026-08-19T12:22:48+00:00",
+   "applied": 23
   },
   {
    "key": "closed|feature/d687",
@@ -18718,11 +18926,11 @@
    "kind": "horizon",
    "family": "feature/d470",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+240s (deduced)",
-   "why": "gross edge grows as horizon^0.94 (fit quality 0.92), measured in multiples of each market's own round-trip cost. It reaches break-even near 4 min.",
+   "after": "+5033s (deduced)",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min.",
    "first": "2026-08-18T20:08:58+00:00",
-   "last": "2026-08-18T20:08:58+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "horizon|feature/d387",
@@ -18776,8 +18984,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 1.19, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:14:51+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 8
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d480",
@@ -18787,8 +18995,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:14:52+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 10
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 11
   },
   {
    "key": "effort|feature/d493",
@@ -18963,8 +19171,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:21:39+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 8
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d188",
@@ -18974,8 +19182,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -0.26, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:21:47+00:00",
-   "last": "2026-08-19T12:12:51+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:22:37+00:00",
+   "applied": 8
   },
   {
    "key": "effort|feature/d468",
@@ -18996,8 +19204,8 @@
    "after": "0.21x",
    "why": "64 hypotheses tested in this family, best z 0.71, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:23:38+00:00",
-   "last": "2026-08-19T12:12:25+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 8
   },
   {
    "key": "effort|feature/d287",
@@ -19183,8 +19391,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:33:47+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 7
   },
   {
    "key": "effort|feature/d171",
@@ -19194,8 +19402,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.11, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:33:53+00:00",
-   "last": "2026-08-19T12:12:32+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:12+00:00",
+   "applied": 7
   },
   {
    "key": "effort|feature/d191",
@@ -19205,8 +19413,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 1.21, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:34:00+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 7
   },
   {
    "key": "effort|feature/d325",
@@ -19216,8 +19424,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:34:20+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 9
   },
   {
    "key": "closed|feature/d690",
@@ -19348,8 +19556,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:52:49+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 5
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 6
   },
   {
    "key": "effort|feature/d469",
@@ -19370,8 +19578,8 @@
    "after": "0.17x",
    "why": "80 hypotheses tested in this family, best z 1.21, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:53:02+00:00",
-   "last": "2026-08-19T12:12:43+00:00",
-   "applied": 7
+   "last": "2026-08-19T12:22:26+00:00",
+   "applied": 9
   },
   {
    "key": "effort|feature/d496",
@@ -19392,8 +19600,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -0.80, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T20:53:14+00:00",
-   "last": "2026-08-19T12:12:53+00:00",
-   "applied": 5
+   "last": "2026-08-19T12:22:39+00:00",
+   "applied": 6
   },
   {
    "key": "effort|feature/d497",
@@ -19590,8 +19798,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.28, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T21:15:50+00:00",
-   "last": "2026-08-19T12:12:44+00:00",
-   "applied": 4
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 5
   },
   {
    "key": "effort|feature/d643",
@@ -19601,8 +19809,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -0.80, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T21:16:02+00:00",
-   "last": "2026-08-19T12:12:53+00:00",
-   "applied": 4
+   "last": "2026-08-19T12:22:39+00:00",
+   "applied": 5
   },
   {
    "key": "effort|feature/d302",
@@ -19612,8 +19820,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-18T21:16:10+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 4
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 5
   },
   {
    "key": "effort|feature/d498",
@@ -19774,11 +19982,11 @@
    "kind": "horizon",
    "family": "feature/d487",
    "before": "[60, 300, 900, 3600]s",
-   "after": "+297s (deduced)",
-   "why": "gross edge grows as horizon^1.08 (fit quality 0.89), measured in multiples of each market's own round-trip cost. It reaches break-even near 5 min.",
+   "after": "+5033s (deduced)",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min.",
    "first": "2026-08-18T21:23:40+00:00",
-   "last": "2026-08-18T21:23:40+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "horizon|feature/d390",
@@ -19821,8 +20029,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -3.84, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T11:51:15+00:00",
-   "last": "2026-08-19T12:12:21+00:00",
-   "applied": 3
+   "last": "2026-08-19T12:22:07+00:00",
+   "applied": 4
   },
   {
    "key": "effort|feature/d471",
@@ -19843,8 +20051,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.07, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T11:51:19+00:00",
-   "last": "2026-08-19T12:12:25+00:00",
-   "applied": 3
+   "last": "2026-08-19T12:22:11+00:00",
+   "applied": 4
   },
   {
    "key": "effort|feature/d328",
@@ -19854,8 +20062,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T11:51:20+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 6
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 8
   },
   {
    "key": "effort|feature/d487",
@@ -19865,8 +20073,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.80, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T11:53:31+00:00",
-   "last": "2026-08-19T12:14:47+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d319",
@@ -20129,8 +20337,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.08, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:04:49+00:00",
-   "last": "2026-08-19T12:12:25+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:11+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d550",
@@ -20140,8 +20348,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.23, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:04:49+00:00",
-   "last": "2026-08-19T12:12:25+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:11+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d682",
@@ -20151,19 +20359,19 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.23, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:04:49+00:00",
-   "last": "2026-08-19T12:12:25+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:11+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d324",
    "kind": "effort",
    "family": "feature/d324",
    "before": "1.00x",
-   "after": "0.34x",
-   "why": "32 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "after": "0.26x",
+   "why": "48 hypotheses tested in this family, best z -0.03, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:05:15+00:00",
-   "last": "2026-08-19T12:13:02+00:00",
-   "applied": 5
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 7
   },
   {
    "key": "closed|feature/d671",
@@ -20357,11 +20565,11 @@
    "kind": "closed",
    "family": "feature/d325",
    "before": "searching",
-   "after": "crossing at 33.8 hours",
-   "why": "gross edge grows as horizon^0.42 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 33.8 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "after": "crossing at 6149.1 days",
+   "why": "gross edge grows as horizon^0.17 (fit quality 0.73), measured in multiples of each market's own round-trip cost. It reaches break-even near 6149.1 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
    "first": "2026-08-19T12:06:11+00:00",
-   "last": "2026-08-19T12:06:11+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 2
   },
   {
    "key": "effort|feature/d485",
@@ -20371,8 +20579,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.80, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:12:44+00:00",
-   "last": "2026-08-19T12:14:47+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d298",
@@ -20382,8 +20590,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z -1.45, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:12:45+00:00",
-   "last": "2026-08-19T12:12:45+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 2
   },
   {
    "key": "effort|feature/d659",
@@ -20404,8 +20612,8 @@
    "after": "0.26x",
    "why": "48 hypotheses tested in this family, best z 0.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:13:01+00:00",
-   "last": "2026-08-19T12:13:01+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 2
   },
   {
    "key": "effort|feature/d316",
@@ -20415,8 +20623,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:13:01+00:00",
-   "last": "2026-08-19T12:14:54+00:00",
-   "applied": 2
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 3
   },
   {
    "key": "effort|feature/d488",
@@ -20437,8 +20645,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.80, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:14:47+00:00",
-   "last": "2026-08-19T12:14:47+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 2
   },
   {
    "key": "effort|feature/d254",
@@ -20459,8 +20667,8 @@
    "after": "0.34x",
    "why": "32 hypotheses tested in this family, best z 0.10, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
    "first": "2026-08-19T12:14:54+00:00",
-   "last": "2026-08-19T12:14:54+00:00",
-   "applied": 1
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 2
   },
   {
    "key": "closed|feature/d672",
@@ -20626,12 +20834,211 @@
    "first": "2026-08-19T12:15:36+00:00",
    "last": "2026-08-19T12:15:36+00:00",
    "applied": 1
+  },
+  {
+   "key": "effort|feature/d299",
+   "kind": "effort",
+   "family": "feature/d299",
+   "before": "1.00x",
+   "after": "0.34x",
+   "why": "32 hypotheses tested in this family, best z -1.45, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "first": "2026-08-19T12:22:30+00:00",
+   "last": "2026-08-19T12:22:30+00:00",
+   "applied": 1
+  },
+  {
+   "key": "effort|feature/d331",
+   "kind": "effort",
+   "family": "feature/d331",
+   "before": "1.00x",
+   "after": "0.26x",
+   "why": "48 hypotheses tested in this family, best z 0.00, nothing cleared the bar -- effort reduced, not stopped, since a family is not disproved by its members failing",
+   "first": "2026-08-19T12:22:46+00:00",
+   "last": "2026-08-19T12:22:46+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d959",
+   "kind": "closed",
+   "family": "feature/d959",
+   "before": "searching",
+   "after": "crossing at 10.8 days",
+   "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d673",
+   "kind": "closed",
+   "family": "feature/d673",
+   "before": "searching",
+   "after": "crossing at 10.2 days",
+   "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.2 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d718",
+   "kind": "closed",
+   "family": "feature/d718",
+   "before": "searching",
+   "after": "crossing at 10.9 days",
+   "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.9 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d435",
+   "kind": "closed",
+   "family": "feature/d435",
+   "before": "searching",
+   "after": "crossing at 3781.8 days",
+   "why": "gross edge grows as horizon^0.18 (fit quality 0.71), measured in multiples of each market's own round-trip cost. It reaches break-even near 3781.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "horizon|feature/d751",
+   "kind": "horizon",
+   "family": "feature/d751",
+   "before": "[60, 300, 900, 3600]s",
+   "after": "+4933s (deduced)",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 82 min.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "horizon|feature/d569",
+   "kind": "horizon",
+   "family": "feature/d569",
+   "before": "[60, 300, 900, 3600]s",
+   "after": "+5033s (deduced)",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d1307",
+   "kind": "closed",
+   "family": "feature/d1307",
+   "before": "searching",
+   "after": "crossing at 12.0 hours",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 12.0 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d1682",
+   "kind": "closed",
+   "family": "feature/d1682",
+   "before": "searching",
+   "after": "crossing at 11.7 hours",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d1684",
+   "kind": "closed",
+   "family": "feature/d1684",
+   "before": "searching",
+   "after": "crossing at 11.7 hours",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d1435",
+   "kind": "closed",
+   "family": "feature/d1435",
+   "before": "searching",
+   "after": "crossing at 11.9 hours",
+   "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d625",
+   "kind": "closed",
+   "family": "feature/d625",
+   "before": "searching",
+   "after": "crossing at 5.6 hours",
+   "why": "gross edge grows as horizon^0.63 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d1096",
+   "kind": "closed",
+   "family": "feature/d1096",
+   "before": "searching",
+   "after": "crossing at 4.9 hours",
+   "why": "gross edge grows as horizon^0.70 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 4.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d861",
+   "kind": "closed",
+   "family": "feature/d861",
+   "before": "searching",
+   "after": "crossing at 5.3 hours",
+   "why": "gross edge grows as horizon^0.68 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.3 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d855",
+   "kind": "closed",
+   "family": "feature/d855",
+   "before": "searching",
+   "after": "crossing at 5.3 hours",
+   "why": "gross edge grows as horizon^0.68 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.3 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
+  },
+  {
+   "key": "closed|feature/d396",
+   "kind": "closed",
+   "family": "feature/d396",
+   "before": "searching",
+   "after": "crossing at 32.9 hours",
+   "why": "gross edge grows as horizon^0.42 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 32.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search.",
+   "first": "2026-08-19T12:23:26+00:00",
+   "last": "2026-08-19T12:23:26+00:00",
+   "applied": 1
   }
  ],
  "started": "2026-08-17T11:07:48+00:00",
  "insights": {
   "horizons": {
-   "feature/d672": {
+   "feature/d959": {
+    "fits": true,
+    "a": 0.006223,
+    "b": 0.37,
+    "r2": 0.841,
+    "cost": 1.0,
+    "h_star": 933707,
+    "extrapolation": 259.4,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d673": {
     "fits": true,
     "a": 0.006181,
     "b": 0.371,
@@ -20643,7 +21050,19 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.2 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d324": {
+   "feature/d718": {
+    "fits": true,
+    "a": 0.006277,
+    "b": 0.369,
+    "r2": 0.842,
+    "cost": 1.0,
+    "h_star": 941096,
+    "extrapolation": 261.4,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.9 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d325": {
     "fits": true,
     "a": 0.034517,
     "b": 0.168,
@@ -20655,7 +21074,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.17 (fit quality 0.73), measured in multiples of each market's own round-trip cost. It reaches break-even near 6149.1 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d434": {
+   "feature/d435": {
     "fits": true,
     "a": 0.032022,
     "b": 0.176,
@@ -20667,25 +21086,19 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.18 (fit quality 0.71), measured in multiples of each market's own round-trip cost. It reaches break-even near 3781.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d552": {
-    "fits": false,
-    "b": 0.17,
-    "r2": 0.69,
-    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.69, needs 0.70). There may be a relationship here but these measurements do not establish one."
-   },
-   "feature/d684": {
+   "feature/d685": {
     "fits": false,
     "b": 0.174,
     "r2": 0.67,
     "why": "the horizon trend is too noisy to extrapolate (fit quality 0.67, needs 0.70). There may be a relationship here but these measurements do not establish one."
    },
-   "feature/d546": {
+   "feature/d553": {
     "fits": false,
-    "b": 0.19,
-    "r2": 0.674,
-    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.67, needs 0.70). There may be a relationship here but these measurements do not establish one."
+    "b": 0.17,
+    "r2": 0.69,
+    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.69, needs 0.70). There may be a relationship here but these measurements do not establish one."
    },
-   "feature/d43": {
+   "feature/d44": {
     "fits": true,
     "a": 0.004742,
     "b": 0.295,
@@ -20697,43 +21110,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.30 (fit quality 0.86), measured in multiples of each market's own round-trip cost. It reaches break-even near 861.8 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d152": {
-    "fits": true,
-    "a": 0.022582,
-    "b": 0.327,
-    "r2": 0.793,
-    "cost": 1.0,
-    "h_star": 107690,
-    "extrapolation": 29.9,
-    "max_tested": 3600,
-    "reachable": false,
-    "why": "gross edge grows as horizon^0.33 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 29.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
-   },
-   "feature/d67": {
-    "fits": true,
-    "a": 0.014937,
-    "b": 0.542,
-    "r2": 0.819,
-    "cost": 1.0,
-    "h_star": 2329,
-    "extrapolation": 0.6,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.54 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 39 min."
-   },
-   "feature/d250": {
-    "fits": true,
-    "a": 0.017005,
-    "b": 0.498,
-    "r2": 0.837,
-    "cost": 1.0,
-    "h_star": 3561,
-    "extrapolation": 1.0,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.50 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 59 min."
-   },
-   "feature/d197": {
+   "feature/d198": {
     "fits": true,
     "a": 0.007075,
     "b": 0.622,
@@ -20745,7 +21122,31 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.62 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 48 min."
    },
-   "feature/d486": {
+   "feature/d260": {
+    "fits": true,
+    "a": 0.010358,
+    "b": 0.57,
+    "r2": 0.833,
+    "cost": 1.0,
+    "h_star": 3013,
+    "extrapolation": 0.8,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.57 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 50 min."
+   },
+   "feature/d68": {
+    "fits": true,
+    "a": 0.014937,
+    "b": 0.542,
+    "r2": 0.819,
+    "cost": 1.0,
+    "h_star": 2329,
+    "extrapolation": 0.6,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.54 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 39 min."
+   },
+   "feature/d487": {
     "fits": true,
     "a": 0.020352,
     "b": 0.457,
@@ -20757,7 +21158,43 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min."
    },
-   "feature/d299": {
+   "feature/d470": {
+    "fits": true,
+    "a": 0.020352,
+    "b": 0.457,
+    "r2": 0.823,
+    "cost": 1.0,
+    "h_star": 5033,
+    "extrapolation": 1.4,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min."
+   },
+   "feature/d751": {
+    "fits": true,
+    "a": 0.020672,
+    "b": 0.456,
+    "r2": 0.825,
+    "cost": 1.0,
+    "h_star": 4933,
+    "extrapolation": 1.4,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 82 min."
+   },
+   "feature/d569": {
+    "fits": true,
+    "a": 0.020352,
+    "b": 0.457,
+    "r2": 0.823,
+    "cost": 1.0,
+    "h_star": 5033,
+    "extrapolation": 1.4,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 84 min."
+   },
+   "feature/d300": {
     "fits": true,
     "a": 0.004251,
     "b": 0.536,
@@ -20769,7 +21206,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.54 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.4 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d1306": {
+   "feature/d1307": {
     "fits": true,
     "a": 0.007299,
     "b": 0.461,
@@ -20781,7 +21218,31 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 12.0 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d1434": {
+   "feature/d1682": {
+    "fits": true,
+    "a": 0.007149,
+    "b": 0.464,
+    "r2": 0.788,
+    "cost": 1.0,
+    "h_star": 42013,
+    "extrapolation": 11.7,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d1684": {
+    "fits": true,
+    "a": 0.007149,
+    "b": 0.464,
+    "r2": 0.788,
+    "cost": 1.0,
+    "h_star": 42013,
+    "extrapolation": 11.7,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d1435": {
     "fits": true,
     "a": 0.007281,
     "b": 0.461,
@@ -20793,43 +21254,31 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d821": {
+   "feature/d332": {
     "fits": true,
-    "a": 0.007297,
-    "b": 0.461,
-    "r2": 0.786,
+    "a": 0.004498,
+    "b": 0.529,
+    "r2": 0.847,
     "cost": 1.0,
-    "h_star": 43355,
-    "extrapolation": 12.0,
+    "h_star": 27191,
+    "extrapolation": 7.6,
     "max_tested": 3600,
     "reachable": false,
-    "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 12.0 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+    "why": "gross edge grows as horizon^0.53 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d847": {
+   "feature/d51": {
     "fits": true,
-    "a": 0.007297,
-    "b": 0.461,
-    "r2": 0.786,
+    "a": 0.052613,
+    "b": 0.436,
+    "r2": 0.852,
     "cost": 1.0,
-    "h_star": 43355,
-    "extrapolation": 12.0,
-    "max_tested": 3600,
-    "reachable": false,
-    "why": "gross edge grows as horizon^0.46 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 12.0 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
-   },
-   "feature/d50": {
-    "fits": true,
-    "a": 0.054608,
-    "b": 0.431,
-    "r2": 0.851,
-    "cost": 1.0,
-    "h_star": 853,
+    "h_star": 855,
     "extrapolation": 0.2,
     "max_tested": 3600,
     "reachable": true,
-    "why": "gross edge grows as horizon^0.43 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 14 min."
+    "why": "gross edge grows as horizon^0.44 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 14 min."
    },
-   "feature/d121": {
+   "feature/d122": {
     "fits": true,
     "a": 0.023562,
     "b": 0.353,
@@ -20841,7 +21290,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.35 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.2 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d624": {
+   "feature/d625": {
     "fits": true,
     "a": 0.001925,
     "b": 0.631,
@@ -20853,7 +21302,19 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.63 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d860": {
+   "feature/d1096": {
+    "fits": true,
+    "a": 0.00106,
+    "b": 0.701,
+    "r2": 0.847,
+    "cost": 1.0,
+    "h_star": 17534,
+    "extrapolation": 4.9,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.70 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 4.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d861": {
     "fits": true,
     "a": 0.00124,
     "b": 0.68,
@@ -20865,25 +21326,25 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.68 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.3 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d647": {
+   "feature/d855": {
     "fits": true,
-    "a": 0.000848,
-    "b": 0.726,
-    "r2": 0.855,
+    "a": 0.00124,
+    "b": 0.68,
+    "r2": 0.85,
     "cost": 1.0,
-    "h_star": 16964,
-    "extrapolation": 4.7,
+    "h_star": 18909,
+    "extrapolation": 5.3,
     "max_tested": 3600,
     "reachable": false,
-    "why": "gross edge grows as horizon^0.73 (fit quality 0.86), measured in multiples of each market's own round-trip cost. It reaches break-even near 4.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+    "why": "gross edge grows as horizon^0.68 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 5.3 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d889": {
+   "feature/d890": {
     "fits": false,
     "b": -0.029,
     "r2": 0.439,
     "why": "gross edge does not grow with horizon (exponent -0.03). Holding longer is not the answer here -- whatever this family measures decays as fast as the move grows."
    },
-   "feature/d59": {
+   "feature/d60": {
     "fits": true,
     "a": 0.004608,
     "b": 0.492,
@@ -20895,43 +21356,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.49 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 15.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d306": {
-    "fits": true,
-    "a": 0.00589,
-    "b": 0.579,
-    "r2": 0.835,
-    "cost": 1.0,
-    "h_star": 7122,
-    "extrapolation": 2.0,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.58 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 2.0 hours."
-   },
-   "feature/d331": {
-    "fits": true,
-    "a": 0.00589,
-    "b": 0.579,
-    "r2": 0.835,
-    "cost": 1.0,
-    "h_star": 7122,
-    "extrapolation": 2.0,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.58 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 2.0 hours."
-   },
-   "feature/d317": {
-    "fits": true,
-    "a": 0.00589,
-    "b": 0.579,
-    "r2": 0.835,
-    "cost": 1.0,
-    "h_star": 7122,
-    "extrapolation": 2.0,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.58 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 2.0 hours."
-   },
-   "feature/d204": {
+   "feature/d396": {
     "fits": true,
     "a": 0.007079,
     "b": 0.424,
@@ -20943,87 +21368,27 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.42 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 32.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d221": {
+   "feature/d43": {
     "fits": true,
-    "a": 0.007079,
-    "b": 0.424,
-    "r2": 0.793,
+    "a": 0.019708,
+    "b": 0.798,
+    "r2": 0.825,
     "cost": 1.0,
-    "h_star": 118264,
-    "extrapolation": 32.9,
-    "max_tested": 3600,
-    "reachable": false,
-    "why": "gross edge grows as horizon^0.42 (fit quality 0.79), measured in multiples of each market's own round-trip cost. It reaches break-even near 32.9 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
-   },
-   "feature/d489": {
-    "fits": true,
-    "a": 0.002114,
-    "b": 1.082,
-    "r2": 0.886,
-    "cost": 1.0,
-    "h_star": 297,
-    "extrapolation": 0.1,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^1.08 (fit quality 0.89), measured in multiples of each market's own round-trip cost. It reaches break-even near 5 min."
-   },
-   "feature/d392": {
-    "fits": true,
-    "a": 0.0041,
-    "b": 0.983,
-    "r2": 0.9,
-    "cost": 1.0,
-    "h_star": 267,
-    "extrapolation": 0.1,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.98 (fit quality 0.90), measured in multiples of each market's own round-trip cost. It reaches break-even near 4 min."
-   },
-   "feature/d515": {
-    "fits": true,
-    "a": 0.003621,
-    "b": 1.008,
-    "r2": 0.902,
-    "cost": 1.0,
-    "h_star": 264,
-    "extrapolation": 0.1,
-    "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^1.01 (fit quality 0.90), measured in multiples of each market's own round-trip cost. It reaches break-even near 4 min."
-   },
-   "feature/d86": {
-    "fits": true,
-    "a": 0.034177,
-    "b": 0.814,
-    "r2": 0.984,
-    "cost": 1.0,
-    "h_star": 63,
+    "h_star": 136,
     "extrapolation": 0.0,
     "max_tested": 3600,
     "reachable": true,
-    "why": "gross edge grows as horizon^0.81 (fit quality 0.98), measured in multiples of each market's own round-trip cost. It reaches break-even near 63s."
+    "why": "gross edge grows as horizon^0.80 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 2 min."
    },
-   "feature/d255": {
+   "feature/d23": {
     "fits": false,
-    "b": 0.291,
-    "r2": 0.521,
+    "b": 0.456,
+    "r2": 0.518,
     "why": "the horizon trend is too noisy to extrapolate (fit quality 0.52, needs 0.70). There may be a relationship here but these measurements do not establish one."
-   },
-   "feature/d292": {
-    "fits": false,
-    "b": 0.294,
-    "r2": 0.539,
-    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.54, needs 0.70). There may be a relationship here but these measurements do not establish one."
-   },
-   "feature/d321": {
-    "fits": false,
-    "b": 0.29,
-    "r2": 0.528,
-    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.53, needs 0.70). There may be a relationship here but these measurements do not establish one."
    }
   },
   "replication": {
-   "feature/d672": {
+   "feature/d959": {
     "blocs": {
      "fx": {
       "markets": 16,
@@ -21035,7 +21400,31 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d324": {
+   "feature/d673": {
+    "blocs": {
+     "fx": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d718": {
+    "blocs": {
+     "fx": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d325": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21047,7 +21436,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d434": {
+   "feature/d435": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21059,7 +21448,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d552": {
+   "feature/d685": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21071,7 +21460,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d684": {
+   "feature/d553": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21083,19 +21472,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d546": {
-    "blocs": {
-     "energy": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d43": {
+   "feature/d44": {
     "blocs": {
      "crypto": {
       "markets": 16,
@@ -21107,19 +21484,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d152": {
-    "blocs": {
-     "metals": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d67": {
+   "feature/d198": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21131,7 +21496,19 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d250": {
+   "feature/d260": {
+    "blocs": {
+     "energy": {
+      "markets": 32,
+      "weight": 8.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 8.75
+   },
+   "feature/d68": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21143,19 +21520,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d197": {
-    "blocs": {
-     "energy": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d486": {
+   "feature/d487": {
     "blocs": {
      "crypto": {
       "markets": 16,
@@ -21167,7 +21532,43 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d299": {
+   "feature/d470": {
+    "blocs": {
+     "crypto": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d751": {
+    "blocs": {
+     "crypto": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d569": {
+    "blocs": {
+     "crypto": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d300": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21179,7 +21580,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d1306": {
+   "feature/d1307": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21191,7 +21592,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d1434": {
+   "feature/d1682": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21203,7 +21604,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d821": {
+   "feature/d1684": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21215,7 +21616,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d847": {
+   "feature/d1435": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -21227,19 +21628,31 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d50": {
+   "feature/d332": {
     "blocs": {
-     "equity": {
-      "markets": 48,
-      "weight": 12.75,
+     "energy": {
+      "markets": 16,
+      "weight": 4.75,
       "positive_share": 0.5
      }
     },
     "agree_positive": 0.0,
     "agree_negative": 0.0,
-    "effective_n": 12.75
+    "effective_n": 4.75
    },
-   "feature/d121": {
+   "feature/d51": {
+    "blocs": {
+     "equity": {
+      "markets": 64,
+      "weight": 16.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 16.75
+   },
+   "feature/d122": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -21251,7 +21664,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d624": {
+   "feature/d625": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -21263,7 +21676,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d860": {
+   "feature/d1096": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -21275,7 +21688,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d647": {
+   "feature/d861": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -21287,7 +21700,19 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d889": {
+   "feature/d855": {
+    "blocs": {
+     "equity": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d890": {
     "blocs": {
      "rates": {
       "markets": 16,
@@ -21299,7 +21724,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d59": {
+   "feature/d60": {
     "blocs": {
      "grain": {
       "markets": 16,
@@ -21311,7 +21736,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d306": {
+   "feature/d396": {
     "blocs": {
      "grain": {
       "markets": 16,
@@ -21323,55 +21748,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d331": {
-    "blocs": {
-     "grain": {
-      "markets": 32,
-      "weight": 8.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 8.75
-   },
-   "feature/d317": {
-    "blocs": {
-     "grain": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d204": {
-    "blocs": {
-     "grain": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d221": {
-    "blocs": {
-     "grain": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d489": {
+   "feature/d43": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -21383,77 +21760,17 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d392": {
+   "feature/d23": {
     "blocs": {
      "equity": {
-      "markets": 16,
-      "weight": 4.75,
+      "markets": 128,
+      "weight": 32.75,
       "positive_share": 0.5
      }
     },
     "agree_positive": 0.0,
     "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d515": {
-    "blocs": {
-     "equity": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d86": {
-    "blocs": {
-     "equity": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d255": {
-    "blocs": {
-     "equity": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d292": {
-    "blocs": {
-     "equity": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d321": {
-    "blocs": {
-     "equity": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
+    "effective_n": 32.75
    }
   },
   "frontier": [
@@ -21647,100 +21964,100 @@
   {
    "attr": "market",
    "value": "NQ",
-   "effect": -0.2953,
-   "n": 551,
-   "t": 17.1
+   "effect": -0.3016,
+   "n": 544,
+   "t": 17.4
   },
   {
    "attr": "rr_shape",
    "value": "even",
-   "effect": -0.2647,
-   "n": 457,
+   "effect": -0.2698,
+   "n": 464,
    "t": 17.8
   },
   {
    "attr": "hold",
    "value": "3600s+",
-   "effect": -0.1329,
-   "n": 2282,
-   "t": 22.5
+   "effect": -0.1362,
+   "n": 2287,
+   "t": 22.9
   },
   {
    "attr": "stop_x",
    "value": "0.4x",
-   "effect": -0.132,
-   "n": 516,
-   "t": 8.3
+   "effect": -0.1307,
+   "n": 511,
+   "t": 8.2
   },
   {
    "attr": "rr_shape",
    "value": "tight-target",
-   "effect": -0.1021,
-   "n": 9136,
-   "t": 45.5
+   "effect": -0.1019,
+   "n": 9153,
+   "t": 45.4
   },
   {
    "attr": "shape",
    "value": "gap",
-   "effect": -0.0947,
-   "n": 1673,
-   "t": 17.2
+   "effect": -0.0943,
+   "n": 1688,
+   "t": 17.5
   },
   {
    "attr": "market",
    "value": "ZS",
-   "effect": -0.092,
-   "n": 533,
-   "t": 7.0
+   "effect": -0.0911,
+   "n": 585,
+   "t": 7.4
   },
   {
    "attr": "market",
    "value": "CL",
-   "effect": 0.0778,
-   "n": 784,
-   "t": 16.7
-  },
-  {
-   "attr": "market",
-   "value": "6E",
-   "effect": 0.0759,
-   "n": 528,
-   "t": 14.7
+   "effect": 0.0801,
+   "n": 816,
+   "t": 17.5
   },
   {
    "attr": "market",
    "value": "ZB",
-   "effect": 0.0755,
-   "n": 608,
-   "t": 27.9
+   "effect": 0.0786,
+   "n": 612,
+   "t": 28.4
+  },
+  {
+   "attr": "market",
+   "value": "6E",
+   "effect": 0.077,
+   "n": 496,
+   "t": 14.1
   },
   {
    "attr": "rr_shape",
    "value": "wide-target",
-   "effect": 0.0741,
-   "n": 11739,
-   "t": 49.9
+   "effect": 0.0742,
+   "n": 11722,
+   "t": 50.1
   },
   {
    "attr": "market",
    "value": "ZW",
-   "effect": 0.0471,
-   "n": 465,
-   "t": 7.7
+   "effect": 0.0488,
+   "n": 495,
+   "t": 8.3
   },
   {
    "attr": "shape",
    "value": "close_high",
-   "effect": 0.0435,
-   "n": 3735,
-   "t": 20.0
+   "effect": 0.0443,
+   "n": 3766,
+   "t": 20.6
   },
   {
    "attr": "shape",
    "value": "inside",
-   "effect": 0.0429,
-   "n": 3269,
-   "t": 20.1
+   "effect": 0.0421,
+   "n": 3233,
+   "t": 19.6
   }
  ]
 }
