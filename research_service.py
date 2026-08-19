@@ -238,7 +238,16 @@ def research_loop():
     else:
         print("[backup] " + pre["why"], flush=True)
 
-    if BACKUP.enabled and pre.get("ok"):
+    # PREFLIGHT REPORTS; IT DOES NOT GATE. An earlier version of this
+    # line read `if BACKUP.enabled and pre.get("ok")`, which let a
+    # WRONG diagnosis switch off recovery -- and the moment recovery
+    # matters is the moment the volume was wiped. GitHub's permissions
+    # block is not a contract this code controls (a fine-grained PAT
+    # with Contents: read+write is reported through `push`, which is a
+    # mapping that could change), so a false negative there must cost a
+    # scary log line and nothing else. Same rule as the black box: the
+    # instrument observes, it does not intervene.
+    if BACKUP.enabled:
         try:
             r = BACKUP.restore_if_better()
             STATE["backup"] = dict(STATE["backup"], restore=r)
