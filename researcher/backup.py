@@ -140,6 +140,75 @@ class Backup:
                                  "sha": sha})
         return rc.status_code in (200, 201), f"created from {base}"
 
+    # ---------- can this actually work? ----------
+    def preflight(self):
+        """Test the backup path instead of assuming it.
+
+        WHY THIS EXISTS. `enabled` was `bool(self.token)`, and every
+        caller treated that as "backups are working". It is not the
+        same claim. A token that is absent, expired, scoped to the
+        wrong repo, or read-only all produce the SAME outcome -- no
+        backup -- while the console shows a small grey "off" pill that
+        reads like a setting rather than an alarm.
+
+        The cost of that gap was total. The `research-state` branch does
+        not exist in this repository, which means no state has EVER been
+        pushed: the ledger, the trial count, and the significance bar
+        that depends on it have only ever existed on one Railway volume,
+        through a run of repeated crashes. The storage check screams
+        about exactly this class of failure. This one whispered.
+
+        So: one call at boot that says WHICH failure it is, in words
+        that name the fix.
+        """
+        if not self.token:
+            return {"ok": False, "stage": "token", "why": (
+                "GITHUB_TOKEN is not set on this service, so NOTHING has "
+                "ever been backed up. The ledger, the trial count and the "
+                "significance bar exist only on the Railway volume. Set "
+                "GITHUB_TOKEN to a fine-grained PAT with Contents: "
+                "read+write on this repo.")}
+        try:
+            r = requests.get(f"{API}/repos/{self.repo}", headers=self._h(),
+                             timeout=30)
+        except Exception as exc:                              # noqa: BLE001
+            return {"ok": False, "stage": "network",
+                    "why": f"cannot reach GitHub: {str(exc)[:160]}"}
+        if r.status_code == 401:
+            return {"ok": False, "stage": "auth", "why": (
+                "GITHUB_TOKEN is set but GitHub rejected it (401). It is "
+                "invalid or expired. Nothing is being backed up.")}
+        if r.status_code == 403:
+            # Distinct from 401. A 403 means the credential is
+            # recognised but refused: SSO not authorised for the org,
+            # rate limit exhausted, or an outbound proxy blocking the
+            # call. Lumping it in with "some other status" costs the
+            # reader the one word that names the fix.
+            msg = (r.json() or {}).get("message", "") if r.text else ""
+            return {"ok": False, "stage": "forbidden", "why": (
+                f"GitHub refused the token (403). Usually SSO "
+                f"authorisation, an exhausted rate limit, or a proxy in "
+                f"the way. Nothing is being backed up."
+                + (f" GitHub said: {msg[:120]}" if msg else ""))}
+        if r.status_code == 404:
+            return {"ok": False, "stage": "repo", "why": (
+                f"the token cannot see {self.repo} (404) -- either the "
+                f"repo name is wrong or the token was not granted access "
+                f"to it. Nothing is being backed up.")}
+        if r.status_code != 200:
+            return {"ok": False, "stage": "repo",
+                    "why": f"GitHub returned {r.status_code} for "
+                           f"{self.repo}. Nothing is being backed up."}
+        perms = (r.json() or {}).get("permissions") or {}
+        if not perms.get("push"):
+            return {"ok": False, "stage": "scope", "why": (
+                "the token can READ this repo but not write to it, so "
+                "every push will fail silently. It needs Contents: "
+                "read+write.")}
+        return {"ok": True, "stage": "ready",
+                "why": f"can write {self.repo}, backups will land on "
+                       f"branch {self.branch}"}
+
     # ---------- the two operations ----------
     def trials_local(self):
         try:

@@ -293,6 +293,33 @@ def test_blackbox():
                  "and names what it was doing", not f, "; ".join(f))
 
 
+def test_backup_preflight():
+    """The complaint that was never made, because nothing said it.
+
+    The research-state branch does not exist in the repo, meaning
+    state has NEVER been backed up -- through a run of repeated
+    crashes -- while the console showed a small grey "off" pill. A
+    missing backup has to read as an alarm, and it has to name which
+    failure it is. Only the no-token case is deterministic offline;
+    that is the one that was actually true.
+    """
+    import os as _os
+    from researcher.backup import Backup
+    # Backup falls back to the ENVIRONMENT when no token is passed,
+    # which is right in production and makes this test read whatever
+    # the build machine happens to have. Isolate it.
+    _saved = _os.environ.pop("GITHUB_TOKEN", None)
+    try:
+        r = Backup("/tmp/_bk_selftest").preflight()
+    finally:
+        if _saved is not None:
+            _os.environ["GITHUB_TOKEN"] = _saved
+    ok = (not r.get("ok")) and r.get("stage") == "token" \
+        and "NOTHING has ever been backed up" in r.get("why", "")
+    return check("a missing backup token is reported as an alarm that "
+                 "names the fix", ok, str(r)[:160])
+
+
 def test_experiments():
     """A question somebody wrote down must never take the cycle down."""
     from researcher import experiments as EX
@@ -496,6 +523,7 @@ def main():
     test_feature_parser()
     test_experiments()
     test_blackbox()
+    test_backup_preflight()
     test_recent_window()
     test_thread_safety()
     test_validators()

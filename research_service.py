@@ -218,14 +218,33 @@ def research_loop():
     # history. Restoring must happen before the first hypothesis is
     # scored, or the searcher spends that cycle judging against a bar
     # that has fallen back to 3.0 sigma.
-    if BACKUP.enabled:
+    # TEST THE BACKUP PATH, DO NOT ASSUME IT. `enabled` only ever meant
+    # "a token string exists", and the console rendered that as a small
+    # grey "off" pill -- which reads like a setting rather than the
+    # alarm it is. The research-state branch turned out never to have
+    # been created at all, so nothing had EVER been backed up while the
+    # service crashed repeatedly. This says which failure it is, in
+    # words that name the fix, and says it as loudly as the storage
+    # check does.
+    try:
+        pre = BACKUP.preflight()
+    except Exception as exc:                                  # noqa: BLE001
+        pre = {"ok": False, "stage": "preflight",
+               "why": f"backup preflight raised: {str(exc)[:160]}"}
+    STATE["backup"] = {"mode": "github" if pre.get("ok") else "off",
+                       "preflight": pre}
+    if not pre.get("ok"):
+        print("[BACKUP OFF] " + pre["why"], flush=True)
+    else:
+        print("[backup] " + pre["why"], flush=True)
+
+    if BACKUP.enabled and pre.get("ok"):
         try:
             r = BACKUP.restore_if_better()
-            STATE["backup"] = {"mode": "github", "restore": r}
+            STATE["backup"] = dict(STATE["backup"], restore=r)
             print("[backup] " + json.dumps(r)[:300], flush=True)
         except Exception as exc:                              # noqa: BLE001
-            STATE["backup"] = {"mode": "github",
-                               "error": str(exc)[:200]}
+            STATE["backup"] = dict(STATE["backup"], error=str(exc)[:200])
 
     STATE["boot"] = now()
     # RESTART TALLY. An OOM kill is not a Python exception -- the process
