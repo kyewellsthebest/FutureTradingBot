@@ -1,56 +1,56 @@
-RESEARCH BRIEF  2026-08-19T12:06:29+00:00
-568,705 trials charged, 0 survivor(s)
+RESEARCH BRIEF  2026-08-19T12:16:06+00:00
+571,010 trials charged, 0 survivor(s)
 
 BINDING CONSTRAINT: CONTROLS
   390 cells cleared the bar and 22 were killed by a control. The search finds things; the checks reject them.
   -> read the kill reasons -- if one control dominates, that is the artifact the search keeps rediscovering
 
 WHAT THE COVERAGE ACTUALLY BUYS
-  419,880 cells measured
-  197,066 could have seen an edge worth having
-  30,100 could not -- their silence means nothing
+  421,917 cells measured
+  198,893 could have seen an edge worth having
+  30,310 could not -- their silence means nothing
   smallest edge ever visible anywhere: 0.013 RT/trade
 
 NOT TESTED -- COULD NOT BE ASKED
-  day_of_month/vol: 24,588/50,250 (49%) unevaluable
-  day_of_month/n: 23,826/49,158 (48%) unevaluable
-  day_of_month/absret: 14,096/30,989 (46%) unevaluable
-  minute_of_day/absret: 151,864/338,308 (45%) unevaluable
-  minute_of_day/vol: 203,180/470,751 (43%) unevaluable
-  minute_of_day/n: 200,690/470,849 (43%) unevaluable
+  day_of_month/vol: 25,090/50,752 (49%) unevaluable
+  day_of_month/n: 24,336/49,668 (49%) unevaluable
+  day_of_month/absret: 14,360/31,253 (46%) unevaluable
+  minute_of_day/absret: 153,852/340,296 (45%) unevaluable
+  minute_of_day/vol: 205,966/473,537 (44%) unevaluable
+  minute_of_day/n: 203,393/473,552 (43%) unevaluable
 
 CANNOT BOTH BE TRUE
   map cell 4,2,0,1 (NQ@NQU4@15s): 4 cells -- worst: 15,245 trades but 508 independent (30x overlap)
       holds that span many bars make consecutive trades share most of their path; the raw count must never be read as evidence
 
 GENUINELY RULED OUT
-  shape/squeeze: 29,018 cells -- edges above 0.013 RT are excluded here
-  shape/inside: 30,978 cells -- edges above 0.014 RT are excluded here
-  shape/close_high: 34,599 cells -- edges above 0.016 RT are excluded here
-  shape/expansion: 31,889 cells -- edges above 0.020 RT are excluded here
+  shape/squeeze: 29,235 cells -- edges above 0.013 RT are excluded here
+  shape/inside: 31,130 cells -- edges above 0.014 RT are excluded here
+  shape/close_high: 34,843 cells -- edges above 0.016 RT are excluded here
+  shape/expansion: 32,110 cells -- edges above 0.020 RT are excluded here
   feature/d30: 872 cells -- edges above 0.023 RT are excluded here
   feature/d8: 6,363 cells -- edges above 0.026 RT are excluded here
   feature/d7: 8,641 cells -- edges above 0.026 RT are excluded here
   feature/d10: 4,535 cells -- edges above 0.027 RT are excluded here
 
 QUESTIONS ANSWERED WHILE YOU WERE AWAY
-  cost_breakeven  (2 run(s))
+  cost_breakeven  (3 run(s))
       Q: How high can the all-in round turn go before the best thing the search has found stops paying?
-      A: the best cell of 259,077 pays +49.194 round trips over 3,272 trades, which breaks even at an all-in round turn of $30.12 on MNQ (the search charged $0.60). after shrinking for the winner's curse it breaks even at $0.60. the 99th percentile of ALL 259,077 cells breaks even at $0.61 and the median at $-0.01, so the winner's headroom over the modelled cost is 2589.13x what the 99th percentile of the pile gets for free. at 313 trades a week it is worth the ladder in the report; the practical reading is that anything above $30.12 a round turn makes this a losing system no matter how it is executed
-  session_split  (2 run(s))
+      A: the best cell of 260,643 pays +47.490 round trips over 2,695 trades, which breaks even at an all-in round turn of $29.09 on MNQ (the search charged $0.60). after shrinking for the winner's curse it breaks even at $0.60. the 99th percentile of ALL 260,643 cells breaks even at $0.61 and the median at $-0.01, so the winner's headroom over the modelled cost is 3031.29x what the 99th percentile of the pile gets for free. at 258 trades a week it is worth the ladder in the report; the practical reading is that anything above $29.09 a round turn makes this a losing system no matter how it is executed
+  session_split  (3 run(s))
       Q: Is the overnight session different enough from RTH that searching and pricing them together is wrong?
-      A: overnight moves are 0.69x RTH in dispersion (a random split of the same sizes gives 1.01x, so the session effect is 26x what splitting nothing produces) overnight bars are 0.45x the RTH range, which says nothing about cost -- a quiet market can still be expensive to cross MEASURED on NQ top-of-book: spread is 3.0 ticks in RTH and 5.0 overnight (1.67x wider), against a cost model that charges 1 tick for both -- overnight results ARE optimistic, and 70% of the tier-1 tape is overnight
+      A: overnight moves are 0.69x RTH in dispersion (a random split of the same sizes gives 0.98x, so the session effect is 18x what splitting nothing produces) overnight bars are 0.45x the RTH range, which says nothing about cost -- a quiet market can still be expensive to cross MEASURED on NQ top-of-book: spread is 3.0 ticks in RTH and 5.0 overnight (1.67x wider), against a cost model that charges 1 tick for both -- overnight results ARE optimistic, and 70% of the tier-1 tape is overnight
 
 NEXT
   [1] make day_of_month/vol expressible, or drop it
-      because 24,588 of 50,250 attempts could not be asked, so this family is counted as explored and has not been
+      because 25,090 of 50,752 attempts could not be asked, so this family is counted as explored and has not been
   [1] make day_of_month/n expressible, or drop it
-      because 23,826 of 49,158 attempts could not be asked, so this family is counted as explored and has not been
+      because 24,336 of 49,668 attempts could not be asked, so this family is counted as explored and has not been
   [1] make day_of_month/absret expressible, or drop it
-      because 14,096 of 30,989 attempts could not be asked, so this family is counted as explored and has not been
+      because 14,360 of 31,253 attempts could not be asked, so this family is counted as explored and has not been
   [1] explain or fix: 4 cells -- worst: 15,245 trades but 508 independent (30x overlap) at map cell 4,2,0,1 (NQ@NQU4@15s)
       because holds that span many bars make consecutive trades share most of their path; the raw count must never be read as evidence
   [2] get finer data or more markets -- no hold on the current tapes can resolve a plausible edge
       because the best reachable size on this tape is 0.739 RT, against a plausible edge of 0.30 RT
   [4] stop re-testing shape/squeeze
-      because 29,018 cells there already exclude edges above 0.013 RT
+      because 29,235 cells there already exclude edges above 0.013 RT
