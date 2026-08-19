@@ -1,8 +1,8 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-19 14:20:15Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-19 15:30:25Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 63
+## Orders today: 71
 
 | time (UTC) | contract | action | type | status | qty | text |
 |---|---|---|---|---|---|---|
@@ -69,6 +69,14 @@ Generated 2026-08-19 14:20:15Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-19 13:52:08 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 o13:50 R13:50:UnknownReason: Access is denie F- |
 | 2026-08-19 14:02:10 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 o13:57 R13:57:UnknownReason: Access is denie F- |
 | 2026-08-19 14:12:12 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o14:10 R14:10:UnknownReason: Access is denie F- |
+| 2026-08-19 14:22:14 | MNQU6 | Buy | ? | Canceled | 1 | diag sf5 o14:20 R14:20:UnknownReason: Access is denie F- |
+| 2026-08-19 14:26:50 | MNQU6 | Buy | ? | Canceled | 1 | diag sf0 o- R- F- |
+| 2026-08-19 14:36:52 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 o14:27 R14:27:UnknownReason: Access is denie F- |
+| 2026-08-19 14:46:54 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 o14:46 R14:46:UnknownReason: Access is denie F- |
+| 2026-08-19 14:56:56 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 o14:56 R14:56:UnknownReason: Access is denie F- |
+| 2026-08-19 15:06:59 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 o15:06 R15:06:drift_beyond_stop F- |
+| 2026-08-19 15:17:01 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o15:15 R15:15:UnknownReason: Access is denie F- |
+| 2026-08-19 15:27:03 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o- R- F- |
 
 ## Fills today: 0
 
@@ -82,5 +90,5 @@ Generated 2026-08-19 14:20:15Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: none today
-- pulse-symbol orders placed (MNQ/MES/MYM): 63
-- latest: 2026-08-19 14:12:12 MNQU6 Buy None -> Canceled
+- pulse-symbol orders placed (MNQ/MES/MYM): 71
+- latest: 2026-08-19 15:27:03 MNQU6 Buy None -> Canceled
