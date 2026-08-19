@@ -1,0 +1,14 @@
+{
+ "h": 400,
+ "nperm": 20,
+ "eff_n": 907,
+ "real_ic": 0.0282,
+ "real_net_per_week": 228.3,
+ "null_net_mean": -26.2,
+ "null_net_sd": 103.3,
+ "null_net_max": 180.9,
+ "null_ic_sd": 0.0094,
+ "n_null_ge_real": 0,
+ "p_value": 0.0476,
+ "verdict": "SURVIVES this test -- worth the next one, NOT a deployable edge"
+}
