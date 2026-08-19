@@ -1,0 +1,73 @@
+{
+ "cost_measured": 1.99,
+ "weeks": 98.1,
+ "bars": 366189,
+ "rows": [
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "real",
+   "ic": 0.031,
+   "policy": "every_bar",
+   "round_turns_per_day": 44.3,
+   "gross_per_week": 236.25,
+   "net_per_week_at_1.99": -380.51,
+   "net_per_week_at_0.60": 50.29
+  },
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "real",
+   "ic": 0.031,
+   "policy": "hold_100",
+   "round_turns_per_day": 1.3,
+   "gross_per_week": 196.63,
+   "net_per_week_at_1.99": 177.92,
+   "net_per_week_at_0.60": 190.99
+  },
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "real",
+   "ic": 0.031,
+   "policy": "hold_200",
+   "round_turns_per_day": 0.8,
+   "gross_per_week": 22.85,
+   "net_per_week_at_1.99": 12.34,
+   "net_per_week_at_0.60": 19.68
+  },
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "SHUFFLED",
+   "ic": 0.0008,
+   "policy": "every_bar",
+   "round_turns_per_day": 42.6,
+   "gross_per_week": 77.18,
+   "net_per_week_at_1.99": -515.73,
+   "net_per_week_at_0.60": -101.59
+  },
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "SHUFFLED",
+   "ic": 0.0008,
+   "policy": "hold_100",
+   "round_turns_per_day": 0.5,
+   "gross_per_week": 164.35,
+   "net_per_week_at_1.99": 157.37,
+   "net_per_week_at_0.60": 162.25
+  },
+  {
+   "h": 200,
+   "hours": 9.0,
+   "target": "SHUFFLED",
+   "ic": 0.0008,
+   "policy": "hold_200",
+   "round_turns_per_day": 0.3,
+   "gross_per_week": 92.77,
+   "net_per_week_at_1.99": 89.25,
+   "net_per_week_at_0.60": 91.71
+  }
+ ]
+}
