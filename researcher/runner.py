@@ -72,6 +72,7 @@ from researcher.memory import Memory, classify  # noqa: E402
 from researcher import data_tiers as DT         # noqa: E402
 from researcher import insight as IN            # noqa: E402
 from researcher import brief as BRIEF            # noqa: E402
+from researcher import blackbox as BB          # noqa: E402
 from researcher import experiments as EXP        # noqa: E402
 from researcher import context as CTX           # noqa: E402
 from researcher import validate as VAL          # noqa: E402
@@ -582,6 +583,15 @@ def start_history_sampler(every=60):
 
 
 def say(msg, **kw):
+    # The black box needs to know what was happening when the process
+    # died, and say() is already called at every step worth naming. In
+    # the parent this costs a string assignment; in a forked worker it
+    # writes nothing, because only the owning pid may touch the file.
+    try:
+        BB.phase(msg, **{k: v for k, v in kw.items()
+                         if k in ("sym", "tier", "cycle", "family")})
+    except Exception:                                         # noqa: BLE001
+        pass
     line = {"t": now(), "msg": msg}
     line.update(kw)
     print(json.dumps(line), flush=True)

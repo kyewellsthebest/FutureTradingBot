@@ -49,6 +49,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
+from researcher import blackbox as BB
 from researcher.backup import Backup
 
 ROOT = Path(__file__).resolve().parent
@@ -78,6 +79,8 @@ STATE = {
     "error": None,
     "storage": {"path": str(RDIR), "durable": False, "warning": None},
     "state_loss": None,
+    # last words of the previous process, if it was killed
+    "postmortem": None,
     "backup": {"mode": "off"},
 }
 FEED = deque(maxlen=400)
@@ -620,6 +623,10 @@ def api_state():
         "error": err,
         "storage": STATE["storage"],
         "state_loss": STATE["state_loss"],
+        # WHY THE LAST PROCESS DIED, when it was killed rather than
+        # stopped. A CRASHED badge with no cause is what sent three
+        # separate diagnoses of this crash down the wrong path.
+        "postmortem": STATE.get("postmortem"),
         "restarts": {"last_hour": STATE.get("boots_last_hour"),
                      "total": STATE.get("boots_total"),
                      "crashes": STATE.get("crash_count", 0),
@@ -1049,6 +1056,31 @@ def static_file(f):
 
 def main():
     check_storage()
+    # THE BLACK BOX, started before anything else can die. An OOM kill
+    # arrives as SIGKILL: no traceback, no atexit, nothing in the log
+    # except the process ceasing to exist, which is why three separate
+    # diagnoses of this crash were argued from the code and all three
+    # were wrong. start() also returns the PREVIOUS process's last
+    # words, if it was killed rather than stopped.
+    try:
+        prev = BB.start(RDIR)
+        why = BB.explain(prev)
+        if why:
+            print(f"[research_service] POSTMORTEM: {why}", flush=True)
+            STATE["postmortem"] = {"record": prev, "explain": why}
+            try:
+                with open(os.path.join(RDIR, "postmortem.json"), "w") as fh:
+                    json.dump(STATE["postmortem"], fh, separators=(",", ":"))
+            except Exception:                                 # noqa: BLE001
+                pass
+        else:
+            print("[research_service] previous shutdown was clean "
+                  "(or first boot)", flush=True)
+    except Exception as exc:                                  # noqa: BLE001
+        # A recorder that can stop the service from booting is worse
+        # than no recorder.
+        print(f"[research_service] blackbox unavailable: {exc}", flush=True)
+
     t = threading.Thread(target=research_loop, daemon=True, name="research")
     t.start()
     threading.Thread(target=_warm_pdfs, daemon=True,

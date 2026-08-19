@@ -279,6 +279,20 @@ def test_feature_parser():
     return a and b
 
 
+def test_blackbox():
+    """The complaint: "it crashed" with nothing to say why.
+
+    An OOM kill is SIGKILL -- no traceback, no atexit, no last log
+    line. The recorder has to make a KILLED process distinguishable
+    from a stopped one using only what survives on disk, and it has to
+    survive being forked by the searcher's own workers.
+    """
+    from researcher import blackbox as BX
+    f = BX.selftest(verbose=False)
+    return check("a killed process is told apart from a stopped one, "
+                 "and names what it was doing", not f, "; ".join(f))
+
+
 def test_experiments():
     """A question somebody wrote down must never take the cycle down."""
     from researcher import experiments as EX
@@ -481,6 +495,7 @@ def main():
     test_context_lag()
     test_feature_parser()
     test_experiments()
+    test_blackbox()
     test_recent_window()
     test_thread_safety()
     test_validators()
