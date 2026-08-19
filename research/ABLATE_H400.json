@@ -1,0 +1,42 @@
+{
+ "h": 400,
+ "eff_n": 907,
+ "rows": [
+  {
+   "set": "all",
+   "n_features": 266,
+   "ic": 0.0282,
+   "net_per_week": 228.3
+  },
+  {
+   "set": "no_flow",
+   "n_features": 226,
+   "ic": 0.0421,
+   "net_per_week": 169.5
+  },
+  {
+   "set": "flow_only",
+   "n_features": 40,
+   "ic": -0.006,
+   "net_per_week": 130.5
+  },
+  {
+   "set": "price_only",
+   "n_features": 38,
+   "ic": 0.0283,
+   "net_per_week": 23.8
+  },
+  {
+   "set": "cross_only",
+   "n_features": 188,
+   "ic": 0.0141,
+   "net_per_week": 106.6
+  },
+  {
+   "set": "SHUFFLED(all)",
+   "n_features": 266,
+   "ic": -0.0018,
+   "net_per_week": 271.3
+  }
+ ]
+}
