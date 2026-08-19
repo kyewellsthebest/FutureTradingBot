@@ -54,6 +54,7 @@ import glob
 import json
 import os
 import sys
+import math
 import time
 
 import numpy as np
@@ -200,11 +201,14 @@ def main():
     import lightgbm as lgb
     rng = np.random.default_rng(11)
     out = []
+    preds_n = {}
 
     for h in HZ:
         hours = h * BAR_MIN / 60.0
         log(f"--- h = {h} bars (~{hours:.1f} hours) " + "-" * 30)
         yh, y1 = targets(cls, h)
+        preds_n[h] = np.flatnonzero(
+            np.isfinite(yh) & np.isfinite(y1))
         ok = np.isfinite(yh) & np.isfinite(y1)
         Xo, yo, y1o = X[ok], yh[ok], y1[ok]
 
@@ -278,13 +282,30 @@ def main():
         blv = bl[0]["net_per_week_at_1.99"] if bl else 0.0
         # Three hurdles, not one: positive, better than the same
         # pipeline on noise, and better than doing nothing at all.
+        # FOURTH HURDLE, and the one whose absence made this table lie.
+        # The first run passed h=50 (IC +0.0030) and h=200 (IC +0.0010,
+        # BELOW its own shuffled control at +0.0051) purely on P&L. A
+        # position sized off a forecast worth nothing still produces a
+        # P&L, and with few independent windows that P&L can be large.
+        #
+        # The se of an IC is 1/sqrt(effective n), and effective n is
+        # NOT the row count -- h-bar overlapping targets mean only
+        # n/h independent windows. At h=200 that is 1,831 rows of
+        # information dressed as 366,189, and the naive se (0.0017) is
+        # seven times too small. Overlap deflation is the exact error
+        # this project fixed elsewhere and I reintroduced here.
+        eff_n = max(1.0, len(preds_n.get(h, [1])) / h)
+        se_ic = 1.0 / math.sqrt(eff_n)
+        ic_ok = abs(r.get("ic", 0.0)) >= 2.0 * se_ic
         ok = (r["net_per_week_at_1.99"] > 0
               and r["net_per_week_at_1.99"] > s["net_per_week_at_1.99"]
-              and r["net_per_week_at_1.99"] > blv)
+              and r["net_per_week_at_1.99"] > blv
+              and ic_ok)
         log(f"  h={h:>4} (~{r['hours']:>4.1f}h)  real "
             f"${r['net_per_week_at_1.99']:>9,.0f}/wk   shuffled "
             f"${s['net_per_week_at_1.99']:>9,.0f}/wk   "
             f"be-long ${blv:>9,.0f}/wk   "
+            f"IC {r.get('ic',0):+.4f} vs 2se {2*se_ic:.4f}   "
             f"{'PASS' if ok else 'fail'}")
         if ok:
             passed.append(h)
