@@ -1,0 +1,128 @@
+{
+ "account": 4100.0,
+ "weeks": 98.1,
+ "results": {
+  "real": {
+   "ic": 0.0282,
+   "rows": [
+    {
+     "stop": null,
+     "blocks": 725,
+     "net_per_week": 277.25,
+     "total": 27194.53,
+     "max_drawdown": 4810.41,
+     "dd_pct_of_account": 117.3,
+     "stopped_out_pct": 0.0,
+     "avg_hold_hours": 10.4,
+     "win_rate_pct": 53.8,
+     "worst_block": -1658.99,
+     "best_block": 2273.0,
+     "trades_per_week": 4.3
+    },
+    {
+     "stop": 200.0,
+     "blocks": 725,
+     "net_per_week": 167.97,
+     "total": 16475.82,
+     "max_drawdown": 3157.22,
+     "dd_pct_of_account": 77.0,
+     "stopped_out_pct": 33.2,
+     "avg_hold_hours": 6.5,
+     "win_rate_pct": 38.1,
+     "worst_block": -201.99,
+     "best_block": 1464.5,
+     "trades_per_week": 4.3
+    },
+    {
+     "stop": 400.0,
+     "blocks": 725,
+     "net_per_week": 226.18,
+     "total": 22185.44,
+     "max_drawdown": 3360.37,
+     "dd_pct_of_account": 82.0,
+     "stopped_out_pct": 16.7,
+     "avg_hold_hours": 8.9,
+     "win_rate_pct": 50.0,
+     "worst_block": -401.99,
+     "best_block": 2272.01,
+     "trades_per_week": 4.3
+    },
+    {
+     "stop": 800.0,
+     "blocks": 725,
+     "net_per_week": 246.92,
+     "total": 24219.04,
+     "max_drawdown": 6098.88,
+     "dd_pct_of_account": 148.8,
+     "stopped_out_pct": 3.2,
+     "avg_hold_hours": 10.2,
+     "win_rate_pct": 53.3,
+     "worst_block": -801.99,
+     "best_block": 2273.0,
+     "trades_per_week": 4.3
+    }
+   ]
+  },
+  "SHUFFLED": {
+   "ic": -0.0016,
+   "rows": [
+    {
+     "stop": null,
+     "blocks": 725,
+     "net_per_week": 63.57,
+     "total": 6235.42,
+     "max_drawdown": 7179.05,
+     "dd_pct_of_account": 175.1,
+     "stopped_out_pct": 0.0,
+     "avg_hold_hours": 10.9,
+     "win_rate_pct": 51.1,
+     "worst_block": -1407.5,
+     "best_block": 1801.01,
+     "trades_per_week": 4.5
+    },
+    {
+     "stop": 200.0,
+     "blocks": 725,
+     "net_per_week": 20.19,
+     "total": 1979.93,
+     "max_drawdown": 5470.2,
+     "dd_pct_of_account": 133.4,
+     "stopped_out_pct": 34.5,
+     "avg_hold_hours": 6.9,
+     "win_rate_pct": 36.8,
+     "worst_block": -201.99,
+     "best_block": 1463.51,
+     "trades_per_week": 4.5
+    },
+    {
+     "stop": 400.0,
+     "blocks": 725,
+     "net_per_week": 86.52,
+     "total": 8486.63,
+     "max_drawdown": 5306.1,
+     "dd_pct_of_account": 129.4,
+     "stopped_out_pct": 16.4,
+     "avg_hold_hours": 9.4,
+     "win_rate_pct": 48.6,
+     "worst_block": -401.99,
+     "best_block": 1801.01,
+     "trades_per_week": 4.5
+    },
+    {
+     "stop": 800.0,
+     "blocks": 725,
+     "net_per_week": 76.4,
+     "total": 7493.4,
+     "max_drawdown": 7864.55,
+     "dd_pct_of_account": 191.8,
+     "stopped_out_pct": 3.0,
+     "avg_hold_hours": 10.7,
+     "win_rate_pct": 51.4,
+     "worst_block": -801.99,
+     "best_block": 1801.01,
+     "trades_per_week": 4.5
+    }
+   ]
+  }
+ }
+}
