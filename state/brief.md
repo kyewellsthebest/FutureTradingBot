@@ -1,33 +1,33 @@
-RESEARCH BRIEF  2026-08-20T00:10:09+00:00
-629,175 trials charged, 0 survivor(s)
+RESEARCH BRIEF  2026-08-20T00:29:28+00:00
+633,050 trials charged, 0 survivor(s)
 
 BINDING CONSTRAINT: EXPRESSIVENESS
-  921,173 of 2,068,105 attempts (45%) could not be evaluated at all. Most of what the searcher draws, it cannot ask.
+  949,994 of 2,097,614 attempts (45%) could not be evaluated at all. Most of what the searcher draws, it cannot ask.
   -> fix the generator or the tape columns before reading anything else here -- these results are a sample selected by what the code can express
 
 WHAT THE COVERAGE ACTUALLY BUYS
-  470,450 cells measured
-  240,794 could have seen an edge worth having
-  36,942 could not -- their silence means nothing
+  473,867 cells measured
+  243,614 could have seen an edge worth having
+  37,539 could not -- their silence means nothing
   smallest edge ever visible anywhere: 0.013 RT/trade
 
 NOT TESTED -- COULD NOT BE ASKED
-  day_of_month/vol: 36,626/62,288 (59%) unevaluable
-  day_of_month/n: 35,494/60,826 (58%) unevaluable
-  day_of_month/absret: 20,996/37,889 (55%) unevaluable
-  minute_of_day/absret: 224,988/411,432 (55%) unevaluable
-  minute_of_day/vol: 301,898/569,469 (53%) unevaluable
-  minute_of_day/n: 298,163/568,322 (52%) unevaluable
+  day_of_month/vol: 37,706/63,368 (60%) unevaluable
+  day_of_month/n: 36,536/61,868 (59%) unevaluable
+  day_of_month/absret: 21,606/38,499 (56%) unevaluable
+  minute_of_day/absret: 232,696/419,140 (56%) unevaluable
+  minute_of_day/vol: 311,092/578,663 (54%) unevaluable
+  minute_of_day/n: 307,274/577,433 (53%) unevaluable
 
 CANNOT BOTH BE TRUE
   map cell 4,2,0,1 (NQ@NQU4@15s): 4 cells -- worst: 15,245 trades but 508 independent (30x overlap)
       holds that span many bars make consecutive trades share most of their path; the raw count must never be read as evidence
 
 GENUINELY RULED OUT
-  shape/squeeze: 33,819 cells -- edges above 0.013 RT are excluded here
-  shape/inside: 35,919 cells -- edges above 0.014 RT are excluded here
-  shape/close_high: 40,820 cells -- edges above 0.016 RT are excluded here
-  shape/expansion: 37,502 cells -- edges above 0.020 RT are excluded here
+  shape/squeeze: 34,189 cells -- edges above 0.013 RT are excluded here
+  shape/inside: 36,295 cells -- edges above 0.014 RT are excluded here
+  shape/close_high: 41,268 cells -- edges above 0.016 RT are excluded here
+  shape/expansion: 37,899 cells -- edges above 0.020 RT are excluded here
   feature/d30: 876 cells -- edges above 0.023 RT are excluded here
   feature/d8: 6,368 cells -- edges above 0.026 RT are excluded here
   feature/d7: 8,641 cells -- edges above 0.026 RT are excluded here
@@ -43,14 +43,14 @@ QUESTIONS ANSWERED WHILE YOU WERE AWAY
 
 NEXT
   [1] make day_of_month/vol expressible, or drop it
-      because 36,626 of 62,288 attempts could not be asked, so this family is counted as explored and has not been
+      because 37,706 of 63,368 attempts could not be asked, so this family is counted as explored and has not been
   [1] make day_of_month/n expressible, or drop it
-      because 35,494 of 60,826 attempts could not be asked, so this family is counted as explored and has not been
+      because 36,536 of 61,868 attempts could not be asked, so this family is counted as explored and has not been
   [1] make day_of_month/absret expressible, or drop it
-      because 20,996 of 37,889 attempts could not be asked, so this family is counted as explored and has not been
+      because 21,606 of 38,499 attempts could not be asked, so this family is counted as explored and has not been
   [1] explain or fix: 4 cells -- worst: 15,245 trades but 508 independent (30x overlap) at map cell 4,2,0,1 (NQ@NQU4@15s)
       because holds that span many bars make consecutive trades share most of their path; the raw count must never be read as evidence
   [2] get finer data or more markets -- no hold on the current tapes can resolve a plausible edge
       because the best reachable size on this tape is 0.741 RT, against a plausible edge of 0.30 RT
   [4] stop re-testing shape/squeeze
-      because 33,819 cells there already exclude edges above 0.013 RT
+      because 34,189 cells there already exclude edges above 0.013 RT
