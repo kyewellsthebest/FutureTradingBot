@@ -1,36 +1,36 @@
 {
- "t": "2026-08-19T17:28:57+00:00",
- "cycle": 8,
+ "t": "2026-08-20T00:10:09+00:00",
+ "cycle": 1,
  "summary": {
-  "trials": 627224,
+  "trials": 629175,
   "current_bar_sigma": 5.97,
-  "distinct_tested": 597109,
+  "distinct_tested": 599038,
   "survivors": 0,
   "vault_used": 3,
   "families": [
    {
     "name": "shape/close_low",
-    "n": 38695,
+    "n": 38882,
     "best_z": 88.15
    },
    {
     "name": "shape/close_high",
-    "n": 44117,
+    "n": 44352,
     "best_z": 82.33
    },
    {
     "name": "shape/squeeze",
-    "n": 36992,
+    "n": 37167,
     "best_z": 11.25
    },
    {
     "name": "shape/inside",
-    "n": 39818,
+    "n": 39997,
     "best_z": 7.31
    },
    {
     "name": "shape/expansion",
-    "n": 42505,
+    "n": 42718,
     "best_z": 6.67
    },
    {
@@ -40,7 +40,7 @@
    },
    {
     "name": "shape/run_dn",
-    "n": 31963,
+    "n": 32109,
     "best_z": 6.4
    },
    {
@@ -50,7 +50,7 @@
    },
    {
     "name": "shape/run_up",
-    "n": 31647,
+    "n": 31789,
     "best_z": 5.01
    },
    {
@@ -60,7 +60,7 @@
    },
    {
     "name": "shape/outside",
-    "n": 37808,
+    "n": 37991,
     "best_z": 3.84
    },
    {
@@ -76,57 +76,57 @@
   "families": [
    {
     "family": "minute_of_day/vol",
-    "n": 566691,
+    "n": 569469,
     "cost_bound": 1005,
     "no_signal": 13021,
     "thin": 251789,
     "hold_x": 1.0,
-    "lesson": "299120/566691 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "301898/569469 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "minute_of_day/n",
-    "n": 565627,
+    "n": 568322,
     "cost_bound": 1355,
     "no_signal": 16161,
     "thin": 250150,
     "hold_x": 1.0,
-    "lesson": "295468/565627 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "298163/568322 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "minute_of_day/absret",
-    "n": 409412,
+    "n": 411432,
     "cost_bound": 622,
     "no_signal": 9150,
     "thin": 176266,
     "hold_x": 1.0,
-    "lesson": "222968/409412 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "224988/411432 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "day_of_month/vol",
-    "n": 61786,
+    "n": 62288,
     "cost_bound": 346,
     "no_signal": 3283,
     "thin": 21110,
     "hold_x": 1.0,
-    "lesson": "36124/61786 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "36626/62288 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "day_of_month/n",
-    "n": 60316,
+    "n": 60826,
     "cost_bound": 331,
     "no_signal": 3053,
     "thin": 21022,
     "hold_x": 1.0,
-    "lesson": "34984/60316 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "35494/60826 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "day_of_month/absret",
-    "n": 37625,
+    "n": 37889,
     "cost_bound": 326,
     "no_signal": 2909,
     "thin": 13329,
     "hold_x": 1.0,
-    "lesson": "20732/37625 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
+    "lesson": "20996/37889 could not be EVALUATED at all -- the feature, condition or shape does not exist on these tapes. This family has not been tested and its silence is about this searcher, not the market."
    },
    {
     "family": "shape/gap",
@@ -157,7 +157,7 @@
  },
  "insight": {
   "horizons": {
-   "feature/d952": {
+   "feature/d953": {
     "fits": true,
     "a": 0.006296,
     "b": 0.367,
@@ -169,7 +169,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 11.3 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d779": {
+   "feature/d780": {
     "fits": true,
     "a": 0.006133,
     "b": 0.371,
@@ -181,25 +181,19 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.37 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 10.7 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d331": {
-    "fits": false,
-    "b": 0.187,
-    "r2": 0.558,
-    "why": "the horizon trend is too noisy to extrapolate (fit quality 0.56, needs 0.70). There may be a relationship here but these measurements do not establish one."
-   },
-   "feature/d125": {
+   "feature/d86": {
     "fits": true,
-    "a": 0.004016,
-    "b": 0.503,
-    "r2": 0.853,
+    "a": 0.000718,
+    "b": 0.7,
+    "r2": 0.851,
     "cost": 1.0,
-    "h_star": 57719,
-    "extrapolation": 16.0,
+    "h_star": 30904,
+    "extrapolation": 8.6,
     "max_tested": 3600,
     "reachable": false,
-    "why": "gross edge grows as horizon^0.50 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 16.0 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+    "why": "gross edge grows as horizon^0.70 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 8.6 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d63": {
+   "feature/d64": {
     "fits": true,
     "a": 0.005694,
     "b": 0.276,
@@ -211,7 +205,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.28 (fit quality 0.81), measured in multiples of each market's own round-trip cost. It reaches break-even near 1532.3 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d832": {
+   "feature/d833": {
     "fits": true,
     "a": 0.022432,
     "b": 0.458,
@@ -223,7 +217,19 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.46 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 66 min."
    },
-   "feature/d572": {
+   "feature/d1095": {
+    "fits": true,
+    "a": 0.022254,
+    "b": 0.466,
+    "r2": 0.833,
+    "cost": 1.0,
+    "h_star": 3543,
+    "extrapolation": 1.0,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.47 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 59 min."
+   },
+   "feature/d573": {
     "fits": true,
     "a": 0.026641,
     "b": 0.436,
@@ -235,19 +241,19 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.44 (fit quality 0.84), measured in multiples of each market's own round-trip cost. It reaches break-even near 68 min."
    },
-   "feature/d790": {
+   "feature/d1252": {
     "fits": true,
-    "a": 0.013715,
-    "b": 0.515,
-    "r2": 0.833,
+    "a": 0.004603,
+    "b": 0.525,
+    "r2": 0.845,
     "cost": 1.0,
-    "h_star": 4142,
-    "extrapolation": 1.2,
+    "h_star": 28192,
+    "extrapolation": 7.8,
     "max_tested": 3600,
-    "reachable": true,
-    "why": "gross edge grows as horizon^0.51 (fit quality 0.83), measured in multiples of each market's own round-trip cost. It reaches break-even near 69 min."
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.53 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.8 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d676": {
+   "feature/d677": {
     "fits": true,
     "a": 0.004477,
     "b": 0.529,
@@ -259,7 +265,7 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.53 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 7.7 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d160": {
+   "feature/d161": {
     "fits": true,
     "a": 0.069717,
     "b": 0.396,
@@ -271,7 +277,7 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.40 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 14 min."
    },
-   "feature/d158": {
+   "feature/d159": {
     "fits": true,
     "a": 0.069717,
     "b": 0.396,
@@ -283,7 +289,7 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.40 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 14 min."
    },
-   "feature/d112": {
+   "feature/d113": {
     "fits": true,
     "a": 0.087139,
     "b": 0.374,
@@ -295,19 +301,7 @@
     "reachable": true,
     "why": "gross edge grows as horizon^0.37 (fit quality 0.82), measured in multiples of each market's own round-trip cost. It reaches break-even near 11 min."
    },
-   "feature/d130": {
-    "fits": true,
-    "a": 0.010929,
-    "b": 0.405,
-    "r2": 0.85,
-    "cost": 1.0,
-    "h_star": 69758,
-    "extrapolation": 19.4,
-    "max_tested": 3600,
-    "reachable": false,
-    "why": "gross edge grows as horizon^0.40 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 19.4 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
-   },
-   "feature/d218": {
+   "feature/d219": {
     "fits": true,
     "a": 0.021406,
     "b": 0.346,
@@ -319,37 +313,37 @@
     "reachable": false,
     "why": "gross edge grows as horizon^0.35 (fit quality 0.81), measured in multiples of each market's own round-trip cost. It reaches break-even near 18.8 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
    },
-   "feature/d746": {
+   "feature/d131": {
+    "fits": true,
+    "a": 0.010929,
+    "b": 0.405,
+    "r2": 0.85,
+    "cost": 1.0,
+    "h_star": 69758,
+    "extrapolation": 19.4,
+    "max_tested": 3600,
+    "reachable": false,
+    "why": "gross edge grows as horizon^0.40 (fit quality 0.85), measured in multiples of each market's own round-trip cost. It reaches break-even near 19.4 hours. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d747": {
     "fits": false,
     "b": 0.089,
     "r2": 0.479,
     "why": "the horizon trend is too noisy to extrapolate (fit quality 0.48, needs 0.70). There may be a relationship here but these measurements do not establish one."
    },
-   "feature/d819": {
-    "fits": false,
-    "b": -0.074,
-    "r2": 0.259,
-    "why": "gross edge does not grow with horizon (exponent -0.07). Holding longer is not the answer here -- whatever this family measures decays as fast as the move grows."
-   },
-   "feature/d1794": {
+   "feature/d1795": {
     "fits": false,
     "b": -0.046,
     "r2": 0.206,
     "why": "gross edge does not grow with horizon (exponent -0.05). Holding longer is not the answer here -- whatever this family measures decays as fast as the move grows."
    },
-   "feature/d223": {
-    "fits": true,
-    "a": 0.006109,
-    "b": 0.209,
-    "r2": 0.743,
-    "cost": 1.0,
-    "h_star": 39198333314,
-    "extrapolation": 10888425.9,
-    "max_tested": 3600,
-    "reachable": false,
-    "why": "gross edge grows as horizon^0.21 (fit quality 0.74), measured in multiples of each market's own round-trip cost. It reaches break-even near 453684.4 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   "feature/d820": {
+    "fits": false,
+    "b": -0.074,
+    "r2": 0.259,
+    "why": "gross edge does not grow with horizon (exponent -0.07). Holding longer is not the answer here -- whatever this family measures decays as fast as the move grows."
    },
-   "feature/d135": {
+   "feature/d136": {
     "fits": true,
     "a": 0.008084,
     "b": 0.174,
@@ -360,10 +354,58 @@
     "max_tested": 3600,
     "reachable": false,
     "why": "gross edge grows as horizon^0.17 (fit quality 0.81), measured in multiples of each market's own round-trip cost. It reaches break-even near 12505801.0 days. That is beyond the 4.0 hours this account can hold intraday, so it is a reason to close the family rather than a horizon to search."
+   },
+   "feature/d555": {
+    "fits": true,
+    "a": 0.003184,
+    "b": 1.026,
+    "r2": 0.901,
+    "cost": 1.0,
+    "h_star": 271,
+    "extrapolation": 0.1,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^1.03 (fit quality 0.90), measured in multiples of each market's own round-trip cost. It reaches break-even near 5 min."
+   },
+   "feature/d548": {
+    "fits": true,
+    "a": 0.0027,
+    "b": 1.048,
+    "r2": 0.901,
+    "cost": 1.0,
+    "h_star": 283,
+    "extrapolation": 0.1,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^1.05 (fit quality 0.90), measured in multiples of each market's own round-trip cost. It reaches break-even near 5 min."
+   },
+   "feature/d30": {
+    "fits": true,
+    "a": 0.032894,
+    "b": 0.83,
+    "r2": 0.981,
+    "cost": 1.0,
+    "h_star": 61,
+    "extrapolation": 0.0,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.83 (fit quality 0.98), measured in multiples of each market's own round-trip cost. It reaches break-even near 61s."
+   },
+   "feature/d105": {
+    "fits": true,
+    "a": 0.024612,
+    "b": 0.796,
+    "r2": 0.995,
+    "cost": 1.0,
+    "h_star": 105,
+    "extrapolation": 0.0,
+    "max_tested": 3600,
+    "reachable": true,
+    "why": "gross edge grows as horizon^0.80 (fit quality 0.99), measured in multiples of each market's own round-trip cost. It reaches break-even near 2 min."
    }
   },
   "replication": {
-   "feature/d952": {
+   "feature/d953": {
     "blocs": {
      "fx": {
       "markets": 16,
@@ -375,7 +417,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d779": {
+   "feature/d780": {
     "blocs": {
      "fx": {
       "markets": 16,
@@ -387,19 +429,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d331": {
-    "blocs": {
-     "energy": {
-      "markets": 16,
-      "weight": 4.75,
-      "positive_share": 0.5
-     }
-    },
-    "agree_positive": 0.0,
-    "agree_negative": 0.0,
-    "effective_n": 4.75
-   },
-   "feature/d125": {
+   "feature/d86": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -411,7 +441,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d63": {
+   "feature/d64": {
     "blocs": {
      "crypto": {
       "markets": 16,
@@ -423,7 +453,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d832": {
+   "feature/d833": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -435,7 +465,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d572": {
+   "feature/d1095": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -447,7 +477,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d790": {
+   "feature/d573": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -459,7 +489,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d676": {
+   "feature/d1252": {
     "blocs": {
      "energy": {
       "markets": 16,
@@ -471,7 +501,19 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d160": {
+   "feature/d677": {
+    "blocs": {
+     "energy": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d161": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -483,7 +525,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d158": {
+   "feature/d159": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -495,7 +537,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d112": {
+   "feature/d113": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -507,7 +549,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d130": {
+   "feature/d219": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -519,7 +561,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d218": {
+   "feature/d131": {
     "blocs": {
      "equity": {
       "markets": 16,
@@ -531,7 +573,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d746": {
+   "feature/d747": {
     "blocs": {
      "rates": {
       "markets": 16,
@@ -543,7 +585,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d819": {
+   "feature/d1795": {
     "blocs": {
      "rates": {
       "markets": 16,
@@ -555,7 +597,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d1794": {
+   "feature/d820": {
     "blocs": {
      "rates": {
       "markets": 16,
@@ -567,7 +609,7 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d223": {
+   "feature/d136": {
     "blocs": {
      "rates": {
       "markets": 16,
@@ -579,9 +621,45 @@
     "agree_negative": 0.0,
     "effective_n": 4.75
    },
-   "feature/d135": {
+   "feature/d555": {
     "blocs": {
-     "rates": {
+     "equity": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d548": {
+    "blocs": {
+     "equity": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d30": {
+    "blocs": {
+     "equity": {
+      "markets": 16,
+      "weight": 4.75,
+      "positive_share": 0.5
+     }
+    },
+    "agree_positive": 0.0,
+    "agree_negative": 0.0,
+    "effective_n": 4.75
+   },
+   "feature/d105": {
+    "blocs": {
+     "equity": {
       "markets": 16,
       "weight": 4.75,
       "positive_share": 0.5
