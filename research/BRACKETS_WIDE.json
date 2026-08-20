@@ -1,0 +1,42 @@
+{
+ "n_configs": 12672,
+ "bar_sigma": 5.15,
+ "meet_brief": [
+  {
+   "market": "NQ",
+   "atr_mult": 3.0,
+   "rr": 2.0,
+   "dir": "long",
+   "signal": "breakout288",
+   "trades": 279,
+   "trades_per_week": 2.04,
+   "win_rate": 45.52,
+   "baseline_win_rate": 34.52,
+   "edge_pp": 11.0,
+   "sigma": 3.86,
+   "net_total": 10769.0,
+   "net_per_week": 78.69,
+   "avg_target_$": 222.0,
+   "avg_stop_$": 111.0
+  },
+  {
+   "market": "NQ",
+   "atr_mult": 3.0,
+   "rr": 2.0,
+   "dir": "long",
+   "signal": "breakout576",
+   "trades": 211,
+   "trades_per_week": 1.54,
+   "win_rate": 46.45,
+   "baseline_win_rate": 34.52,
+   "edge_pp": 11.92,
+   "sigma": 3.64,
+   "net_total": 8147.0,
+   "net_per_week": 59.53,
+   "avg_target_$": 206.0,
+   "avg_stop_$": 103.0
+  }
+ ],
+ "survivors": [],
+ "all_count": 12672
+}
