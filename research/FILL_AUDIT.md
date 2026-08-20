@@ -1,8 +1,8 @@
 # Fill audit — broker's own records (Tradovate demo REST)
 
-Generated 2026-08-20 14:22:21Z. Trade-date-scoped: today's orders/fills only.
+Generated 2026-08-20 15:31:55Z. Trade-date-scoped: today's orders/fills only.
 
-## Orders today: 99
+## Orders today: 106
 
 | time (UTC) | contract | action | type | status | qty | text |
 |---|---|---|---|---|---|---|
@@ -105,6 +105,13 @@ Generated 2026-08-20 14:22:21Z. Trade-date-scoped: today's orders/fills only.
 | 2026-08-20 13:57:47 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 o13:55 R13:55:UnknownReason: Access is denie F- |
 | 2026-08-20 14:07:49 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o14:06 R14:06:UnknownReason: Access is denie F- |
 | 2026-08-20 14:17:51 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o- R- F- |
+| 2026-08-20 14:28:09 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 o14:27 R14:27:UnknownReason: Access is denie F- |
+| 2026-08-20 14:38:11 | MNQU6 | Buy | ? | Canceled | 1 | diag sf1 o14:27 R14:27:UnknownReason: Access is denie F- |
+| 2026-08-20 14:48:14 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 o14:46 R14:46:UnknownReason: Access is denie F- |
+| 2026-08-20 14:58:16 | MNQU6 | Buy | ? | Canceled | 1 | diag sf2 o- R- F- |
+| 2026-08-20 15:08:18 | MNQU6 | Buy | ? | Canceled | 1 | diag sf3 o14:59 R14:59:UnknownReason: Access is denie F- |
+| 2026-08-20 15:18:20 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o15:13 R15:13:UnknownReason: Access is denie F- |
+| 2026-08-20 15:28:22 | MNQU6 | Buy | ? | Canceled | 1 | diag sf4 o- R- F- |
 
 ## Fills today: 0
 
@@ -118,5 +125,5 @@ Generated 2026-08-20 14:22:21Z. Trade-date-scoped: today's orders/fills only.
 ## Verdict
 
 - last basket (ZB/ZN) fill: none today
-- pulse-symbol orders placed (MNQ/MES/MYM): 99
-- latest: 2026-08-20 14:17:51 MNQU6 Buy None -> Canceled
+- pulse-symbol orders placed (MNQ/MES/MYM): 106
+- latest: 2026-08-20 15:28:22 MNQU6 Buy None -> Canceled
