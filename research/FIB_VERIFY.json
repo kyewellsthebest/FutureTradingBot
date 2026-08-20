@@ -1,0 +1,28 @@
+[
+ {
+  "label": "REAL atr14",
+  "trades": 1133,
+  "per_week": 8.28,
+  "win_rate": 50.8,
+  "profit_factor": 1.45,
+  "per_trade": 17.88,
+  "net_per_week": 147.99,
+  "t": 4.33,
+  "max_drawdown": 2786.15,
+  "total": 20253.0,
+  "atr_win": 14
+ },
+ {
+  "label": "REAL atr144",
+  "trades": 1172,
+  "per_week": 8.56,
+  "win_rate": 50.4,
+  "profit_factor": 1.41,
+  "per_trade": 17.16,
+  "net_per_week": 146.93,
+  "t": 4.26,
+  "max_drawdown": 2538.72,
+  "total": 20108.0,
+  "atr_win": 144
+ }
+]
