@@ -37,3 +37,4 @@
 {"date": "2026-09-29", "as_of": "2026-09-29T01:14:54.587823+00:00", "regime": "UNKNOWN", "total_gex": null, "n_contracts": 0, "n_valid": 0, "spot": null, "source": null, "ok": false, "reason": "no-snapshot-file"}
 {"date": "2026-09-30", "as_of": "2026-09-30T00:46:09.305543+00:00", "regime": "UNKNOWN", "total_gex": null, "n_contracts": 0, "n_valid": 0, "spot": null, "source": null, "ok": false, "reason": "no-snapshot-file"}
 {"date": "2026-10-01", "as_of": "2026-10-01T00:49:42.167350+00:00", "regime": "UNKNOWN", "total_gex": null, "n_contracts": 0, "n_valid": 0, "spot": null, "source": null, "ok": false, "reason": "no-snapshot-file"}
+{"date": "2026-10-03", "as_of": "2026-10-03T00:44:03.960629+00:00", "regime": "UNKNOWN", "total_gex": null, "n_contracts": 0, "n_valid": 0, "spot": null, "source": null, "ok": false, "reason": "no-snapshot-file"}
